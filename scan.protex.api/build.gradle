@@ -1,4 +1,22 @@
 description = 'Common BOM Representation API'
 
 dependencies {
+	compile coreServices.guava
+    compile coreServices.jsr305
+    compile spring.jackson
+    compile group: 'com.github.jsonld-java', name: 'jsonld-java', version: '0.5.1'
+    compile group: 'io.reactivex', name: 'rxjava', version: '1.0.14'
+    
+    // TODO Clean up these dependencies
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    testCompile group: 'com.google.truth', name: 'truth', version: '0.26'
+    testCompile group: 'com.google.guava', name: 'guava-testlib', version: '15.0'
+    testCompile group: 'org.mockito', name: 'mockito-core', version: '1.10.19'
+}
+
+configurations.all {
+	resolutionStrategy {
+		// Truth would force us up to 18.0 which we aren't ready for yet
+		force group: 'com.google.guava', name: 'guava', version: '15.0'
+	}
 }
