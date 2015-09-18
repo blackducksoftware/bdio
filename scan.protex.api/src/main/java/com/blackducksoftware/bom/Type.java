@@ -24,4 +24,6 @@ public interface Type {
     @Override
     String toString();
 
+    // TODO With interface defaults, we should add `URI toUri()`
+
 }
