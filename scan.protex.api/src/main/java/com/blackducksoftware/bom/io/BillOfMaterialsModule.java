@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- *
+ * 
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -151,7 +151,8 @@ class BillOfMaterialsModule extends SimpleModule {
 
         protected void readTerm(JsonParser jp, ImmutableNode.Builder nodeBuilder) throws IOException {
             Term term = SimpleTerm.create(context.expandTerm(jp.getCurrentName()));
-            Object value = context.expandValue(term, jp.nextTextValue());
+            jp.nextValue();
+            Object value = context.expandValue(term, jp.getValueAsString());
             nodeBuilder.put(term, value);
         }
     }

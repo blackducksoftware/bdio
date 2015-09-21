@@ -65,7 +65,7 @@ public final class ImmutableNode implements Node, Serializable {
         }
 
         public Builder put(Term term, Object value) {
-            data.put(term, value);
+            data.put(term, checkNotNull(value, "value for '%s' is null", term));
             return this;
         }
 
