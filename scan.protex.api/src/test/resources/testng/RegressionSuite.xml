@@ -1,0 +1,13 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+<suite name="bom.aggregate" verbose="1">
+	<test name="bom.aggregate">
+  		<groups>
+    		<run>
+      			<exclude name="WIP_GROUP"/>
+    		</run>
+  		</groups>
+		<classes>
+			<class name="com.blackducksoftware.bom.ScanProtexApiTestFactory" />
+		</classes>
+	</test>
+</suite>
