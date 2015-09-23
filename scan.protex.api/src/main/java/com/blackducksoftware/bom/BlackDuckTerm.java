@@ -23,7 +23,9 @@ public enum BlackDuckTerm implements Term {
     MD5("http://blackducksoftware.com/rdf/terms#md5"),
     SHA1("http://blackducksoftware.com/rdf/terms#sha1"),
     SIZE("http://blackducksoftware.com/rdf/terms#size"),
-    CONTENT_TYPE("http://blackducksoftware.com/rdf/terms#contentType");
+    CONTENT_TYPE("http://blackducksoftware.com/rdf/terms#contentType"),
+    LEGACY_ID("http://blackducksoftware.com/rdf/terms#legacyId"),
+    KNOWLEDGE_BASE_ID("http://blackducksoftware.com/rdf/terms#knowledgeBaseId");
 
     private final String fullyQualifiedName;
 

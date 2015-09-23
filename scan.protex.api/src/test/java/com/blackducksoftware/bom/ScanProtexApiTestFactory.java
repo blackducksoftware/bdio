@@ -17,7 +17,7 @@ import org.testng.annotations.Test;
 import com.blackducksoftware.bom.io.BillOfMaterialsReaderTest;
 import com.blackducksoftware.bom.io.BillOfMaterialsWriterTest;
 import com.blackducksoftware.bom.io.LinkedDataContextTest;
-import com.blackducksoftware.bom.io.ModelAdaptorTest;
+import com.blackducksoftware.bom.model.AbstractModelTest;
 
 public class ScanProtexApiTestFactory {
     @Factory
@@ -30,7 +30,7 @@ public class ScanProtexApiTestFactory {
                 new BillOfMaterialsReaderTest(),
                 new BillOfMaterialsWriterTest(),
                 new LinkedDataContextTest(),
-                new ModelAdaptorTest(),
+                new AbstractModelTest(),
         };
     }
 }
