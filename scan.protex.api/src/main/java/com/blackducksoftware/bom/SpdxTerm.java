@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- *
+ * 
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -11,7 +11,7 @@
  */
 package com.blackducksoftware.bom;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import java.net.URI;
 
 /**
  * Term constants corresponding to the Software Package Data Exchange properties.
@@ -97,14 +97,19 @@ public enum SpdxTerm implements Term {
     VERIFICATION_CODE_EXCLUDED_FILE("http://spdx.org/rdf/terms#verificationCodeExcludedFile"),
     VERSION_INFO("http://spdx.org/rdf/terms#versionInfo");
 
-    private final String fullyQualifiedName;
+    private final URI uri;
 
     private SpdxTerm(String fullyQualifiedName) {
-        this.fullyQualifiedName = checkNotNull(fullyQualifiedName);
+        uri = URI.create(fullyQualifiedName);
     }
 
     @Override
     public String toString() {
-        return fullyQualifiedName;
+        return uri.toString();
+    }
+
+    @Override
+    public URI toUri() {
+        return uri;
     }
 }

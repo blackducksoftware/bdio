@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- *
+ * 
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -13,6 +13,8 @@ package com.blackducksoftware.bom.model;
 
 import static com.google.common.base.CaseFormat.LOWER_CAMEL;
 import static com.google.common.base.CaseFormat.UPPER_UNDERSCORE;
+
+import java.net.URI;
 
 import javax.annotation.Nullable;
 
@@ -32,6 +34,11 @@ public class TestModel extends AbstractModel {
         public String toString() {
             return "http://example.com/terms#Test";
         }
+
+        @Override
+        public URI toUri() {
+            return URI.create(toString());
+        }
     }
 
     public enum TestTerm implements Term {
@@ -43,6 +50,11 @@ public class TestModel extends AbstractModel {
         @Override
         public String toString() {
             return "http://example.com/terms#" + UPPER_UNDERSCORE.to(LOWER_CAMEL, name());
+        }
+
+        @Override
+        public URI toUri() {
+            return URI.create(toString());
         }
     }
 

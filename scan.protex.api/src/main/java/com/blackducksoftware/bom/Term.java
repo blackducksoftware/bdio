@@ -11,6 +11,8 @@
  */
 package com.blackducksoftware.bom;
 
+import java.net.URI;
+
 /**
  * A representation of a term use to express the name of a property in a node.
  *
@@ -24,6 +26,9 @@ public interface Term {
     @Override
     String toString();
 
-    // TODO With interface defaults, we should add `URI toUri()`
+    /**
+     * Returns this term as URI.
+     */
+    URI toUri();
 
 }

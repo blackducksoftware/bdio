@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- * 
+ *
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -11,7 +11,7 @@
  */
 package com.blackducksoftware.bom;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import java.net.URI;
 
 /**
  * Term constants corresponding to Bill of Materials properties.
@@ -27,14 +27,19 @@ public enum BlackDuckTerm implements Term {
     LEGACY_ID("http://blackducksoftware.com/rdf/terms#legacyId"),
     KNOWLEDGE_BASE_ID("http://blackducksoftware.com/rdf/terms#knowledgeBaseId");
 
-    private final String fullyQualifiedName;
+    private final URI uri;
 
     private BlackDuckTerm(String fullyQualifiedName) {
-        this.fullyQualifiedName = checkNotNull(fullyQualifiedName);
+        uri = URI.create(fullyQualifiedName);
     }
 
     @Override
     public String toString() {
-        return fullyQualifiedName;
+        return uri.toString();
+    }
+
+    @Override
+    public URI toUri() {
+        return uri;
     }
 }

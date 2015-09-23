@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- *
+ * 
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -12,6 +12,8 @@
 package com.blackducksoftware.bom.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
+
+import java.net.URI;
 
 import com.blackducksoftware.bom.Term;
 
@@ -64,5 +66,10 @@ public enum JsonLdTerm implements Term {
     @Override
     public String toString() {
         return keyword;
+    }
+
+    @Override
+    public URI toUri() {
+        throw new UnsupportedOperationException();
     }
 }

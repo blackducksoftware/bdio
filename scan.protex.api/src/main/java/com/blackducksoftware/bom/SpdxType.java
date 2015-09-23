@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- *
+ * 
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -11,7 +11,7 @@
  */
 package com.blackducksoftware.bom;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import java.net.URI;
 
 /**
  * Type constants corresponding to the Software Package Data Exchange classes.
@@ -45,14 +45,19 @@ public enum SpdxType implements Type {
     SPDX_ITEM("http://spdx.org/rdf/terms#SpdxItem"),
     WITH_EXCEPTION_OPERATOR("http://spdx.org/rdf/terms#WithExceptionOperator");
 
-    private final String fullyQualifiedName;
+    private final URI uri;
 
     private SpdxType(String fullyQualifiedName) {
-        this.fullyQualifiedName = checkNotNull(fullyQualifiedName);
+        uri = URI.create(fullyQualifiedName);
     }
 
     @Override
     public String toString() {
-        return fullyQualifiedName;
+        return uri.toString();
+    }
+
+    @Override
+    public URI toUri() {
+        return uri;
     }
 }

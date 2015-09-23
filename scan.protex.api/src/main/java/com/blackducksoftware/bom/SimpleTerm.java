@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- *
+ * 
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -75,25 +75,24 @@ public class SimpleTerm implements Term, Serializable {
         }
     }
 
-    private final String fullyQualifiedName;
+    private final URI uri;
 
     private SimpleTerm(String fullyQualifiedName) {
         // Verify that the supplied term is a valid non-empty IRI (URI)
         checkArgument(!fullyQualifiedName.isEmpty());
         checkArgument(fullyQualifiedName.charAt(0) != '@', "unexpected keyword: %s", fullyQualifiedName.substring(1));
-        URI.create(fullyQualifiedName);
-        this.fullyQualifiedName = fullyQualifiedName;
+        uri = URI.create(fullyQualifiedName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(fullyQualifiedName);
+        return Objects.hash(uri);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof SimpleTerm) {
-            return fullyQualifiedName.equals(((SimpleTerm) obj).fullyQualifiedName);
+            return uri.equals(((SimpleTerm) obj).uri);
         } else {
             return false;
         }
@@ -101,6 +100,11 @@ public class SimpleTerm implements Term, Serializable {
 
     @Override
     public String toString() {
-        return fullyQualifiedName;
+        return uri.toString();
+    }
+
+    @Override
+    public URI toUri() {
+        return uri;
     }
 }

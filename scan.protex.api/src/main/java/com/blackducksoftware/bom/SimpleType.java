@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- * 
+ *
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -72,24 +72,23 @@ public class SimpleType implements Type, Serializable {
         }
     }
 
-    private final String fullyQualifiedName;
+    private final URI uri;
 
     private SimpleType(String fullyQualifiedName) {
         // Verify that the supplied type is a valid non-empty IRI (URI)
         checkArgument(!fullyQualifiedName.isEmpty());
-        URI.create(fullyQualifiedName);
-        this.fullyQualifiedName = fullyQualifiedName;
+        uri = URI.create(fullyQualifiedName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(fullyQualifiedName);
+        return Objects.hash(uri);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof SimpleType) {
-            return fullyQualifiedName.equals(((SimpleType) obj).fullyQualifiedName);
+            return uri.equals(((SimpleType) obj).uri);
         } else {
             return false;
         }
@@ -97,6 +96,11 @@ public class SimpleType implements Type, Serializable {
 
     @Override
     public String toString() {
-        return fullyQualifiedName;
+        return uri.toString();
+    }
+
+    @Override
+    public URI toUri() {
+        return uri;
     }
 }

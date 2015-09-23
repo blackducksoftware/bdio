@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- * 
+ *
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -10,6 +10,8 @@
  * with Black Duck Software.
  */
 package com.blackducksoftware.bom;
+
+import java.net.URI;
 
 /**
  * A representation of a type used to classify a node.
@@ -24,6 +26,9 @@ public interface Type {
     @Override
     String toString();
 
-    // TODO With interface defaults, we should add `URI toUri()`
+    /**
+     * Returns this term as URI.
+     */
+    URI toUri();
 
 }
