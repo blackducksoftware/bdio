@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- * 
+ *
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -25,7 +25,7 @@ import com.google.common.hash.HashCode;
 /**
  * A model used for testing. Follows the same pattern as the real models.
  */
-public class TestModel extends AbstractModel {
+public class TestModel extends AbstractModel<TestModel> {
 
     public enum TestType implements Type {
         TEST;
@@ -61,54 +61,66 @@ public class TestModel extends AbstractModel {
     @Nullable
     private String name;
 
+    private static final ModelField<TestModel> NAME = new ModelField<TestModel>(TestTerm.NAME) {
+        @Override
+        protected Object get(TestModel testModel) {
+            return testModel.getName();
+        }
+
+        @Override
+        protected void set(TestModel testModel, Object value) {
+            testModel.setName(valueToString(value));
+        }
+    };
+
     @Nullable
     private Long count;
+
+    private static final ModelField<TestModel> COUNT = new ModelField<TestModel>(TestTerm.COUNT) {
+        @Override
+        protected Object get(TestModel testModel) {
+            return testModel.getCount();
+        }
+
+        @Override
+        protected void set(TestModel testModel, Object value) {
+            testModel.setCount(valueToLong(value));
+        }
+    };
 
     @Nullable
     private Boolean flag;
 
+    private static final ModelField<TestModel> FLAG = new ModelField<TestModel>(TestTerm.FLAG) {
+        @Override
+        protected Object get(TestModel testModel) {
+            return testModel.getFlag();
+        }
+
+        @Override
+        protected void set(TestModel testModel, Object value) {
+            testModel.setFlag(valueToBoolean(value));
+        }
+    };
+
     @Nullable
     private HashCode hashCode;
 
+    private static final ModelField<TestModel> HASH_CODE = new ModelField<TestModel>(TestTerm.HASH_CODE) {
+        @Override
+        protected Object get(TestModel testModel) {
+            return testModel.getHashCode();
+        }
+
+        @Override
+        protected void set(TestModel testModel, Object value) {
+            testModel.setHashCode(HashCode.fromString(valueToString(value)));
+        }
+    };
+
     public TestModel() {
         super(TestType.TEST,
-                TestTerm.NAME,
-                TestTerm.COUNT,
-                TestTerm.FLAG,
-                TestTerm.HASH_CODE);
-    }
-
-    @Override
-    protected Object lookup(Term term) {
-        if (term.equals(TestTerm.NAME)) {
-            return getName();
-        } else if (term.equals(TestTerm.COUNT)) {
-            return getCount();
-        } else if (term.equals(TestTerm.FLAG)) {
-            return getFlag();
-        } else if (term.equals(TestTerm.HASH_CODE)) {
-            return getHashCode();
-        }
-        return null;
-    }
-
-    @Override
-    protected Object store(Term term, Object value) {
-        Object original = null;
-        if (term.equals(TestTerm.NAME)) {
-            original = getName();
-            setName(valueToString(value));
-        } else if (term.equals(TestTerm.COUNT)) {
-            original = getCount();
-            setCount(valueToLong(value));
-        } else if (term.equals(TestTerm.FLAG)) {
-            original = getFlag();
-            setFlag(valueToBoolean(value));
-        } else if (term.equals(TestTerm.HASH_CODE)) {
-            original = getHashCode();
-            setHashCode(HashCode.fromString(valueToString(value)));
-        }
-        return original;
+                NAME, COUNT, FLAG, HASH_CODE);
     }
 
     @Nullable

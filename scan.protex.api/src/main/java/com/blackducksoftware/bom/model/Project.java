@@ -15,40 +15,35 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.DoapTerm;
-import com.blackducksoftware.bom.Term;
 
 /**
  * A project in a Bill of Materials.
  *
  * @author jgustie
  */
-public class Project extends AbstractModel {
+public class Project extends AbstractModel<Project> {
 
+    /**
+     * The name of this project.
+     */
     @Nullable
     private String name;
 
+    private static final ModelField<Project> NAME = new ModelField<Project>(DoapTerm.NAME) {
+        @Override
+        protected Object get(Project project) {
+            return project.getName();
+        }
+
+        @Override
+        protected void set(Project project, Object value) {
+            project.setName(valueToString(value));
+        }
+    };
+
     public Project() {
         super(BlackDuckType.PROJECT,
-                DoapTerm.NAME);
-    }
-
-    @Override
-    protected Object lookup(Term term) {
-        if (term.equals(DoapTerm.NAME)) {
-            return getName();
-        } else {
-            return null;
-        }
-    }
-
-    @Override
-    protected Object store(Term term, Object value) {
-        Object original = null;
-        if (term.equals(DoapTerm.NAME)) {
-            original = getName();
-            setName(valueToString(value));
-        }
-        return original;
+                NAME);
     }
 
     @Nullable

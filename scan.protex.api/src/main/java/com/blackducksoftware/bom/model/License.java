@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- * 
+ *
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -11,64 +11,78 @@
  */
 package com.blackducksoftware.bom.model;
 
+import java.util.UUID;
+
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.SpdxTerm;
-import com.blackducksoftware.bom.Term;
-import com.blackducksoftware.bom.Type;
 
 /**
  * A license in a Bill of Materials.
  *
  * @author jgustie
  */
-public class License extends AbstractModel {
+public class License extends AbstractModel<License> {
 
+    /**
+     * The name of the license.
+     */
     @Nullable
     private String name;
 
+    private static final ModelField<License> NAME = new ModelField<License>(SpdxTerm.NAME) {
+        @Override
+        protected Object get(License license) {
+            return license.getName();
+        }
+
+        @Override
+        protected void set(License license, Object value) {
+            license.setName(valueToString(value));
+        }
+    };
+
+    /**
+     * The identifier of the license in the Black Duck Suite.
+     */
     @Nullable
     private String legacyId;
 
+    private static final ModelField<License> LEGACY_ID = new ModelField<License>(BlackDuckTerm.LEGACY_ID) {
+        @Override
+        protected Object get(License license) {
+            return license.getLegacyId();
+        }
+
+        @Override
+        protected void set(License license, Object value) {
+            license.setLegacyId(valueToString(value));
+        }
+    };
+
+    /**
+     * The identifier of the license in the Black Duck Knowledge Base.
+     */
     @Nullable
-    private String knowledgeBaseId;
+    private UUID knowledgeBaseId;
 
-    public License(Type type, Term... terms) {
+    private static final ModelField<License> KNOWLEDGE_BASE_ID = new ModelField<License>(BlackDuckTerm.KNOWLEDGE_BASE_ID) {
+        @Override
+        protected Object get(License license) {
+            return license.getKnowledgeBaseId();
+        }
+
+        @Override
+        protected void set(License license, Object value) {
+            license.setKnowledgeBaseId(UUID.fromString(valueToString(value)));
+        }
+    };
+
+    public License() {
         super(BlackDuckType.LICENSE,
-                SpdxTerm.NAME,
-                BlackDuckTerm.LEGACY_ID,
-                BlackDuckTerm.KNOWLEDGE_BASE_ID);
-    }
-
-    @Override
-    protected Object lookup(Term term) {
-        if (term.equals(SpdxTerm.NAME)) {
-            return getName();
-        } else if (term.equals(BlackDuckTerm.LEGACY_ID)) {
-            return getLegacyId();
-        } else if (term.equals(BlackDuckTerm.KNOWLEDGE_BASE_ID)) {
-            return getKnowledgeBaseId();
-        } else {
-            return null;
-        }
-    }
-
-    @Override
-    protected Object store(Term term, Object value) {
-        Object original = null;
-        if (term.equals(SpdxTerm.NAME)) {
-            original = getName();
-            setName(valueToString(value));
-        } else if (term.equals(BlackDuckTerm.LEGACY_ID)) {
-            original = getLegacyId();
-            setLegacyId(valueToString(value));
-        } else if (term.equals(BlackDuckTerm.KNOWLEDGE_BASE_ID)) {
-            original = getKnowledgeBaseId();
-            setKnowledgeBaseId(valueToString(value));
-        }
-        return original;
+                NAME, LEGACY_ID, KNOWLEDGE_BASE_ID);
     }
 
     @Nullable
@@ -90,11 +104,11 @@ public class License extends AbstractModel {
     }
 
     @Nullable
-    public String getKnowledgeBaseId() {
+    public UUID getKnowledgeBaseId() {
         return knowledgeBaseId;
     }
 
-    public void setKnowledgeBaseId(@Nullable String knowledgeBaseId) {
+    public void setKnowledgeBaseId(@Nullable UUID knowledgeBaseId) {
         this.knowledgeBaseId = knowledgeBaseId;
     }
 

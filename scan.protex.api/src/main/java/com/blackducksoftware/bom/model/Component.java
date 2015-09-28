@@ -11,81 +11,144 @@
  */
 package com.blackducksoftware.bom.model;
 
+import java.util.UUID;
+
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.DoapTerm;
-import com.blackducksoftware.bom.Term;
 
 /**
  * A component in a Bill of Materials.
  *
  * @author jgustie
  */
-public class Component extends AbstractModel {
+public class Component extends AbstractModel<Component> {
 
     @Nullable
     private String name;
 
+    private static final ModelField<Component> NAME = new ModelField<Component>(DoapTerm.NAME) {
+        @Override
+        protected Object get(Component component) {
+            return component.getName();
+        }
+
+        @Override
+        protected void set(Component component, Object value) {
+            component.setName(valueToString(value));
+        }
+    };
+
+    @Nullable
+    private String version;
+
+    private static final ModelField<Component> VERSION = new ModelField<Component>(DoapTerm.REVISION) {
+        @Override
+        protected Object get(Component component) {
+            return component.getVersion();
+        }
+
+        @Override
+        protected void set(Component component, Object value) {
+            component.setVersion(valueToString(value));
+        }
+    };
+
     @Nullable
     private String homepage;
+
+    private static final ModelField<Component> HOMEPAGE = new ModelField<Component>(DoapTerm.HOMEPAGE) {
+        @Override
+        protected Object get(Component component) {
+            return component.getHomepage();
+        }
+
+        @Override
+        protected void set(Component component, Object value) {
+            component.setHomepage(valueToString(value));
+        }
+    };
 
     @Nullable
     private String license;
 
+    private static final ModelField<Component> LICENSE = new ModelField<Component>(DoapTerm.LICENSE) {
+        @Override
+        protected Object get(Component component) {
+            return component.getLicense();
+        }
+
+        @Override
+        protected void set(Component component, Object value) {
+            component.setLicense(valueToString(value));
+        }
+    };
+
     @Nullable
     private String legacyId;
 
+    private static final ModelField<Component> LEGACY_ID = new ModelField<Component>(BlackDuckTerm.LEGACY_ID) {
+        @Override
+        protected Object get(Component component) {
+            return component.getLegacyId();
+        }
+
+        @Override
+        protected void set(Component component, Object value) {
+            component.setLegacyId(valueToString(value));
+        }
+    };
+
     @Nullable
-    private String knowledgeBaseId;
+    private String legacyVersionId;
+
+    private static final ModelField<Component> LEGACY_VERSION_ID = new ModelField<Component>(BlackDuckTerm.LEGACY_VERSION_ID) {
+        @Override
+        protected Object get(Component component) {
+            return component.getLegacyVersionId();
+        }
+
+        @Override
+        protected void set(Component component, Object value) {
+            component.setLegacyVersionId(valueToString(value));
+        }
+    };
+
+    @Nullable
+    private UUID knowledgeBaseId;
+
+    private static final ModelField<Component> KNOWLEDGE_BASE_ID = new ModelField<Component>(BlackDuckTerm.KNOWLEDGE_BASE_ID) {
+        @Override
+        protected Object get(Component component) {
+            return component.getKnowledgeBaseId();
+        }
+
+        @Override
+        protected void set(Component component, Object value) {
+            component.setKnowledgeBaseId(UUID.fromString(valueToString(value)));
+        }
+    };
+
+    @Nullable
+    private UUID knowledgeBaseVersionId;
+
+    private static final ModelField<Component> KNOWLEDGE_BASE_VERSION_ID = new ModelField<Component>(BlackDuckTerm.KNOWLEDGE_BASE_VERSION_ID) {
+        @Override
+        protected Object get(Component component) {
+            return component.getKnowledgeBaseVersionId();
+        }
+
+        @Override
+        protected void set(Component component, Object value) {
+            component.setKnowledgeBaseVersionId(UUID.fromString(valueToString(value)));
+        }
+    };
 
     public Component() {
         super(BlackDuckType.COMPONENT,
-                DoapTerm.NAME,
-                DoapTerm.HOMEPAGE,
-                DoapTerm.LICENSE,
-                BlackDuckTerm.LEGACY_ID,
-                BlackDuckTerm.KNOWLEDGE_BASE_ID);
-    }
-
-    @Override
-    protected Object lookup(Term term) {
-        if (term.equals(DoapTerm.NAME)) {
-            return getName();
-        } else if (term.equals(DoapTerm.HOMEPAGE)) {
-            return getHomepage();
-        } else if (term.equals(DoapTerm.LICENSE)) {
-            return getLicense();
-        } else if (term.equals(BlackDuckTerm.LEGACY_ID)) {
-            return getLegacyId();
-        } else if (term.equals(BlackDuckTerm.KNOWLEDGE_BASE_ID)) {
-            return getKnowledgeBaseId();
-        } else {
-            return null;
-        }
-    }
-
-    @Override
-    protected Object store(Term term, Object value) {
-        Object original = null;
-        if (term.equals(DoapTerm.NAME)) {
-            original = getName();
-            setName(valueToString(value));
-        } else if (term.equals(DoapTerm.HOMEPAGE)) {
-            original = getHomepage();
-            setHomepage(valueToString(value));
-        } else if (term.equals(DoapTerm.LICENSE)) {
-            original = getLicense();
-            setLicense(valueToString(value));
-        } else if (term.equals(BlackDuckTerm.LEGACY_ID)) {
-            original = getLegacyId();
-            setLegacyId(valueToString(value));
-        } else if (term.equals(BlackDuckTerm.KNOWLEDGE_BASE_ID)) {
-            original = getKnowledgeBaseId();
-            setKnowledgeBaseId(valueToString(value));
-        }
-        return original;
+                NAME, VERSION, HOMEPAGE, LICENSE, LEGACY_ID, LEGACY_VERSION_ID, KNOWLEDGE_BASE_ID, KNOWLEDGE_BASE_VERSION_ID);
     }
 
     @Nullable
@@ -95,6 +158,15 @@ public class Component extends AbstractModel {
 
     public void setName(@Nullable String name) {
         this.name = name;
+    }
+
+    @Nullable
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(@Nullable String version) {
+        this.version = version;
     }
 
     @Nullable
@@ -125,12 +197,30 @@ public class Component extends AbstractModel {
     }
 
     @Nullable
-    public String getKnowledgeBaseId() {
+    public String getLegacyVersionId() {
+        return legacyVersionId;
+    }
+
+    public void setLegacyVersionId(@Nullable String legacyVersionId) {
+        this.legacyVersionId = legacyVersionId;
+    }
+
+    @Nullable
+    public UUID getKnowledgeBaseId() {
         return knowledgeBaseId;
     }
 
-    public void setKnowledgeBaseId(@Nullable String knowledgeBaseId) {
+    public void setKnowledgeBaseId(@Nullable UUID knowledgeBaseId) {
         this.knowledgeBaseId = knowledgeBaseId;
+    }
+
+    @Nullable
+    public UUID getKnowledgeBaseVersionId() {
+        return knowledgeBaseVersionId;
+    }
+
+    public void setKnowledgeBaseVersionId(@Nullable UUID knowledgeBaseVersionId) {
+        this.knowledgeBaseVersionId = knowledgeBaseVersionId;
     }
 
 }

@@ -16,7 +16,6 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.SpdxTerm;
-import com.blackducksoftware.bom.Term;
 import com.google.common.hash.HashCode;
 import com.google.common.net.MediaType;
 
@@ -25,85 +24,137 @@ import com.google.common.net.MediaType;
  *
  * @author jgustie
  */
-public class File extends AbstractModel {
+public class File extends AbstractModel<File> {
 
+    /**
+     * The path of the file. Should always start with "./" relative to some base path.
+     */
     @Nullable
     private String path;
 
+    private static final ModelField<File> PATH = new ModelField<File>(SpdxTerm.FILE_NAME) {
+        @Override
+        protected Object get(File file) {
+            return file.getPath();
+        }
+
+        @Override
+        protected void set(File file, Object value) {
+            file.setPath(valueToString(value));
+        }
+    };
+
+    /**
+     * The media type of the file. Should only be absent for directories.
+     */
     @Nullable
     private MediaType type;
 
+    private static final ModelField<File> TYPE = new ModelField<File>(BlackDuckTerm.CONTENT_TYPE) {
+        @Override
+        protected Object get(File file) {
+            return file.getType();
+        }
+
+        @Override
+        protected void set(File file, Object value) {
+            file.setType(MediaType.parse(valueToString(value)));
+        }
+    };
+
+    /**
+     * The size of this file in bytes.
+     */
     @Nullable
     private Long size;
 
+    private static final ModelField<File> SIZE = new ModelField<File>(BlackDuckTerm.SIZE) {
+        @Override
+        protected Object get(File file) {
+            return file.getSize();
+        }
+
+        @Override
+        protected void set(File file, Object value) {
+            file.setSize(valueToLong(value));
+        }
+    };
+
+    /**
+     * The SHA-1 hash of this file's contents.
+     */
     @Nullable
     private HashCode sha1;
 
+    private static final ModelField<File> SHA1 = new ModelField<File>(BlackDuckTerm.SHA1) {
+        @Override
+        protected Object get(File file) {
+            return file.getSha1();
+        }
+
+        @Override
+        protected void set(File file, Object value) {
+            file.setSha1(HashCode.fromString(valueToString(value)));
+        }
+    };
+
+    /**
+     * The MD5 hash of this file's contents.
+     */
     @Nullable
     private HashCode md5;
 
+    private static final ModelField<File> MD5 = new ModelField<File>(BlackDuckTerm.MD5) {
+        @Override
+        protected Object get(File file) {
+            return file.getMd5();
+        }
+
+        @Override
+        protected void set(File file, Object value) {
+            file.setMd5(HashCode.fromString(valueToString(value)));
+        }
+    };
+
+    /**
+     * The component this file belongs to.
+     */
     @Nullable
     private String component;
 
+    private static final ModelField<File> COMPONENT = new ModelField<File>(SpdxTerm.ARTIFACT_OF) {
+        @Override
+        protected Object get(File file) {
+            return file.getComponent();
+        }
+
+        @Override
+        protected void set(File file, Object value) {
+            file.setComponent(valueToString(value));
+        }
+    };
+
+    /**
+     * The concluded license of this file. May be the same or different from the component license.
+     */
     @Nullable
     private String license;
 
+    private static final ModelField<File> LICENSE = new ModelField<File>(SpdxTerm.LICENSE_CONCLUDED) {
+        @Override
+        protected Object get(File file) {
+            return file.getLicense();
+        }
+
+        @Override
+        protected void set(File file, Object value) {
+            file.setLicense(valueToString(value));
+        }
+    };
+
     public File() {
         super(BlackDuckType.FILE,
-                SpdxTerm.FILE_NAME,
-                BlackDuckTerm.CONTENT_TYPE,
-                BlackDuckTerm.SIZE,
-                BlackDuckTerm.SHA1,
-                BlackDuckTerm.MD5);
-    }
-
-    @Override
-    protected Object lookup(Term term) {
-        if (term.equals(SpdxTerm.FILE_NAME)) {
-            return getPath();
-        } else if (term.equals(BlackDuckTerm.CONTENT_TYPE)) {
-            return getType();
-        } else if (term.equals(BlackDuckTerm.SIZE)) {
-            return getSize();
-        } else if (term.equals(BlackDuckTerm.SHA1)) {
-            return getSha1();
-        } else if (term.equals(BlackDuckTerm.MD5)) {
-            return getMd5();
-        } else if (term.equals(SpdxTerm.ARTIFACT_OF)) {
-            return getComponent();
-        } else if (term.equals(SpdxTerm.LICENSE_CONCLUDED)) {
-            return getLicense();
-        } else {
-            return null;
-        }
-    }
-
-    @Override
-    protected Object store(Term term, Object value) {
-        Object original = null;
-        if (term.equals(SpdxTerm.FILE_NAME)) {
-            original = getPath();
-            setPath(valueToString(value));
-        } else if (term.equals(BlackDuckTerm.CONTENT_TYPE)) {
-            original = getType();
-            setType(MediaType.parse(valueToString(value)));
-        } else if (term.equals(BlackDuckTerm.SIZE)) {
-            original = getSize();
-            setSize(valueToLong(value));
-        } else if (term.equals(BlackDuckTerm.SHA1)) {
-            original = getSha1();
-            setSha1(HashCode.fromString(valueToString(value)));
-        } else if (term.equals(BlackDuckTerm.MD5)) {
-            original = getMd5();
-            setMd5(HashCode.fromString(valueToString(value)));
-        } else if (term.equals(SpdxTerm.ARTIFACT_OF)) {
-            original = getComponent();
-            setComponent(valueToString(value));
-        } else if (term.equals(SpdxTerm.LICENSE_CONCLUDED)) {
-            original = getLicense();
-            setLicense(valueToString(value));
-        }
-        return original;
+                PATH, TYPE, SIZE, SHA1, MD5, COMPONENT, LICENSE);
     }
 
     @Nullable

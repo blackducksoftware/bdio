@@ -25,7 +25,9 @@ public enum BlackDuckTerm implements Term {
     SIZE("http://blackducksoftware.com/rdf/terms#size"),
     CONTENT_TYPE("http://blackducksoftware.com/rdf/terms#contentType"),
     LEGACY_ID("http://blackducksoftware.com/rdf/terms#legacyId"),
-    KNOWLEDGE_BASE_ID("http://blackducksoftware.com/rdf/terms#knowledgeBaseId");
+    LEGACY_VERSION_ID("http://blackducksoftware.com/rdf/terms#legacyVersionId"),
+    KNOWLEDGE_BASE_ID("http://blackducksoftware.com/rdf/terms#knowledgeBaseId"),
+    KNOWLEDGE_BASE_VERSION_ID("http://blackducksoftware.com/rdf/terms#knowledgeBaseVersionId");
 
     private final URI uri;
 

@@ -1,6 +1,6 @@
 <!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
-<suite name="bom.aggregate" verbose="1">
-	<test name="bom.aggregate">
+<suite name="scan.protex.api" verbose="1">
+	<test name="scan.protex.api">
   		<groups>
     		<run>
       			<exclude name="WIP_GROUP"/>

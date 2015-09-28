@@ -12,8 +12,10 @@
 package com.blackducksoftware.bom.model;
 
 import static com.google.common.base.Objects.toStringHelper;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.AbstractMap;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -23,6 +25,7 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bom.Node;
 import com.blackducksoftware.bom.Term;
 import com.blackducksoftware.bom.Type;
+import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableSet;
@@ -33,51 +36,121 @@ import com.google.common.collect.Maps;
  *
  * @author jgustie
  */
-public abstract class AbstractModel implements Node {
+public abstract class AbstractModel<M extends AbstractModel<M>> implements Node {
+
+    /**
+     * Abstraction over manipulating a bean field from a {@code Map}. Primarily exists so we don't need to use
+     * reflection which can be error prone in these mapping/conversion scenarios.
+     */
+    protected static abstract class ModelField<M extends AbstractModel<M>> {
+
+        /**
+         * The term the field maps to.
+         */
+        private final Term term;
+
+        protected ModelField(Term term) {
+            this.term = checkNotNull(term);
+        }
+
+        /**
+         * Returns the current value of this field from the model.
+         * <p>
+         * The default implementation returns {@code null}.
+         */
+        @Nullable
+        protected Object get(M model) {
+            checkNotNull(model);
+            return null;
+        }
+
+        /**
+         * Sets the new value of this field on the model. May perform validation or conversion as necessary.
+         * <p>
+         * The default implementation throws an unsupported operation exception.
+         */
+        protected void set(M model, @Nullable Object value) {
+            checkNotNull(model);
+            throw new UnsupportedOperationException();
+        }
+
+        /**
+         * Removes this field from the model.
+         * <p>
+         * The default implementation sets the value to {@code null}.
+         */
+        protected void remove(M model) {
+            set(checkNotNull(model), null);
+        }
+    }
 
     /**
      * A live map backed by the enclosing model.
      */
-    private final class ModelMap extends AbstractMap<Term, Object> {
-        private final Set<Term> terms;
+    private static final class ModelMap<M extends AbstractModel<M>> extends AbstractMap<Term, Object> {
+        private final M model;
 
-        private ModelMap(Term[] terms) {
-            this.terms = ImmutableSet.copyOf(terms);
+        private final Map<Term, ModelField<M>> fields;
+
+        private ModelMap(M model, ModelField<M>[] fields) {
+            this.model = model;
+            this.fields = Maps.uniqueIndex(Arrays.asList(fields), new Function<ModelField<?>, Term>() {
+                @Override
+                public Term apply(ModelField<?> field) {
+                    return field.term;
+                }
+            });
         }
 
         @Override
         public Set<Term> keySet() {
-            return terms;
+            return fields.keySet();
         }
 
         @Override
         public boolean containsKey(Object key) {
-            return terms.contains(key);
+            return fields.containsKey(key);
         }
 
         @Override
         public int size() {
-            return terms.size();
+            return fields.size();
         }
 
         @Override
         public Set<Entry<Term, Object>> entrySet() {
-            return Maps.asMap(terms, Functions.forMap(this)).entrySet();
+            // TODO Is this right?
+            return Maps.asMap(fields.keySet(), Functions.forMap(this)).entrySet();
         }
 
         @Override
         public Object get(Object key) {
-            return key instanceof Term ? lookup((Term) key) : null;
+            ModelField<M> field = fields.get(key);
+            return field != null ? field.get(model) : null;
         }
 
         @Override
         public Object remove(Object key) {
-            return key instanceof Term ? store((Term) key, null) : null;
+            ModelField<M> field = fields.get(key);
+            if (field != null) {
+                Object originalValue = field.get(model);
+                field.remove(model);
+                return originalValue;
+            } else {
+                return null;
+            }
         }
 
         @Override
         public Object put(Term key, Object value) {
-            return store(key, value);
+            ModelField<M> field = fields.get(key);
+            if (field != null) {
+                Object originalValue = field.get(model);
+                field.set(model, value);
+                return originalValue;
+            } else {
+                return null;
+            }
         }
     }
 
@@ -96,22 +169,10 @@ public abstract class AbstractModel implements Node {
      */
     private final Map<Term, Object> data;
 
-    AbstractModel(Type type, Term... terms) {
+    AbstractModel(Type type, ModelField<M>... fields) {
         types = ImmutableSet.of(type);
-        data = Maps.filterValues(new ModelMap(terms), Predicates.notNull());
+        data = Maps.filterValues(new ModelMap<M>((M) this, fields), Predicates.notNull());
     }
-
-    /**
-     * Returns the value of a term from a model.
-     */
-    @Nullable
-    protected abstract Object lookup(Term term);
-
-    /**
-     * Puts the value of of a term to to model, returning the previous value.
-     */
-    @Nullable
-    protected abstract Object store(Term term, @Nullable Object value);
 
     /**
      * Proper accessor for the identifier.
