@@ -127,7 +127,7 @@ public class Component extends AbstractModel<Component> {
 
         @Override
         protected void set(Component component, Object value) {
-            component.setKnowledgeBaseId(UUID.fromString(valueToString(value)));
+            component.setKnowledgeBaseId(value != null ? UUID.fromString(valueToString(value)) : null);
         }
     };
 
@@ -142,7 +142,7 @@ public class Component extends AbstractModel<Component> {
 
         @Override
         protected void set(Component component, Object value) {
-            component.setKnowledgeBaseVersionId(UUID.fromString(valueToString(value)));
+            component.setKnowledgeBaseVersionId(value != null ? UUID.fromString(valueToString(value)) : null);
         }
     };
 

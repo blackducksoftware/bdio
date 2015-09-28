@@ -114,7 +114,8 @@ public class TestModel extends AbstractModel<TestModel> {
 
         @Override
         protected void set(TestModel testModel, Object value) {
-            testModel.setHashCode(HashCode.fromString(valueToString(value)));
+            // NOTE: the incoming value can be null!
+            testModel.setHashCode(value != null ? HashCode.fromString(valueToString(value)) : null);
         }
     };
 

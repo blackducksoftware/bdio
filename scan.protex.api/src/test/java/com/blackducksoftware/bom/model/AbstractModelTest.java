@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- * 
+ *
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -16,6 +16,7 @@ import static com.google.common.truth.Truth.assertThat;
 import org.junit.Test;
 
 import com.blackducksoftware.bom.model.TestModel.TestTerm;
+import com.google.common.hash.HashCode;
 
 /**
  * Tests for the abstract model.
@@ -52,6 +53,14 @@ public class AbstractModelTest {
         assertThat(test.data()).containsKey(TestTerm.NAME);
         test.data().remove(TestTerm.NAME);
         assertThat(test.data()).isEmpty();
+    }
+
+    @Test
+    public void testDataRemoveConvertedField() {
+        TestModel test = new TestModel();
+        test.setHashCode(HashCode.fromInt(0));
+        test.data().remove(TestTerm.HASH_CODE);
+        assertThat(test.getHashCode()).isNull();
     }
 
     @Test

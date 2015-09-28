@@ -58,7 +58,7 @@ public class File extends AbstractModel<File> {
 
         @Override
         protected void set(File file, Object value) {
-            file.setType(MediaType.parse(valueToString(value)));
+            file.setType(value != null ? MediaType.parse(valueToString(value)) : null);
         }
     };
 
@@ -94,7 +94,7 @@ public class File extends AbstractModel<File> {
 
         @Override
         protected void set(File file, Object value) {
-            file.setSha1(HashCode.fromString(valueToString(value)));
+            file.setSha1(value != null ? HashCode.fromString(valueToString(value)) : null);
         }
     };
 
@@ -112,7 +112,7 @@ public class File extends AbstractModel<File> {
 
         @Override
         protected void set(File file, Object value) {
-            file.setMd5(HashCode.fromString(valueToString(value)));
+            file.setMd5(value != null ? HashCode.fromString(valueToString(value)) : null);
         }
     };
 

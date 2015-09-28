@@ -76,7 +76,7 @@ public class License extends AbstractModel<License> {
 
         @Override
         protected void set(License license, Object value) {
-            license.setKnowledgeBaseId(UUID.fromString(valueToString(value)));
+            license.setKnowledgeBaseId(value != null ? UUID.fromString(valueToString(value)) : null);
         }
     };
 
