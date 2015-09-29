@@ -11,6 +11,8 @@
  */
 package com.blackducksoftware.bom.model;
 
+import java.util.Set;
+
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bom.BlackDuckTerm;
@@ -45,7 +47,7 @@ public class File extends AbstractModel<File> {
     };
 
     /**
-     * The media type of the file. Should only be absent for directories.
+     * The media type of the file.
      */
     @Nullable
     private MediaType type;
@@ -59,6 +61,24 @@ public class File extends AbstractModel<File> {
         @Override
         protected void set(File file, Object value) {
             file.setType(value != null ? MediaType.parse(valueToString(value)) : null);
+        }
+    };
+
+    /**
+     * The file types of this file. Corresponds to the SPDX types plus "DIRECTORY".
+     */
+    @Nullable
+    private Set<String> fileTypes;
+
+    private static final ModelField<File> FILE_TYPES = new ModelField<File>(SpdxTerm.FILE_TYPE) {
+        @Override
+        protected Object get(File file) {
+            return file.getFileTypes();
+        }
+
+        @Override
+        protected void set(File file, Object value) {
+            file.setFileTypes(valueToStrings(value).toSet());
         }
     };
 
@@ -154,7 +174,7 @@ public class File extends AbstractModel<File> {
 
     public File() {
         super(BlackDuckType.FILE,
-                PATH, TYPE, SIZE, SHA1, MD5, COMPONENT, LICENSE);
+                PATH, TYPE, FILE_TYPES, SIZE, SHA1, MD5, COMPONENT, LICENSE);
     }
 
     @Nullable
@@ -173,6 +193,15 @@ public class File extends AbstractModel<File> {
 
     public void setType(@Nullable MediaType type) {
         this.type = type;
+    }
+
+    @Nullable
+    public Set<String> getFileTypes() {
+        return fileTypes;
+    }
+
+    public void setFileTypes(@Nullable Set<String> fileTypes) {
+        this.fileTypes = fileTypes;
     }
 
     @Nullable

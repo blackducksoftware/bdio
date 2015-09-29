@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- * 
+ *
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -35,6 +35,7 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import com.google.common.collect.ImmutableList;
 import com.google.common.hash.HashCode;
 import com.google.common.net.MediaType;
 
@@ -151,9 +152,22 @@ class BillOfMaterialsModule extends SimpleModule {
 
         protected void readTerm(JsonParser jp, ImmutableNode.Builder nodeBuilder) throws IOException {
             Term term = SimpleTerm.create(context.expandTerm(jp.getCurrentName()));
-            jp.nextValue();
-            Object value = context.expandValue(term, jp.getValueAsString());
-            nodeBuilder.put(term, value);
+            Object value;
+
+            JsonToken nextValue = jp.nextValue();
+            if (nextValue.isScalarValue()) {
+                // Read all scalar values out as a string
+                value = jp.getValueAsString();
+            } else if (nextValue == JsonToken.START_ARRAY) {
+                // Read a list of values as strings (returns a lazy iterable that must be read now)
+                jp.nextToken();
+                value = ImmutableList.copyOf(jp.readValuesAs(String.class));
+            } else {
+                // This must be a structured object and we have no idea what it is
+                throw new JsonParseException("cannot handle structured data", jp.getCurrentLocation());
+            }
+
+            nodeBuilder.put(term, context.expandValue(term, value));
         }
     }
 

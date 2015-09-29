@@ -28,6 +28,7 @@ import com.blackducksoftware.bom.Type;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Predicates;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 
@@ -281,4 +282,28 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
             return null;
         }
     }
+
+    /**
+     * Helper to coerce a value into a sequence of values.
+     */
+    @Nullable
+    protected static FluentIterable<String> valueToStrings(@Nullable Object value) {
+        if (value instanceof Iterable<?>) {
+            return FluentIterable.from((Iterable<?>) value).transform(VALUE_TO_STRING);
+        } else if (value != null) {
+            return FluentIterable.from(ImmutableSet.of(value)).transform(VALUE_TO_STRING);
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * A function that converts an object to a string using the {@code valueToString} function.
+     */
+    private static final Function<Object, String> VALUE_TO_STRING = new Function<Object, String>() {
+        @Override
+        public String apply(Object value) {
+            return valueToString(value);
+        }
+    };
 }
