@@ -12,6 +12,7 @@
 package com.blackducksoftware.bom.io;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.Iterables.getOnlyElement;
 
 import java.io.IOException;
@@ -93,7 +94,9 @@ class BillOfMaterialsModule extends SimpleModule {
         public void serialize(Node node, JsonGenerator jgen, SerializerProvider provider) throws IOException, JsonProcessingException {
             // Write out all the values for the current node
             jgen.writeStartObject();
-            writeTerm(jgen, JsonLdTerm.ID, node.id());
+            if (!isNullOrEmpty(node.id())) {
+                writeTerm(jgen, JsonLdTerm.ID, node.id());
+            }
             if (!node.types().isEmpty()) {
                 // Conditionally write a list of types (i.e. do not serialize a single element as a list)
                 writeTerm(jgen, JsonLdTerm.TYPE, node.types().size() > 1 ? node.types() : getOnlyElement(node.types()));
@@ -157,14 +160,16 @@ class BillOfMaterialsModule extends SimpleModule {
             JsonToken nextValue = jp.nextValue();
             if (nextValue.isScalarValue()) {
                 // Read all scalar values out as a string
-                value = jp.getValueAsString();
+                value = jp.readValueAs(String.class);
+            } else if (nextValue == JsonToken.START_OBJECT) {
+                // Needs to be an embedded node
+                value = jp.readValueAs(Node.class);
             } else if (nextValue == JsonToken.START_ARRAY) {
-                // Read a list of values as strings (returns a lazy iterable that must be read now)
-                jp.nextToken();
-                value = ImmutableList.copyOf(jp.readValuesAs(String.class));
+                // Read a list of values (returns a lazy iterable that must be read now)
+                Class<?> valueType = jp.nextToken().isScalarValue() ? String.class : Node.class;
+                value = ImmutableList.copyOf(jp.readValuesAs(valueType));
             } else {
-                // This must be a structured object and we have no idea what it is
-                throw new JsonParseException("cannot handle structured data", jp.getCurrentLocation());
+                throw new JsonParseException("unknown value", jp.getCurrentLocation());
             }
 
             nodeBuilder.put(term, context.expandValue(term, value));
