@@ -40,6 +40,31 @@ import com.google.common.collect.Maps;
 public abstract class AbstractModel<M extends AbstractModel<M>> implements Node {
 
     /**
+     * A function that converts to a specific model implementation.
+     */
+    private static final class ToModelFunction<M extends AbstractModel<M>> implements Function<Node, Iterable<M>> {
+        private final Class<M> modelType;
+
+        private ToModelFunction(Class<M> modelType) {
+            this.modelType = checkNotNull(modelType);
+        }
+
+        @Override
+        public Iterable<M> apply(Node node) {
+            try {
+                M model = modelType.newInstance();
+                if (node.types().containsAll(model.types())) {
+                    model.setId(node.id());
+                    model.data().putAll(node.data());
+                    return ImmutableSet.of(model);
+                }
+            } catch (ReflectiveOperationException e) {
+            }
+            return ImmutableSet.of();
+        }
+    }
+
+    /**
      * Abstraction over manipulating a bean field from a {@code Map}. Primarily exists so we don't need to use
      * reflection which can be error prone in these mapping/conversion scenarios.
      */
@@ -284,6 +309,21 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
     }
 
     /**
+     * Helper to coerce a value into a node.
+     */
+    @Nullable
+    protected static Node valueToNode(@Nullable Object value) {
+        if (value instanceof Node) {
+            return (Node) value;
+        } else if (value instanceof Map<?, ?>) {
+            // TODO Convert the map to a node
+            return null;
+        } else {
+            return null;
+        }
+    }
+
+    /**
      * Helper to coerce a value into a sequence of values.
      */
     @Nullable
@@ -298,12 +338,43 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
     }
 
     /**
+     * Helper to coerce a value into a sequence of nodes.
+     */
+    @Nullable
+    protected static FluentIterable<Node> valueToNodes(@Nullable Object value) {
+        if (value instanceof Iterable<?>) {
+            return FluentIterable.from((Iterable<?>) value).transform(VALUE_TO_NODE);
+        } else if (value != null) {
+            return FluentIterable.from(ImmutableSet.of(value)).transform(VALUE_TO_NODE);
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * A function that converts a node to a compatible model node.
+     */
+    public static <M extends AbstractModel<M>> Function<Node, Iterable<M>> toModel(Class<M> modelType) {
+        return new ToModelFunction<>(modelType);
+    }
+
+    /**
      * A function that converts an object to a string using the {@code valueToString} function.
      */
-    private static final Function<Object, String> VALUE_TO_STRING = new Function<Object, String>() {
+    private static Function<Object, String> VALUE_TO_STRING = new Function<Object, String>() {
         @Override
         public String apply(Object value) {
             return valueToString(value);
+        }
+    };
+
+    /**
+     * A function that converts an object to a node using the {@code valueToNode} function.
+     */
+    private static Function<Object, Node> VALUE_TO_NODE = new Function<Object, Node>() {
+        @Override
+        public Node apply(Object value) {
+            return valueToNode(value);
         }
     };
 }

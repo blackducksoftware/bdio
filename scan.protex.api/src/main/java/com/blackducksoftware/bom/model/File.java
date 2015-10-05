@@ -11,6 +11,9 @@
  */
 package com.blackducksoftware.bom.model;
 
+import static com.google.common.base.Objects.firstNonNull;
+
+import java.util.List;
 import java.util.Set;
 
 import javax.annotation.Nullable;
@@ -18,7 +21,9 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.SpdxTerm;
-import com.google.common.hash.HashCode;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.net.MediaType;
 
 /**
@@ -101,38 +106,20 @@ public class File extends AbstractModel<File> {
     };
 
     /**
-     * The SHA-1 hash of this file's contents.
+     * The list of checksums for this file.
      */
     @Nullable
-    private HashCode sha1;
+    private List<Checksum> checksum;
 
-    private static final ModelField<File> SHA1 = new ModelField<File>(BlackDuckTerm.SHA1) {
+    private static final ModelField<File> CHECKSUM = new ModelField<File>(SpdxTerm.CHECKSUM) {
         @Override
         protected Object get(File file) {
-            return file.getSha1();
+            return file.getChecksum();
         }
 
         @Override
         protected void set(File file, Object value) {
-            file.setSha1(value != null ? HashCode.fromString(valueToString(value)) : null);
-        }
-    };
-
-    /**
-     * The MD5 hash of this file's contents.
-     */
-    @Nullable
-    private HashCode md5;
-
-    private static final ModelField<File> MD5 = new ModelField<File>(BlackDuckTerm.MD5) {
-        @Override
-        protected Object get(File file) {
-            return file.getMd5();
-        }
-
-        @Override
-        protected void set(File file, Object value) {
-            file.setMd5(value != null ? HashCode.fromString(valueToString(value)) : null);
+            file.setChecksum(valueToNodes(value).transformAndConcat(toModel(Checksum.class)).toList());
         }
     };
 
@@ -174,7 +161,7 @@ public class File extends AbstractModel<File> {
 
     public File() {
         super(BlackDuckType.FILE,
-                PATH, TYPE, FILE_TYPES, SIZE, SHA1, MD5, COMPONENT, LICENSE);
+                PATH, TYPE, FILE_TYPES, SIZE, CHECKSUM, COMPONENT, LICENSE);
     }
 
     @Nullable
@@ -214,21 +201,28 @@ public class File extends AbstractModel<File> {
     }
 
     @Nullable
-    public HashCode getSha1() {
-        return sha1;
+    public List<Checksum> getChecksum() {
+        return checksum;
     }
 
-    public void setSha1(@Nullable HashCode sha1) {
-        this.sha1 = sha1;
+    public void setChecksum(@Nullable List<Checksum> checksum) {
+        this.checksum = checksum;
     }
 
-    @Nullable
-    public HashCode getMd5() {
-        return md5;
+    public File addChecksum(Checksum checksum) {
+        if (checksum != null) {
+            List<Checksum> checksums = getChecksum();
+            if (checksums != null) {
+                checksums.add(checksum);
+            } else {
+                setChecksum(Lists.newArrayList(checksum));
+            }
+        }
+        return this;
     }
 
-    public void setMd5(@Nullable HashCode md5) {
-        this.md5 = md5;
+    public FluentIterable<Checksum> checksums() {
+        return FluentIterable.from(firstNonNull(getChecksum(), ImmutableList.<Checksum> of()));
     }
 
     @Nullable
