@@ -213,13 +213,17 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
     }
 
     @Override
-    public final boolean equals(Object obj) {
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (obj instanceof Node) {
             Node other = (Node) obj;
-            return id.equals(other.id()) && types.equals(other.types()) && data.equals(other.data());
-        } else {
-            return false;
+            return Objects.equals(id, other.id()) &&
+                    Objects.equals(types, other.types()) &&
+                    Objects.equals(data, other.data());
         }
+        return false;
     }
 
     @Override
