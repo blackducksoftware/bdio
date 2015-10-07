@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- * 
+ *
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -14,24 +14,24 @@ package com.blackducksoftware.bom;
 import java.net.URI;
 
 /**
- * Term constants corresponding to the Resource Description Framework Schema properties.
+ * Term constants corresponding to the Resource Description Framework syntax properties.
  *
  * @author jgustie
- * @see <a href="http://www.w3.org/TR/rdf-schema/">RDF Schema</a>
+ * @see <a href="http://www.w3.org/TR/rdf11-concepts/">RDF 1.1 Concepts</a>
  */
-public enum RdfsTerm implements Term {
+public enum RdfTerm implements Term {
 
-    RANGE("http://www.w3.org/2000/01/rdf-schema#range"),
-    DOMAIN("http://www.w3.org/2000/01/rdf-schema#domain"),
-    TYPE("http://www.w3.org/2000/01/rdf-schema#type"),
-    SUB_CLASS_OF("http://www.w3.org/2000/01/rdf-schema#subClassOf"),
-    SUB_PROPERTY_OF("http://www.w3.org/2000/01/rdf-schema#subPropertyOf"),
-    LABEL("http://www.w3.org/2000/01/rdf-schema#label"),
-    COMMENT("http://www.w3.org/2000/01/rdf-schema#comment");
+    TYPE("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+    SUBJECT("http://www.w3.org/1999/02/22-rdf-syntax-ns#subject"),
+    PREDICATE("http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate"),
+    OBJECT("http://www.w3.org/1999/02/22-rdf-syntax-ns#object"),
+    VALUE("http://www.w3.org/1999/02/22-rdf-syntax-ns#value"),
+    FIRST("http://www.w3.org/1999/02/22-rdf-syntax-ns#first"),
+    REST("http://www.w3.org/1999/02/22-rdf-syntax-ns#rest");
 
     private final URI uri;
 
-    private RdfsTerm(String fullyQualifiedName) {
+    private RdfTerm(String fullyQualifiedName) {
         uri = URI.create(fullyQualifiedName);
     }
 

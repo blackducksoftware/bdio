@@ -33,7 +33,6 @@ public class TypeTest {
     private static final Iterable<Type> KNOWN_TYPES = Iterables.concat(
             Arrays.<Type> asList(BlackDuckType.values()),
             Arrays.<Type> asList(DoapType.values()),
-            Arrays.<Type> asList(SpdxType.values()));
 
     @Test
     public void verifyKnownTypeSyntax() {
@@ -43,6 +42,8 @@ public class TypeTest {
             URI.create(type.toString());
         }
     }
+            Arrays.<Type> asList(SpdxType.values()),
+            Arrays.<Type> asList(XmlSchemaType.values()));
 
     @Test
     public void testSimpleTypeInstanceCache() {

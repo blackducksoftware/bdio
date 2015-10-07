@@ -14,24 +14,18 @@ package com.blackducksoftware.bom;
 import java.net.URI;
 
 /**
- * Term constants corresponding to the Resource Description Framework Schema properties.
+ * Type constants corresponding to the XML Schema types.
  *
  * @author jgustie
- * @see <a href="http://www.w3.org/TR/rdf-schema/">RDF Schema</a>
  */
-public enum RdfsTerm implements Term {
+public enum XmlSchemaType implements Type {
 
-    RANGE("http://www.w3.org/2000/01/rdf-schema#range"),
-    DOMAIN("http://www.w3.org/2000/01/rdf-schema#domain"),
-    TYPE("http://www.w3.org/2000/01/rdf-schema#type"),
-    SUB_CLASS_OF("http://www.w3.org/2000/01/rdf-schema#subClassOf"),
-    SUB_PROPERTY_OF("http://www.w3.org/2000/01/rdf-schema#subPropertyOf"),
-    LABEL("http://www.w3.org/2000/01/rdf-schema#label"),
-    COMMENT("http://www.w3.org/2000/01/rdf-schema#comment");
+    // TODO More of these
+    LONG("http://www.w3.org/2001/XMLSchema#long");
 
     private final URI uri;
 
-    private RdfsTerm(String fullyQualifiedName) {
+    private XmlSchemaType(String fullyQualifiedName) {
         uri = URI.create(fullyQualifiedName);
     }
 
@@ -44,4 +38,5 @@ public enum RdfsTerm implements Term {
     public URI toUri() {
         return uri;
     }
+
 }

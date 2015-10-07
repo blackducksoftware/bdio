@@ -51,6 +51,7 @@ public class SimpleTerm implements Term, Serializable {
                 Arrays.asList(BlackDuckTerm.values()),
                 Arrays.asList(DoapTerm.values()),
                 Arrays.asList(RdfsTerm.values()),
+                Arrays.asList(RdfTerm.values()),
                 Arrays.asList(SpdxTerm.values()))) {
             INSTANCES.put(term.toString(), term);
         }

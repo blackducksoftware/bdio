@@ -34,6 +34,7 @@ public class TermTest {
             Arrays.<Term> asList(BlackDuckTerm.values()),
             Arrays.<Term> asList(DoapTerm.values()),
             Arrays.<Term> asList(RdfsTerm.values()),
+            Arrays.<Term> asList(RdfTerm.values()),
             Arrays.<Term> asList(SpdxTerm.values()));
 
     @Test
