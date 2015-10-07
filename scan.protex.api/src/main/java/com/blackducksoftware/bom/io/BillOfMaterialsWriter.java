@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- * 
+ *
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -31,46 +31,47 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class BillOfMaterialsWriter implements Closeable, Flushable {
 
     /**
+     * The linked data context.
+     */
+    private final LinkedDataContext context;
+
+    /**
      * The output stream backed generator used to produce actual JSON.
      */
-    private final JsonGenerator json;
+    private final JsonGenerator jgen;
 
     /**
      * Create a new writer that produces UTF-8 encoded JSON.
      */
     public BillOfMaterialsWriter(LinkedDataContext context, OutputStream out) throws IOException {
-        // Setup the JSON generator
-        // TODO Expose a way add more modules to the object mapper?
-        json = new ObjectMapper()
-                .registerModule(new BillOfMaterialsModule(context))
-                .getFactory()
-                .createGenerator(out);
+        this.context = checkNotNull(context);
 
-        // TODO Any other config we want to do?
-        json.useDefaultPrettyPrinter();
-        json.disable(Feature.AUTO_CLOSE_TARGET);
+        // Setup the JSON generator
+        jgen = new ObjectMapper().getFactory().createGenerator(out);
+        jgen.useDefaultPrettyPrinter();
+        jgen.disable(Feature.AUTO_CLOSE_TARGET);
 
         // Start the list of nodes
-        json.writeStartArray();
+        jgen.writeStartArray();
     }
 
     /**
      * Just keep calling this.
      */
     public BillOfMaterialsWriter write(Node node) throws IOException {
-        json.writeObject(checkNotNull(node));
+        jgen.writeObject(context.compact(checkNotNull(node)));
         return this;
     }
 
     @Override
     public void flush() throws IOException {
-        json.flush();
+        jgen.flush();
     }
 
     @Override
     public void close() throws IOException {
         // Close the list (and object enclosing the context if necessary)
-        json.writeEndArray();
-        json.close();
+        jgen.writeEndArray();
+        jgen.close();
     }
 }

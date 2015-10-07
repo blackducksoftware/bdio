@@ -25,11 +25,13 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bom.Node;
 import com.blackducksoftware.bom.Term;
 import com.blackducksoftware.bom.Type;
+import com.blackducksoftware.bom.io.LinkedDataContext;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 
 /**
@@ -50,15 +52,17 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
         }
 
         @Override
-        public Iterable<M> apply(Node node) {
-            try {
-                M model = modelType.newInstance();
-                if (node.types().containsAll(model.types())) {
-                    model.setId(node.id());
-                    model.data().putAll(node.data());
-                    return ImmutableSet.of(model);
+        public Iterable<M> apply(@Nullable Node node) {
+            if (node != null) {
+                try {
+                    M model = modelType.newInstance();
+                    if (node.types().containsAll(model.types())) {
+                        model.setId(node.id());
+                        model.data().putAll(node.data());
+                        return ImmutableSet.of(model);
+                    }
+                } catch (ReflectiveOperationException e) {
                 }
-            } catch (ReflectiveOperationException e) {
             }
             return ImmutableSet.of();
         }
@@ -316,8 +320,8 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
         if (value instanceof Node) {
             return (Node) value;
         } else if (value instanceof Map<?, ?>) {
-            // TODO Convert the map to a node
-            return null;
+            // TODO Is this the best way to do this?
+            return new LinkedDataContext().expandToNode((Map<String, Object>) value);
         } else {
             return null;
         }
@@ -326,29 +330,36 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
     /**
      * Helper to coerce a value into a sequence of values.
      */
-    @Nullable
     protected static FluentIterable<String> valueToStrings(@Nullable Object value) {
         if (value instanceof Iterable<?>) {
             return FluentIterable.from((Iterable<?>) value).transform(VALUE_TO_STRING);
         } else if (value != null) {
             return FluentIterable.from(ImmutableSet.of(value)).transform(VALUE_TO_STRING);
         } else {
-            return null;
+            return FluentIterable.from(ImmutableSet.<String> of());
         }
     }
 
     /**
      * Helper to coerce a value into a sequence of nodes.
      */
-    @Nullable
     protected static FluentIterable<Node> valueToNodes(@Nullable Object value) {
         if (value instanceof Iterable<?>) {
             return FluentIterable.from((Iterable<?>) value).transform(VALUE_TO_NODE);
         } else if (value != null) {
             return FluentIterable.from(ImmutableSet.of(value)).transform(VALUE_TO_NODE);
         } else {
-            return null;
+            return FluentIterable.from(ImmutableSet.<Node> of());
         }
+    }
+
+    /**
+     * Reduce an empty iterable to a {@code null} value. This is useful when using methods like {@link #valueToStrings}
+     * or {@link #valueToNodes} where the final value should be {@code null} instead of empty.
+     */
+    @Nullable
+    protected static <T, C extends Iterable<? super T>> C emptyToNull(C iterable) {
+        return Iterables.isEmpty(iterable) ? null : iterable;
     }
 
     /**
