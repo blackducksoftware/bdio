@@ -24,7 +24,6 @@ import com.blackducksoftware.bom.SpdxTerm;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.net.MediaType;
 
 /**
  * A file in a Bill of Materials.
@@ -52,38 +51,20 @@ public class File extends AbstractModel<File> {
     };
 
     /**
-     * The media type of the file.
-     */
-    @Nullable
-    private MediaType type;
-
-    private static final ModelField<File> TYPE = new ModelField<File>(BlackDuckTerm.CONTENT_TYPE) {
-        @Override
-        protected Object get(File file) {
-            return file.getType();
-        }
-
-        @Override
-        protected void set(File file, Object value) {
-            file.setType(value != null ? MediaType.parse(valueToString(value)) : null);
-        }
-    };
-
-    /**
      * The file types of this file. Corresponds to the SPDX types plus "DIRECTORY".
      */
     @Nullable
-    private Set<String> fileTypes;
+    private Set<String> fileType;
 
-    private static final ModelField<File> FILE_TYPES = new ModelField<File>(SpdxTerm.FILE_TYPE) {
+    private static final ModelField<File> FILE_TYPE = new ModelField<File>(SpdxTerm.FILE_TYPE) {
         @Override
         protected Object get(File file) {
-            return file.getFileTypes();
+            return file.getFileType();
         }
 
         @Override
         protected void set(File file, Object value) {
-            file.setFileTypes(valueToStrings(value).toSet());
+            file.setFileType(emptyToNull(valueToStrings(value).toSet()));
         }
     };
 
@@ -119,7 +100,7 @@ public class File extends AbstractModel<File> {
 
         @Override
         protected void set(File file, Object value) {
-            file.setChecksum(valueToNodes(value).transformAndConcat(toModel(Checksum.class)).toList());
+            file.setChecksum(emptyToNull(valueToNodes(value).transformAndConcat(toModel(Checksum.class)).toList()));
         }
     };
 
@@ -161,7 +142,7 @@ public class File extends AbstractModel<File> {
 
     public File() {
         super(BlackDuckType.FILE,
-                PATH, TYPE, FILE_TYPES, SIZE, CHECKSUM, COMPONENT, LICENSE);
+                PATH, FILE_TYPE, SIZE, CHECKSUM, COMPONENT, LICENSE);
     }
 
     @Nullable
@@ -174,21 +155,12 @@ public class File extends AbstractModel<File> {
     }
 
     @Nullable
-    public MediaType getType() {
-        return type;
+    public Set<String> getFileType() {
+        return fileType;
     }
 
-    public void setType(@Nullable MediaType type) {
-        this.type = type;
-    }
-
-    @Nullable
-    public Set<String> getFileTypes() {
-        return fileTypes;
-    }
-
-    public void setFileTypes(@Nullable Set<String> fileTypes) {
-        this.fileTypes = fileTypes;
+    public void setFileType(@Nullable Set<String> fileType) {
+        this.fileType = fileType;
     }
 
     @Nullable
