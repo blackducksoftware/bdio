@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- * 
+ *
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -13,10 +13,9 @@ package com.blackducksoftware.bom;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import java.net.URI;
 import java.util.Arrays;
 
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 import com.google.common.collect.Iterables;
 
@@ -33,15 +32,6 @@ public class TypeTest {
     private static final Iterable<Type> KNOWN_TYPES = Iterables.concat(
             Arrays.<Type> asList(BlackDuckType.values()),
             Arrays.<Type> asList(DoapType.values()),
-
-    @Test
-    public void verifyKnownTypeSyntax() {
-        // Iterate over the known types and verify they all parse as a URI
-        // This is actually important because we don't verify this at runtime
-        for (Type type : KNOWN_TYPES) {
-            URI.create(type.toString());
-        }
-    }
             Arrays.<Type> asList(SpdxType.values()),
             Arrays.<Type> asList(XmlSchemaType.values()));
 
@@ -61,17 +51,17 @@ public class TypeTest {
         }
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test(expectedExceptions = NullPointerException.class)
     public void testSimpleTypeCreate_null() {
         SimpleType.create(null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testSimpleTypeCreate_empty() {
         SimpleType.create("");
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testSimpleTypeCreate_invalid() {
         SimpleType.create(":");
     }

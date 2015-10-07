@@ -16,7 +16,7 @@ import static com.google.common.truth.Truth.assertThat;
 import java.io.Reader;
 import java.io.StringReader;
 
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
@@ -33,17 +33,15 @@ public class BillOfMaterialsReaderTest {
 
     @Test
     public void testSimpleRead() throws Exception {
-        LinkedDataContext context = new LinkedDataContext();
+        LinkedDataContext context = new LinkedDataContext("");
         Reader in = new StringReader("[ {"
                 + "  \"@id\": \"foo\","
                 + "  \"@type\": \"File\","
-                + "  \"spdx:fileName\": \"./foo\","
-                + "  \"md5\" : \"5289df737df57326fcdd22597afb1fac\""
+                + "  \"spdx:fileName\": \"./foo\""
                 + " }, {"
                 + "  \"@id\": \"foo\","
                 + "  \"@type\": \"File\","
-                + "  \"contentType\": \"application/octet-stream\","
-                + "  \"sha1\" : \"7037807198c22a7d2b0807371d763779a84fdfcf\""
+                + "  \"size\": 333"
                 + "} ]");
 
         try (BillOfMaterialsReader reader = new BillOfMaterialsReader(context, in)) {
@@ -52,15 +50,13 @@ public class BillOfMaterialsReaderTest {
             assertThat(node1.types()).containsExactly(BlackDuckType.FILE);
             assertThat(node1.data()).isEqualTo(ImmutableMap.builder()
                     .put(SpdxTerm.FILE_NAME, "./foo")
-                    .put(BlackDuckTerm.MD5, "5289df737df57326fcdd22597afb1fac")
                     .build());
 
             Node node2 = reader.read();
             assertThat(node2.id()).isEqualTo("foo");
             assertThat(node2.types()).containsExactly(BlackDuckType.FILE);
             assertThat(node2.data()).isEqualTo(ImmutableMap.builder()
-                    .put(BlackDuckTerm.CONTENT_TYPE, "application/octet-stream")
-                    .put(BlackDuckTerm.SHA1, "7037807198c22a7d2b0807371d763779a84fdfcf")
+                    .put(BlackDuckTerm.SIZE, 333L)
                     .build());
 
             assertThat(reader.read()).isNull();

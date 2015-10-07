@@ -13,7 +13,7 @@ package com.blackducksoftware.bom;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 /**
  * Tests for various nodes.
@@ -22,7 +22,7 @@ import org.junit.Test;
  */
 public class NodeTest {
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test(expectedExceptions = UnsupportedOperationException.class)
     public void testAnonymousNodeTypes() {
         AnonymousNode.create(SpdxType.FILE).types().add(SpdxType.LICENSE);
     }
@@ -34,12 +34,12 @@ public class NodeTest {
         assertThat(node.data().get(SpdxTerm.FILE_NAME)).isEqualTo("./foo.txt");
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test(expectedExceptions = UnsupportedOperationException.class)
     public void testImmutableNodeTypes() {
         ImmutableNode.builder().id("_:123").type(SpdxType.FILE).build().types().add(SpdxType.LICENSE);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test(expectedExceptions = UnsupportedOperationException.class)
     public void testImmutableNodeData() {
         ImmutableNode.builder().id("_:123").type(SpdxType.FILE).build().data().put(SpdxTerm.FILE_NAME, "./foo.txt");
     }

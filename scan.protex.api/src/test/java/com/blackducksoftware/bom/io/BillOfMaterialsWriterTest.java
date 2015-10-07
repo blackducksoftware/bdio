@@ -17,15 +17,13 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.ImmutableNode;
 import com.blackducksoftware.bom.SpdxTerm;
 import com.google.common.base.Joiner;
-import com.google.common.hash.Hashing;
-import com.google.common.net.MediaType;
 
 /**
  * Tests for the Bill of Materials Writer.
@@ -36,30 +34,25 @@ public class BillOfMaterialsWriterTest {
 
     @Test
     public void simpleWriteFileModelTest() throws IOException {
-        LinkedDataContext context = new LinkedDataContext();
+        LinkedDataContext context = new LinkedDataContext("");
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (BillOfMaterialsWriter writer = new BillOfMaterialsWriter(context, baos)) {
             writer.write(ImmutableNode.builder()
                     .id("foo")
                     .addType(BlackDuckType.FILE)
                     .put(SpdxTerm.FILE_NAME, "./foo/bar")
-                    .put(BlackDuckTerm.CONTENT_TYPE, MediaType.OCTET_STREAM)
-                    .put(BlackDuckTerm.MD5, Hashing.md5().hashBytes(new byte[] { 1, 2, 3 }))
-                    .put(BlackDuckTerm.SHA1, Hashing.sha1().hashBytes(new byte[] { 1, 2, 3 }))
                     .put(BlackDuckTerm.SIZE, 10L)
                     .build());
         }
 
         // TODO There appears to better ways of doing this:
         // http://stackoverflow.com/questions/2253750/compare-two-json-objects-in-java
+        // TODO I have seen: testCompile 'org.skyscreamer:jsonassert:1.2.1'
         assertThat(new String(baos.toByteArray(), UTF_8)).isEqualTo(Joiner.on('\n').join(new String[] { "[ {",
                 "  \"@id\" : \"foo\",",
                 "  \"@type\" : \"File\",",
-                "  \"spdx:fileName\" : \"./foo/bar\",",
-                "  \"contentType\" : \"application/octet-stream\",",
-                "  \"size\" : 10,",
-                "  \"sha1\" : \"7037807198c22a7d2b0807371d763779a84fdfcf\",",
-                "  \"md5\" : \"5289df737df57326fcdd22597afb1fac\"",
+                "  \"fileName\" : \"./foo/bar\",",
+                "  \"size\" : 10",
                 "} ]" }));
     }
 }
