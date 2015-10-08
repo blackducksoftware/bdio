@@ -172,9 +172,27 @@ public class File extends AbstractModel<File> {
         }
     };
 
+    /**
+     * The scan composite identifier of the file.
+     */
+    @Nullable
+    private Long knowledgeBaseId;
+
+    private static final ModelField<File> KNOWLEDGE_BASE_ID = new ModelField<File>(BlackDuckTerm.KNOWLEDGE_BASE_ID) {
+        @Override
+        protected Object get(File file) {
+            return file.getKnowledgeBaseId();
+        }
+
+        @Override
+        protected void set(File file, Object value) {
+            file.setKnowledgeBaseId(valueToLong(value));
+        }
+    };
+
     public File() {
         super(BlackDuckType.FILE,
-                PATH, TYPE, FILE_TYPES, SIZE, SHA1, MD5, COMPONENT, LICENSE);
+                PATH, TYPE, FILE_TYPES, SIZE, SHA1, MD5, COMPONENT, LICENSE, KNOWLEDGE_BASE_ID);
     }
 
     @Nullable
@@ -247,6 +265,15 @@ public class File extends AbstractModel<File> {
 
     public void setLicense(@Nullable String license) {
         this.license = license;
+    }
+
+    @Nullable
+    public Long getKnowledgeBaseId() {
+        return knowledgeBaseId;
+    }
+
+    public void setKnowledgeBaseId(@Nullable Long knowledgeBaseId) {
+        this.knowledgeBaseId = knowledgeBaseId;
     }
 
 }
