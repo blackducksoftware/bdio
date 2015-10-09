@@ -28,6 +28,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bom.BlackDuckTerm;
+import com.blackducksoftware.bom.BlackDuckValue;
 import com.blackducksoftware.bom.DoapTerm;
 import com.blackducksoftware.bom.ImmutableNode;
 import com.blackducksoftware.bom.Node;
@@ -35,12 +36,14 @@ import com.blackducksoftware.bom.SimpleTerm;
 import com.blackducksoftware.bom.SimpleType;
 import com.blackducksoftware.bom.SpdxTerm;
 import com.blackducksoftware.bom.SpdxType;
+import com.blackducksoftware.bom.SpdxValue;
 import com.blackducksoftware.bom.Term;
 import com.blackducksoftware.bom.Type;
 import com.blackducksoftware.bom.XmlSchemaType;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -191,14 +194,18 @@ public class LinkedDataContext {
         addScalarTerm("revision", DoapTerm.REVISION);
 
         addScalarTerm("fileName", SpdxTerm.FILE_NAME);
-        addScalarTerm("fileType", SpdxTerm.FILE_TYPE);
+        addScalarTerm("fileType", SpdxTerm.FILE_TYPE, JsonLdType.ID, Container.SET);
         addScalarTerm("checksum", SpdxTerm.CHECKSUM, SpdxType.CHECKSUM);
         addScalarTerm("checksumValue", SpdxTerm.CHECKSUM_VALUE);
         addScalarTerm("algorithm", SpdxTerm.ALGORITHM, JsonLdType.ID);
 
-        // TODO How do we do these values?
-        definitions.put("sha1", new TermDefinition(SimpleTerm.create(SpdxTerm.CHECKSUM + "Algorithm_sha1"), ImmutableSet.<Type> of(), null));
-        definitions.put("md5", new TermDefinition(SimpleTerm.create(SpdxTerm.CHECKSUM + "Algorithm_md5"), ImmutableSet.<Type> of(), null));
+        addValue("DIRECTORY", BlackDuckValue.FILE_TYPE_DIRECTORY);
+        addValue("ARCHIVE", SpdxValue.FILE_TYPE_ARCHIVE);
+        addValue("BINARY", SpdxValue.FILE_TYPE_BINARY);
+        addValue("OTHER", SpdxValue.FILE_TYPE_OTHER);
+        addValue("SOURCE", SpdxValue.FILE_TYPE_SOURCE);
+        addValue("sha1", SpdxValue.CHECKSUM_ALGORITHM_SHA1);
+        addValue("md5", SpdxValue.CHECKSUM_ALGORITHM_MD5);
 
         // Hard code some dummy definitions for the keywords
         termDefinitions.put(JsonLdTerm.ID, new TermDefinition(JsonLdTerm.ID, ImmutableSet.of(JsonLdType.ID), null));
@@ -216,8 +223,30 @@ public class LinkedDataContext {
     /**
      * Adds a scalar term definition to this context.
      */
-    private void addScalarTerm(String alias, Term term, Type... types) {
-        definitions.put(alias, new TermDefinition(term, ImmutableSet.copyOf(types), null));
+    private void addScalarTerm(String alias, Term term) {
+        addScalarTerm(alias, term, null);
+    }
+
+    /**
+     * Adds a scalar term definition to this context.
+     */
+    private void addScalarTerm(String alias, Term term, @Nullable Type type) {
+        addScalarTerm(alias, term, type, null);
+    }
+
+    /**
+     * Adds a scalar term definition to this context.
+     */
+    private void addScalarTerm(String alias, Term term, @Nullable Type type, @Nullable Container container) {
+        definitions.put(alias, new TermDefinition(term, Optional.fromNullable(type).asSet(), container));
+    }
+
+    /**
+     * Adds an identifier value to this context.
+     */
+    private void addValue(String alias, Node value) {
+        Term term = SimpleTerm.create(expandIri(value.id(), false));
+        definitions.put(alias, new TermDefinition(term, ImmutableSet.<Type> of(), null));
     }
 
     /**

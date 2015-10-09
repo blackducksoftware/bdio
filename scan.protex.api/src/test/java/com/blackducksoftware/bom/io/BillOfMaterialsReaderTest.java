@@ -22,6 +22,8 @@ import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.Node;
 import com.blackducksoftware.bom.SpdxTerm;
+import com.blackducksoftware.bom.SpdxValue;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 /**
@@ -37,7 +39,8 @@ public class BillOfMaterialsReaderTest {
         Reader in = new StringReader("[ {"
                 + "  \"@id\": \"foo\","
                 + "  \"@type\": \"File\","
-                + "  \"spdx:fileName\": \"./foo\""
+                + "  \"fileName\": \"./foo\","
+                + "  \"fileType\": [ \"SOURCE\" ]"
                 + " }, {"
                 + "  \"@id\": \"foo\","
                 + "  \"@type\": \"File\","
@@ -50,6 +53,7 @@ public class BillOfMaterialsReaderTest {
             assertThat(node1.types()).containsExactly(BlackDuckType.FILE);
             assertThat(node1.data()).isEqualTo(ImmutableMap.builder()
                     .put(SpdxTerm.FILE_NAME, "./foo")
+                    .put(SpdxTerm.FILE_TYPE, ImmutableList.of(SpdxValue.FILE_TYPE_SOURCE.id()))
                     .build());
 
             Node node2 = reader.read();

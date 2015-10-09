@@ -17,6 +17,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bom.SpdxTerm;
 import com.blackducksoftware.bom.SpdxType;
+import com.blackducksoftware.bom.SpdxValue;
 import com.google.common.hash.HashCode;
 
 public class Checksum extends AbstractModel<Checksum> {
@@ -60,14 +61,14 @@ public class Checksum extends AbstractModel<Checksum> {
      * Helper to create a new MD5 checksum.
      */
     public static Checksum md5(HashCode hashCode) {
-        return hashCode != null ? create("http://spdx.org/rdf/terms#checksumAlgorithm_md5", hashCode) : null;
+        return hashCode != null ? create(SpdxValue.CHECKSUM_ALGORITHM_MD5.id(), hashCode) : null;
     }
 
     /**
      * Helper to create a new SHA-1 checksum.
      */
     public static Checksum sha1(HashCode hashCode) {
-        return hashCode != null ? create("http://spdx.org/rdf/terms#checksumAlgorithm_sha1", hashCode) : null;
+        return hashCode != null ? create(SpdxValue.CHECKSUM_ALGORITHM_SHA1.id(), hashCode) : null;
     }
 
     private static Checksum create(String algorithm, HashCode checksumValue) {

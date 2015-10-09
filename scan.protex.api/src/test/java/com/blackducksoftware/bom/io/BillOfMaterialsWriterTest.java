@@ -23,7 +23,9 @@ import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.ImmutableNode;
 import com.blackducksoftware.bom.SpdxTerm;
+import com.blackducksoftware.bom.SpdxValue;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * Tests for the Bill of Materials Writer.
@@ -41,6 +43,7 @@ public class BillOfMaterialsWriterTest {
                     .id("foo")
                     .addType(BlackDuckType.FILE)
                     .put(SpdxTerm.FILE_NAME, "./foo/bar")
+                    .put(SpdxTerm.FILE_TYPE, ImmutableSet.of(SpdxValue.FILE_TYPE_SOURCE.id()))
                     .put(BlackDuckTerm.SIZE, 10L)
                     .build());
         }
@@ -52,6 +55,7 @@ public class BillOfMaterialsWriterTest {
                 "  \"@id\" : \"foo\",",
                 "  \"@type\" : \"File\",",
                 "  \"fileName\" : \"./foo/bar\",",
+                "  \"fileType\" : \"SOURCE\",",
                 "  \"size\" : 10",
                 "} ]" }));
     }

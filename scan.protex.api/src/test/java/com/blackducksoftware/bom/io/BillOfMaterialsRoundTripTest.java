@@ -20,7 +20,9 @@ import java.nio.charset.StandardCharsets;
 
 import org.testng.annotations.Test;
 
+import com.blackducksoftware.bom.BlackDuckValue;
 import com.blackducksoftware.bom.Node;
+import com.blackducksoftware.bom.SpdxValue;
 import com.blackducksoftware.bom.model.Checksum;
 import com.blackducksoftware.bom.model.File;
 import com.google.common.collect.ImmutableList;
@@ -35,7 +37,7 @@ public class BillOfMaterialsRoundTripTest {
         File actualFile = new File();
 
         expectedFile.setId("http://example.com/test");
-        expectedFile.setFileType(ImmutableSet.of("DIRECTORY", "SOURCE"));
+        expectedFile.setFileType(ImmutableSet.of(BlackDuckValue.FILE_TYPE_DIRECTORY.id(), SpdxValue.FILE_TYPE_SOURCE.id()));
         expectedFile.setChecksum(ImmutableList.of(Checksum.sha1(HashCode.fromInt(0))));
 
         LinkedDataContext context = new LinkedDataContext();

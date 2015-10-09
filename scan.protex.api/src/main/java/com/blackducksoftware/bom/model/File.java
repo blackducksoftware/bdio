@@ -20,6 +20,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
+import com.blackducksoftware.bom.BlackDuckValue;
 import com.blackducksoftware.bom.SpdxTerm;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -161,6 +162,11 @@ public class File extends AbstractModel<File> {
 
     public void setFileType(@Nullable Set<String> fileType) {
         this.fileType = fileType;
+    }
+
+    public boolean isFileTypeDirectory() {
+        Set<String> fileType = getFileType();
+        return fileType != null && fileType.contains(BlackDuckValue.FILE_TYPE_DIRECTORY.id());
     }
 
     @Nullable
