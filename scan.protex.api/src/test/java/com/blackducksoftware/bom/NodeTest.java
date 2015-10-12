@@ -15,6 +15,8 @@ import static com.google.common.truth.Truth.assertThat;
 
 import org.testng.annotations.Test;
 
+import com.google.common.collect.ImmutableMap;
+
 /**
  * Tests for various nodes.
  *
@@ -42,6 +44,12 @@ public class NodeTest {
     @Test(expectedExceptions = UnsupportedOperationException.class)
     public void testImmutableNodeData() {
         ImmutableNode.builder().id("_:123").type(SpdxType.FILE).build().data().put(SpdxTerm.FILE_NAME, "./foo.txt");
+    }
+
+    @Test
+    public void testImmutableNodeBuilderPutAll() {
+        Node node = ImmutableNode.builder().putAll(ImmutableMap.<Term, Object> of(SpdxTerm.FILE_NAME, "./foo.txt")).build();
+        assertThat(node.data().get(SpdxTerm.FILE_NAME)).isEqualTo("./foo.txt");
     }
 
 }

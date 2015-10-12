@@ -70,7 +70,7 @@ public final class ImmutableNode implements Node, Serializable {
         }
 
         public Builder putAll(Map<Term, Object> data) {
-            data.putAll(data);
+            this.data.putAll(data);
             return this;
         }
     }
