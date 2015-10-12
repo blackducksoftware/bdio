@@ -14,6 +14,7 @@ package com.blackducksoftware.bom.io;
 import static com.google.common.base.CaseFormat.LOWER_HYPHEN;
 import static com.google.common.base.CaseFormat.UPPER_UNDERSCORE;
 import static com.google.common.base.Objects.firstNonNull;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.net.URI;
@@ -130,10 +131,10 @@ public class LinkedDataContext {
     }
 
     /**
-     * The base IRI to resolve identifiers against.
+     * The base IRI to resolve identifiers against. Stored as a typed URI to simplify access to the resolution logic.
      */
     @Nullable
-    private final String base;
+    private final URI base;
 
     /**
      * The vocabulary IRI to prepend to unqualified IRIs.
@@ -178,7 +179,8 @@ public class LinkedDataContext {
 
     public LinkedDataContext(@Nullable String base) {
         // Store the base URI used to resolve identifiers
-        this.base = base;
+        this.base = base != null ? URI.create(base) : null;
+        checkArgument(this.base.isAbsolute(), "base must be an absolute URI");
 
         // Load our definitions
         vocab = "http://blackducksoftware.com/rdf/terms#";
@@ -266,7 +268,7 @@ public class LinkedDataContext {
     }
 
     @Nullable
-    public String getBase() {
+    public URI getBase() {
         return base;
     }
 
@@ -356,10 +358,22 @@ public class LinkedDataContext {
             return definition.getContainer().copyOf(values);
         } else if (value instanceof Node) {
             // Expand the node and merge the types from the definition
+            // TODO Isn't this dead code?
             Map<String, Object> embeddedNode = expand((Node) value);
             embeddedNode.put(JsonLdTerm.TYPE.toString(),
                     FluentIterable.from(Iterables.concat(definition.getTypes(), ((Node) value).types()))
                             .transform(Functions.toStringFunction()).toList());
+            return embeddedNode;
+        } else if (value instanceof Map<?, ?>) {
+            // TODO Is there a better way to do this?
+            Map<String, Object> embeddedNode = expand(expandToNode((Map<String, Object>) value));
+            Iterable<String> definitionTypes = FluentIterable.from(definition.getTypes()).transform(Functions.toStringFunction()).toList();
+            if (embeddedNode.containsKey(JsonLdTerm.TYPE.toString())) {
+                embeddedNode.put(JsonLdTerm.TYPE.toString(),
+                        FluentIterable.from(Iterables.concat(definitionTypes, (Iterable<String>) embeddedNode.get(JsonLdTerm.TYPE.toString()))).toList());
+            } else {
+                embeddedNode.put(JsonLdTerm.TYPE.toString(), definitionTypes);
+            }
             return embeddedNode;
         } else if (value != null) {
             // Scalar, convert based on type
@@ -401,7 +415,7 @@ public class LinkedDataContext {
             }
         }
         if (relative) {
-            return base != null ? URI.create(base).resolve(value).toString() : value;
+            return base != null ? base.resolve(value).toString() : value;
         } else {
             return vocab != null ? vocab + value : value;
         }
@@ -530,7 +544,7 @@ public class LinkedDataContext {
     public Map<String, Object> serialize() {
         Map<String, Object> result = new LinkedHashMap<>();
         if (base != null) {
-            result.put("@base", base);
+            result.put("@base", base.toString());
         }
         if (vocab != null) {
             result.put("@vocab", vocab);

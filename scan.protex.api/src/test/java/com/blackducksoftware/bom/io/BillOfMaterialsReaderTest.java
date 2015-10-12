@@ -22,9 +22,11 @@ import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.Node;
 import com.blackducksoftware.bom.SpdxTerm;
+import com.blackducksoftware.bom.SpdxType;
 import com.blackducksoftware.bom.SpdxValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.hash.Hashing;
 
 /**
  * Tests for the Bill of Materials Reader.
@@ -44,7 +46,11 @@ public class BillOfMaterialsReaderTest {
                 + " }, {"
                 + "  \"@id\": \"foo\","
                 + "  \"@type\": \"File\","
-                + "  \"size\": 333"
+                + "  \"size\": 333,"
+                + "  \"checksum\": {"
+                + "    \"algorithm\": \"sha1\","
+                + "    \"checksumValue\": \"9069ca78e7450a285173431b3e52c5c25299e473\""
+                + "  }"
                 + "} ]");
 
         try (BillOfMaterialsReader reader = new BillOfMaterialsReader(context, in)) {
@@ -61,6 +67,11 @@ public class BillOfMaterialsReaderTest {
             assertThat(node2.types()).containsExactly(BlackDuckType.FILE);
             assertThat(node2.data()).isEqualTo(ImmutableMap.builder()
                     .put(BlackDuckTerm.SIZE, 333L)
+                    .put(SpdxTerm.CHECKSUM, ImmutableMap.builder()
+                            .put(JsonLdTerm.TYPE.toString(), ImmutableList.of(SpdxType.CHECKSUM.toString()))
+                            .put(SpdxTerm.ALGORITHM.toString(), SpdxValue.CHECKSUM_ALGORITHM_SHA1.id())
+                            .put(SpdxTerm.CHECKSUM_VALUE.toString(), Hashing.sha1().hashInt(0).toString())
+                            .build())
                     .build());
 
             assertThat(reader.read()).isNull();
