@@ -80,15 +80,15 @@ public class ExternalIdentifier extends AbstractModel<ExternalIdentifier> {
     /**
      * Helper to create a new Black Duck Suite identifier.
      */
-    public static ExternalIdentifier blackDuckSuite(String id) {
+    public static ExternalIdentifier blackDuckSuite(@Nullable String id) {
         return id != null ? create(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE.id(), id, null) : null;
     }
 
     /**
      * Helper to create a new Black Duck Hub identifier.
      */
-    public static ExternalIdentifier blackDuckHub(UUID id) {
-        return id != null ? create(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_HUB.id(), id.toString(), null) : null;
+    public static ExternalIdentifier blackDuckHub(String entityType, @Nullable UUID id) {
+        return id != null ? create(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_HUB.id(), entityType + "~" + id.toString(), null) : null;
     }
 
     private static ExternalIdentifier create(String systemTypeId, String id, String repositoryLocation) {
