@@ -26,7 +26,7 @@ import com.blackducksoftware.bom.BlackDuckValue;
  *
  * @author jgustie
  */
-public class ExternalIdentifier extends AbstractModel<ExternalIdentifier> {
+public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier> {
 
     @Nullable
     private String externalSystemTypeId;

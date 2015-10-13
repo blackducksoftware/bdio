@@ -11,25 +11,17 @@
  */
 package com.blackducksoftware.bom.model;
 
-import static com.google.common.base.Objects.firstNonNull;
-
-import java.util.List;
-
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.DoapTerm;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 
 /**
  * A component in a Bill of Materials.
  *
  * @author jgustie
  */
-public class Component extends AbstractModel<Component> {
+public class Component extends AbstractTopLevelModel<Component> {
 
     @Nullable
     private String name;
@@ -91,24 +83,9 @@ public class Component extends AbstractModel<Component> {
         }
     };
 
-    @Nullable
-    private List<ExternalIdentifier> externalIdentifier;
-
-    private static final ModelField<Component> EXTERNAL_IDENTIFIER = new ModelField<Component>(BlackDuckTerm.EXTERNAL_IDENTIFIER) {
-        @Override
-        protected Object get(Component component) {
-            return component.getExternalIdentifier();
-        }
-
-        @Override
-        protected void set(Component component, Object value) {
-            component.setExternalIdentifier(emptyToNull(valueToNodes(value).transformAndConcat(toModel(ExternalIdentifier.class)).toList()));
-        }
-    };
-
     public Component() {
         super(BlackDuckType.COMPONENT,
-                NAME, VERSION, HOMEPAGE, LICENSE, EXTERNAL_IDENTIFIER);
+                NAME, VERSION, HOMEPAGE, LICENSE);
     }
 
     @Nullable
@@ -145,31 +122,6 @@ public class Component extends AbstractModel<Component> {
 
     public void setLicense(@Nullable String license) {
         this.license = license;
-    }
-
-    @Nullable
-    public List<ExternalIdentifier> getExternalIdentifier() {
-        return externalIdentifier;
-    }
-
-    public void setExternalIdentifier(@Nullable List<ExternalIdentifier> externalIdentifier) {
-        this.externalIdentifier = externalIdentifier;
-    }
-
-    public Component addExternalIdentifier(ExternalIdentifier externalIdentifier) {
-        if (externalIdentifier != null) {
-            List<ExternalIdentifier> externalIdentifiers = getExternalIdentifier();
-            if (externalIdentifiers != null) {
-                externalIdentifiers.add(externalIdentifier);
-            } else {
-                setExternalIdentifier(Lists.newArrayList(externalIdentifier));
-            }
-        }
-        return this;
-    }
-
-    public FluentIterable<ExternalIdentifier> externalIdentifiers() {
-        return FluentIterable.from(firstNonNull(getExternalIdentifier(), ImmutableList.<ExternalIdentifier> of()));
     }
 
 }

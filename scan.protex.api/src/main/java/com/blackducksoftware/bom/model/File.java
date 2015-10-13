@@ -31,7 +31,7 @@ import com.google.common.collect.Lists;
  *
  * @author jgustie
  */
-public class File extends AbstractModel<File> {
+public class File extends AbstractTopLevelModel<File> {
 
     /**
      * The path of the file. Should always start with "./" relative to some base path.

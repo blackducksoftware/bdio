@@ -20,7 +20,7 @@ import com.blackducksoftware.bom.SpdxType;
 import com.blackducksoftware.bom.SpdxValue;
 import com.google.common.hash.HashCode;
 
-public class Checksum extends AbstractModel<Checksum> {
+public class Checksum extends AbstractEmbeddedModel<Checksum> {
 
     @Nullable
     private String algorithm;

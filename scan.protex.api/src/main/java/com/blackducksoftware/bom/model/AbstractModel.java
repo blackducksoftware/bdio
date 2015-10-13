@@ -47,7 +47,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
     /**
      * A function that converts to a specific model implementation.
      */
-    private static final class ToModelFunction<M extends AbstractModel<M>> implements Function<Node, Iterable<M>> {
+    private static final class ToModelFunction<M extends AbstractModel<? super M>> implements Function<Node, Iterable<M>> {
         private final Logger logger = LoggerFactory.getLogger(getClass());
 
         private final Class<M> modelType;
@@ -371,7 +371,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
     /**
      * A function that converts a node to a compatible model node.
      */
-    public static <M extends AbstractModel<M>> Function<Node, Iterable<M>> toModel(Class<M> modelType) {
+    public static <M extends AbstractModel<? super M>> Function<Node, Iterable<M>> toModel(Class<M> modelType) {
         return new ToModelFunction<>(modelType);
     }
 

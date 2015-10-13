@@ -11,17 +11,17 @@
  */
 package com.blackducksoftware.bom.model;
 
-import com.blackducksoftware.bom.BlackDuckType;
+import com.blackducksoftware.bom.Type;
 
 /**
- * The Bill of Materials itself.
+ * Base class for embedded models. Embedded models are used as values for properties on other models.
  *
  * @author jgustie
  */
-public class BillOfMaterials extends AbstractTopLevelModel<BillOfMaterials> {
+public class AbstractEmbeddedModel<M extends AbstractEmbeddedModel<M>> extends AbstractModel<M> {
 
-    public BillOfMaterials() {
-        super(BlackDuckType.BILL_OF_MATERIALS);
+    protected AbstractEmbeddedModel(Type type, ModelField<M>... fields) {
+        super(type, fields);
     }
 
 }
