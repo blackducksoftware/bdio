@@ -36,7 +36,7 @@ public class BillOfMaterialsWriterTest {
 
     @Test
     public void simpleWriteFileModelTest() throws IOException {
-        LinkedDataContext context = new LinkedDataContext("");
+        LinkedDataContext context = new LinkedDataContext();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (BillOfMaterialsWriter writer = new BillOfMaterialsWriter(context, baos)) {
             writer.write(ImmutableNode.builder()
