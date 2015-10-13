@@ -11,6 +11,8 @@
  */
 package com.blackducksoftware.bom.model;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.util.UUID;
 
 import javax.annotation.Nullable;
@@ -80,6 +82,7 @@ public class ExternalIdentifier extends AbstractModel<ExternalIdentifier> {
     /**
      * Helper to create a new Black Duck Suite identifier.
      */
+    @Nullable
     public static ExternalIdentifier blackDuckSuite(@Nullable String id) {
         return id != null ? create(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE.id(), id, null) : null;
     }
@@ -87,7 +90,9 @@ public class ExternalIdentifier extends AbstractModel<ExternalIdentifier> {
     /**
      * Helper to create a new Black Duck Hub identifier.
      */
+    @Nullable
     public static ExternalIdentifier blackDuckHub(String entityType, @Nullable UUID id) {
+        checkNotNull(entityType);
         return id != null ? create(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_HUB.id(), entityType + "~" + id.toString(), null) : null;
     }
 

@@ -22,6 +22,9 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.blackducksoftware.bom.Node;
 import com.blackducksoftware.bom.Term;
 import com.blackducksoftware.bom.Type;
@@ -45,6 +48,8 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
      * A function that converts to a specific model implementation.
      */
     private static final class ToModelFunction<M extends AbstractModel<M>> implements Function<Node, Iterable<M>> {
+        private final Logger logger = LoggerFactory.getLogger(getClass());
+
         private final Class<M> modelType;
 
         private ToModelFunction(Class<M> modelType) {
@@ -62,6 +67,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
                         return ImmutableSet.of(model);
                     }
                 } catch (ReflectiveOperationException e) {
+                    logger.debug("Failed to create instance of {}", modelType.getName(), e);
                 }
             }
             return ImmutableSet.of();
