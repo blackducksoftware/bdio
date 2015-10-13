@@ -17,7 +17,9 @@ import static com.google.common.base.Objects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.math.BigInteger;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -25,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -568,6 +571,25 @@ public class LinkedDataContext {
             result.put(entry.getKey(), serializedDefinition);
         }
         return result;
+    }
+
+    /**
+     * Creates a new globally unique identifier.
+     */
+    public URI mintSkolemIdentifier() {
+        // http://www.w3.org/TR/rdf11-concepts/#section-skolemization
+        // http://manu.sporny.org/2013/rdf-identifiers/
+        try {
+            UUID name = UUID.randomUUID();
+            if (getBase() != null) {
+                BigInteger number = BigInteger.valueOf(name.getMostSignificantBits()).shiftLeft(64).and(BigInteger.valueOf(name.getLeastSignificantBits()));
+                return getBase().resolve("/.well-known/genid/" + number);
+            } else {
+                return new URI("uuid", name.toString(), null);
+            }
+        } catch (URISyntaxException e) {
+            throw new IllegalStateException("failed to create blank node identifier", e);
+        }
     }
 
 }

@@ -11,10 +11,18 @@
  */
 package com.blackducksoftware.bom.model;
 
+import static com.google.common.base.Objects.firstNonNull;
+
+import java.util.List;
+
 import javax.annotation.Nullable;
 
+import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.SpdxTerm;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 /**
  * A license in a Bill of Materials.
@@ -41,9 +49,24 @@ public class License extends AbstractModel<License> {
         }
     };
 
+    @Nullable
+    private List<ExternalIdentifier> externalIdentifier;
+
+    private static final ModelField<License> EXTERNAL_IDENTIFIER = new ModelField<License>(BlackDuckTerm.EXTERNAL_IDENTIFIER) {
+        @Override
+        protected Object get(License license) {
+            return license.getExternalIdentifier();
+        }
+
+        @Override
+        protected void set(License license, Object value) {
+            license.setExternalIdentifier(emptyToNull(valueToNodes(value).transformAndConcat(toModel(ExternalIdentifier.class)).toList()));
+        }
+    };
+
     public License() {
         super(BlackDuckType.LICENSE,
-                NAME);
+                NAME, EXTERNAL_IDENTIFIER);
     }
 
     @Nullable
@@ -53,6 +76,31 @@ public class License extends AbstractModel<License> {
 
     public void setName(@Nullable String name) {
         this.name = name;
+    }
+
+    @Nullable
+    public List<ExternalIdentifier> getExternalIdentifier() {
+        return externalIdentifier;
+    }
+
+    public void setExternalIdentifier(@Nullable List<ExternalIdentifier> externalIdentifier) {
+        this.externalIdentifier = externalIdentifier;
+    }
+
+    public License addExternalIdentifier(ExternalIdentifier externalIdentifier) {
+        if (externalIdentifier != null) {
+            List<ExternalIdentifier> externalIdentifiers = getExternalIdentifier();
+            if (externalIdentifiers != null) {
+                externalIdentifiers.add(externalIdentifier);
+            } else {
+                setExternalIdentifier(Lists.newArrayList(externalIdentifier));
+            }
+        }
+        return this;
+    }
+
+    public FluentIterable<ExternalIdentifier> externalIdentifiers() {
+        return FluentIterable.from(firstNonNull(getExternalIdentifier(), ImmutableList.<ExternalIdentifier> of()));
     }
 
 }

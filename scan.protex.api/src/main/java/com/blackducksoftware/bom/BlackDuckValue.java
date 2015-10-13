@@ -27,7 +27,10 @@ import com.google.common.collect.ImmutableSet;
  */
 public enum BlackDuckValue implements Node {
 
-    FILE_TYPE_DIRECTORY("http://blackducksoftware.com/rdf/terms#fileType_directory");
+    FILE_TYPE_DIRECTORY("http://blackducksoftware.com/rdf/terms#fileType_directory"),
+
+    EXTERNAL_IDENTIFIER_BD_SUITE("http://blackducksoftware.com/rdf/terms#externalIdentifier_BD-Suite"),
+    EXTERNAL_IDENTIFIER_BD_HUB("http://blackducksoftware.com/rdf/terms#externalIdentifier_BD-Hub");
 
     private final String fullyQualifiedName;
 

@@ -25,7 +25,9 @@ public enum BlackDuckType implements Type {
     FILE("http://blackducksoftware.com/rdf/terms#File"),
     LICENSE("http://blackducksoftware.com/rdf/terms#License"),
     PROJECT("http://blackducksoftware.com/rdf/terms#Project"),
-    VULNERABILITY("http://blackducksoftware.com/rdf/terms#Vulnerability");
+    VULNERABILITY("http://blackducksoftware.com/rdf/terms#Vulnerability"),
+
+    EXTERNAL_IDENTIFIER("http://blackducksoftware.com/rdf/terms#ExternalIdentifier");
 
     private final URI uri;
 
