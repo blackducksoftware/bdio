@@ -183,7 +183,7 @@ public class LinkedDataContext {
     public LinkedDataContext(@Nullable String base) {
         // Store the base URI used to resolve identifiers
         this.base = base != null ? URI.create(base) : null;
-        checkArgument(this.base.isAbsolute(), "base must be an absolute URI");
+        checkArgument(base == null || this.base.isAbsolute(), "base must be an absolute URI");
 
         // Load our definitions
         vocab = "http://blackducksoftware.com/rdf/terms#";

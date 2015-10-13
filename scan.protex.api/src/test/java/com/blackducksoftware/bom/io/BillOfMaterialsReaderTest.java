@@ -37,7 +37,7 @@ public class BillOfMaterialsReaderTest {
 
     @Test
     public void testSimpleRead() throws Exception {
-        LinkedDataContext context = new LinkedDataContext("");
+        LinkedDataContext context = new LinkedDataContext();
         Reader in = new StringReader("[ {"
                 + "  \"@id\": \"foo\","
                 + "  \"@type\": \"File\","
