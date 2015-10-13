@@ -11,11 +11,8 @@
  */
 package com.blackducksoftware.bom.model;
 
-import java.util.UUID;
-
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.DoapTerm;
 
@@ -24,7 +21,7 @@ import com.blackducksoftware.bom.DoapTerm;
  *
  * @author jgustie
  */
-public class Component extends AbstractModel<Component> {
+public class Component extends AbstractTopLevelModel<Component> {
 
     @Nullable
     private String name;
@@ -86,69 +83,9 @@ public class Component extends AbstractModel<Component> {
         }
     };
 
-    @Nullable
-    private String legacyId;
-
-    private static final ModelField<Component> LEGACY_ID = new ModelField<Component>(BlackDuckTerm.LEGACY_ID) {
-        @Override
-        protected Object get(Component component) {
-            return component.getLegacyId();
-        }
-
-        @Override
-        protected void set(Component component, Object value) {
-            component.setLegacyId(valueToString(value));
-        }
-    };
-
-    @Nullable
-    private String legacyVersionId;
-
-    private static final ModelField<Component> LEGACY_VERSION_ID = new ModelField<Component>(BlackDuckTerm.LEGACY_VERSION_ID) {
-        @Override
-        protected Object get(Component component) {
-            return component.getLegacyVersionId();
-        }
-
-        @Override
-        protected void set(Component component, Object value) {
-            component.setLegacyVersionId(valueToString(value));
-        }
-    };
-
-    @Nullable
-    private UUID knowledgeBaseId;
-
-    private static final ModelField<Component> KNOWLEDGE_BASE_ID = new ModelField<Component>(BlackDuckTerm.KNOWLEDGE_BASE_ID) {
-        @Override
-        protected Object get(Component component) {
-            return component.getKnowledgeBaseId();
-        }
-
-        @Override
-        protected void set(Component component, Object value) {
-            component.setKnowledgeBaseId(value != null ? UUID.fromString(valueToString(value)) : null);
-        }
-    };
-
-    @Nullable
-    private UUID knowledgeBaseVersionId;
-
-    private static final ModelField<Component> KNOWLEDGE_BASE_VERSION_ID = new ModelField<Component>(BlackDuckTerm.KNOWLEDGE_BASE_VERSION_ID) {
-        @Override
-        protected Object get(Component component) {
-            return component.getKnowledgeBaseVersionId();
-        }
-
-        @Override
-        protected void set(Component component, Object value) {
-            component.setKnowledgeBaseVersionId(value != null ? UUID.fromString(valueToString(value)) : null);
-        }
-    };
-
     public Component() {
         super(BlackDuckType.COMPONENT,
-                NAME, VERSION, HOMEPAGE, LICENSE, LEGACY_ID, LEGACY_VERSION_ID, KNOWLEDGE_BASE_ID, KNOWLEDGE_BASE_VERSION_ID);
+                NAME, VERSION, HOMEPAGE, LICENSE);
     }
 
     @Nullable
@@ -185,42 +122,6 @@ public class Component extends AbstractModel<Component> {
 
     public void setLicense(@Nullable String license) {
         this.license = license;
-    }
-
-    @Nullable
-    public String getLegacyId() {
-        return legacyId;
-    }
-
-    public void setLegacyId(@Nullable String legacyId) {
-        this.legacyId = legacyId;
-    }
-
-    @Nullable
-    public String getLegacyVersionId() {
-        return legacyVersionId;
-    }
-
-    public void setLegacyVersionId(@Nullable String legacyVersionId) {
-        this.legacyVersionId = legacyVersionId;
-    }
-
-    @Nullable
-    public UUID getKnowledgeBaseId() {
-        return knowledgeBaseId;
-    }
-
-    public void setKnowledgeBaseId(@Nullable UUID knowledgeBaseId) {
-        this.knowledgeBaseId = knowledgeBaseId;
-    }
-
-    @Nullable
-    public UUID getKnowledgeBaseVersionId() {
-        return knowledgeBaseVersionId;
-    }
-
-    public void setKnowledgeBaseVersionId(@Nullable UUID knowledgeBaseVersionId) {
-        this.knowledgeBaseVersionId = knowledgeBaseVersionId;
     }
 
 }

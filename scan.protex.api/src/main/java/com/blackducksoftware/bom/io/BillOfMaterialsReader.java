@@ -11,8 +11,11 @@
  */
 package com.blackducksoftware.bom.io;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.io.IOException;
 import java.io.Reader;
+import java.util.Map;
 
 import javax.annotation.Nullable;
 
@@ -26,6 +29,7 @@ import rx.observables.AbstractOnSubscribe.SubscriptionState;
 import com.blackducksoftware.bom.Node;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.CharSource;
 
@@ -37,21 +41,29 @@ import com.google.common.io.CharSource;
 public class BillOfMaterialsReader implements AutoCloseable {
 
     /**
+     * We want to read nodes out as a map we can pass into the context.
+     */
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<Map<String, Object>>() {
+    };
+
+    /**
+     * The linked data context.
+     */
+    private final LinkedDataContext context;
+
+    /**
      * The reader backed parser used to read actual JSON.
      */
-    private final JsonParser json;
+    private final JsonParser jp;
 
     public BillOfMaterialsReader(LinkedDataContext context, Reader in) throws IOException {
-        // Setup the JSON parser
-        json = new ObjectMapper()
-                .registerModule(new BillOfMaterialsModule(context))
-                .getFactory()
-                .createParser(in);
+        this.context = checkNotNull(context);
 
-        // TODO Any other config we want to do?
+        // Setup the JSON parser
+        jp = new ObjectMapper().getFactory().createParser(in);
 
         // Start by finding the list of nodes
-        if (json.nextToken() != JsonToken.START_ARRAY) {
+        if (jp.nextToken() != JsonToken.START_ARRAY) {
             throw new IOException("expected input to start with an array");
         }
     }
@@ -61,8 +73,9 @@ public class BillOfMaterialsReader implements AutoCloseable {
      */
     @Nullable
     public Node read() throws IOException {
-        if (json.nextToken() != JsonToken.END_ARRAY) {
-            return json.readValueAs(Node.class);
+        if (jp.nextToken() != JsonToken.END_ARRAY) {
+            Map<String, Object> nodeMap = jp.readValueAs(MAP_TYPE);
+            return context.expandToNode(nodeMap);
         } else {
             return null;
         }
@@ -70,7 +83,7 @@ public class BillOfMaterialsReader implements AutoCloseable {
 
     @Override
     public void close() throws IOException {
-        json.close();
+        jp.close();
     }
 
     /**

@@ -14,7 +14,7 @@ package com.blackducksoftware.bom;
 import java.net.URI;
 
 /**
- * Term constants corresponding to the Software Package Data Exchange properties.
+ * Term constants corresponding to the Resource Description Framework Schema properties.
  *
  * @author jgustie
  * @see <a href="http://www.w3.org/TR/rdf-schema/">RDF Schema</a>

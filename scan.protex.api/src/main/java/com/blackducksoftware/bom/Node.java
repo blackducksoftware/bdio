@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Primary unit of output in a serialized Bill of Materials.
@@ -26,7 +27,7 @@ public interface Node {
     /**
      * The unique node identifier. Must be a valid IRI.
      */
-    @Nonnull
+    @Nullable
     String id();
 
     /**

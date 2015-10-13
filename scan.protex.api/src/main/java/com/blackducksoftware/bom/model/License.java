@@ -11,11 +11,8 @@
  */
 package com.blackducksoftware.bom.model;
 
-import java.util.UUID;
-
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.SpdxTerm;
 
@@ -24,7 +21,7 @@ import com.blackducksoftware.bom.SpdxTerm;
  *
  * @author jgustie
  */
-public class License extends AbstractModel<License> {
+public class License extends AbstractTopLevelModel<License> {
 
     /**
      * The name of the license.
@@ -44,45 +41,9 @@ public class License extends AbstractModel<License> {
         }
     };
 
-    /**
-     * The identifier of the license in the Black Duck Suite.
-     */
-    @Nullable
-    private String legacyId;
-
-    private static final ModelField<License> LEGACY_ID = new ModelField<License>(BlackDuckTerm.LEGACY_ID) {
-        @Override
-        protected Object get(License license) {
-            return license.getLegacyId();
-        }
-
-        @Override
-        protected void set(License license, Object value) {
-            license.setLegacyId(valueToString(value));
-        }
-    };
-
-    /**
-     * The identifier of the license in the Black Duck Knowledge Base.
-     */
-    @Nullable
-    private UUID knowledgeBaseId;
-
-    private static final ModelField<License> KNOWLEDGE_BASE_ID = new ModelField<License>(BlackDuckTerm.KNOWLEDGE_BASE_ID) {
-        @Override
-        protected Object get(License license) {
-            return license.getKnowledgeBaseId();
-        }
-
-        @Override
-        protected void set(License license, Object value) {
-            license.setKnowledgeBaseId(value != null ? UUID.fromString(valueToString(value)) : null);
-        }
-    };
-
     public License() {
         super(BlackDuckType.LICENSE,
-                NAME, LEGACY_ID, KNOWLEDGE_BASE_ID);
+                NAME);
     }
 
     @Nullable
@@ -93,23 +54,4 @@ public class License extends AbstractModel<License> {
     public void setName(@Nullable String name) {
         this.name = name;
     }
-
-    @Nullable
-    public String getLegacyId() {
-        return legacyId;
-    }
-
-    public void setLegacyId(@Nullable String legacyId) {
-        this.legacyId = legacyId;
-    }
-
-    @Nullable
-    public UUID getKnowledgeBaseId() {
-        return knowledgeBaseId;
-    }
-
-    public void setKnowledgeBaseId(@Nullable UUID knowledgeBaseId) {
-        this.knowledgeBaseId = knowledgeBaseId;
-    }
-
 }

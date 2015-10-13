@@ -70,7 +70,7 @@ public final class ImmutableNode implements Node, Serializable {
         }
 
         public Builder putAll(Map<Term, Object> data) {
-            data.putAll(data);
+            this.data.putAll(data);
             return this;
         }
     }
@@ -82,7 +82,7 @@ public final class ImmutableNode implements Node, Serializable {
     private final Map<Term, Object> data;
 
     private ImmutableNode(String id, Set<Type> types, Map<Term, Object> data) {
-        this.id = checkNotNull(id);
+        this.id = id;
         this.types = ImmutableSet.copyOf(types);
         this.data = ImmutableMap.copyOf(data);
     }
@@ -150,7 +150,7 @@ public final class ImmutableNode implements Node, Serializable {
     public boolean equals(Object obj) {
         if (obj instanceof Node) {
             Node other = (Node) obj;
-            return id.equals(other.id()) && types.equals(other.types()) && data.equals(other.data());
+            return Objects.equals(id, other.id()) && types.equals(other.types()) && data.equals(other.data());
         } else {
             return false;
         }
@@ -159,6 +159,7 @@ public final class ImmutableNode implements Node, Serializable {
     @Override
     public String toString() {
         return toStringHelper(this)
+                .omitNullValues()
                 .add("id", id)
                 .add("types", types)
                 .add("data", data)

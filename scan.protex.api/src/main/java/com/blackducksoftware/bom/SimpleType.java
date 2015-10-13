@@ -48,7 +48,8 @@ public class SimpleType implements Type, Serializable {
         for (Type type : Iterables.concat(
                 Arrays.asList(BlackDuckType.values()),
                 Arrays.asList(DoapType.values()),
-                Arrays.asList(SpdxType.values()))) {
+                Arrays.asList(SpdxType.values()),
+                Arrays.asList(XmlSchemaType.values()))) {
             INSTANCES.put(type.toString(), type);
         }
     }

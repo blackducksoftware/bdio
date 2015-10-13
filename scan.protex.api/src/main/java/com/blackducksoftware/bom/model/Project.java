@@ -21,7 +21,7 @@ import com.blackducksoftware.bom.DoapTerm;
  *
  * @author jgustie
  */
-public class Project extends AbstractModel<Project> {
+public class Project extends AbstractTopLevelModel<Project> {
 
     /**
      * The name of this project.

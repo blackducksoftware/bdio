@@ -13,10 +13,9 @@ package com.blackducksoftware.bom;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import java.net.URI;
 import java.util.Arrays;
 
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 import com.google.common.collect.Iterables;
 
@@ -34,16 +33,8 @@ public class TermTest {
             Arrays.<Term> asList(BlackDuckTerm.values()),
             Arrays.<Term> asList(DoapTerm.values()),
             Arrays.<Term> asList(RdfsTerm.values()),
+            Arrays.<Term> asList(RdfTerm.values()),
             Arrays.<Term> asList(SpdxTerm.values()));
-
-    @Test
-    public void verifyKnownTermSyntax() {
-        // Iterate over the known terms and verify they all parse as a URI
-        // This is actually important because we don't verify this at runtime
-        for (Term term : KNOWN_TERMS) {
-            URI.create(term.toString());
-        }
-    }
 
     @Test
     public void testSimpleTermInstanceCache() {
@@ -61,17 +52,17 @@ public class TermTest {
         }
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test(expectedExceptions = NullPointerException.class)
     public void testSimpleTermCreate_null() {
         SimpleTerm.create(null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testSimpleTermCreate_empty() {
         SimpleTerm.create("");
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testSimpleTermCreate_invalid() {
         SimpleTerm.create(":");
     }

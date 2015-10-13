@@ -14,24 +14,24 @@ package com.blackducksoftware.bom;
 import java.net.URI;
 
 /**
- * Type constants corresponding to Bill Of Materials classes.
+ * Term constants corresponding to the Resource Description Framework syntax properties.
  *
  * @author jgustie
+ * @see <a href="http://www.w3.org/TR/rdf11-concepts/">RDF 1.1 Concepts</a>
  */
-public enum BlackDuckType implements Type {
+public enum RdfTerm implements Term {
 
-    BILL_OF_MATERIALS("http://blackducksoftware.com/rdf/terms#BillOfMaterials"),
-    COMPONENT("http://blackducksoftware.com/rdf/terms#Component"),
-    FILE("http://blackducksoftware.com/rdf/terms#File"),
-    LICENSE("http://blackducksoftware.com/rdf/terms#License"),
-    PROJECT("http://blackducksoftware.com/rdf/terms#Project"),
-    VULNERABILITY("http://blackducksoftware.com/rdf/terms#Vulnerability"),
-
-    EXTERNAL_IDENTIFIER("http://blackducksoftware.com/rdf/terms#ExternalIdentifier");
+    TYPE("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+    SUBJECT("http://www.w3.org/1999/02/22-rdf-syntax-ns#subject"),
+    PREDICATE("http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate"),
+    OBJECT("http://www.w3.org/1999/02/22-rdf-syntax-ns#object"),
+    VALUE("http://www.w3.org/1999/02/22-rdf-syntax-ns#value"),
+    FIRST("http://www.w3.org/1999/02/22-rdf-syntax-ns#first"),
+    REST("http://www.w3.org/1999/02/22-rdf-syntax-ns#rest");
 
     private final URI uri;
 
-    private BlackDuckType(String fullyQualifiedName) {
+    private RdfTerm(String fullyQualifiedName) {
         uri = URI.create(fullyQualifiedName);
     }
 

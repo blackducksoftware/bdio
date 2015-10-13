@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- *
+ * 
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -14,24 +14,18 @@ package com.blackducksoftware.bom;
 import java.net.URI;
 
 /**
- * Type constants corresponding to Bill Of Materials classes.
+ * Type constants corresponding to the XML Schema types.
  *
  * @author jgustie
  */
-public enum BlackDuckType implements Type {
+public enum XmlSchemaType implements Type {
 
-    BILL_OF_MATERIALS("http://blackducksoftware.com/rdf/terms#BillOfMaterials"),
-    COMPONENT("http://blackducksoftware.com/rdf/terms#Component"),
-    FILE("http://blackducksoftware.com/rdf/terms#File"),
-    LICENSE("http://blackducksoftware.com/rdf/terms#License"),
-    PROJECT("http://blackducksoftware.com/rdf/terms#Project"),
-    VULNERABILITY("http://blackducksoftware.com/rdf/terms#Vulnerability"),
-
-    EXTERNAL_IDENTIFIER("http://blackducksoftware.com/rdf/terms#ExternalIdentifier");
+    // TODO More of these
+    LONG("http://www.w3.org/2001/XMLSchema#long");
 
     private final URI uri;
 
-    private BlackDuckType(String fullyQualifiedName) {
+    private XmlSchemaType(String fullyQualifiedName) {
         uri = URI.create(fullyQualifiedName);
     }
 
@@ -44,4 +38,5 @@ public enum BlackDuckType implements Type {
     public URI toUri() {
         return uri;
     }
+
 }

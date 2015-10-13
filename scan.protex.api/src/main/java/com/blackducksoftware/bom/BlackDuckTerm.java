@@ -20,14 +20,12 @@ import java.net.URI;
  */
 public enum BlackDuckTerm implements Term {
 
-    MD5("http://blackducksoftware.com/rdf/terms#md5"),
-    SHA1("http://blackducksoftware.com/rdf/terms#sha1"),
     SIZE("http://blackducksoftware.com/rdf/terms#size"),
-    CONTENT_TYPE("http://blackducksoftware.com/rdf/terms#contentType"),
-    LEGACY_ID("http://blackducksoftware.com/rdf/terms#legacyId"),
-    LEGACY_VERSION_ID("http://blackducksoftware.com/rdf/terms#legacyVersionId"),
-    KNOWLEDGE_BASE_ID("http://blackducksoftware.com/rdf/terms#knowledgeBaseId"),
-    KNOWLEDGE_BASE_VERSION_ID("http://blackducksoftware.com/rdf/terms#knowledgeBaseVersionId");
+
+    EXTERNAL_IDENTIFIER("http://blackducksoftware.com/rdf/terms#externalIdentifier"),
+    EXTERNAL_SYSTEM_TYPE_ID("http://blackducksoftware.com/rdf/terms#externalSystemTypeId"),
+    EXTERNAL_ID("http://blackducksoftware.com/rdf/terms#externalId"),
+    EXTERNAL_REPOSITORY_LOCATION("http://blackducksoftware.com/rdf/terms#externalRepositoryLocation");
 
     private final URI uri;
 

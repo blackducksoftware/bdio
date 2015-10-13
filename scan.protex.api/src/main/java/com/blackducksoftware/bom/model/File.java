@@ -11,22 +11,28 @@
  */
 package com.blackducksoftware.bom.model;
 
+import static com.google.common.base.Objects.firstNonNull;
+
+import java.util.List;
 import java.util.Set;
 
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
+import com.blackducksoftware.bom.BlackDuckValue;
 import com.blackducksoftware.bom.SpdxTerm;
-import com.google.common.hash.HashCode;
-import com.google.common.net.MediaType;
+import com.blackducksoftware.bom.SpdxValue;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 /**
  * A file in a Bill of Materials.
  *
  * @author jgustie
  */
-public class File extends AbstractModel<File> {
+public class File extends AbstractTopLevelModel<File> {
 
     /**
      * The path of the file. Should always start with "./" relative to some base path.
@@ -47,24 +53,6 @@ public class File extends AbstractModel<File> {
     };
 
     /**
-     * The media type of the file.
-     */
-    @Nullable
-    private MediaType type;
-
-    private static final ModelField<File> TYPE = new ModelField<File>(BlackDuckTerm.CONTENT_TYPE) {
-        @Override
-        protected Object get(File file) {
-            return file.getType();
-        }
-
-        @Override
-        protected void set(File file, Object value) {
-            file.setType(value != null ? MediaType.parse(valueToString(value)) : null);
-        }
-    };
-
-    /**
      * The file types of this file. Corresponds to the SPDX types plus "DIRECTORY".
      */
     @Nullable
@@ -78,7 +66,7 @@ public class File extends AbstractModel<File> {
 
         @Override
         protected void set(File file, Object value) {
-            file.setFileTypes(valueToStrings(value).toSet());
+            file.setFileTypes(emptyToNull(valueToStrings(value).toSet()));
         }
     };
 
@@ -101,38 +89,20 @@ public class File extends AbstractModel<File> {
     };
 
     /**
-     * The SHA-1 hash of this file's contents.
+     * The list of checksums for this file.
      */
     @Nullable
-    private HashCode sha1;
+    private List<Checksum> checksum;
 
-    private static final ModelField<File> SHA1 = new ModelField<File>(BlackDuckTerm.SHA1) {
+    private static final ModelField<File> CHECKSUM = new ModelField<File>(SpdxTerm.CHECKSUM) {
         @Override
         protected Object get(File file) {
-            return file.getSha1();
+            return file.getChecksum();
         }
 
         @Override
         protected void set(File file, Object value) {
-            file.setSha1(value != null ? HashCode.fromString(valueToString(value)) : null);
-        }
-    };
-
-    /**
-     * The MD5 hash of this file's contents.
-     */
-    @Nullable
-    private HashCode md5;
-
-    private static final ModelField<File> MD5 = new ModelField<File>(BlackDuckTerm.MD5) {
-        @Override
-        protected Object get(File file) {
-            return file.getMd5();
-        }
-
-        @Override
-        protected void set(File file, Object value) {
-            file.setMd5(value != null ? HashCode.fromString(valueToString(value)) : null);
+            file.setChecksum(emptyToNull(valueToNodes(value).transformAndConcat(toModel(Checksum.class)).toList()));
         }
     };
 
@@ -172,27 +142,9 @@ public class File extends AbstractModel<File> {
         }
     };
 
-    /**
-     * The scan composite identifier of the file.
-     */
-    @Nullable
-    private Long knowledgeBaseId;
-
-    private static final ModelField<File> KNOWLEDGE_BASE_ID = new ModelField<File>(BlackDuckTerm.KNOWLEDGE_BASE_ID) {
-        @Override
-        protected Object get(File file) {
-            return file.getKnowledgeBaseId();
-        }
-
-        @Override
-        protected void set(File file, Object value) {
-            file.setKnowledgeBaseId(valueToLong(value));
-        }
-    };
-
     public File() {
         super(BlackDuckType.FILE,
-                PATH, TYPE, FILE_TYPES, SIZE, SHA1, MD5, COMPONENT, LICENSE, KNOWLEDGE_BASE_ID);
+                PATH, FILE_TYPES, SIZE, CHECKSUM, COMPONENT, LICENSE);
     }
 
     @Nullable
@@ -205,21 +157,22 @@ public class File extends AbstractModel<File> {
     }
 
     @Nullable
-    public MediaType getType() {
-        return type;
-    }
-
-    public void setType(@Nullable MediaType type) {
-        this.type = type;
-    }
-
-    @Nullable
     public Set<String> getFileTypes() {
         return fileTypes;
     }
 
     public void setFileTypes(@Nullable Set<String> fileTypes) {
         this.fileTypes = fileTypes;
+    }
+
+    public boolean isFileTypeDirectory() {
+        Set<String> fileType = getFileTypes();
+        return fileType != null && fileType.contains(BlackDuckValue.FILE_TYPE_DIRECTORY.id());
+    }
+
+    public boolean isFileTypeArchive() {
+        Set<String> fileType = getFileTypes();
+        return fileType != null && fileType.contains(SpdxValue.FILE_TYPE_ARCHIVE.id());
     }
 
     @Nullable
@@ -232,21 +185,28 @@ public class File extends AbstractModel<File> {
     }
 
     @Nullable
-    public HashCode getSha1() {
-        return sha1;
+    public List<Checksum> getChecksum() {
+        return checksum;
     }
 
-    public void setSha1(@Nullable HashCode sha1) {
-        this.sha1 = sha1;
+    public void setChecksum(@Nullable List<Checksum> checksum) {
+        this.checksum = checksum;
     }
 
-    @Nullable
-    public HashCode getMd5() {
-        return md5;
+    public File addChecksum(Checksum checksum) {
+        if (checksum != null) {
+            List<Checksum> checksums = getChecksum();
+            if (checksums != null) {
+                checksums.add(checksum);
+            } else {
+                setChecksum(Lists.newArrayList(checksum));
+            }
+        }
+        return this;
     }
 
-    public void setMd5(@Nullable HashCode md5) {
-        this.md5 = md5;
+    public FluentIterable<Checksum> checksums() {
+        return FluentIterable.from(firstNonNull(getChecksum(), ImmutableList.<Checksum> of()));
     }
 
     @Nullable
@@ -265,15 +225,6 @@ public class File extends AbstractModel<File> {
 
     public void setLicense(@Nullable String license) {
         this.license = license;
-    }
-
-    @Nullable
-    public Long getKnowledgeBaseId() {
-        return knowledgeBaseId;
-    }
-
-    public void setKnowledgeBaseId(@Nullable Long knowledgeBaseId) {
-        this.knowledgeBaseId = knowledgeBaseId;
     }
 
 }
