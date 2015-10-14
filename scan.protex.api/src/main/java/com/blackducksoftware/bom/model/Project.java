@@ -29,9 +29,9 @@ public class Project extends AbstractTopLevelModel<Project> {
     @Nullable
     private String name;
 
-    private static final ModelField<Project> NAME = new ModelField<Project>(DoapTerm.NAME) {
+    private static final ModelField<Project, String> NAME = new ModelField<Project, String>(DoapTerm.NAME) {
         @Override
-        protected Object get(Project project) {
+        protected String get(Project project) {
             return project.getName();
         }
 

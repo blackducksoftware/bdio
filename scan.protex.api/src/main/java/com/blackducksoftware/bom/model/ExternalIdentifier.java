@@ -50,9 +50,10 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
     @Nullable
     private String externalSystemTypeId;
 
-    private static final ModelField<ExternalIdentifier> EXTERNAL_SYSTEM_TYPE_ID = new ModelField<ExternalIdentifier>(BlackDuckTerm.EXTERNAL_SYSTEM_TYPE_ID) {
+    private static final ModelField<ExternalIdentifier, String> EXTERNAL_SYSTEM_TYPE_ID = new ModelField<ExternalIdentifier, String>(
+            BlackDuckTerm.EXTERNAL_SYSTEM_TYPE_ID) {
         @Override
-        protected Object get(ExternalIdentifier externalIdentifier) {
+        protected String get(ExternalIdentifier externalIdentifier) {
             return externalIdentifier.getExternalSystemTypeId();
         }
 
@@ -62,12 +63,14 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
         }
     };
 
+    // TODO Should there be externalId and externalSubId (for versions)
+
     @Nullable
     private String externalId;
 
-    private static final ModelField<ExternalIdentifier> EXTERNAL_ID = new ModelField<ExternalIdentifier>(BlackDuckTerm.EXTERNAL_ID) {
+    private static final ModelField<ExternalIdentifier, String> EXTERNAL_ID = new ModelField<ExternalIdentifier, String>(BlackDuckTerm.EXTERNAL_ID) {
         @Override
-        protected Object get(ExternalIdentifier externalIdentifier) {
+        protected String get(ExternalIdentifier externalIdentifier) {
             return externalIdentifier.getExternalId();
         }
 
@@ -80,10 +83,10 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
     @Nullable
     private String externalRepositoryLocation;
 
-    private static final ModelField<ExternalIdentifier> EXTERNAL_REPOSITORY_LOCATION = new ModelField<ExternalIdentifier>(
+    private static final ModelField<ExternalIdentifier, String> EXTERNAL_REPOSITORY_LOCATION = new ModelField<ExternalIdentifier, String>(
             BlackDuckTerm.EXTERNAL_REPOSITORY_LOCATION) {
         @Override
-        protected Object get(ExternalIdentifier externalIdentifier) {
+        protected String get(ExternalIdentifier externalIdentifier) {
             return externalIdentifier.getExternalRepositoryLocation();
         }
 

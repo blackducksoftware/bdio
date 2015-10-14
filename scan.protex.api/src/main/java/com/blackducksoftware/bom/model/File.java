@@ -11,8 +11,6 @@
  */
 package com.blackducksoftware.bom.model;
 
-import static com.google.common.base.Objects.firstNonNull;
-
 import java.util.List;
 import java.util.Set;
 
@@ -24,8 +22,6 @@ import com.blackducksoftware.bom.BlackDuckValue;
 import com.blackducksoftware.bom.SpdxTerm;
 import com.blackducksoftware.bom.SpdxValue;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 
 /**
  * A file in a Bill of Materials.
@@ -40,9 +36,9 @@ public class File extends AbstractTopLevelModel<File> {
     @Nullable
     private String path;
 
-    private static final ModelField<File> PATH = new ModelField<File>(SpdxTerm.FILE_NAME) {
+    private static final ModelField<File, String> PATH = new ModelField<File, String>(SpdxTerm.FILE_NAME) {
         @Override
-        protected Object get(File file) {
+        protected String get(File file) {
             return file.getPath();
         }
 
@@ -58,9 +54,9 @@ public class File extends AbstractTopLevelModel<File> {
     @Nullable
     private Set<String> fileTypes;
 
-    private static final ModelField<File> FILE_TYPES = new ModelField<File>(SpdxTerm.FILE_TYPE) {
+    private static final ModelField<File, Set<String>> FILE_TYPES = new ModelField<File, Set<String>>(SpdxTerm.FILE_TYPE) {
         @Override
-        protected Object get(File file) {
+        protected Set<String> get(File file) {
             return file.getFileTypes();
         }
 
@@ -76,9 +72,9 @@ public class File extends AbstractTopLevelModel<File> {
     @Nullable
     private Long size;
 
-    private static final ModelField<File> SIZE = new ModelField<File>(BlackDuckTerm.SIZE) {
+    private static final ModelField<File, Long> SIZE = new ModelField<File, Long>(BlackDuckTerm.SIZE) {
         @Override
-        protected Object get(File file) {
+        protected Long get(File file) {
             return file.getSize();
         }
 
@@ -92,17 +88,17 @@ public class File extends AbstractTopLevelModel<File> {
      * The list of checksums for this file.
      */
     @Nullable
-    private List<Checksum> checksum;
+    private List<Checksum> checksums;
 
-    private static final ModelField<File> CHECKSUM = new ModelField<File>(SpdxTerm.CHECKSUM) {
+    private static final ModelField<File, List<Checksum>> CHECKSUMS = new ModelField<File, List<Checksum>>(SpdxTerm.CHECKSUM) {
         @Override
-        protected Object get(File file) {
-            return file.getChecksum();
+        protected List<Checksum> get(File file) {
+            return file.getChecksums();
         }
 
         @Override
         protected void set(File file, Object value) {
-            file.setChecksum(emptyToNull(valueToNodes(value).transformAndConcat(toModel(Checksum.class)).toList()));
+            file.setChecksums(emptyToNull(valueToNodes(value).transformAndConcat(toModel(Checksum.class)).toList()));
         }
     };
 
@@ -112,9 +108,9 @@ public class File extends AbstractTopLevelModel<File> {
     @Nullable
     private String component;
 
-    private static final ModelField<File> COMPONENT = new ModelField<File>(SpdxTerm.ARTIFACT_OF) {
+    private static final ModelField<File, String> COMPONENT = new ModelField<File, String>(SpdxTerm.ARTIFACT_OF) {
         @Override
-        protected Object get(File file) {
+        protected String get(File file) {
             return file.getComponent();
         }
 
@@ -130,9 +126,9 @@ public class File extends AbstractTopLevelModel<File> {
     @Nullable
     private String license;
 
-    private static final ModelField<File> LICENSE = new ModelField<File>(SpdxTerm.LICENSE_CONCLUDED) {
+    private static final ModelField<File, String> LICENSE = new ModelField<File, String>(SpdxTerm.LICENSE_CONCLUDED) {
         @Override
-        protected Object get(File file) {
+        protected String get(File file) {
             return file.getLicense();
         }
 
@@ -142,9 +138,24 @@ public class File extends AbstractTopLevelModel<File> {
         }
     };
 
+    @Nullable
+    private List<MatchDetail> matchDetails;
+
+    private static final ModelField<File, List<MatchDetail>> MATCH_DETAILS = new ModelField<File, List<MatchDetail>>(BlackDuckTerm.MATCH_DETAIL) {
+        @Override
+        protected List<MatchDetail> get(File file) {
+            return file.getMatchDetails();
+        }
+
+        @Override
+        protected void set(File file, Object value) {
+            file.setMatchDetails(valueToNodes(value).transformAndConcat(toModel(MatchDetail.class)).toList());
+        }
+    };
+
     public File() {
         super(BlackDuckType.FILE,
-                PATH, FILE_TYPES, SIZE, CHECKSUM, COMPONENT, LICENSE);
+                PATH, FILE_TYPES, SIZE, CHECKSUMS, COMPONENT, LICENSE, MATCH_DETAILS);
     }
 
     @Nullable
@@ -185,28 +196,20 @@ public class File extends AbstractTopLevelModel<File> {
     }
 
     @Nullable
-    public List<Checksum> getChecksum() {
-        return checksum;
+    public List<Checksum> getChecksums() {
+        return checksums;
     }
 
-    public void setChecksum(@Nullable List<Checksum> checksum) {
-        this.checksum = checksum;
+    public void setChecksums(@Nullable List<Checksum> checksums) {
+        this.checksums = checksums;
     }
 
     public File addChecksum(Checksum checksum) {
-        if (checksum != null) {
-            List<Checksum> checksums = getChecksum();
-            if (checksums != null) {
-                checksums.add(checksum);
-            } else {
-                setChecksum(Lists.newArrayList(checksum));
-            }
-        }
-        return this;
+        return safeAddArrayList(CHECKSUMS, checksum);
     }
 
     public FluentIterable<Checksum> checksums() {
-        return FluentIterable.from(firstNonNull(getChecksum(), ImmutableList.<Checksum> of()));
+        return safeGet(CHECKSUMS);
     }
 
     @Nullable
@@ -225,6 +228,23 @@ public class File extends AbstractTopLevelModel<File> {
 
     public void setLicense(@Nullable String license) {
         this.license = license;
+    }
+
+    @Nullable
+    public List<MatchDetail> getMatchDetails() {
+        return matchDetails;
+    }
+
+    public void setMatchDetails(@Nullable List<MatchDetail> matchDetails) {
+        this.matchDetails = matchDetails;
+    }
+
+    public File addMatchDetail(MatchDetail matchDetail) {
+        return safeAddArrayList(MATCH_DETAILS, matchDetail);
+    }
+
+    public FluentIterable<MatchDetail> matchDetails() {
+        return safeGet(MATCH_DETAILS);
     }
 
 }

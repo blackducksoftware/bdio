@@ -61,9 +61,9 @@ public class TestModel extends AbstractModel<TestModel> {
     @Nullable
     private String name;
 
-    private static final ModelField<TestModel> NAME = new ModelField<TestModel>(TestTerm.NAME) {
+    private static final ModelField<TestModel, String> NAME = new ModelField<TestModel, String>(TestTerm.NAME) {
         @Override
-        protected Object get(TestModel testModel) {
+        protected String get(TestModel testModel) {
             return testModel.getName();
         }
 
@@ -76,9 +76,9 @@ public class TestModel extends AbstractModel<TestModel> {
     @Nullable
     private Long count;
 
-    private static final ModelField<TestModel> COUNT = new ModelField<TestModel>(TestTerm.COUNT) {
+    private static final ModelField<TestModel, Long> COUNT = new ModelField<TestModel, Long>(TestTerm.COUNT) {
         @Override
-        protected Object get(TestModel testModel) {
+        protected Long get(TestModel testModel) {
             return testModel.getCount();
         }
 
@@ -91,9 +91,9 @@ public class TestModel extends AbstractModel<TestModel> {
     @Nullable
     private Boolean flag;
 
-    private static final ModelField<TestModel> FLAG = new ModelField<TestModel>(TestTerm.FLAG) {
+    private static final ModelField<TestModel, Boolean> FLAG = new ModelField<TestModel, Boolean>(TestTerm.FLAG) {
         @Override
-        protected Object get(TestModel testModel) {
+        protected Boolean get(TestModel testModel) {
             return testModel.getFlag();
         }
 
@@ -106,9 +106,9 @@ public class TestModel extends AbstractModel<TestModel> {
     @Nullable
     private HashCode hashCode;
 
-    private static final ModelField<TestModel> HASH_CODE = new ModelField<TestModel>(TestTerm.HASH_CODE) {
+    private static final ModelField<TestModel, HashCode> HASH_CODE = new ModelField<TestModel, HashCode>(TestTerm.HASH_CODE) {
         @Override
-        protected Object get(TestModel testModel) {
+        protected HashCode get(TestModel testModel) {
             return testModel.getHashCode();
         }
 

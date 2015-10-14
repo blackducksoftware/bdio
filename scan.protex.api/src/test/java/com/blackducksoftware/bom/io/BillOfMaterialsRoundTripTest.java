@@ -38,7 +38,7 @@ public class BillOfMaterialsRoundTripTest {
 
         expectedFile.setId("http://example.com/test");
         expectedFile.setFileTypes(ImmutableSet.of(BlackDuckValue.FILE_TYPE_DIRECTORY.id(), SpdxValue.FILE_TYPE_SOURCE.id()));
-        expectedFile.setChecksum(ImmutableList.of(Checksum.sha1(HashCode.fromInt(0))));
+        expectedFile.setChecksums(ImmutableList.of(Checksum.sha1(HashCode.fromInt(0))));
 
         LinkedDataContext context = new LinkedDataContext();
         ByteArrayOutputStream out = new ByteArrayOutputStream();

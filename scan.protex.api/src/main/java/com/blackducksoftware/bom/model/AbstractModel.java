@@ -15,7 +15,9 @@ import static com.google.common.base.Objects.toStringHelper;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -33,8 +35,10 @@ import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 /**
@@ -78,7 +82,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
      * Abstraction over manipulating a bean field from a {@code Map}. Primarily exists so we don't need to use
      * reflection which can be error prone in these mapping/conversion scenarios.
      */
-    protected static abstract class ModelField<M extends AbstractModel<M>> {
+    protected static abstract class ModelField<M extends AbstractModel<M>, T> {
 
         /**
          * The term the field maps to.
@@ -95,7 +99,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
          * The default implementation returns {@code null}.
          */
         @Nullable
-        protected Object get(M model) {
+        protected T get(M model) {
             checkNotNull(model);
             return null;
         }
@@ -126,13 +130,13 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
     private static final class ModelMap<M extends AbstractModel<M>> extends AbstractMap<Term, Object> {
         private final M model;
 
-        private final Map<Term, ModelField<M>> fields;
+        private final Map<Term, ModelField<M, ?>> fields;
 
-        private ModelMap(M model, ModelField<M>[] fields) {
+        private ModelMap(M model, ModelField<M, ?>[] fields) {
             this.model = model;
-            this.fields = Maps.uniqueIndex(Arrays.asList(fields), new Function<ModelField<?>, Term>() {
+            this.fields = Maps.uniqueIndex(Arrays.asList(fields), new Function<ModelField<?, ?>, Term>() {
                 @Override
-                public Term apply(ModelField<?> field) {
+                public Term apply(ModelField<?, ?> field) {
                     return field.term;
                 }
             });
@@ -161,13 +165,13 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
 
         @Override
         public Object get(Object key) {
-            ModelField<M> field = fields.get(key);
+            ModelField<M, ?> field = fields.get(key);
             return field != null ? field.get(model) : null;
         }
 
         @Override
         public Object remove(Object key) {
-            ModelField<M> field = fields.get(key);
+            ModelField<M, ?> field = fields.get(key);
             if (field != null) {
                 Object originalValue = field.get(model);
                 field.remove(model);
@@ -179,7 +183,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
 
         @Override
         public Object put(Term key, Object value) {
-            ModelField<M> field = fields.get(key);
+            ModelField<M, ?> field = fields.get(key);
             if (field != null) {
                 Object originalValue = field.get(model);
                 field.set(model, value);
@@ -205,7 +209,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
      */
     private final Map<Term, Object> data;
 
-    AbstractModel(Type type, ModelField<M>... fields) {
+    AbstractModel(Type type, ModelField<M, ?>... fields) {
         types = ImmutableSet.of(type);
         data = Maps.filterValues(new ModelMap<M>((M) this, fields), Predicates.notNull());
     }
@@ -266,6 +270,43 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
                 .add("types", types)
                 .add("data", data)
                 .toString();
+    }
+
+    // Helpers to implement list methods
+
+    /**
+     * Helper to safely add a value to a list. If the current value is {@code null}, a new array list is created.
+     */
+    protected <T, C extends List<? super T>> M safeAddArrayList(ModelField<M, C> field, T value) {
+        final M model = (M) this;
+        if (value != null) {
+            C currentValue = field.get(model);
+            if (currentValue != null) {
+                try {
+                    currentValue.add(value);
+                } catch (UnsupportedOperationException e) {
+                    List<Object> newValue = new ArrayList<>(currentValue.size() + 1);
+                    newValue.addAll(currentValue);
+                    newValue.add(value);
+                    field.set(model, newValue);
+                }
+            } else {
+                field.set(model, Lists.newArrayList(value));
+            }
+        }
+        return (M) this;
+    }
+
+    /**
+     * Helper to safely stream an iterable. If the current value is {@code null}, an empty stream is returned.
+     */
+    protected <T, C extends Iterable<? super T>> FluentIterable<T> safeGet(ModelField<M, C> field) {
+        C value = field.get((M) this);
+        if (value != null) {
+            return FluentIterable.from((Iterable<T>) value);
+        } else {
+            return FluentIterable.from(ImmutableList.<T> of());
+        }
     }
 
     // Helpers to implement the store method

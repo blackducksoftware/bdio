@@ -29,9 +29,9 @@ public class License extends AbstractTopLevelModel<License> {
     @Nullable
     private String name;
 
-    private static final ModelField<License> NAME = new ModelField<License>(SpdxTerm.NAME) {
+    private static final ModelField<License, String> NAME = new ModelField<License, String>(SpdxTerm.NAME) {
         @Override
-        protected Object get(License license) {
+        protected String get(License license) {
             return license.getName();
         }
 

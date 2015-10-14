@@ -27,9 +27,9 @@ public class Checksum extends AbstractEmbeddedModel<Checksum> {
     @Nullable
     private String algorithm;
 
-    private static final ModelField<Checksum> ALGORITHM = new ModelField<Checksum>(SpdxTerm.ALGORITHM) {
+    private static final ModelField<Checksum, String> ALGORITHM = new ModelField<Checksum, String>(SpdxTerm.ALGORITHM) {
         @Override
-        protected Object get(Checksum checksum) {
+        protected String get(Checksum checksum) {
             return checksum.getAlgorithm();
         }
 
@@ -42,9 +42,9 @@ public class Checksum extends AbstractEmbeddedModel<Checksum> {
     @Nullable
     private HashCode checksumValue;
 
-    private static final ModelField<Checksum> CHECKSUM_VALUE = new ModelField<Checksum>(SpdxTerm.CHECKSUM_VALUE) {
+    private static final ModelField<Checksum, HashCode> CHECKSUM_VALUE = new ModelField<Checksum, HashCode>(SpdxTerm.CHECKSUM_VALUE) {
         @Override
-        protected Object get(Checksum checksum) {
+        protected HashCode get(Checksum checksum) {
             return checksum.getChecksumValue();
         }
 

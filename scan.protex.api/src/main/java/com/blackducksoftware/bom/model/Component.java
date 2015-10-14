@@ -26,9 +26,9 @@ public class Component extends AbstractTopLevelModel<Component> {
     @Nullable
     private String name;
 
-    private static final ModelField<Component> NAME = new ModelField<Component>(DoapTerm.NAME) {
+    private static final ModelField<Component, String> NAME = new ModelField<Component, String>(DoapTerm.NAME) {
         @Override
-        protected Object get(Component component) {
+        protected String get(Component component) {
             return component.getName();
         }
 
@@ -41,9 +41,9 @@ public class Component extends AbstractTopLevelModel<Component> {
     @Nullable
     private String version;
 
-    private static final ModelField<Component> VERSION = new ModelField<Component>(DoapTerm.REVISION) {
+    private static final ModelField<Component, String> VERSION = new ModelField<Component, String>(DoapTerm.REVISION) {
         @Override
-        protected Object get(Component component) {
+        protected String get(Component component) {
             return component.getVersion();
         }
 
@@ -56,9 +56,9 @@ public class Component extends AbstractTopLevelModel<Component> {
     @Nullable
     private String homepage;
 
-    private static final ModelField<Component> HOMEPAGE = new ModelField<Component>(DoapTerm.HOMEPAGE) {
+    private static final ModelField<Component, String> HOMEPAGE = new ModelField<Component, String>(DoapTerm.HOMEPAGE) {
         @Override
-        protected Object get(Component component) {
+        protected String get(Component component) {
             return component.getHomepage();
         }
 
@@ -71,9 +71,9 @@ public class Component extends AbstractTopLevelModel<Component> {
     @Nullable
     private String license;
 
-    private static final ModelField<Component> LICENSE = new ModelField<Component>(DoapTerm.LICENSE) {
+    private static final ModelField<Component, String> LICENSE = new ModelField<Component, String>(DoapTerm.LICENSE) {
         @Override
-        protected Object get(Component component) {
+        protected String get(Component component) {
             return component.getLicense();
         }
 

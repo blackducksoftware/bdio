@@ -25,7 +25,11 @@ public enum BlackDuckTerm implements Term {
     EXTERNAL_IDENTIFIER("http://blackducksoftware.com/rdf/terms#externalIdentifier"),
     EXTERNAL_SYSTEM_TYPE_ID("http://blackducksoftware.com/rdf/terms#externalSystemTypeId"),
     EXTERNAL_ID("http://blackducksoftware.com/rdf/terms#externalId"),
-    EXTERNAL_REPOSITORY_LOCATION("http://blackducksoftware.com/rdf/terms#externalRepositoryLocation");
+    EXTERNAL_REPOSITORY_LOCATION("http://blackducksoftware.com/rdf/terms#externalRepositoryLocation"),
+
+    MATCH_DETAIL("http://blackducksoftware.com/rdf/terms#matchDetail"),
+    MATCH_TYPE("http://blackducksoftware.com/rdf/terms#matchType"),
+    CONTENT("http://blackducksoftware.com/rdf/terms#content");
 
     private final URI uri;
 
