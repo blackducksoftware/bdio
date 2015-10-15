@@ -31,6 +31,7 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bom.BlackDuckTerm;
+import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.BlackDuckValue;
 import com.blackducksoftware.bom.DoapTerm;
 import com.blackducksoftware.bom.ImmutableNode;
@@ -52,6 +53,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -196,18 +198,29 @@ public class LinkedDataContext {
         addPrefixMapping("rdfs", "http://www.w3.org/2000/01/rdf-schema#");
         addPrefixMapping("xsd", "http://www.w3.org/2001/XMLSchema#");
 
-        addScalarTerm("size", BlackDuckTerm.SIZE, XmlSchemaType.LONG);
+        addTerm("size", BlackDuckTerm.SIZE, XmlSchemaType.LONG);
+        addTerm("externalIdentifier", BlackDuckTerm.EXTERNAL_IDENTIFIER, BlackDuckType.EXTERNAL_IDENTIFIER);
+        addTerm("externalSystemTypeId", BlackDuckTerm.EXTERNAL_SYSTEM_TYPE_ID, JsonLdType.ID);
+        addTerm("matchDetail", BlackDuckTerm.MATCH_DETAIL, BlackDuckType.MATCH_DETAIL);
+        addTerm("matchType", BlackDuckTerm.MATCH_TYPE, JsonLdType.ID);
 
-        addScalarTerm("name", DoapTerm.NAME);
-        addScalarTerm("homepage", DoapTerm.HOMEPAGE);
-        addScalarTerm("revision", DoapTerm.REVISION);
+        addTerm("name", DoapTerm.NAME);
+        addTerm("homepage", DoapTerm.HOMEPAGE);
+        addTerm("revision", DoapTerm.REVISION);
+        addTerm("licence", DoapTerm.LICENSE, JsonLdType.ID);
 
-        addScalarTerm("fileName", SpdxTerm.FILE_NAME);
-        addScalarTerm("fileType", SpdxTerm.FILE_TYPE, JsonLdType.ID, Container.SET);
-        addScalarTerm("checksum", SpdxTerm.CHECKSUM, SpdxType.CHECKSUM);
-        addScalarTerm("checksumValue", SpdxTerm.CHECKSUM_VALUE);
-        addScalarTerm("algorithm", SpdxTerm.ALGORITHM, JsonLdType.ID);
+        addTerm("fileName", SpdxTerm.FILE_NAME);
+        addTerm("fileType", SpdxTerm.FILE_TYPE, JsonLdType.ID, Container.SET);
+        addTerm("checksum", SpdxTerm.CHECKSUM, SpdxType.CHECKSUM);
+        addTerm("checksumValue", SpdxTerm.CHECKSUM_VALUE);
+        addTerm("algorithm", SpdxTerm.ALGORITHM, JsonLdType.ID);
+        addTerm("artifactOf", SpdxTerm.ARTIFACT_OF, JsonLdType.ID);
+        addTerm("licenseConcluded", SpdxTerm.LICENSE_CONCLUDED, JsonLdType.ID);
+        addTerm("creationInfo", SpdxTerm.CREATION_INFO, SpdxType.CREATION_INFO);
 
+        addValue("BD-Hub", BlackDuckValue.EXTERNAL_IDENTIFIER_BD_HUB);
+        addValue("BD-Suite", BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE);
+        addValue("DEPENDENCY", BlackDuckValue.MATCH_TYPE_DEPENDENCY);
         addValue("DIRECTORY", BlackDuckValue.FILE_TYPE_DIRECTORY);
         addValue("ARCHIVE", SpdxValue.FILE_TYPE_ARCHIVE);
         addValue("BINARY", SpdxValue.FILE_TYPE_BINARY);
@@ -232,21 +245,21 @@ public class LinkedDataContext {
     /**
      * Adds a scalar term definition to this context.
      */
-    private void addScalarTerm(String alias, Term term) {
-        addScalarTerm(alias, term, null);
+    private void addTerm(String alias, Term term) {
+        addTerm(alias, term, null);
     }
 
     /**
      * Adds a scalar term definition to this context.
      */
-    private void addScalarTerm(String alias, Term term, @Nullable Type type) {
-        addScalarTerm(alias, term, type, null);
+    private void addTerm(String alias, Term term, @Nullable Type type) {
+        addTerm(alias, term, type, null);
     }
 
     /**
      * Adds a scalar term definition to this context.
      */
-    private void addScalarTerm(String alias, Term term, @Nullable Type type, @Nullable Container container) {
+    private void addTerm(String alias, Term term, @Nullable Type type, @Nullable Container container) {
         definitions.put(alias, new TermDefinition(term, Optional.fromNullable(type).asSet(), container));
     }
 
@@ -447,7 +460,9 @@ public class LinkedDataContext {
             Object value = entry.getValue();
             if (term == JsonLdTerm.TYPE && definition != null) {
                 // Omit types specified by the definition
-                value = ImmutableList.copyOf(Sets.difference(ImmutableSet.copyOf((Iterable<String>) entry.getValue()), definition.getTypes()));
+                Set<String> declaredTypes = ImmutableSet.copyOf((Iterable<String>) entry.getValue());
+                Set<String> definedTypes = FluentIterable.from(definition.getTypes()).transform(Functions.toStringFunction()).toSet();
+                value = ImmutableList.copyOf(Sets.difference(declaredTypes, definedTypes));
             }
 
             value = compactValue(termDefinitions.getUnchecked(term), value);
@@ -508,6 +523,14 @@ public class LinkedDataContext {
      */
     @Nullable
     private String compactIri(@Nullable String value) {
+        return compactIri(value, definitions);
+    }
+
+    /**
+     * Compact an identifier with a subset of the actual definitions.
+     */
+    @Nullable
+    private String compactIri(@Nullable String value, Map<String, TermDefinition> definitions) {
         if (value == null || value.startsWith("@")) {
             return value;
         }
@@ -549,32 +572,43 @@ public class LinkedDataContext {
      * Generates a serialized version of the context.
      */
     public Map<String, Object> serialize() {
-        Map<String, Object> result = new LinkedHashMap<>();
+        final Map<String, Object> context = new LinkedHashMap<>();
+        final Map<String, TermDefinition> localContext = new LinkedHashMap<>();
         if (base != null) {
-            result.put("@base", base.toString());
+            context.put("@base", base.toString());
         }
         if (vocab != null) {
-            result.put("@vocab", vocab);
+            context.put("@vocab", vocab);
         }
         for (Entry<String, TermDefinition> entry : definitions.entrySet()) {
             TermDefinition definition = entry.getValue();
-            Object serializedDefinition = compactIri(definition.getTerm().toString());
+            Object serializedDefinition = compactIri(definition.getTerm().toString(), localContext);
             if (!definition.getTypes().isEmpty() || definition.getContainer() != Container.UNKNOWN) {
                 Map<String, Object> definitionMap = new LinkedHashMap<>(3);
-                result.put("@id", serializedDefinition);
+                if (!entry.getKey().equals(serializedDefinition)) {
+                    definitionMap.put("@id", serializedDefinition);
+                }
                 if (definition.getTypes().size() == 1) {
-                    definitionMap.put("@type", Iterables.getOnlyElement(definition.getTypes()));
+                    definitionMap.put("@type", compactIri(Iterables.getOnlyElement(definition.getTypes()).toString(), localContext));
                 } else if (!definition.getTypes().isEmpty()) {
-                    definitionMap.put("@type", definition.getTypes());
+                    definitionMap.put("@type", FluentIterable.from(definition.getTypes())
+                            .transform(Functions.toStringFunction())
+                            .transform(new Function<String, String>() {
+                                @Override
+                                public String apply(String input) {
+                                    return compactIri(input, localContext);
+                                }
+                            }).toList());
                 }
                 if (definition.getContainer() != Container.UNKNOWN) {
-                    definitionMap.put("@container", UPPER_UNDERSCORE.to(LOWER_HYPHEN, definition.getContainer().toString()));
+                    definitionMap.put("@container", "@" + UPPER_UNDERSCORE.to(LOWER_HYPHEN, definition.getContainer().toString()));
                 }
                 serializedDefinition = definitionMap;
             }
-            result.put(entry.getKey(), serializedDefinition);
+            context.put(entry.getKey(), serializedDefinition);
+            localContext.put(entry.getKey(), entry.getValue());
         }
-        return result;
+        return ImmutableMap.<String, Object> of("@context", context);
     }
 
     /**
