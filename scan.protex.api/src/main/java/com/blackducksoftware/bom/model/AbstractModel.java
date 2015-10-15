@@ -24,6 +24,7 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -365,6 +366,15 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
         } else {
             return null;
         }
+    }
+
+    /**
+     * Helper to coerce a value into a timestamp.
+     */
+    @Nullable
+    protected static DateTime valueToDateTime(@Nullable Object value) {
+        String stringValue = valueToString(value);
+        return stringValue != null ? DateTime.parse(stringValue) : null;
     }
 
     /**

@@ -41,9 +41,27 @@ public class Project extends AbstractTopLevelModel<Project> {
         }
     };
 
+    /**
+     * The version name of this project.
+     */
+    @Nullable
+    private String version;
+
+    private static final ModelField<Project, String> VERSION = new ModelField<Project, String>(DoapTerm.REVISION) {
+        @Override
+        protected String get(Project project) {
+            return project.getVersion();
+        }
+
+        @Override
+        protected void set(Project project, Object value) {
+            project.setVersion(valueToString(value));
+        }
+    };
+
     public Project() {
         super(BlackDuckType.PROJECT,
-                NAME);
+                NAME, VERSION);
     }
 
     @Nullable
@@ -53,6 +71,15 @@ public class Project extends AbstractTopLevelModel<Project> {
 
     public void setName(@Nullable String name) {
         this.name = name;
+    }
+
+    @Nullable
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(@Nullable String version) {
+        this.version = version;
     }
 
 }
