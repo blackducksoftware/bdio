@@ -22,6 +22,7 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.BlackDuckValue;
+import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
@@ -34,15 +35,36 @@ import com.google.common.collect.Iterables;
 public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier> {
 
     /**
-     * Filters for matching external identifiers.
+     * Filter for external identifiers by their system type identifier.
      */
-    private enum Filters implements Predicate<ExternalIdentifier> {
-        BD_SUITE {
+    private static final class ExternalSystemTypeIdFilter implements Predicate<ExternalIdentifier> {
+        private static final Predicate<ExternalIdentifier> BD_SUITE = new ExternalSystemTypeIdFilter(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE.id());
+
+        private static final Predicate<ExternalIdentifier> BD_HUB = new ExternalSystemTypeIdFilter(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_HUB.id());
+
+        private final String externalSystemTypeId;
+
+        private ExternalSystemTypeIdFilter(String externalSystemTypeId) {
+            this.externalSystemTypeId = checkNotNull(externalSystemTypeId);
+        }
+
+        @Override
+        public boolean apply(ExternalIdentifier externalIdentifier) {
+            return externalIdentifier != null
+                    && externalIdentifier.getExternalId() != null
+                    && Objects.equals(externalIdentifier.getExternalSystemTypeId(), externalSystemTypeId);
+        }
+    }
+
+    /**
+     * Functions for converting/extracting strings.
+     */
+    private enum ToStringFunction implements Function<ExternalIdentifier, String> {
+        EXTERNAL_ID {
             @Override
-            public boolean apply(ExternalIdentifier externalIdentifier) {
-                return externalIdentifier != null
-                        && externalIdentifier.getExternalId() != null
-                        && Objects.equals(externalIdentifier.getExternalSystemTypeId(), BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE.id());
+            @Nullable
+            public String apply(@Nullable ExternalIdentifier externalIdentifier) {
+                return externalIdentifier != null ? externalIdentifier.getExternalId() : null;
             }
         }
     }
@@ -102,10 +124,32 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
     }
 
     /**
+     * Returns a filter that only excepts external identifiers with a specific system type ID that have non-{@code null}
+     * external ID fields.
+     */
+    public static Predicate<ExternalIdentifier> bySystem(String externalSystemTypeId) {
+        return new ExternalSystemTypeIdFilter(externalSystemTypeId);
+    }
+
+    /**
      * Returns a predicate that matches Black Duck Suite external identifiers.
      */
     public static Predicate<ExternalIdentifier> bdSuite() {
-        return Filters.BD_SUITE;
+        return ExternalSystemTypeIdFilter.BD_SUITE;
+    }
+
+    /**
+     * Returns a predicate that matches Black Duck Suite external identifiers.
+     */
+    public static Predicate<ExternalIdentifier> bdHub() {
+        return ExternalSystemTypeIdFilter.BD_HUB;
+    }
+
+    /**
+     * Returns a function to extract the actual external identifier.
+     */
+    public static Function<ExternalIdentifier, String> toExternalId() {
+        return ToStringFunction.EXTERNAL_ID;
     }
 
     /**
