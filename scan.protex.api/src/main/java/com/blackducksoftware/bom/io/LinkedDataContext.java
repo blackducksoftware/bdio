@@ -19,7 +19,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.math.BigInteger;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -68,7 +67,12 @@ public class LinkedDataContext {
     /**
      * Matcher on the prefix/scheme delimiter.
      */
-    private static CharMatcher PREFIX_DELIMITER = CharMatcher.is(':');
+    private static final CharMatcher PREFIX_DELIMITER = CharMatcher.is(':');
+
+    /**
+     * Default base to use when {@code null} just isn't an option.
+     */
+    private static final URI DEFAULT_BASE = URI.create("http://example.com/");
 
     /**
      * Possible container types.
@@ -579,17 +583,16 @@ public class LinkedDataContext {
     public URI mintSkolemIdentifier() {
         // http://www.w3.org/TR/rdf11-concepts/#section-skolemization
         // http://manu.sporny.org/2013/rdf-identifiers/
-        try {
-            UUID name = UUID.randomUUID();
-            if (getBase() != null) {
-                BigInteger number = BigInteger.valueOf(name.getMostSignificantBits()).shiftLeft(64).and(BigInteger.valueOf(name.getLeastSignificantBits()));
-                return getBase().resolve("/.well-known/genid/" + number);
-            } else {
-                return new URI("uuid", name.toString(), null);
-            }
-        } catch (URISyntaxException e) {
-            throw new IllegalStateException("failed to create blank node identifier", e);
-        }
+        UUID name = UUID.randomUUID();
+        BigInteger number = BigInteger.valueOf(name.getMostSignificantBits()).shiftLeft(64).and(BigInteger.valueOf(name.getLeastSignificantBits()));
+        return firstNonNull(getBase(), DEFAULT_BASE).resolve("/.well-known/genid/" + number);
+    }
+
+    /**
+     * Checks to see if an identifier is one of the minted skolem identifiers used to replace a blank node.
+     */
+    public static boolean isSkolemIdentifier(URI identifier) {
+        return !identifier.isOpaque() && identifier.getPath().startsWith("/.well-known/genid/");
     }
 
 }

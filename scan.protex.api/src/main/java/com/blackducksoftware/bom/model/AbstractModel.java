@@ -316,7 +316,13 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
      */
     @Nullable
     protected static String valueToString(@Nullable Object value) {
-        return value != null ? value.toString() : null;
+        if (value instanceof Node) {
+            return ((Node) value).id();
+        } else if (value != null) {
+            return value.toString();
+        } else {
+            return null;
+        }
     }
 
     /**
