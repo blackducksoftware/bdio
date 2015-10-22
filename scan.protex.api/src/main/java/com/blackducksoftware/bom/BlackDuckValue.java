@@ -32,7 +32,8 @@ public enum BlackDuckValue implements Node {
     EXTERNAL_IDENTIFIER_BD_SUITE("http://blackducksoftware.com/rdf/terms#externalIdentifier_BD-Suite"),
     EXTERNAL_IDENTIFIER_BD_HUB("http://blackducksoftware.com/rdf/terms#externalIdentifier_BD-Hub"),
 
-    MATCH_TYPE_DEPENDENCY("http://blackducksoftware.com/rdf/terms#matchType_dependency");
+    MATCH_TYPE_DEPENDENCY("http://blackducksoftware.com/rdf/terms#matchType_dependency"),
+    MATCH_TYPE_PARTIAL("http://blackducksoftware.com/rdf/terms#matchType_partial");
 
     private final String fullyQualifiedName;
 

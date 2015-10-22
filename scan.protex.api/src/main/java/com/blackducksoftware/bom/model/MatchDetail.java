@@ -80,13 +80,20 @@ public class MatchDetail extends AbstractEmbeddedModel<MatchDetail> {
      * Helper to create a new dependency match.
      */
     public static MatchDetail dependency(String dependency, @Nullable String componentId) {
-        return dependency != null ? create(BlackDuckValue.MATCH_TYPE_DEPENDENCY.id(), dependency, componentId) : null;
+        return componentId != null ? create(BlackDuckValue.MATCH_TYPE_DEPENDENCY.id(), dependency, componentId) : null;
     }
 
-    private static MatchDetail create(String matchType, String content, @Nullable String component) {
+    /**
+     * Helper to create a new partial match.
+     */
+    public static MatchDetail partial(@Nullable String componentId) {
+        return componentId != null ? create(BlackDuckValue.MATCH_TYPE_PARTIAL.id(), null, componentId) : null;
+    }
+
+    private static MatchDetail create(String matchType, @Nullable String content, @Nullable String component) {
         MatchDetail matchDetail = new MatchDetail();
         matchDetail.setMatchType(checkNotNull(matchType));
-        matchDetail.setContent(checkNotNull(content));
+        matchDetail.setContent(content);
         matchDetail.setComponent(component);
         return matchDetail;
     }
@@ -102,6 +109,10 @@ public class MatchDetail extends AbstractEmbeddedModel<MatchDetail> {
 
     public boolean isMatchTypeDependency() {
         return Objects.equals(getMatchType(), BlackDuckValue.MATCH_TYPE_DEPENDENCY.id());
+    }
+
+    public boolean isMatchTypePartial() {
+        return Objects.equals(getMatchType(), BlackDuckValue.MATCH_TYPE_PARTIAL.id());
     }
 
     @Nullable

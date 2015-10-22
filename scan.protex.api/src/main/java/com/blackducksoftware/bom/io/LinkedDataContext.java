@@ -221,6 +221,7 @@ public class LinkedDataContext {
         addValue("BD-Hub", BlackDuckValue.EXTERNAL_IDENTIFIER_BD_HUB);
         addValue("BD-Suite", BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE);
         addValue("DEPENDENCY", BlackDuckValue.MATCH_TYPE_DEPENDENCY);
+        addValue("PARTIAL", BlackDuckValue.MATCH_TYPE_PARTIAL);
         addValue("DIRECTORY", BlackDuckValue.FILE_TYPE_DIRECTORY);
         addValue("ARCHIVE", SpdxValue.FILE_TYPE_ARCHIVE);
         addValue("BINARY", SpdxValue.FILE_TYPE_BINARY);
