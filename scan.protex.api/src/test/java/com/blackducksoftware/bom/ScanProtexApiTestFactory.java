@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- *
+ * 
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -19,12 +19,14 @@ import com.blackducksoftware.bom.io.BillOfMaterialsRoundTripTest;
 import com.blackducksoftware.bom.io.BillOfMaterialsWriterTest;
 import com.blackducksoftware.bom.io.LinkedDataContextTest;
 import com.blackducksoftware.bom.model.AbstractModelTest;
+import com.blackducksoftware.bom.model.ComponentTest;
 
 public class ScanProtexApiTestFactory {
     @Factory
     @Test
     public Object[] tests() {
         return new Object[] {
+                new ComponentTest(),
                 new NodeTest(),
                 new TermTest(),
                 new TypeTest(),

@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- * 
+ *
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -124,4 +124,7 @@ public class Component extends AbstractTopLevelModel<Component> {
         this.license = license;
     }
 
+    public boolean isVersion() {
+        return ((name != null) && (version != null));
+    }
 }
