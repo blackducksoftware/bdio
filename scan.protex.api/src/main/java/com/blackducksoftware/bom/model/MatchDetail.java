@@ -71,9 +71,24 @@ public class MatchDetail extends AbstractEmbeddedModel<MatchDetail> {
         }
     };
 
+    @Nullable
+    private String license;
+
+    private static final ModelField<MatchDetail, String> LICENSE = new ModelField<MatchDetail, String>(SpdxTerm.LICENSE_CONCLUDED) {
+        @Override
+        protected String get(MatchDetail matchDetail) {
+            return matchDetail.getLicense();
+        }
+
+        @Override
+        protected void set(MatchDetail matchDetail, Object value) {
+            matchDetail.setLicense(valueToString(value));
+        }
+    };
+
     public MatchDetail() {
         super(BlackDuckType.MATCH_DETAIL,
-                MATCH_TYPE, CONTENT, COMPONENT);
+                MATCH_TYPE, CONTENT, COMPONENT, LICENSE);
     }
 
     /**
@@ -88,6 +103,17 @@ public class MatchDetail extends AbstractEmbeddedModel<MatchDetail> {
      */
     public static MatchDetail partial(@Nullable String componentId) {
         return componentId != null ? create(BlackDuckValue.MATCH_TYPE_PARTIAL.id(), null, componentId) : null;
+    }
+
+    /**
+     * Helper to override (or explicitly specify) a component's license in a world where {@code null} exists.
+     */
+    @Nullable
+    public static MatchDetail withLicense(@Nullable MatchDetail matchDetail, @Nullable String licenseId) {
+        if (matchDetail != null) {
+            matchDetail.setLicense(licenseId);
+        }
+        return matchDetail;
     }
 
     private static MatchDetail create(String matchType, @Nullable String content, @Nullable String component) {
@@ -131,6 +157,15 @@ public class MatchDetail extends AbstractEmbeddedModel<MatchDetail> {
 
     public void setComponent(@Nullable String component) {
         this.component = component;
+    }
+
+    @Nullable
+    public String getLicense() {
+        return license;
+    }
+
+    public void setLicense(@Nullable String license) {
+        this.license = license;
     }
 
 }
