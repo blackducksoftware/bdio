@@ -216,6 +216,17 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
     }
 
     /**
+     * Alternate to clone or copy constructor, both of which are not feasible here. Resets the state of this object to
+     * match the other object and returns this object.
+     */
+    public M copyOf(M other) {
+        this.setId(other.getId());
+        this.data().clear();
+        this.data().putAll(other.data());
+        return (M) this;
+    }
+
+    /**
      * Proper accessor for the identifier.
      */
     public final String getId() {
