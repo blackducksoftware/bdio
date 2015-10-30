@@ -19,6 +19,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.math.BigInteger;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -619,8 +620,10 @@ public class LinkedDataContext {
         // http://www.w3.org/TR/rdf11-concepts/#section-skolemization
         // http://manu.sporny.org/2013/rdf-identifiers/
         UUID name = UUID.randomUUID();
-        BigInteger number = BigInteger.valueOf(name.getMostSignificantBits()).shiftLeft(64).and(BigInteger.valueOf(name.getLeastSignificantBits()));
-        return firstNonNull(getBase(), DEFAULT_BASE).resolve("/.well-known/genid/" + number);
+        ByteBuffer bb = ByteBuffer.wrap(new byte[16]);
+        bb.putLong(name.getMostSignificantBits());
+        bb.putLong(name.getLeastSignificantBits());
+        return firstNonNull(getBase(), DEFAULT_BASE).resolve("/.well-known/genid/" + new BigInteger(bb.array()));
     }
 
     /**
