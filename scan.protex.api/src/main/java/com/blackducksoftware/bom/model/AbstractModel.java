@@ -2,7 +2,7 @@
  * Copyright (C) 2015 Black Duck Software Inc.
  * http://www.blackducksoftware.com/
  * All rights reserved.
- * 
+ *
  * This software is the confidential and proprietary information of
  * Black Duck Software ("Confidential Information"). You shall not
  * disclose such Confidential Information and shall use it only in
@@ -82,7 +82,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
      * Abstraction over manipulating a bean field from a {@code Map}. Primarily exists so we don't need to use
      * reflection which can be error prone in these mapping/conversion scenarios.
      */
-    protected static abstract class ModelField<M extends AbstractModel<M>, T> {
+    protected abstract static class ModelField<M extends AbstractModel<M>, T> {
         /**
          * The term the field maps to.
          */
