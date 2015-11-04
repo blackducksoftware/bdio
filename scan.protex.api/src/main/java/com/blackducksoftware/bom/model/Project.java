@@ -22,13 +22,6 @@ import com.blackducksoftware.bom.DoapTerm;
  * @author jgustie
  */
 public class Project extends AbstractTopLevelModel<Project> {
-
-    /**
-     * The name of this project.
-     */
-    @Nullable
-    private String name;
-
     private static final ModelField<Project, String> NAME = new ModelField<Project, String>(DoapTerm.NAME) {
         @Override
         protected String get(Project project) {
@@ -41,12 +34,6 @@ public class Project extends AbstractTopLevelModel<Project> {
         }
     };
 
-    /**
-     * The version name of this project.
-     */
-    @Nullable
-    private String version;
-
     private static final ModelField<Project, String> VERSION = new ModelField<Project, String>(DoapTerm.REVISION) {
         @Override
         protected String get(Project project) {
@@ -58,6 +45,18 @@ public class Project extends AbstractTopLevelModel<Project> {
             project.setVersion(valueToString(value));
         }
     };
+
+    /**
+     * The name of this project.
+     */
+    @Nullable
+    private String name;
+
+    /**
+     * The version name of this project.
+     */
+    @Nullable
+    private String version;
 
     public Project() {
         super(BlackDuckType.PROJECT,

@@ -33,7 +33,6 @@ import com.google.common.collect.Iterables;
  * @author jgustie
  */
 public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier> {
-
     /**
      * Filter for external identifiers by their system type identifier.
      */
@@ -56,22 +55,6 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
         }
     }
 
-    /**
-     * Functions for converting/extracting strings.
-     */
-    private enum ToStringFunction implements Function<ExternalIdentifier, String> {
-        EXTERNAL_ID {
-            @Override
-            @Nullable
-            public String apply(@Nullable ExternalIdentifier externalIdentifier) {
-                return externalIdentifier != null ? externalIdentifier.getExternalId() : null;
-            }
-        }
-    }
-
-    @Nullable
-    private String externalSystemTypeId;
-
     private static final ModelField<ExternalIdentifier, String> EXTERNAL_SYSTEM_TYPE_ID = new ModelField<ExternalIdentifier, String>(
             BlackDuckTerm.EXTERNAL_SYSTEM_TYPE_ID) {
         @Override
@@ -85,11 +68,6 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
         }
     };
 
-    // TODO Should there be externalId and externalSubId (for versions)
-
-    @Nullable
-    private String externalId;
-
     private static final ModelField<ExternalIdentifier, String> EXTERNAL_ID = new ModelField<ExternalIdentifier, String>(BlackDuckTerm.EXTERNAL_ID) {
         @Override
         protected String get(ExternalIdentifier externalIdentifier) {
@@ -101,9 +79,6 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
             externalIdentifier.setExternalId(valueToString(value));
         }
     };
-
-    @Nullable
-    private String externalRepositoryLocation;
 
     private static final ModelField<ExternalIdentifier, String> EXTERNAL_REPOSITORY_LOCATION = new ModelField<ExternalIdentifier, String>(
             BlackDuckTerm.EXTERNAL_REPOSITORY_LOCATION) {
@@ -117,6 +92,30 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
             externalIdentifier.setExternalRepositoryLocation(valueToString(value));
         }
     };
+    
+    /**
+     * Functions for converting/extracting strings.
+     */
+    private enum ToStringFunction implements Function<ExternalIdentifier, String> {
+        EXTERNAL_ID {
+            @Override
+            @Nullable
+            public String apply(@Nullable ExternalIdentifier externalIdentifier) {
+                return externalIdentifier != null ? externalIdentifier.getExternalId() : null;
+            }
+        }
+    }
+    
+    @Nullable
+    private String externalSystemTypeId;
+
+    // TODO Should there be externalId and externalSubId (for versions)
+
+    @Nullable
+    private String externalId;
+
+    @Nullable
+    private String externalRepositoryLocation;
 
     public ExternalIdentifier() {
         super(BlackDuckType.EXTERNAL_IDENTIFIER,

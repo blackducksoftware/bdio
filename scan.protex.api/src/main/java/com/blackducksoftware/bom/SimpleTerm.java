@@ -32,10 +32,9 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
  * @author jgustie
  */
 public class SimpleTerm implements Term, Serializable {
-
     // TODO Consolidate this with SimpleType?
 
-    /**
+	/**
      * Cache of known terms.
      */
     private static LoadingCache<String, Term> INSTANCES = CacheBuilder.newBuilder().build(new CacheLoader<String, Term>() {
@@ -57,6 +56,15 @@ public class SimpleTerm implements Term, Serializable {
         }
     }
 
+    private final URI uri;
+
+    private SimpleTerm(String fullyQualifiedName) {
+        // Verify that the supplied term is a valid non-empty IRI (URI)
+        checkArgument(!fullyQualifiedName.isEmpty());
+        checkArgument(fullyQualifiedName.charAt(0) != '@', "unexpected keyword: %s", fullyQualifiedName.substring(1));
+        uri = URI.create(fullyQualifiedName);
+    }
+
     /**
      * Returns a string converter for terms. Will return existing constants when possible.
      */
@@ -74,15 +82,6 @@ public class SimpleTerm implements Term, Serializable {
             Throwables.propagateIfPossible(e.getCause());
             throw e;
         }
-    }
-
-    private final URI uri;
-
-    private SimpleTerm(String fullyQualifiedName) {
-        // Verify that the supplied term is a valid non-empty IRI (URI)
-        checkArgument(!fullyQualifiedName.isEmpty());
-        checkArgument(fullyQualifiedName.charAt(0) != '@', "unexpected keyword: %s", fullyQualifiedName.substring(1));
-        uri = URI.create(fullyQualifiedName);
     }
 
     @Override

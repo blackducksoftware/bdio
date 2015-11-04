@@ -32,7 +32,6 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
  * @author jgustie
  */
 public class SimpleType implements Type, Serializable {
-
     /**
      * Cache of known types.
      */
@@ -54,6 +53,14 @@ public class SimpleType implements Type, Serializable {
         }
     }
 
+    private final URI uri;
+
+    private SimpleType(String fullyQualifiedName) {
+        // Verify that the supplied type is a valid non-empty IRI (URI)
+        checkArgument(!fullyQualifiedName.isEmpty());
+        uri = URI.create(fullyQualifiedName);
+    }
+
     /**
      * Returns a string converter for types. Will return existing constants when possible.
      */
@@ -71,14 +78,6 @@ public class SimpleType implements Type, Serializable {
             Throwables.propagateIfPossible(e.getCause());
             throw e;
         }
-    }
-
-    private final URI uri;
-
-    private SimpleType(String fullyQualifiedName) {
-        // Verify that the supplied type is a valid non-empty IRI (URI)
-        checkArgument(!fullyQualifiedName.isEmpty());
-        uri = URI.create(fullyQualifiedName);
     }
 
     @Override

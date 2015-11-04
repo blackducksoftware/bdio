@@ -24,10 +24,6 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 
 public class CreationInfo extends AbstractEmbeddedModel<CreationInfo> {
-
-    @Nullable
-    private List<String> creator;
-
     private static final ModelField<CreationInfo, List<String>> CREATOR = new ModelField<CreationInfo, List<String>>(SpdxTerm.CREATOR) {
         @Override
         protected List<String> get(CreationInfo creationInfo) {
@@ -39,9 +35,6 @@ public class CreationInfo extends AbstractEmbeddedModel<CreationInfo> {
             creationInfo.setCreator(valueToStrings(value).toList());
         }
     };
-
-    @Nullable
-    private DateTime created;
 
     private static final ModelField<CreationInfo, DateTime> CREATED = new ModelField<CreationInfo, DateTime>(SpdxTerm.CREATED) {
         @Override
@@ -55,9 +48,14 @@ public class CreationInfo extends AbstractEmbeddedModel<CreationInfo> {
         }
     };
 
+    @Nullable
+    private List<String> creator;
+
+    @Nullable
+    private DateTime created;
+
     public CreationInfo() {
-        super(SpdxType.CREATION_INFO,
-                CREATOR, CREATED);
+        super(SpdxType.CREATION_INFO, CREATOR, CREATED);
     }
 
     public static CreationInfo currentTool() {

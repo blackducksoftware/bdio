@@ -23,10 +23,6 @@ import com.blackducksoftware.bom.SpdxValue;
 import com.google.common.hash.HashCode;
 
 public class Checksum extends AbstractEmbeddedModel<Checksum> {
-
-    @Nullable
-    private String algorithm;
-
     private static final ModelField<Checksum, String> ALGORITHM = new ModelField<Checksum, String>(SpdxTerm.ALGORITHM) {
         @Override
         protected String get(Checksum checksum) {
@@ -39,9 +35,6 @@ public class Checksum extends AbstractEmbeddedModel<Checksum> {
         }
     };
 
-    @Nullable
-    private HashCode checksumValue;
-
     private static final ModelField<Checksum, HashCode> CHECKSUM_VALUE = new ModelField<Checksum, HashCode>(SpdxTerm.CHECKSUM_VALUE) {
         @Override
         protected HashCode get(Checksum checksum) {
@@ -53,6 +46,12 @@ public class Checksum extends AbstractEmbeddedModel<Checksum> {
             checksum.setChecksumValue(HashCode.fromString(valueToString(value)));
         }
     };
+
+    @Nullable
+    private String algorithm;
+
+    @Nullable
+    private HashCode checksumValue;
 
     public Checksum() {
         super(SpdxType.CHECKSUM,

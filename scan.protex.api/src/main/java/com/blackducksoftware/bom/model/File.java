@@ -29,13 +29,6 @@ import com.google.common.collect.FluentIterable;
  * @author jgustie
  */
 public class File extends AbstractTopLevelModel<File> {
-
-    /**
-     * The path of the file. Should always start with "./" relative to some base path.
-     */
-    @Nullable
-    private String path;
-
     private static final ModelField<File, String> PATH = new ModelField<File, String>(SpdxTerm.FILE_NAME) {
         @Override
         protected String get(File file) {
@@ -47,12 +40,6 @@ public class File extends AbstractTopLevelModel<File> {
             file.setPath(valueToString(value));
         }
     };
-
-    /**
-     * The file types of this file. Corresponds to the SPDX types plus "DIRECTORY".
-     */
-    @Nullable
-    private Set<String> fileTypes;
 
     private static final ModelField<File, Set<String>> FILE_TYPES = new ModelField<File, Set<String>>(SpdxTerm.FILE_TYPE) {
         @Override
@@ -66,12 +53,6 @@ public class File extends AbstractTopLevelModel<File> {
         }
     };
 
-    /**
-     * The size of this file in bytes.
-     */
-    @Nullable
-    private Long size;
-
     private static final ModelField<File, Long> SIZE = new ModelField<File, Long>(BlackDuckTerm.SIZE) {
         @Override
         protected Long get(File file) {
@@ -83,13 +64,7 @@ public class File extends AbstractTopLevelModel<File> {
             file.setSize(valueToLong(value));
         }
     };
-
-    /**
-     * The list of checksums for this file.
-     */
-    @Nullable
-    private List<Checksum> checksums;
-
+    
     private static final ModelField<File, List<Checksum>> CHECKSUMS = new ModelField<File, List<Checksum>>(SpdxTerm.CHECKSUM) {
         @Override
         protected List<Checksum> get(File file) {
@@ -102,12 +77,6 @@ public class File extends AbstractTopLevelModel<File> {
         }
     };
 
-    /**
-     * The component this file belongs to.
-     */
-    @Nullable
-    private String component;
-
     private static final ModelField<File, String> COMPONENT = new ModelField<File, String>(SpdxTerm.ARTIFACT_OF) {
         @Override
         protected String get(File file) {
@@ -119,13 +88,7 @@ public class File extends AbstractTopLevelModel<File> {
             file.setComponent(valueToString(value));
         }
     };
-
-    /**
-     * The concluded license of this file. May be the same or different from the component license.
-     */
-    @Nullable
-    private String license;
-
+    
     private static final ModelField<File, String> LICENSE = new ModelField<File, String>(SpdxTerm.LICENSE_CONCLUDED) {
         @Override
         protected String get(File file) {
@@ -137,10 +100,7 @@ public class File extends AbstractTopLevelModel<File> {
             file.setLicense(valueToString(value));
         }
     };
-
-    @Nullable
-    private List<MatchDetail> matchDetails;
-
+    
     private static final ModelField<File, List<MatchDetail>> MATCH_DETAILS = new ModelField<File, List<MatchDetail>>(BlackDuckTerm.MATCH_DETAIL) {
         @Override
         protected List<MatchDetail> get(File file) {
@@ -152,6 +112,45 @@ public class File extends AbstractTopLevelModel<File> {
             file.setMatchDetails(valueToNodes(value).transformAndConcat(toModel(MatchDetail.class)).toList());
         }
     };
+    
+    /**
+     * The path of the file. Should always start with "./" relative to some base path.
+     */
+    @Nullable
+    private String path;
+
+    /**
+     * The file types of this file. Corresponds to the SPDX types plus "DIRECTORY".
+     */
+    @Nullable
+    private Set<String> fileTypes;
+
+    /**
+     * The size of this file in bytes.
+     */
+    @Nullable
+    private Long size;
+
+    /**
+     * The list of checksums for this file.
+     */
+    @Nullable
+    private List<Checksum> checksums;
+
+    /**
+     * The component this file belongs to.
+     */
+    @Nullable
+    private String component;
+
+    /**
+     * The concluded license of this file. May be the same or different from the component license.
+     */
+    @Nullable
+    private String license;
+
+    @Nullable
+    private List<MatchDetail> matchDetails;
 
     public File() {
         super(BlackDuckType.FILE,

@@ -22,13 +22,6 @@ import com.blackducksoftware.bom.SpdxTerm;
  * @author jgustie
  */
 public class License extends AbstractTopLevelModel<License> {
-
-    /**
-     * The name of the license.
-     */
-    @Nullable
-    private String name;
-
     private static final ModelField<License, String> NAME = new ModelField<License, String>(SpdxTerm.NAME) {
         @Override
         protected String get(License license) {
@@ -41,9 +34,14 @@ public class License extends AbstractTopLevelModel<License> {
         }
     };
 
+    /**
+     * The name of the license.
+     */
+    @Nullable
+    private String name;
+
     public License() {
-        super(BlackDuckType.LICENSE,
-                NAME);
+        super(BlackDuckType.LICENSE, NAME);
     }
 
     @Nullable

@@ -22,10 +22,6 @@ import com.blackducksoftware.bom.DoapTerm;
  * @author jgustie
  */
 public class Component extends AbstractTopLevelModel<Component> {
-
-    @Nullable
-    private String name;
-
     private static final ModelField<Component, String> NAME = new ModelField<Component, String>(DoapTerm.NAME) {
         @Override
         protected String get(Component component) {
@@ -37,9 +33,6 @@ public class Component extends AbstractTopLevelModel<Component> {
             component.setName(valueToString(value));
         }
     };
-
-    @Nullable
-    private String version;
 
     private static final ModelField<Component, String> VERSION = new ModelField<Component, String>(DoapTerm.REVISION) {
         @Override
@@ -53,9 +46,6 @@ public class Component extends AbstractTopLevelModel<Component> {
         }
     };
 
-    @Nullable
-    private String homepage;
-
     private static final ModelField<Component, String> HOMEPAGE = new ModelField<Component, String>(DoapTerm.HOMEPAGE) {
         @Override
         protected String get(Component component) {
@@ -68,9 +58,6 @@ public class Component extends AbstractTopLevelModel<Component> {
         }
     };
 
-    @Nullable
-    private String license;
-
     private static final ModelField<Component, String> LICENSE = new ModelField<Component, String>(DoapTerm.LICENSE) {
         @Override
         protected String get(Component component) {
@@ -82,6 +69,18 @@ public class Component extends AbstractTopLevelModel<Component> {
             component.setLicense(valueToString(value));
         }
     };
+
+    @Nullable
+    private String name;
+
+    @Nullable
+    private String version;
+
+    @Nullable
+    private String homepage;
+
+    @Nullable
+    private String license;
 
     public Component() {
         super(BlackDuckType.COMPONENT,

@@ -23,10 +23,6 @@ import com.blackducksoftware.bom.SpdxTerm;
  * @author jgustie
  */
 public class BillOfMaterials extends AbstractTopLevelModel<BillOfMaterials> {
-
-    @Nullable
-    private String name;
-
     private static final ModelField<BillOfMaterials, String> NAME = new ModelField<BillOfMaterials, String>(SpdxTerm.NAME) {
         @Override
         protected String get(BillOfMaterials billOfMaterials) {
@@ -38,9 +34,6 @@ public class BillOfMaterials extends AbstractTopLevelModel<BillOfMaterials> {
             billOfMaterials.setName(valueToString(value));
         }
     };
-
-    @Nullable
-    private CreationInfo creationInfo;
 
     private static final ModelField<BillOfMaterials, CreationInfo> CREATION_INFO = new ModelField<BillOfMaterials, CreationInfo>(SpdxTerm.CREATION_INFO) {
         @Override
@@ -54,9 +47,6 @@ public class BillOfMaterials extends AbstractTopLevelModel<BillOfMaterials> {
         }
     };
 
-    @Nullable
-    private String comment;
-
     private static final ModelField<BillOfMaterials, String> COMMENT = new ModelField<BillOfMaterials, String>(RdfsTerm.COMMENT) {
         @Override
         protected String get(BillOfMaterials billOfMaterials) {
@@ -68,6 +58,15 @@ public class BillOfMaterials extends AbstractTopLevelModel<BillOfMaterials> {
             billOfMaterials.setComment(valueToString(value));
         }
     };
+
+    @Nullable
+    private String name;
+
+    @Nullable
+    private CreationInfo creationInfo;
+
+    @Nullable
+    private String comment;
 
     public BillOfMaterials() {
         super(BlackDuckType.BILL_OF_MATERIALS,

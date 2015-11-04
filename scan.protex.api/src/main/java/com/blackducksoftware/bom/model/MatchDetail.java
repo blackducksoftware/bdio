@@ -23,12 +23,6 @@ import com.blackducksoftware.bom.BlackDuckValue;
 import com.blackducksoftware.bom.SpdxTerm;
 
 public class MatchDetail extends AbstractEmbeddedModel<MatchDetail> {
-
-    // TODO Should match type be more fine grained (like Java Package, C include)?
-
-    @Nullable
-    private String matchType;
-
     private static final ModelField<MatchDetail, String> MATCH_TYPE = new ModelField<MatchDetail, String>(BlackDuckTerm.MATCH_TYPE) {
         @Override
         protected String get(MatchDetail matchDetail) {
@@ -40,9 +34,6 @@ public class MatchDetail extends AbstractEmbeddedModel<MatchDetail> {
             matchDetail.setMatchType(valueToString(value));
         }
     };
-
-    @Nullable
-    private String content;
 
     private static final ModelField<MatchDetail, String> CONTENT = new ModelField<MatchDetail, String>(BlackDuckTerm.CONTENT) {
         @Override
@@ -56,9 +47,6 @@ public class MatchDetail extends AbstractEmbeddedModel<MatchDetail> {
         }
     };
 
-    @Nullable
-    private String component;
-
     private static final ModelField<MatchDetail, String> COMPONENT = new ModelField<MatchDetail, String>(SpdxTerm.ARTIFACT_OF) {
         @Override
         protected String get(MatchDetail matchDetail) {
@@ -71,9 +59,6 @@ public class MatchDetail extends AbstractEmbeddedModel<MatchDetail> {
         }
     };
 
-    @Nullable
-    private String license;
-
     private static final ModelField<MatchDetail, String> LICENSE = new ModelField<MatchDetail, String>(SpdxTerm.LICENSE_CONCLUDED) {
         @Override
         protected String get(MatchDetail matchDetail) {
@@ -85,6 +70,20 @@ public class MatchDetail extends AbstractEmbeddedModel<MatchDetail> {
             matchDetail.setLicense(valueToString(value));
         }
     };
+
+    // TODO Should match type be more fine grained (like Java Package, C include)?
+
+    @Nullable
+    private String matchType;
+
+    @Nullable
+    private String content;
+
+    @Nullable
+    private String component;
+
+    @Nullable
+    private String license;
 
     public MatchDetail() {
         super(BlackDuckType.MATCH_DETAIL,

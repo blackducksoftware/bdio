@@ -30,26 +30,8 @@ import com.google.common.collect.Lists;
  * @author jgustie
  */
 public class AbstractTopLevelModel<M extends AbstractTopLevelModel<M>> extends AbstractModel<M> {
-
     @Nullable
     private List<ExternalIdentifier> externalIdentifiers;
-
-    private static <M extends AbstractModel<M>> ModelField<M, ?>[] addTopLevelFields(ModelField<M, ?>[] fields) {
-        ModelField<M, ?>[] newFields = Arrays.copyOf(fields, fields.length + 1);
-        newFields[fields.length] = new ModelField<M, List<ExternalIdentifier>>(BlackDuckTerm.EXTERNAL_IDENTIFIER) {
-            @Override
-            protected List<ExternalIdentifier> get(M model) {
-                return ((AbstractTopLevelModel<?>) model).getExternalIdentifiers();
-            }
-
-            @Override
-            protected void set(M model, Object value) {
-                ((AbstractTopLevelModel<?>) model).setExternalIdentifiers(emptyToNull(valueToNodes(value).transformAndConcat(toModel(ExternalIdentifier.class))
-                        .toList()));
-            }
-        };
-        return newFields;
-    }
 
     protected AbstractTopLevelModel(Type type, ModelField<M, ?>... fields) {
         super(type, addTopLevelFields(fields));
@@ -80,4 +62,20 @@ public class AbstractTopLevelModel<M extends AbstractTopLevelModel<M>> extends A
         return FluentIterable.from(firstNonNull(getExternalIdentifiers(), ImmutableList.<ExternalIdentifier> of()));
     }
 
+    private static <M extends AbstractModel<M>> ModelField<M, ?>[] addTopLevelFields(ModelField<M, ?>[] fields) {
+        ModelField<M, ?>[] newFields = Arrays.copyOf(fields, fields.length + 1);
+        newFields[fields.length] = new ModelField<M, List<ExternalIdentifier>>(BlackDuckTerm.EXTERNAL_IDENTIFIER) {
+            @Override
+            protected List<ExternalIdentifier> get(M model) {
+                return ((AbstractTopLevelModel<?>) model).getExternalIdentifiers();
+            }
+
+            @Override
+            protected void set(M model, Object value) {
+                ((AbstractTopLevelModel<?>) model).setExternalIdentifiers(emptyToNull(valueToNodes(value).transformAndConcat(toModel(ExternalIdentifier.class))
+                        .toList()));
+            }
+        };
+        return newFields;
+    }
 }

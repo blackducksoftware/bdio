@@ -48,7 +48,6 @@ import com.google.common.collect.Maps;
  * @author jgustie
  */
 public abstract class AbstractModel<M extends AbstractModel<M>> implements Node {
-
     /**
      * A function that converts to a specific model implementation.
      */
@@ -84,7 +83,6 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
      * reflection which can be error prone in these mapping/conversion scenarios.
      */
     protected static abstract class ModelField<M extends AbstractModel<M>, T> {
-
         /**
          * The term the field maps to.
          */
@@ -194,6 +192,26 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
             }
         }
     }
+
+    /**
+     * A function that converts an object to a string using the {@code valueToString} function.
+     */
+    private static Function<Object, String> VALUE_TO_STRING = new Function<Object, String>() {
+        @Override
+        public String apply(Object value) {
+            return valueToString(value);
+        }
+    };
+
+    /**
+     * A function that converts an object to a node using the {@code valueToNode} function.
+     */
+    private static Function<Object, Node> VALUE_TO_NODE = new Function<Object, Node>() {
+        @Override
+        public Node apply(Object value) {
+            return valueToNode(value);
+        }
+    };
 
     /**
      * The current identifier for this model.
@@ -444,24 +462,4 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
     public static <M extends AbstractModel<? super M>> Function<Node, Iterable<M>> toModel(Class<M> modelType) {
         return new ToModelFunction<>(modelType);
     }
-
-    /**
-     * A function that converts an object to a string using the {@code valueToString} function.
-     */
-    private static Function<Object, String> VALUE_TO_STRING = new Function<Object, String>() {
-        @Override
-        public String apply(Object value) {
-            return valueToString(value);
-        }
-    };
-
-    /**
-     * A function that converts an object to a node using the {@code valueToNode} function.
-     */
-    private static Function<Object, Node> VALUE_TO_NODE = new Function<Object, Node>() {
-        @Override
-        public Node apply(Object value) {
-            return valueToNode(value);
-        }
-    };
 }

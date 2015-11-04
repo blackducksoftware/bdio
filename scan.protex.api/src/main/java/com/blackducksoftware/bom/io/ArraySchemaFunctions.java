@@ -41,6 +41,8 @@ import com.google.common.collect.Iterables;
  * @author jgustie
  */
 public final class ArraySchemaFunctions {
+    private ArraySchemaFunctions() {
+    }
 
     /**
      * @see ArraySchemaFunctions#toTypeSet()
@@ -277,8 +279,5 @@ public final class ArraySchemaFunctions {
             result.add(Iterables.get(input, i, null));
         }
         return result;
-    }
-
-    private ArraySchemaFunctions() {
     }
 }
