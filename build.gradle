@@ -1,0 +1,72 @@
+buildscript {
+	repositories {
+		maven { url "http://artifactory.blackducksoftware.com:8081/artifactory/blackduck-builder-repos" }
+	}
+
+	dependencies { classpath "com.blackducksoftware.gradle.plugins:gradle-plugins:1.45" }
+}
+
+apply plugin: 'manifestattributes'
+apply plugin: 'release'
+
+subprojects {
+	apply plugin: 'java'
+	apply plugin: 'eclipse'
+	apply plugin: 'maven'
+	apply plugin: 'manifestattributes'
+
+	sourceCompatibility = 1.7
+	targetCompatibility = 1.7
+
+	repositories {
+		maven { url "http://artifactory.blackducksoftware.com:8081/artifactory/blackduck-staging-repos" }
+	}
+	
+	dependencies {
+		// Test dependencies are common
+		testCompile 'com.google.guava:guava-testlib:15.0'
+		testCompile 'com.google.truth:truth:0.26'
+		testCompile 'junit:junit:4.12'
+		testCompile 'org.testng:testng:6.8.7'
+	}
+
+	configurations.all {
+		resolutionStrategy {
+			// Truth would force us up to 18.0 which we aren't ready for yet
+			force 'com.google.guava:guava:15.0'
+		}
+	}
+
+	jar {
+		doFirst {
+			manifest { attributes(manifestAttributes, "BDS-info") }
+		}
+	}
+
+	task sourcesJar(type: Jar) {
+		from sourceSets.main.allSource
+		classifier = 'sources'
+	}
+
+	artifacts {
+		archives sourcesJar
+	}
+
+	eclipse {
+		classpath {
+			defaultOutputDir = file('build/classes/main')
+		}
+	}
+
+	uploadArchives {
+		repositories {
+			mavenDeployer {
+				repository(url: 'http://artifactory.blackducksoftware.com:8081/artifactory/bds-suite-repo') {
+					authentication(userName: "builder", password: "builder")
+				}
+			}
+		}
+	}
+}
+
+task wrapper(type: Wrapper) { gradleVersion = '2.8' }

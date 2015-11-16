@@ -1,14 +1,11 @@
 description = 'Common BOM Representation API'
 
 dependencies {
-	compile coreServices.guava
-    compile coreServices.rxjava
-    compile spring.jackson
-
-    testCompile testing.junit
-    testCompile testing.guavatestlib
-
-    // Additional uncommon dependencies...
+	compile 'com.google.code.findbugs:jsr305:2.0.3'
+	compile 'com.google.guava:guava:15.0'
+    compile 'com.fasterxml.jackson.core:jackson-databind:2.3.3'
+    compile 'com.fasterxml.jackson.datatype:jackson-datatype-guava:2.3.3'
+    compile 'com.fasterxml.jackson.datatype:jackson-datatype-joda:2.3.3'
     compile 'com.github.jsonld-java:jsonld-java:0.5.1'
-    testCompile 'com.google.truth:truth:0.26'
+    compile 'io.reactivex:rxjava:1.0.14'    
 }
