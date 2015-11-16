@@ -18,10 +18,14 @@ import java.io.Flushable;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import rx.Subscriber;
+import rx.functions.Action1;
+
 import com.blackducksoftware.bom.Node;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonGenerator.Feature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.io.ByteSink;
 
 /**
  * A simple writer for producing a JSON formatted Bill of Materials from a source of node instances.
@@ -73,5 +77,49 @@ public class BillOfMaterialsWriter implements Closeable, Flushable {
         // Close the list (and object enclosing the context if necessary)
         jgen.writeEndArray();
         jgen.close();
+    }
+
+    /**
+     * Returns a subscriber from a byte sink.
+     */
+    public static Subscriber<Node> store(final LinkedDataContext context, final ByteSink sink, final Action1<Throwable> onError) {
+        checkNotNull(context);
+        checkNotNull(sink);
+        checkNotNull(onError);
+        return new Subscriber<Node>() {
+            private BillOfMaterialsWriter writer;
+
+            @Override
+            public void onStart() {
+                try {
+                    writer = new BillOfMaterialsWriter(context, sink.openBufferedStream());
+                } catch (IOException e) {
+                    onError(e);
+                }
+            }
+
+            @Override
+            public void onNext(Node node) {
+                try {
+                    writer.write(node);
+                } catch (IOException e) {
+                    onError(e);
+                }
+            }
+
+            @Override
+            public void onCompleted() {
+                try {
+                    writer.close();
+                } catch (IOException e) {
+                    onError(e);
+                }
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                onError.call(e);
+            }
+        };
     }
 }
