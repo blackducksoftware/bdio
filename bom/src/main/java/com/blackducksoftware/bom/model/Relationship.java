@@ -20,10 +20,6 @@ import com.blackducksoftware.bom.SpdxType;
 import com.blackducksoftware.bom.SpdxValue;
 
 public class Relationship extends AbstractEmbeddedModel<Relationship> {
-
-    @Nullable
-    private String related;
-
     private static final ModelField<Relationship, String> RELATED = new ModelField<Relationship, String>(SpdxTerm.RELATED_SPDX_ELEMENT) {
         @Override
         protected String get(Relationship relationship) {
@@ -36,9 +32,6 @@ public class Relationship extends AbstractEmbeddedModel<Relationship> {
         }
     };
 
-    @Nullable
-    private String relationshipType;
-
     private static final ModelField<Relationship, String> RELATIONSHIP_TYPE = new ModelField<Relationship, String>(SpdxTerm.RELATIONSHIP_TYPE) {
         @Override
         protected String get(Relationship relationship) {
@@ -50,6 +43,12 @@ public class Relationship extends AbstractEmbeddedModel<Relationship> {
             relationship.setRelationshipType(valueToString(value));
         }
     };
+
+    @Nullable
+    private String related;
+
+    @Nullable
+    private String relationshipType;
 
     public Relationship() {
         super(SpdxType.RELATIONSHIP,
