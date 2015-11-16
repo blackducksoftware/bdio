@@ -218,6 +218,9 @@ public class LinkedDataContext {
         addTerm("artifactOf", SpdxTerm.ARTIFACT_OF, JsonLdType.ID);
         addTerm("licenseConcluded", SpdxTerm.LICENSE_CONCLUDED, JsonLdType.ID);
         addTerm("creationInfo", SpdxTerm.CREATION_INFO, SpdxType.CREATION_INFO);
+        addTerm("relationship", SpdxTerm.RELATIONSHIP, SpdxType.RELATIONSHIP);
+        addTerm("related", SpdxTerm.RELATED_SPDX_ELEMENT, JsonLdType.ID);
+        addTerm("relationshipType", SpdxTerm.RELATIONSHIP_TYPE, JsonLdType.ID);
 
         addValue("BD-Hub", BlackDuckValue.EXTERNAL_IDENTIFIER_BD_HUB);
         addValue("BD-Suite", BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE);
@@ -230,6 +233,7 @@ public class LinkedDataContext {
         addValue("SOURCE", SpdxValue.FILE_TYPE_SOURCE);
         addValue("sha1", SpdxValue.CHECKSUM_ALGORITHM_SHA1);
         addValue("md5", SpdxValue.CHECKSUM_ALGORITHM_MD5);
+        addValue("DYNAMIC_LINK", SpdxValue.RELATIONSHIP_TYPE_DYNAMIC_LINK);
 
         // Hard code some dummy definitions for the keywords
         termDefinitions.put(JsonLdTerm.ID, new TermDefinition(JsonLdTerm.ID, ImmutableSet.of(JsonLdType.ID), null));
