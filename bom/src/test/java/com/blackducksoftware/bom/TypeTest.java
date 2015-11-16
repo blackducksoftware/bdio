@@ -15,7 +15,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import java.util.Arrays;
 
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import com.google.common.collect.Iterables;
 
@@ -51,17 +51,17 @@ public class TypeTest {
         }
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    @Test(expected = NullPointerException.class)
     public void testSimpleTypeCreate_null() {
         SimpleType.create(null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testSimpleTypeCreate_empty() {
         SimpleType.create("");
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testSimpleTypeCreate_invalid() {
         SimpleType.create(":");
     }

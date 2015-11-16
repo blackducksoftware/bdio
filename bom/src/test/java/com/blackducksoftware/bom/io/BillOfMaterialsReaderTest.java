@@ -16,7 +16,7 @@ import static com.google.common.truth.Truth.assertThat;
 import java.io.Reader;
 import java.io.StringReader;
 
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;

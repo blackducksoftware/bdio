@@ -1,27 +1,26 @@
 package com.blackducksoftware.bom.model;
 
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import static com.google.common.truth.Truth.assertThat;
+
+import org.junit.Test;
 
 public class ComponentTest {
-    private static final String NAME = "ComponentName";
-
-    private static final String VERSION = "1.0.0";
 
     @Test
     public void testIsVersionWhenNotVersion() {
         final Component component = new Component();
-        component.setName(NAME);
+        component.setName("FooBar");
 
-        Assert.assertFalse(component.isVersion(), "Component should not be a component version.");
+        assertThat(component.isVersion()).isFalse();
     }
 
     @Test
     public void testIsVersionWhenVersion() {
         final Component component = new Component();
-        component.setName(NAME);
-        component.setVersion(VERSION);
+        component.setName("FooBar");
+        component.setVersion("1.0.0");
 
-        Assert.assertTrue(component.isVersion(), "Component should be a component version.");
+        assertThat(component.isVersion()).isTrue();
     }
+
 }

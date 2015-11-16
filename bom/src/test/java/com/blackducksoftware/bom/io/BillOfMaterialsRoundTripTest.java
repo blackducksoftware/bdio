@@ -18,7 +18,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import com.blackducksoftware.bom.BlackDuckValue;
 import com.blackducksoftware.bom.Node;

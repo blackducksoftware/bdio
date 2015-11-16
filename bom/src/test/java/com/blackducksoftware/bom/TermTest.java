@@ -15,7 +15,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import java.util.Arrays;
 
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import com.google.common.collect.Iterables;
 
@@ -52,17 +52,17 @@ public class TermTest {
         }
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    @Test(expected = NullPointerException.class)
     public void testSimpleTermCreate_null() {
         SimpleTerm.create(null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testSimpleTermCreate_empty() {
         SimpleTerm.create("");
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testSimpleTermCreate_invalid() {
         SimpleTerm.create(":");
     }
