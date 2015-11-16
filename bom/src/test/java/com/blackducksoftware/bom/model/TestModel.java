@@ -45,7 +45,10 @@ public class TestModel extends AbstractModel<TestModel> {
         NAME,
         COUNT,
         FLAG,
-        HASH_CODE;
+        HASH_CODE,
+
+        // This value does not have a corresponding field
+        UNMAPPED;
 
         @Override
         public String toString() {

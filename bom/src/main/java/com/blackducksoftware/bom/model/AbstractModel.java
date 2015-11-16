@@ -17,6 +17,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -41,6 +42,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 /**
  * Base class for the models.
@@ -131,6 +133,8 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
 
         private final Map<Term, ModelField<M, ?>> fields;
 
+        private final Map<Term, Object> extraData = new LinkedHashMap<>();
+
         private ModelMap(M model, ModelField<M, ?>[] fields) {
             this.model = model;
             this.fields = Maps.uniqueIndex(Arrays.asList(fields), new Function<ModelField<?, ?>, Term>() {
@@ -143,29 +147,29 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
 
         @Override
         public Set<Term> keySet() {
-            return fields.keySet();
+            return Sets.union(extraData.keySet(), fields.keySet());
         }
 
         @Override
         public boolean containsKey(Object key) {
-            return fields.containsKey(key);
+            return fields.containsKey(key) || extraData.containsKey(key);
         }
 
         @Override
         public int size() {
-            return fields.size();
+            return fields.size() + extraData.size();
         }
 
         @Override
         public Set<Entry<Term, Object>> entrySet() {
             // TODO Is this right?
-            return Maps.asMap(fields.keySet(), Functions.forMap(this)).entrySet();
+            return Maps.asMap(keySet(), Functions.forMap(this)).entrySet();
         }
 
         @Override
         public Object get(Object key) {
             ModelField<M, ?> field = fields.get(key);
-            return field != null ? field.get(model) : null;
+            return field != null ? field.get(model) : extraData.get(key);
         }
 
         @Override
@@ -176,7 +180,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
                 field.remove(model);
                 return originalValue;
             } else {
-                return null;
+                return extraData.remove(key);
             }
         }
 
@@ -188,7 +192,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
                 field.set(model, value);
                 return originalValue;
             } else {
-                return null;
+                return extraData.put(key, value);
             }
         }
     }

@@ -74,4 +74,28 @@ public class AbstractModelTest {
         assertThat(test.getFlag()).isFalse();
     }
 
+    @Test
+    public void testExtraData() {
+        TestModel test = new TestModel();
+        test.data().put(TestTerm.UNMAPPED, "FooBar");
+        assertThat(test.data()).containsKey(TestTerm.UNMAPPED);
+        assertThat(test.data().get(TestTerm.UNMAPPED)).isEqualTo("FooBar");
+        test.data().put(TestTerm.UNMAPPED, 1);
+        assertThat(test.data().get(TestTerm.UNMAPPED)).isEqualTo(1);
+
+        test.data().remove(TestTerm.UNMAPPED);
+        assertThat(test.data()).doesNotContainKey(TestTerm.UNMAPPED);
+    }
+
+    @Test
+    public void testExtraDataWithRealData() {
+        TestModel test = new TestModel();
+        test.setName("FooBar");
+        test.data().put(TestTerm.UNMAPPED, "BarFoo");
+
+        assertThat(test.data()).hasSize(2);
+        assertThat(test.data()).containsEntry(TestTerm.NAME, "FooBar");
+        assertThat(test.data()).containsEntry(TestTerm.UNMAPPED, "BarFoo");
+    }
+
 }
