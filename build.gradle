@@ -37,8 +37,12 @@ subprojects {
 	}
 
 	jar {
-		doFirst {
-			manifest { attributes(manifestAttributes, "BDS-info") }
+		manifest {
+			attributes(manifestAttributes, 'BDS-Info')
+			attributes('Implementation-Version': version,
+			           'Specification-Title': specTitle,
+			           'Specification-Version': specVersion,
+			           'Specification-Vendor': specVendor)
 		}
 	}
 
