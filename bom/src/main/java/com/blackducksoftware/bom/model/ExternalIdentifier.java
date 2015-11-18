@@ -33,6 +33,20 @@ import com.google.common.collect.Iterables;
  * @author jgustie
  */
 public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier> {
+
+    /**
+     * Functions for converting/extracting strings.
+     */
+    private enum ToStringFunction implements Function<ExternalIdentifier, String> {
+        EXTERNAL_ID {
+            @Override
+            @Nullable
+            public String apply(@Nullable ExternalIdentifier externalIdentifier) {
+                return externalIdentifier != null ? externalIdentifier.getExternalId() : null;
+            }
+        }
+    }
+
     /**
      * Filter for external identifiers by their system type identifier.
      */
@@ -92,20 +106,7 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
             externalIdentifier.setExternalRepositoryLocation(valueToString(value));
         }
     };
-    
-    /**
-     * Functions for converting/extracting strings.
-     */
-    private enum ToStringFunction implements Function<ExternalIdentifier, String> {
-        EXTERNAL_ID {
-            @Override
-            @Nullable
-            public String apply(@Nullable ExternalIdentifier externalIdentifier) {
-                return externalIdentifier != null ? externalIdentifier.getExternalId() : null;
-            }
-        }
-    }
-    
+
     @Nullable
     private String externalSystemTypeId;
 
@@ -153,27 +154,24 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
 
     /**
      * Helper to create a new Black Duck Suite identifier.
+     *
+     * @deprecated Use {@link ExternalIdentifierBuilder#blackDuckSuite(String)} instead.
      */
+    @Deprecated
     @Nullable
     public static ExternalIdentifier blackDuckSuite(@Nullable String id) {
-        return id != null ? create(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE.id(), id, null) : null;
+        return ExternalIdentifierBuilder.create().blackDuckSuite(id).build().orNull();
     }
 
     /**
      * Helper to create a new Black Duck Hub identifier.
+     *
+     * @deprecated Use {@link ExternalIdentifierBuilder#blackDuckHub(String, UUID)} instead.
      */
+    @Deprecated
     @Nullable
     public static ExternalIdentifier blackDuckHub(String entityType, @Nullable UUID id) {
-        checkNotNull(entityType);
-        return id != null ? create(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_HUB.id(), entityType + "~" + id.toString(), null) : null;
-    }
-
-    private static ExternalIdentifier create(String systemTypeId, String id, String repositoryLocation) {
-        ExternalIdentifier externalIdentifier = new ExternalIdentifier();
-        externalIdentifier.setExternalSystemTypeId(systemTypeId);
-        externalIdentifier.setExternalId(id);
-        externalIdentifier.setExternalRepositoryLocation(repositoryLocation);
-        return externalIdentifier;
+        return ExternalIdentifierBuilder.create().blackDuckHub(entityType, id).build().orNull();
     }
 
     @Nullable

@@ -117,6 +117,19 @@ class Specification {
      */
     private static final Specification v1_1_0 = new Specification("1.1.0", new TermDefinitionMap(v1_0_0) {
         {
+            addTerm("relationship", SpdxTerm.RELATIONSHIP, SpdxType.RELATIONSHIP);
+            addTerm("related", SpdxTerm.RELATED_SPDX_ELEMENT, JsonLdType.ID);
+            addTerm("relationshipType", SpdxTerm.RELATIONSHIP_TYPE, JsonLdType.ID);
+            addValue("DYNAMIC_LINK", SpdxValue.RELATIONSHIP_TYPE_DYNAMIC_LINK);
+
+            addValue("anaconda", BlackDuckValue.EXTERNAL_IDENTIFIER_ANACONDA);
+            addValue("bower", BlackDuckValue.EXTERNAL_IDENTIFIER_BOWER);
+            addValue("cpan", BlackDuckValue.EXTERNAL_IDENTIFIER_CPAN);
+            addValue("goget", BlackDuckValue.EXTERNAL_IDENTIFIER_GOGET);
+            addValue("maven", BlackDuckValue.EXTERNAL_IDENTIFIER_MAVEN);
+            addValue("npm", BlackDuckValue.EXTERNAL_IDENTIFIER_NPM);
+            addValue("nuget", BlackDuckValue.EXTERNAL_IDENTIFIER_NUGET);
+            addValue("rubygems", BlackDuckValue.EXTERNAL_IDENTIFIER_RUBYGEMS);
         }
     });
 
