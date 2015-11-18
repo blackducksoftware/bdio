@@ -13,16 +13,32 @@ package com.blackducksoftware.bom.model;
 
 import javax.annotation.Nullable;
 
+import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.RdfsTerm;
 import com.blackducksoftware.bom.SpdxTerm;
 
 /**
  * The Bill of Materials itself.
+ * <p>
+ * Note that because the specification version itself is stored within this node, only backwards compatible changes can
+ * be made; essentially the parser will always use the latest version of the specification to parse this node.
  *
  * @author jgustie
  */
 public class BillOfMaterials extends AbstractTopLevelModel<BillOfMaterials> {
+    private static final ModelField<BillOfMaterials, String> SPEC_VERSION = new ModelField<BillOfMaterials, String>(BlackDuckTerm.SPEC_VERSION) {
+        @Override
+        protected String get(BillOfMaterials billOfMaterials) {
+            return billOfMaterials.getSpecVersion();
+        }
+
+        @Override
+        protected void set(BillOfMaterials billOfMaterials, Object value) {
+            billOfMaterials.setSpecVersion(valueToString(value));
+        }
+    };
+
     private static final ModelField<BillOfMaterials, String> NAME = new ModelField<BillOfMaterials, String>(SpdxTerm.NAME) {
         @Override
         protected String get(BillOfMaterials billOfMaterials) {
@@ -60,6 +76,9 @@ public class BillOfMaterials extends AbstractTopLevelModel<BillOfMaterials> {
     };
 
     @Nullable
+    private String specVersion;
+
+    @Nullable
     private String name;
 
     @Nullable
@@ -70,7 +89,16 @@ public class BillOfMaterials extends AbstractTopLevelModel<BillOfMaterials> {
 
     public BillOfMaterials() {
         super(BlackDuckType.BILL_OF_MATERIALS,
-                NAME, CREATION_INFO, COMMENT);
+                SPEC_VERSION, NAME, CREATION_INFO, COMMENT);
+    }
+
+    @Nullable
+    public String getSpecVersion() {
+        return specVersion;
+    }
+
+    public void setSpecVersion(@Nullable String specVersion) {
+        this.specVersion = specVersion;
     }
 
     @Nullable

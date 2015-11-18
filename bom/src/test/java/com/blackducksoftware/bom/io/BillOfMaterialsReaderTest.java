@@ -12,7 +12,9 @@
 package com.blackducksoftware.bom.io;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.TruthJUnit.assume;
 
+import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 
@@ -75,6 +77,26 @@ public class BillOfMaterialsReaderTest {
                     .build());
 
             assertThat(reader.read()).isNull();
+        }
+    }
+
+    @Test
+    public void testVersionChange() throws IOException {
+        // Create a new context and make sure we are going to see interesting results
+        LinkedDataContext context = new LinkedDataContext();
+        assume().that(context.getSpecVersion()).isNotEqualTo("1.0.0");
+
+        Reader in = new StringReader("[ {"
+                + "  \"@id\": \"foo\","
+                + "  \"@type\": \"BillOfMaterials\","
+                + "  \"specVersion\": \"1.0.0\""
+                + " } ]");
+
+        try (BillOfMaterialsReader reader = new BillOfMaterialsReader(context, in)) {
+            Node node = reader.read();
+            assertThat(node.data().get(BlackDuckTerm.SPEC_VERSION)).isEqualTo("1.0.0");
+            assertThat(reader.context().getSpecVersion()).isEqualTo("1.0.0");
+            assertThat(reader.context()).isNotSameAs(context);
         }
     }
 

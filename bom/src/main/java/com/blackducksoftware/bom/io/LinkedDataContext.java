@@ -31,24 +31,18 @@ import java.util.UUID;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bom.BlackDuckTerm;
-import com.blackducksoftware.bom.BlackDuckType;
-import com.blackducksoftware.bom.BlackDuckValue;
-import com.blackducksoftware.bom.DoapTerm;
 import com.blackducksoftware.bom.ImmutableNode;
 import com.blackducksoftware.bom.Node;
 import com.blackducksoftware.bom.SimpleTerm;
 import com.blackducksoftware.bom.SimpleType;
-import com.blackducksoftware.bom.SpdxTerm;
-import com.blackducksoftware.bom.SpdxType;
-import com.blackducksoftware.bom.SpdxValue;
 import com.blackducksoftware.bom.Term;
 import com.blackducksoftware.bom.Type;
 import com.blackducksoftware.bom.XmlSchemaType;
+import com.blackducksoftware.bom.io.Specification.Container;
+import com.blackducksoftware.bom.io.Specification.TermDefinition;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
-import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -78,98 +72,25 @@ public class LinkedDataContext {
     private static final URI DEFAULT_BASE = URI.create("http://example.com/");
 
     /**
-     * Possible container types.
-     */
-    public enum Container {
-        /**
-         * Placeholder to use instead of {@code null}.
-         */
-        UNKNOWN,
-
-        // From the JSON-LD spec...
-        LIST, SET, LANGUAGE, INDEX;
-
-        /**
-         * Create an immutable copy of the supplied input appropriate for this container type.
-         */
-        public <T> Iterable<T> copyOf(Iterable<T> source) {
-            if (this == SET) {
-                // We need to return lists instead of sets, but we want set semantics
-                return ImmutableList.copyOf(ImmutableSet.copyOf(source));
-            } else {
-                return ImmutableList.copyOf(source);
-            }
-        }
-    }
-
-    /**
-     * A definition for a particular term.
-     */
-    private static class TermDefinition {
-        /**
-         * The fully qualified term identifier.
-         */
-        private final Term term;
-
-        /**
-         * The types associated with this term.
-         */
-        private final Set<Type> types;
-
-        /**
-         * The container type associated with this term.
-         */
-        private final Container container;
-
-        private TermDefinition(Term term, Set<? extends Type> types, @Nullable Container container) {
-            this.term = checkNotNull(term);
-            this.types = ImmutableSet.copyOf(types);
-            this.container = firstNonNull(container, Container.UNKNOWN);
-        }
-
-        public Term getTerm() {
-            return term;
-        }
-
-        public Set<Type> getTypes() {
-            return types;
-        }
-
-        public Container getContainer() {
-            return container;
-        }
-    }
-
-    /**
      * The base IRI to resolve identifiers against. Stored as a typed URI to simplify access to the resolution logic.
      */
     @Nullable
     private final URI base;
 
     /**
-     * The vocabulary IRI to prepend to unqualified IRIs.
+     * The specification to use for this context.
      */
-    @Nullable
-    private final String vocab;
+    private final Specification spec;
 
     /**
-     * Mapping of term names to definitions.
-     */
-    private final Map<String, TermDefinition> definitions = new LinkedHashMap<>();
-
-    /**
-     * A loading cache from typed term instances to their definitions.
+     * A loading cache from typed term instances to their definitions. This is really just a lazy map of all the
+     * definitions in the specification plus any term we have encountered.
      */
     private final LoadingCache<Term, TermDefinition> termDefinitions = CacheBuilder.newBuilder().build(new CacheLoader<Term, TermDefinition>() {
         @Override
         public TermDefinition load(Term term) {
-            // Lookup the term definition or return a new one
-            for (TermDefinition definition : definitions.values()) {
-                if (term.equals(definition.getTerm())) {
-                    return definition;
-                }
-            }
-            return new TermDefinition(term, ImmutableSet.<Type> of(), null);
+            // This unnecessarily creates default term definitions that are present in the specification. Oh well.
+            return spec.get(term).or(TermDefinition.defaultDefinition(term));
         }
     });
 
@@ -188,89 +109,29 @@ public class LinkedDataContext {
     }
 
     public LinkedDataContext(@Nullable String base) {
+        this(base != null ? URI.create(base) : null, Specification.latest());
+    }
+
+    private LinkedDataContext(@Nullable URI base, Specification spec) {
         // Store the base URI used to resolve identifiers
-        this.base = base != null ? URI.create(base) : null;
+        this.base = base;
         checkArgument(base == null || this.base.isAbsolute(), "base must be an absolute URI");
 
-        // Load our definitions
-        vocab = "http://blackducksoftware.com/rdf/terms#";
-        addPrefixMapping("spdx", "http://spdx.org/rdf/terms#");
-        addPrefixMapping("doap", "http://usefulinc.com/ns/doap#");
-        addPrefixMapping("rdfs", "http://www.w3.org/2000/01/rdf-schema#");
-        addPrefixMapping("xsd", "http://www.w3.org/2001/XMLSchema#");
-
-        addTerm("size", BlackDuckTerm.SIZE, XmlSchemaType.LONG);
-        addTerm("externalIdentifier", BlackDuckTerm.EXTERNAL_IDENTIFIER, BlackDuckType.EXTERNAL_IDENTIFIER);
-        addTerm("externalSystemTypeId", BlackDuckTerm.EXTERNAL_SYSTEM_TYPE_ID, JsonLdType.ID);
-        addTerm("matchDetail", BlackDuckTerm.MATCH_DETAIL, BlackDuckType.MATCH_DETAIL);
-        addTerm("matchType", BlackDuckTerm.MATCH_TYPE, JsonLdType.ID);
-
-        addTerm("name", DoapTerm.NAME);
-        addTerm("homepage", DoapTerm.HOMEPAGE);
-        addTerm("revision", DoapTerm.REVISION);
-        addTerm("licence", DoapTerm.LICENSE, JsonLdType.ID);
-
-        addTerm("fileName", SpdxTerm.FILE_NAME);
-        addTerm("fileType", SpdxTerm.FILE_TYPE, JsonLdType.ID, Container.SET);
-        addTerm("checksum", SpdxTerm.CHECKSUM, SpdxType.CHECKSUM);
-        addTerm("checksumValue", SpdxTerm.CHECKSUM_VALUE);
-        addTerm("algorithm", SpdxTerm.ALGORITHM, JsonLdType.ID);
-        addTerm("artifactOf", SpdxTerm.ARTIFACT_OF, JsonLdType.ID);
-        addTerm("licenseConcluded", SpdxTerm.LICENSE_CONCLUDED, JsonLdType.ID);
-        addTerm("creationInfo", SpdxTerm.CREATION_INFO, SpdxType.CREATION_INFO);
-
-        addValue("BD-Hub", BlackDuckValue.EXTERNAL_IDENTIFIER_BD_HUB);
-        addValue("BD-Suite", BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE);
-        addValue("DEPENDENCY", BlackDuckValue.MATCH_TYPE_DEPENDENCY);
-        addValue("PARTIAL", BlackDuckValue.MATCH_TYPE_PARTIAL);
-        addValue("DIRECTORY", BlackDuckValue.FILE_TYPE_DIRECTORY);
-        addValue("ARCHIVE", SpdxValue.FILE_TYPE_ARCHIVE);
-        addValue("BINARY", SpdxValue.FILE_TYPE_BINARY);
-        addValue("OTHER", SpdxValue.FILE_TYPE_OTHER);
-        addValue("SOURCE", SpdxValue.FILE_TYPE_SOURCE);
-        addValue("sha1", SpdxValue.CHECKSUM_ALGORITHM_SHA1);
-        addValue("md5", SpdxValue.CHECKSUM_ALGORITHM_MD5);
+        // Store the specification into this context
+        this.spec = checkNotNull(spec);
 
         // Hard code some dummy definitions for the keywords
-        termDefinitions.put(JsonLdTerm.ID, new TermDefinition(JsonLdTerm.ID, ImmutableSet.of(JsonLdType.ID), null));
-        termDefinitions.put(JsonLdTerm.TYPE, new TermDefinition(JsonLdTerm.TYPE, ImmutableSet.of(JsonLdType.ID), Container.SET));
+        termDefinitions.put(JsonLdTerm.ID, TermDefinition.JSON_LD_ID);
+        termDefinitions.put(JsonLdTerm.TYPE, TermDefinition.JSON_LD_TYPE);
     }
 
     /**
-     * Adds a prefix mapping to this context.
+     * Creates a new linked data context which can be used to read an alternate version of the specification. Note that
+     * you should only use this for reading: while it will map old values into the new values, it cannot perform the
+     * reverse operation (producing the old values from the new values).
      */
-    private void addPrefixMapping(String prefix, String identifier) {
-        Term term = SimpleTerm.create(expandIri(identifier, false));
-        definitions.put(prefix, new TermDefinition(term, ImmutableSet.<Type> of(), null));
-    }
-
-    /**
-     * Adds a scalar term definition to this context.
-     */
-    private void addTerm(String alias, Term term) {
-        addTerm(alias, term, null);
-    }
-
-    /**
-     * Adds a scalar term definition to this context.
-     */
-    private void addTerm(String alias, Term term, @Nullable Type type) {
-        addTerm(alias, term, type, null);
-    }
-
-    /**
-     * Adds a scalar term definition to this context.
-     */
-    private void addTerm(String alias, Term term, @Nullable Type type, @Nullable Container container) {
-        definitions.put(alias, new TermDefinition(term, Optional.fromNullable(type).asSet(), container));
-    }
-
-    /**
-     * Adds an identifier value to this context.
-     */
-    private void addValue(String alias, Node value) {
-        Term term = SimpleTerm.create(expandIri(value.id(), false));
-        definitions.put(alias, new TermDefinition(term, ImmutableSet.<Type> of(), null));
+    public LinkedDataContext newContextForReading(@Nullable String specVersion) {
+        return new LinkedDataContext(getBase(), Specification.forVersion(specVersion));
     }
 
     /**
@@ -289,9 +150,27 @@ public class LinkedDataContext {
         }
     }
 
+    /**
+     * Returns the base IRI used to resolve relative references.
+     */
     @Nullable
     public URI getBase() {
         return base;
+    }
+
+    /**
+     * The vocabulary IRI to prepend to unqualified IRIs.
+     */
+    @Nullable
+    public String getVocab() {
+        return spec.vocab();
+    }
+
+    /**
+     * Returns the specification version used by this context.
+     */
+    public String getSpecVersion() {
+        return spec.version();
     }
 
     /**
@@ -423,13 +302,13 @@ public class LinkedDataContext {
         if (value == null || value.startsWith("@")) {
             return value;
         }
-        TermDefinition definition = definitions.get(value);
+        TermDefinition definition = spec.get(value).orNull();
         if (definition != null) {
             return definition.getTerm().toString();
         }
         int pos = PREFIX_DELIMITER.indexIn(value);
         if (pos > 0) {
-            TermDefinition prefixDefinition = definitions.get(value.substring(0, pos));
+            TermDefinition prefixDefinition = spec.get(value.substring(0, pos)).orNull();
             if (prefixDefinition != null) {
                 return prefixDefinition.getTerm() + value.substring(pos + 1);
             } else {
@@ -437,9 +316,9 @@ public class LinkedDataContext {
             }
         }
         if (relative) {
-            return base != null ? base.resolve(value).toString() : value;
+            return getBase() != null ? getBase().resolve(value).toString() : value;
         } else {
-            return vocab != null ? vocab + value : value;
+            return getVocab() != null ? getVocab() + value : value;
         }
     }
 
@@ -525,7 +404,8 @@ public class LinkedDataContext {
      */
     @Nullable
     private String compactIri(@Nullable String value) {
-        return compactIri(value, definitions);
+        // Use all of the term definitions from the specification
+        return compactIri(value, spec.asTermDefinitions());
     }
 
     /**
@@ -550,7 +430,7 @@ public class LinkedDataContext {
         if (prefix != null) {
             return prefix + ":" + value.substring(prefixMatchLen);
         }
-        return vocab != null && value.startsWith(vocab) ? value.substring(vocab.length()) : value;
+        return getVocab() != null && value.startsWith(getVocab()) ? value.substring(getVocab().length()) : value;
     }
 
     /**
@@ -576,18 +456,18 @@ public class LinkedDataContext {
     public Map<String, Object> serialize() {
         final Map<String, Object> context = new LinkedHashMap<>();
         final Map<String, TermDefinition> localContext = new LinkedHashMap<>();
-        if (base != null) {
-            context.put("@base", base.toString());
+        if (getBase() != null) {
+            context.put("@base", getBase().toString());
         }
-        if (vocab != null) {
-            context.put("@vocab", vocab);
+        if (getVocab() != null) {
+            context.put("@vocab", getVocab());
         }
-        for (Entry<String, TermDefinition> entry : definitions.entrySet()) {
-            TermDefinition definition = entry.getValue();
+        for (String alias : spec.aliases()) {
+            TermDefinition definition = spec.get(alias).get();
             Object serializedDefinition = compactIri(definition.getTerm().toString(), localContext);
             if (!definition.getTypes().isEmpty() || definition.getContainer() != Container.UNKNOWN) {
                 Map<String, Object> definitionMap = new LinkedHashMap<>(3);
-                if (!entry.getKey().equals(serializedDefinition)) {
+                if (!alias.equals(serializedDefinition)) {
                     definitionMap.put("@id", serializedDefinition);
                 }
                 if (definition.getTypes().size() == 1) {
@@ -607,8 +487,8 @@ public class LinkedDataContext {
                 }
                 serializedDefinition = definitionMap;
             }
-            context.put(entry.getKey(), serializedDefinition);
-            localContext.put(entry.getKey(), entry.getValue());
+            context.put(alias, serializedDefinition);
+            localContext.put(alias, definition);
         }
         return ImmutableMap.<String, Object> of("@context", context);
     }
