@@ -222,6 +222,15 @@ public class LinkedDataContext {
         addTerm("related", SpdxTerm.RELATED_SPDX_ELEMENT, JsonLdType.ID);
         addTerm("relationshipType", SpdxTerm.RELATIONSHIP_TYPE, JsonLdType.ID);
 
+        addValue("anaconda", BlackDuckValue.EXTERNAL_IDENTIFIER_ANACONDA);
+        addValue("bower", BlackDuckValue.EXTERNAL_IDENTIFIER_BOWER);
+        addValue("cpan", BlackDuckValue.EXTERNAL_IDENTIFIER_CPAN);
+        addValue("goget", BlackDuckValue.EXTERNAL_IDENTIFIER_GOGET);
+        addValue("maven", BlackDuckValue.EXTERNAL_IDENTIFIER_MAVEN);
+        addValue("npm", BlackDuckValue.EXTERNAL_IDENTIFIER_NPM);
+        addValue("nuget", BlackDuckValue.EXTERNAL_IDENTIFIER_NUGET);
+        addValue("rubygems", BlackDuckValue.EXTERNAL_IDENTIFIER_RUBYGEMS);
+        // TODO These already changed from "BD-Hub" to "bdhub" and from "BD-Suite" to "bdsuite"
         addValue("BD-Hub", BlackDuckValue.EXTERNAL_IDENTIFIER_BD_HUB);
         addValue("BD-Suite", BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE);
         addValue("DEPENDENCY", BlackDuckValue.MATCH_TYPE_DEPENDENCY);
