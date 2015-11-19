@@ -187,16 +187,16 @@ public class ExternalIdentifierBuilder {
     }
 
     public ExternalIdentifierBuilder blackDuckSuite(@Nullable String id) {
-        return fromId(id).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE).withoutRepo();
+        return fromId(id).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE).withoutRepo();
     }
 
     public ExternalIdentifierBuilder blackDuckSuite(@Nullable String id, @Nullable String tag) {
-        return (tag != null ? formatId("%s#%s", id, tag) : fromId(id)).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE).withoutRepo();
+        return (tag != null ? formatId("%s#%s", id, tag) : fromId(id)).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE).withoutRepo();
     }
 
     public ExternalIdentifierBuilder blackDuckHub(String entityType, @Nullable UUID id) {
         checkNotNull(entityType);
-        return formatId("%s~%s", entityType, id).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_HUB).withoutRepo();
+        return formatId("%s~%s", entityType, id).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_BDHUB).withoutRepo();
     }
 
     public ExternalIdentifierBuilder blackDuckOpenHub(@Nullable String id) {

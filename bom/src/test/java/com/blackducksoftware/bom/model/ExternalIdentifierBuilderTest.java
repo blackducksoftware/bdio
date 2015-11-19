@@ -54,19 +54,19 @@ public class ExternalIdentifierBuilderTest {
         assertThat(ExternalIdentifierBuilder.create().blackDuckSuite(null).build()).isAbsent();
 
         ExternalIdentifier extIdTagless = ExternalIdentifierBuilder.create().blackDuckSuite("c_foobar_5000").build().get();
-        assertThat(extIdTagless.getExternalSystemTypeId()).isEqualTo(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE.id());
+        assertThat(extIdTagless.getExternalSystemTypeId()).isEqualTo(BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE.id());
         assertThat(extIdTagless.getExternalId()).isEqualTo("c_foobar_5000");
         assertThat(extIdTagless.getExternalRepositoryLocation()).isNull();
 
         assertThat(ExternalIdentifierBuilder.create().blackDuckSuite(null, "123").build()).isAbsent();
 
         ExternalIdentifier extIdWithNullTag = ExternalIdentifierBuilder.create().blackDuckSuite("c_foobar_5000", null).build().get();
-        assertThat(extIdWithNullTag.getExternalSystemTypeId()).isEqualTo(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE.id());
+        assertThat(extIdWithNullTag.getExternalSystemTypeId()).isEqualTo(BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE.id());
         assertThat(extIdWithNullTag.getExternalId()).isEqualTo("c_foobar_5000");
         assertThat(extIdWithNullTag.getExternalRepositoryLocation()).isNull();
 
         ExternalIdentifier extIdWithTag = ExternalIdentifierBuilder.create().blackDuckSuite("c_foobar_5000", "123").build().get();
-        assertThat(extIdWithTag.getExternalSystemTypeId()).isEqualTo(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE.id());
+        assertThat(extIdWithTag.getExternalSystemTypeId()).isEqualTo(BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE.id());
         assertThat(extIdWithTag.getExternalId()).isEqualTo("c_foobar_5000#123");
         assertThat(extIdWithTag.getExternalRepositoryLocation()).isNull();
     }

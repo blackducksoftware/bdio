@@ -51,9 +51,9 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
      * Filter for external identifiers by their system type identifier.
      */
     private static final class ExternalSystemTypeIdFilter implements Predicate<ExternalIdentifier> {
-        private static final Predicate<ExternalIdentifier> BD_SUITE = new ExternalSystemTypeIdFilter(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE.id());
+        private static final Predicate<ExternalIdentifier> BDSUITE = new ExternalSystemTypeIdFilter(BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE.id());
 
-        private static final Predicate<ExternalIdentifier> BD_HUB = new ExternalSystemTypeIdFilter(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_HUB.id());
+        private static final Predicate<ExternalIdentifier> BDHUB = new ExternalSystemTypeIdFilter(BlackDuckValue.EXTERNAL_IDENTIFIER_BDHUB.id());
 
         private final String externalSystemTypeId;
 
@@ -135,14 +135,14 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
      * Returns a predicate that matches Black Duck Suite external identifiers.
      */
     public static Predicate<ExternalIdentifier> bdSuite() {
-        return ExternalSystemTypeIdFilter.BD_SUITE;
+        return ExternalSystemTypeIdFilter.BDSUITE;
     }
 
     /**
      * Returns a predicate that matches Black Duck Suite external identifiers.
      */
     public static Predicate<ExternalIdentifier> bdHub() {
-        return ExternalSystemTypeIdFilter.BD_HUB;
+        return ExternalSystemTypeIdFilter.BDHUB;
     }
 
     /**
@@ -215,7 +215,7 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
     }
 
     private Iterable<String> getBdSuiteId() {
-        checkState(Objects.equals(getExternalSystemTypeId(), BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE.id()), "not a BD-Suite identifier");
+        checkState(Objects.equals(getExternalSystemTypeId(), BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE.id()), "not a bdsuite identifier");
         return Splitter.on('#').limit(2).split(getExternalId());
     }
 

@@ -17,6 +17,7 @@ import static com.google.common.base.Strings.nullToEmpty;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import javax.annotation.Nullable;
@@ -39,9 +40,14 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.MapDifference;
+import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
 
 class Specification {
+
+    // NOTE: The specifications should be preserved in the state that they were released. If you change a constant that
+    // the specification definition uses, you must change the definition back to the old value.
 
     /**
      * The initial version of the specification. Uses an empty string as the version number to indicate that there was
@@ -75,8 +81,8 @@ class Specification {
             addTerm("licenseConcluded", SpdxTerm.LICENSE_CONCLUDED, JsonLdType.ID);
             addTerm("creationInfo", SpdxTerm.CREATION_INFO, SpdxType.CREATION_INFO);
 
-            addValue("BD-Hub", BlackDuckValue.EXTERNAL_IDENTIFIER_BD_HUB);
-            addValue("BD-Suite", BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE);
+            addValue("BD-Hub", "http://blackducksoftware.com/rdf/terms#externalIdentifier_BD-Hub");
+            addValue("BD-Suite", "http://blackducksoftware.com/rdf/terms#externalIdentifier_BD-Suite");
             addValue("DEPENDENCY", BlackDuckValue.MATCH_TYPE_DEPENDENCY);
             addValue("PARTIAL", BlackDuckValue.MATCH_TYPE_PARTIAL);
             addValue("DIRECTORY", BlackDuckValue.FILE_TYPE_DIRECTORY);
@@ -87,7 +93,7 @@ class Specification {
             addValue("sha1", SpdxValue.CHECKSUM_ALGORITHM_SHA1);
             addValue("md5", SpdxValue.CHECKSUM_ALGORITHM_MD5);
         }
-    });
+    }, new ImportResolver());
 
     /**
      * Version 1.0.0 of the specification.
@@ -103,7 +109,7 @@ class Specification {
             // gap to address the fact we released the initial version before formally defining a mechanism to record
             // changes in the specification.
         }
-    });
+    }, new ImportResolver());
 
     /**
      * Version 1.1.0 of the specification.
@@ -117,11 +123,13 @@ class Specification {
      */
     private static final Specification v1_1_0 = new Specification("1.1.0", new TermDefinitionMap(v1_0_0) {
         {
+            // Added relationships
             addTerm("relationship", SpdxTerm.RELATIONSHIP, SpdxType.RELATIONSHIP);
             addTerm("related", SpdxTerm.RELATED_SPDX_ELEMENT, JsonLdType.ID);
             addTerm("relationshipType", SpdxTerm.RELATIONSHIP_TYPE, JsonLdType.ID);
             addValue("DYNAMIC_LINK", SpdxValue.RELATIONSHIP_TYPE_DYNAMIC_LINK);
 
+            // Added external identifiers
             addValue("anaconda", BlackDuckValue.EXTERNAL_IDENTIFIER_ANACONDA);
             addValue("bower", BlackDuckValue.EXTERNAL_IDENTIFIER_BOWER);
             addValue("cpan", BlackDuckValue.EXTERNAL_IDENTIFIER_CPAN);
@@ -130,6 +138,24 @@ class Specification {
             addValue("npm", BlackDuckValue.EXTERNAL_IDENTIFIER_NPM);
             addValue("nuget", BlackDuckValue.EXTERNAL_IDENTIFIER_NUGET);
             addValue("rubygems", BlackDuckValue.EXTERNAL_IDENTIFIER_RUBYGEMS);
+
+            // Changed the external identifiers for Black Duck products
+            remove("BD-Hub");
+            addValue("bdhub", BlackDuckValue.EXTERNAL_IDENTIFIER_BDHUB);
+            remove("BD-Suite");
+            addValue("bdsuite", BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE);
+        }
+    }, new ImportResolver() {
+        @Override
+        public TermDefinition removed(String alias, TermDefinition oldDefinition) {
+            switch (alias) {
+            case "BD-Hub":
+                return TermDefinition.forValue(BlackDuckValue.EXTERNAL_IDENTIFIER_BDHUB);
+            case "BD-Suite":
+                return TermDefinition.forValue(BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE);
+            default:
+                return v1_0_0.importResolver().removed(alias, oldDefinition);
+            }
         }
     });
 
@@ -202,6 +228,13 @@ class Specification {
             return new TermDefinition(term, ImmutableSet.<Type> of(), null);
         }
 
+        /**
+         * Returns a term definition for a value node.
+         */
+        public static TermDefinition forValue(Node value) {
+            return defaultDefinition(SimpleTerm.create(value.id()));
+        }
+
         public Term getTerm() {
             return term;
         }
@@ -219,6 +252,7 @@ class Specification {
      * A specialized map used to help building term definitions.
      */
     private static class TermDefinitionMap extends LinkedHashMap<String, TermDefinition> {
+
         TermDefinitionMap() {
         }
 
@@ -231,7 +265,7 @@ class Specification {
         }
 
         protected void addValue(String alias, Node value) {
-            addValue(alias, value.id());
+            put(alias, TermDefinition.forValue(value));
         }
 
         protected void addValue(String alias, String value) {
@@ -248,6 +282,45 @@ class Specification {
 
         protected void addTerm(String alias, Term term, @Nullable Type type) {
             addTerm(alias, term, type, null);
+        }
+    }
+
+    /**
+     * An import resolver is used to reconcile differences with older versions of the specification. When you are
+     * importing older data (data generated to a previous version of the specification), the import resolver can be used
+     * to produce an alternate set of term definitions to ensure the old data is properly migrated to the current
+     * version of the specification.
+     * <p>
+     * Technically only the latest version of the specification needs an import resolver, though it may be useful to
+     * build off of the resolvers from a previous version.
+     */
+    public static class ImportResolver {
+
+        /**
+         * When the IRI mapped to an alias is changed, this method is used to determine which term definition should be
+         * used during import. Typically you want the new definition to be used because the IRI from the latest
+         * definition is used in model classes. For example, the alias "foo" might have been defined as
+         * "http://example.com/foo" in a previous version of the specification; the current version defines "foo" as
+         * "http://example.com/terms#foo" and that is the value used by the model classes when converting between nodes
+         * and beans. The old data will contain values for "foo", and even though it was meant to be for
+         * "http://example.com/foo", you want to select the new definition ("http://example.com/terms#foo") so the model
+         * code will work as expected.
+         * <p>
+         * The default behavior is to always return the new definition.
+         */
+        public TermDefinition changed(String alias, TermDefinition oldDefinition, TermDefinition newDefinition) {
+            return newDefinition;
+        }
+
+        /**
+         * When an alias from a previous version no longer exists, either because it was removed or renamed, this method
+         * is used to determine what the appropriate term definition should be during import. If the alias was dropped
+         * completely this method should typically just return the old definition: you can avoid duck typing failures by
+         * preserving the type information this way. If the alias was renamed, the resulting definition should point to
+         * the new IRI (hopefully with the same type information).
+         */
+        public TermDefinition removed(String alias, TermDefinition oldDefinition) {
+            return oldDefinition;
         }
     }
 
@@ -297,9 +370,15 @@ class Specification {
      */
     private final Map<String, TermDefinition> definitions;
 
-    private Specification(String version, Map<String, TermDefinition> definitions) {
+    /**
+     * The import resolver used to adjust conflicts with older versions of the specification.
+     */
+    private final ImportResolver importResolver;
+
+    private Specification(String version, Map<String, TermDefinition> definitions, ImportResolver importResolver) {
         this.version = checkNotNull(version);
         this.definitions = ImmutableMap.copyOf(definitions);
+        this.importResolver = checkNotNull(importResolver);
     }
 
     /**
@@ -314,6 +393,50 @@ class Specification {
      */
     public final String vocab() {
         return vocab;
+    }
+
+    /**
+     * Returns the import resolver for this version of the specification.
+     */
+    private ImportResolver importResolver() {
+        return importResolver;
+    }
+
+    /**
+     * Returns a modified version of this specification whose term definitions can be used to map an older version of
+     * the specification into a newer version.
+     */
+    public Map<String, TermDefinition> importDefinitions() {
+        MapDifference<String, TermDefinition> diff = Maps.difference(asTermDefinitions(), latest().asTermDefinitions());
+        if (diff.areEqual()) {
+            return asTermDefinitions();
+        } else {
+            // Use the resolver from the latest version of the specification to generate term definitions
+            ImportResolver resolver = latest().importResolver();
+            Map<String, TermDefinition> termDefinitions = new LinkedHashMap<>();
+
+            // Entries on the right did not exist when the current version of the specification was
+            // released, therefore we can ignore them in our reconstructed definitions
+
+            // All common entries are unchanged between both versions of the specification
+            termDefinitions.putAll(diff.entriesInCommon());
+
+            // Entries which have the same alias but different IRIs have been "re-mapped"; typically
+            // (but not always) we want the alias to point to the latest IRI
+            for (Entry<String, ValueDifference<TermDefinition>> e : diff.entriesDiffering().entrySet()) {
+                String alias = e.getKey();
+                termDefinitions.put(alias, resolver.changed(alias, e.getValue().leftValue(), e.getValue().rightValue()));
+            }
+
+            // Entries on the left have been removed or renamed (their alias changed). We must delegate
+            // to the import resolver to decide what do here.
+            for (Entry<String, TermDefinition> e : diff.entriesOnlyOnLeft().entrySet()) {
+                String alias = e.getKey();
+                termDefinitions.put(alias, resolver.removed(alias, e.getValue()));
+            }
+
+            return termDefinitions;
+        }
     }
 
     /**

@@ -78,9 +78,20 @@ public class LinkedDataContext {
     private final URI base;
 
     /**
-     * The specification to use for this context.
+     * The vocabulary IRI to prepend to unqualified IRIs.
      */
-    private final Specification spec;
+    @Nullable
+    private final String vocab;
+
+    /**
+     * The current version of the specification this context is associated with.
+     */
+    private final String specVersion;
+
+    /**
+     * Mapping of term names to definitions.
+     */
+    private final Map<String, TermDefinition> definitions;
 
     /**
      * A loading cache from typed term instances to their definitions. This is really just a lazy map of all the
@@ -89,8 +100,13 @@ public class LinkedDataContext {
     private final LoadingCache<Term, TermDefinition> termDefinitions = CacheBuilder.newBuilder().build(new CacheLoader<Term, TermDefinition>() {
         @Override
         public TermDefinition load(Term term) {
-            // This unnecessarily creates default term definitions that are present in the specification. Oh well.
-            return spec.get(term).or(TermDefinition.defaultDefinition(term));
+            // Lookup the term definition or return a new one
+            for (TermDefinition definition : definitions.values()) {
+                if (term.equals(definition.getTerm())) {
+                    return definition;
+                }
+            }
+            return TermDefinition.defaultDefinition(term);
         }
     });
 
@@ -109,16 +125,19 @@ public class LinkedDataContext {
     }
 
     public LinkedDataContext(@Nullable String base) {
-        this(base != null ? URI.create(base) : null, Specification.latest());
+        this(base, Specification.latest());
     }
 
-    private LinkedDataContext(@Nullable URI base, Specification spec) {
-        // Store the base URI used to resolve identifiers
-        this.base = base;
-        checkArgument(base == null || this.base.isAbsolute(), "base must be an absolute URI");
+    private LinkedDataContext(@Nullable String base, Specification spec) {
+        this(base != null ? URI.create(base) : null, spec.vocab(), spec.version(), spec.asTermDefinitions());
+    }
 
-        // Store the specification into this context
-        this.spec = checkNotNull(spec);
+    private LinkedDataContext(@Nullable URI base, @Nullable String vocab, String specVersion, Map<String, TermDefinition> definitions) {
+        checkArgument(base == null || this.base.isAbsolute(), "base must be an absolute URI");
+        this.base = base;
+        this.vocab = vocab;
+        this.specVersion = checkNotNull(specVersion);
+        this.definitions = ImmutableMap.copyOf(definitions);
 
         // Hard code some dummy definitions for the keywords
         termDefinitions.put(JsonLdTerm.ID, TermDefinition.JSON_LD_ID);
@@ -131,7 +150,8 @@ public class LinkedDataContext {
      * reverse operation (producing the old values from the new values).
      */
     public LinkedDataContext newContextForReading(@Nullable String specVersion) {
-        return new LinkedDataContext(getBase(), Specification.forVersion(specVersion));
+        Specification spec = Specification.forVersion(specVersion);
+        return new LinkedDataContext(getBase(), spec.vocab(), spec.version(), spec.importDefinitions());
     }
 
     /**
@@ -163,14 +183,14 @@ public class LinkedDataContext {
      */
     @Nullable
     public String getVocab() {
-        return spec.vocab();
+        return vocab;
     }
 
     /**
      * Returns the specification version used by this context.
      */
     public String getSpecVersion() {
-        return spec.version();
+        return specVersion;
     }
 
     /**
@@ -302,13 +322,13 @@ public class LinkedDataContext {
         if (value == null || value.startsWith("@")) {
             return value;
         }
-        TermDefinition definition = spec.get(value).orNull();
+        TermDefinition definition = definitions.get(value);
         if (definition != null) {
             return definition.getTerm().toString();
         }
         int pos = PREFIX_DELIMITER.indexIn(value);
         if (pos > 0) {
-            TermDefinition prefixDefinition = spec.get(value.substring(0, pos)).orNull();
+            TermDefinition prefixDefinition = definitions.get(value.substring(0, pos));
             if (prefixDefinition != null) {
                 return prefixDefinition.getTerm() + value.substring(pos + 1);
             } else {
@@ -405,7 +425,7 @@ public class LinkedDataContext {
     @Nullable
     private String compactIri(@Nullable String value) {
         // Use all of the term definitions from the specification
-        return compactIri(value, spec.asTermDefinitions());
+        return compactIri(value, definitions);
     }
 
     /**
@@ -462,12 +482,12 @@ public class LinkedDataContext {
         if (getVocab() != null) {
             context.put("@vocab", getVocab());
         }
-        for (String alias : spec.aliases()) {
-            TermDefinition definition = spec.get(alias).get();
+        for (Entry<String, TermDefinition> entry : definitions.entrySet()) {
+            TermDefinition definition = entry.getValue();
             Object serializedDefinition = compactIri(definition.getTerm().toString(), localContext);
             if (!definition.getTypes().isEmpty() || definition.getContainer() != Container.UNKNOWN) {
                 Map<String, Object> definitionMap = new LinkedHashMap<>(3);
-                if (!alias.equals(serializedDefinition)) {
+                if (!entry.getKey().equals(serializedDefinition)) {
                     definitionMap.put("@id", serializedDefinition);
                 }
                 if (definition.getTypes().size() == 1) {
@@ -487,8 +507,8 @@ public class LinkedDataContext {
                 }
                 serializedDefinition = definitionMap;
             }
-            context.put(alias, serializedDefinition);
-            localContext.put(alias, definition);
+            context.put(entry.getKey(), serializedDefinition);
+            localContext.put(entry.getKey(), definition);
         }
         return ImmutableMap.<String, Object> of("@context", context);
     }
