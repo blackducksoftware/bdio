@@ -94,9 +94,10 @@ public class AbstractTopLevelModel<M extends AbstractTopLevelModel<M>> extends A
 
     private static <M extends AbstractModel<M>> ModelField<M, ?>[] addTopLevelFields(ModelField<M, ?>[] fields) {
         ModelField<M, ?>[] newFields = Arrays.copyOf(fields, fields.length + 2);
+        int index = fields.length;
 
         // External identifiers
-        newFields[fields.length - 1] = new ModelField<M, List<ExternalIdentifier>>(BlackDuckTerm.EXTERNAL_IDENTIFIER) {
+        newFields[index++] = new ModelField<M, List<ExternalIdentifier>>(BlackDuckTerm.EXTERNAL_IDENTIFIER) {
             @Override
             protected List<ExternalIdentifier> get(M model) {
                 return ((AbstractTopLevelModel<?>) model).getExternalIdentifiers();
@@ -110,7 +111,7 @@ public class AbstractTopLevelModel<M extends AbstractTopLevelModel<M>> extends A
         };
 
         // Relationships
-        newFields[fields.length] = new ModelField<M, List<Relationship>>(SpdxTerm.RELATIONSHIP) {
+        newFields[index++] = new ModelField<M, List<Relationship>>(SpdxTerm.RELATIONSHIP) {
             @Override
             protected List<Relationship> get(M model) {
                 return ((AbstractTopLevelModel<?>) model).getRelationships();
