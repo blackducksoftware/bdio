@@ -144,6 +144,10 @@ class Specification {
             addValue("bdhub", BlackDuckValue.EXTERNAL_IDENTIFIER_BDHUB);
             remove("BD-Suite");
             addValue("bdsuite", BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE);
+
+            // Fixed typo
+            remove("licence");
+            addTerm("license", DoapTerm.LICENSE, JsonLdType.ID);
         }
     }, new ImportResolver() {
         @Override
@@ -153,6 +157,8 @@ class Specification {
                 return TermDefinition.forValue(BlackDuckValue.EXTERNAL_IDENTIFIER_BDHUB);
             case "BD-Suite":
                 return TermDefinition.forValue(BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE);
+            case "licence":
+                return new TermDefinition(DoapTerm.LICENSE, ImmutableSet.of(JsonLdType.ID), null);
             default:
                 return v1_0_0.importResolver().removed(alias, oldDefinition);
             }
