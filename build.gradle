@@ -3,7 +3,8 @@ buildscript {
 		maven { url "http://artifactory.blackducksoftware.com:8081/artifactory/blackduck-builder-repos" }
 	}
 
-	dependencies { classpath "com.blackducksoftware.gradle.plugins:gradle-plugins:1.45" }
+	dependencies { classpath "com.blackducksoftware.gradle.plugins:gradle-management-plugins:1.1.0" }
+	dependencies { classpath "com.blackducksoftware.gradle.plugins:gradle-plugins:1.55" }
 }
 
 apply plugin: 'manifestattributes'
