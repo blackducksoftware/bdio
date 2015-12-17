@@ -20,6 +20,8 @@ import java.net.URI;
  */
 public enum BlackDuckTerm implements Term {
 
+    SPEC_VERSION("http://blackducksoftware.com/rdf/terms#specVersion"),
+
     SIZE("http://blackducksoftware.com/rdf/terms#size"),
 
     EXTERNAL_IDENTIFIER("http://blackducksoftware.com/rdf/terms#externalIdentifier"),

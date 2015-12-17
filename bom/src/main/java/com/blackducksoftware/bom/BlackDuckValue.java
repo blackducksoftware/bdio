@@ -63,9 +63,8 @@ public enum BlackDuckValue implements Node {
     // EXTERNAL_IDENTIFIER_UBUNTU("http://blackducksoftware.com/rdf/terms#externalIdentifier_ubuntu"),
     // EXTERNAL_IDENTIFIER_CPE("http://blackducksoftware.com/rdf/terms#externalIdentifier_cpe"),
     // EXTERNAL_IDENTIFIER_SWID("http://blackducksoftware.com/rdf/terms#externalIdentifier_swid"),
-    // TODO Should be "bdsuite" and "bdhub"
-    EXTERNAL_IDENTIFIER_BD_SUITE("http://blackducksoftware.com/rdf/terms#externalIdentifier_BD-Suite"),
-    EXTERNAL_IDENTIFIER_BD_HUB("http://blackducksoftware.com/rdf/terms#externalIdentifier_BD-Hub"),
+    EXTERNAL_IDENTIFIER_BDSUITE("http://blackducksoftware.com/rdf/terms#externalIdentifier_bdsuite"),
+    EXTERNAL_IDENTIFIER_BDHUB("http://blackducksoftware.com/rdf/terms#externalIdentifier_bdhub"),
     EXTERNAL_IDENTIFIER_OPENHUB("http://blackducksoftware.com/rdf/terms#externalIdentifier_openhub"),
     // EXTERNAL_IDENTIFIER_PALAMIDADB("http://blackducksoftware.com/rdf/terms#externalIdentifier_palamidadb"),
     // EXTERNAL_IDENTIFIER_NEXB("http://blackducksoftware.com/rdf/terms#externalIdentifier_nexb"),
