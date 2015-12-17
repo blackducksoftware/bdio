@@ -74,8 +74,8 @@ class Specification {
 
             addTerm("fileName", SpdxTerm.FILE_NAME);
             addTerm("fileType", SpdxTerm.FILE_TYPE, JsonLdType.ID, Container.SET);
-            addTerm("checksum", SpdxTerm.CHECKSUM, SpdxType.CHECKSUM);
             addTerm("checksumValue", SpdxTerm.CHECKSUM_VALUE);
+            addTerm("checksum", SpdxTerm.CHECKSUM, SpdxType.CHECKSUM);
             addTerm("algorithm", SpdxTerm.ALGORITHM, JsonLdType.ID);
             addTerm("artifactOf", SpdxTerm.ARTIFACT_OF, JsonLdType.ID);
             addTerm("licenseConcluded", SpdxTerm.LICENSE_CONCLUDED, JsonLdType.ID);
@@ -124,9 +124,9 @@ class Specification {
     private static final Specification v1_1_0 = new Specification("1.1.0", new TermDefinitionMap(v1_0_0) {
         {
             // Added relationships
+            addTerm("relationshipType", SpdxTerm.RELATIONSHIP_TYPE, JsonLdType.ID);
             addTerm("relationship", SpdxTerm.RELATIONSHIP, SpdxType.RELATIONSHIP);
             addTerm("related", SpdxTerm.RELATED_SPDX_ELEMENT, JsonLdType.ID);
-            addTerm("relationshipType", SpdxTerm.RELATIONSHIP_TYPE, JsonLdType.ID);
             addValue("DYNAMIC_LINK", SpdxValue.RELATIONSHIP_TYPE_DYNAMIC_LINK);
 
             // Added external identifiers
