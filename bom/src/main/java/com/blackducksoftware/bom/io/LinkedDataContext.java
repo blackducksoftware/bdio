@@ -155,6 +155,14 @@ public class LinkedDataContext {
     }
 
     /**
+     * Returns the import frame.
+     */
+    public Map<String, Object> newImportFrame() {
+        Specification spec = Specification.forVersion(specVersion);
+        return spec.importFrame();
+    }
+
+    /**
      * This is a keyword safe version of the {@code SimpleTerm.create}.
      */
     private static Term term(String iri) {
