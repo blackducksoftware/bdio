@@ -245,7 +245,8 @@ public class LinkedDataContext {
      * Expand a node such that all known identifiers are fully expanded.
      */
     public Map<String, Object> expand(Node node) {
-        Map<String, Object> result = new LinkedHashMap<>();
+        // Maps.newLinkedHashMapWithExpectedSize(int) wasn't introduced until Guava 19.0
+        Map<String, Object> result = new LinkedHashMap<>(((2 + node.data().size()) * 2) / 3);
         if (node.id() != null) {
             // Expand the identifier against the base IRI
             result.put(JsonLdTerm.ID.toString(), expandIri(node.id(), true));
