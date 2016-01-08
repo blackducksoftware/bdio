@@ -15,6 +15,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nullable;
@@ -34,6 +36,10 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.jsonldjava.core.JsonLdApi;
+import com.github.jsonldjava.core.JsonLdError;
+import com.github.jsonldjava.core.JsonLdOptions;
+import com.github.jsonldjava.core.JsonLdProcessor;
 import com.google.common.io.CharSource;
 
 /**
@@ -48,6 +54,62 @@ public class BillOfMaterialsReader implements AutoCloseable {
      */
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<Map<String, Object>>() {
     };
+
+    /**
+     * A reactive termination action used to close a reader.
+     */
+    private static final Action1<BillOfMaterialsReader> ON_TERMINATED = new Action1<BillOfMaterialsReader>() {
+        @Override
+        public void call(BillOfMaterialsReader reader) {
+            try {
+                reader.close();
+            } catch (IOException e) {
+                // TODO ???
+            }
+        }
+    };
+
+    /**
+     * Produces a reactive subscription action that creates a new reader.
+     */
+    private static Func1<Subscriber<?>, BillOfMaterialsReader> onSubscribe(final LinkedDataContext context, final CharSource source) {
+        return new Func1<Subscriber<?>, BillOfMaterialsReader>() {
+            @Override
+            public BillOfMaterialsReader call(Subscriber<?> t) {
+                try {
+                    return new BillOfMaterialsReader(context, source.openBufferedStream());
+                } catch (IOException e) {
+                    t.onError(e);
+                    return null;
+                }
+            }
+        };
+    }
+
+    /**
+     * Attempts to locate the specification version from a list of raw deserialized JSON objects (i.e. a list of
+     * {@code Map<String, Object>}).
+     */
+    @Nullable
+    private static String scanForSpecVersion(List<?> list) {
+        final String fragment = BlackDuckType.BILL_OF_MATERIALS.toUri().getFragment();
+        for (Object o : list) {
+            if (o instanceof Map<?, ?>) {
+                // Check to see if the specification version is defined
+                Object specVersion = ((Map<?, ?>) o).get(BlackDuckTerm.SPEC_VERSION.toString());
+                if (specVersion instanceof String) {
+                    return (String) specVersion;
+                }
+
+                // There should only be one BillOfMaterials node so if we see it, this is v0 file
+                Object type = ((Map<?, ?>) o).get(JsonLdTerm.TYPE.toString());
+                if (type.equals(fragment) || (type instanceof Collection<?> && ((Collection<?>) type).contains(BlackDuckType.BILL_OF_MATERIALS.toString()))) {
+                    break;
+                }
+            }
+        }
+        return null;
+    }
 
     /**
      * The current linked data context. If we are reading and we encounter a
@@ -114,10 +176,11 @@ public class BillOfMaterialsReader implements AutoCloseable {
     /**
      * Returns an observable from a character source.
      */
-    public static Observable<Node> open(final LinkedDataContext context, final CharSource source) {
+    public static Observable<Node> open(LinkedDataContext context, CharSource source) {
         return AbstractOnSubscribe.create(new Action1<SubscriptionState<Node, BillOfMaterialsReader>>() {
             @Override
             public void call(SubscriptionState<Node, BillOfMaterialsReader> t) {
+                // Iterate over the nodes in the file as we see them
                 try {
                     Node node = t.state().read();
                     if (node != null) {
@@ -129,26 +192,53 @@ public class BillOfMaterialsReader implements AutoCloseable {
                     t.onError(e);
                 }
             }
-        }, new Func1<Subscriber<?>, BillOfMaterialsReader>() {
+        }, onSubscribe(context, source), ON_TERMINATED).toObservable();
+    }
+
+    /**
+     * Reads the entire BOM into memory. This will normalize the data so that each node is "complete",
+     * however this requires a significant amount of up front resources: both in terms of memory and CPU.
+     */
+    public static Observable<Node> readFully(final LinkedDataContext context, CharSource source) {
+        // We end up with an Observable<Observable<Object>> so use merge to flatten it out
+        return Observable.merge(AbstractOnSubscribe.create(new Action1<SubscriptionState<Observable<Object>, BillOfMaterialsReader>>() {
             @Override
-            public BillOfMaterialsReader call(Subscriber<?> t) {
+            public void call(SubscriptionState<Observable<Object>, BillOfMaterialsReader> t) {
                 try {
-                    return new BillOfMaterialsReader(context, source.openBufferedStream());
-                } catch (IOException e) {
+                    // Parse the whole input
+                    List<Object> input = t.state().jp.readValueAs(List.class);
+                    String specVersion = scanForSpecVersion(input);
+
+                    // THIS IS THE EXPENSIVE BIT...
+
+                    // Expand the input and the frame; frame the results and compact it back down
+                    JsonLdOptions opts = new JsonLdOptions();
+                    opts.setExpandContext(context.newContextForReading(specVersion).serialize());
+                    List<Object> expandedInput = JsonLdProcessor.expand(input, opts);
+                    List<Object> expandedFrame = JsonLdProcessor.expand(context.newImportFrame(), opts);
+                    List<Object> framed = new JsonLdApi(opts).frame(expandedInput, expandedFrame);
+                    List<Object> compacted = (List<Object>) JsonLdProcessor.compact(framed, context.serialize(), opts).get("@graph");
+                    // TODO How do we eliminate the blank node identifiers introduced during expansion?
+
+                    // We only emit a single element: an observable over the raw objects in the graph
+                    t.onNext(Observable.from(compacted));
+                    t.onCompleted();
+                } catch (IOException | JsonLdError e) {
                     t.onError(e);
-                    return null;
                 }
             }
-        }, new Action1<BillOfMaterialsReader>() {
+        }, onSubscribe(context, source), ON_TERMINATED).toObservable()).flatMap(new Func1<Object, Observable<Node>>() {
             @Override
-            public void call(BillOfMaterialsReader reader) {
-                try {
-                    reader.close();
-                } catch (IOException e) {
-                    // TODO ???
+            public Observable<Node> call(Object nodeMap) {
+                // Convert the raw JSON to Node instances, but only if each element is actually a Map
+                // (e.g. scalars in the graph are safely ignored)
+                if (nodeMap instanceof Map<?, ?>) {
+                    return Observable.just(context.expandToNode((Map<String, Object>) nodeMap));
+                } else {
+                    return Observable.empty();
                 }
             }
-        }).toObservable();
+        });
     }
 
 }

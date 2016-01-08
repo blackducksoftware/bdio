@@ -15,7 +15,9 @@ import static com.google.common.base.Objects.firstNonNull;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Strings.nullToEmpty;
 
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -35,11 +37,15 @@ import com.blackducksoftware.bom.Term;
 import com.blackducksoftware.bom.Type;
 import com.blackducksoftware.bom.XmlSchemaType;
 import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
@@ -93,7 +99,13 @@ class Specification {
             addValue("sha1", SpdxValue.CHECKSUM_ALGORITHM_SHA1);
             addValue("md5", SpdxValue.CHECKSUM_ALGORITHM_MD5);
         }
-    }, new ImportResolver());
+    }, new ImportResolver(), new ImportFrame() {
+        {
+            addReferenceTerm(DoapTerm.LICENSE);
+            addReferenceTerm(SpdxTerm.ARTIFACT_OF);
+            addReferenceTerm(SpdxTerm.LICENSE_CONCLUDED);
+        }
+    });
 
     /**
      * Version 1.0.0 of the specification.
@@ -109,7 +121,7 @@ class Specification {
             // gap to address the fact we released the initial version before formally defining a mechanism to record
             // changes in the specification.
         }
-    }, new ImportResolver());
+    }, new ImportResolver(), new ImportFrame(v0));
 
     /**
      * Version 1.1.0 of the specification.
@@ -162,6 +174,11 @@ class Specification {
             default:
                 return v1_0_0.importResolver().removed(alias, oldDefinition);
             }
+        }
+    }, new ImportFrame(v1_0_0) {
+        {
+            // Frame references
+            addReferenceTerm(SpdxTerm.RELATED_SPDX_ELEMENT);
         }
     });
 
@@ -292,6 +309,89 @@ class Specification {
     }
 
     /**
+     * A definition that helps build a JSON-LD "frame" used for importing data. The framed data should look like it was
+     * generated using the model classes.
+     */
+    public static class ImportFrame {
+        // This amounts to types represented by subclasses of AbstractTopLevelModel
+        private static final List<Type> TOP_LEVEL_TYPES = ImmutableList.<Type> builder()
+                .add(BlackDuckType.BILL_OF_MATERIALS)
+                .add(BlackDuckType.COMPONENT)
+                .add(BlackDuckType.FILE)
+                .add(BlackDuckType.LICENSE)
+                .add(BlackDuckType.PROJECT)
+                .add(BlackDuckType.VULNERABILITY)
+                .build();
+
+        // There is really only one type which can be a reference type
+        private static final Set<Type> REFERENCE_TYPES = ImmutableSet.<Type> of(JsonLdType.ID);
+
+        /**
+         * Filter used to match the reference terms.
+         */
+        private final Predicate<TermDefinition> referenceTermsFilter;
+
+        /**
+         * Mutable state representing the terms that should be framed as references instead of embedded objects.
+         */
+        private final Set<Term> referenceTerms = new HashSet<>();
+
+        ImportFrame() {
+            // Default behavior is to not accept anything
+            this(Predicates.alwaysFalse());
+        }
+
+        ImportFrame(Specification specification) {
+            // Combine the reference terms from the parent specification with this import frame
+            this(specification.importFrame.referenceTerms());
+        }
+
+        private ImportFrame(Predicate<? super TermDefinition> referenceTermsFilter) {
+            // Combine the supplied reference terms with our mutable set of terms
+            this.referenceTermsFilter = Predicates.and(
+                    // Makes sure we are only looking at term definitions with a type of "@id"
+                    // TODO This is getting evaluated at every depth
+                    Predicates.compose(Predicates.equalTo(REFERENCE_TYPES), new Function<TermDefinition, Set<Type>>() {
+                        @Override
+                        public Set<Type> apply(TermDefinition termDefinition) {
+                            return termDefinition.getTypes();
+                        }
+                    }),
+
+                    // OR together any parent conditions plus our allowed reference terms
+                    Predicates.or(
+                            referenceTermsFilter,
+                            Predicates.compose(Predicates.in(referenceTerms), new Function<TermDefinition, Term>() {
+                                @Override
+                                public Term apply(TermDefinition termDefinition) {
+                                    return termDefinition.getTerm();
+                                }
+                            })));
+        }
+
+        /**
+         * Adds a term which should be framed as a reference (as opposed to an embedded object).
+         */
+        protected void addReferenceTerm(Term term) {
+            referenceTerms.add(term);
+        }
+
+        /**
+         * Returns the top-level types which should appear in the graph.
+         */
+        public List<Type> topLevelTypes() {
+            return TOP_LEVEL_TYPES;
+        }
+
+        /**
+         * Returns a predicate that matches references terms.
+         */
+        public Predicate<TermDefinition> referenceTerms() {
+            return referenceTermsFilter;
+        }
+    }
+
+    /**
      * An import resolver is used to reconcile differences with older versions of the specification. When you are
      * importing older data (data generated to a previous version of the specification), the import resolver can be used
      * to produce an alternate set of term definitions to ensure the old data is properly migrated to the current
@@ -381,10 +481,16 @@ class Specification {
      */
     private final ImportResolver importResolver;
 
-    private Specification(String version, Map<String, TermDefinition> definitions, ImportResolver importResolver) {
+    /**
+     * The information about how to frame the data for import.
+     */
+    private final ImportFrame importFrame;
+
+    private Specification(String version, Map<String, TermDefinition> definitions, ImportResolver importResolver, ImportFrame importFrame) {
         this.version = checkNotNull(version);
         this.definitions = ImmutableMap.copyOf(definitions);
         this.importResolver = checkNotNull(importResolver);
+        this.importFrame = checkNotNull(importFrame);
     }
 
     /**
@@ -479,4 +585,24 @@ class Specification {
         return definitions;
     }
 
+    /**
+     * Returns a JSON-LD frame for reconstructing the data as if it had been generated by serializing a list model
+     * objects.
+     */
+    public final Map<String, Object> importFrame() {
+        final Map<String, Object> frame = new LinkedHashMap<>();
+
+        // Start by keeping only the top-level types
+        frame.put("@type", Lists.transform(importFrame.topLevelTypes(), Functions.toStringFunction()));
+
+        // Frame definition to turn of embedding
+        final Map<String, Object> embedOff = ImmutableMap.of("@embed", (Object) Boolean.FALSE, "@omitDefault", (Object) Boolean.TRUE);
+
+        // Add the term filters to disable embedding
+        for (TermDefinition termDefinition : Iterables.filter(definitions.values(), importFrame.referenceTerms())) {
+            frame.put(termDefinition.getTerm().toString(), embedOff);
+        }
+
+        return frame;
+    }
 }
