@@ -133,7 +133,7 @@ public class LinkedDataContext {
     }
 
     private LinkedDataContext(@Nullable URI base, @Nullable String vocab, String specVersion, Map<String, TermDefinition> definitions) {
-        checkArgument(base == null || this.base.isAbsolute(), "base must be an absolute URI");
+        checkArgument(base == null || base.isAbsolute(), "base must be an absolute URI");
         this.base = base;
         this.vocab = vocab;
         this.specVersion = checkNotNull(specVersion);
