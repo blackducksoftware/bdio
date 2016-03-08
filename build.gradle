@@ -1,40 +1,48 @@
 buildscript {
 	repositories {
-		maven { url "http://artifactory.blackducksoftware.com:8081/artifactory/blackduck-builder-repos" }
+		maven { url 'http://artifactory.blackducksoftware.com:8081/artifactory/blackduck-builder-repos' }
 	}
 
-	dependencies { classpath "com.blackducksoftware.gradle.plugins:gradle-management-plugins:1.1.0" }
-	dependencies { classpath "com.blackducksoftware.gradle.plugins:gradle-plugins:1.55" }
+	dependencies { classpath 'com.blackducksoftware.gradle.plugins:gradle-management-plugins:1.1.0' }
+	dependencies { classpath 'com.blackducksoftware.gradle.plugins:gradle-plugins:1.55' }
+	dependencies { classpath 'com.netflix.nebula:nebula-dependency-recommender:3.3.0' }
+	dependencies { classpath 'com.netflix.nebula:nebula-publishing-plugin:4.4.4' }
 }
 
-apply plugin: 'manifestattributes'
 apply plugin: 'release'
+
+allprojects {
+	apply plugin: 'nebula.dependency-recommender'
+	apply plugin: 'eclipse'
+
+	repositories {
+		maven { url 'http://artifactory.blackducksoftware.com:8081/artifactory/blackduck-staging-repos' }
+	}
+
+	dependencyRecommendations {
+		mavenBom module: 'com.blackducksoftware.commoncomp:dependencies:0.1.1'
+	}
+
+	eclipse {
+		classpath {
+			defaultOutputDir = file('build-eclipse')
+		}
+	}
+}
 
 subprojects {
 	apply plugin: 'java'
-	apply plugin: 'eclipse'
-	apply plugin: 'maven'
+	apply plugin: 'maven-publish'
+	apply plugin: 'nebula.maven-resolved-dependencies'
 	apply plugin: 'manifestattributes'
 
 	sourceCompatibility = 1.7
 	targetCompatibility = 1.7
-
-	repositories {
-		maven { url "http://artifactory.blackducksoftware.com:8081/artifactory/blackduck-staging-repos" }
-	}
 	
 	dependencies {
-		// Test dependencies are common
-		testCompile 'com.google.guava:guava-testlib:15.0'
-		testCompile 'com.google.truth:truth:0.26'
-		testCompile 'junit:junit:4.12'
-	}
-
-	configurations.all {
-		resolutionStrategy {
-			// Truth would force us up to 18.0 which we aren't ready for yet
-			force 'com.google.guava:guava:15.0'
-		}
+		testCompile 'junit:junit'
+		testCompile 'com.google.truth:truth'
+		testCompile 'com.google.guava:guava-testlib'
 	}
 
 	jar {
@@ -49,28 +57,27 @@ subprojects {
 
 	task sourcesJar(type: Jar) {
 		from sourceSets.main.allSource
-		classifier = 'sources'
 	}
-
-	artifacts {
-		archives sourcesJar
-	}
-
-	eclipse {
-		classpath {
-			defaultOutputDir = file('build/classes/main')
+	
+	publishing {
+		publications {
+			nebula(MavenPublication) {
+				artifact sourcesJar {
+					classifier 'sources'
+				}
+			}
 		}
-	}
-
-	uploadArchives {
+		
 		repositories {
-			mavenDeployer {
-				repository(url: 'http://artifactory.blackducksoftware.com:8081/artifactory/bds-suite-repo') {
-					authentication(userName: "builder", password: "builder")
+			maven {
+				url 'http://artifactory.blackducksoftware.com:8081/artifactory/bds-suite-repo'
+				credentials {
+					username 'builder'
+					password 'builder'
 				}
 			}
 		}
 	}
 }
 
-task wrapper(type: Wrapper) { gradleVersion = '2.8' }
+task wrapper(type: Wrapper) { gradleVersion = '2.11' }
