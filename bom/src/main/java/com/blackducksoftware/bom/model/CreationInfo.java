@@ -11,7 +11,11 @@
  */
 package com.blackducksoftware.bom.model;
 
+import static com.google.common.base.Objects.firstNonNull;
+
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.Objects;
 
 import javax.annotation.Nullable;
 
@@ -20,6 +24,7 @@ import org.joda.time.DateTimeZone;
 
 import com.blackducksoftware.bom.SpdxTerm;
 import com.blackducksoftware.bom.SpdxType;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 
@@ -59,12 +64,31 @@ public class CreationInfo extends AbstractEmbeddedModel<CreationInfo> {
     }
 
     public static CreationInfo currentTool() {
+        Class<?> currentToolClass;
+        try {
+            currentToolClass = currentToolClass();
+        } catch (ClassNotFoundException e) {
+            currentToolClass = CreationInfo.class;
+        }
+
         CreationInfo result = new CreationInfo();
         result.setCreated(DateTime.now().withMillisOfSecond(0).withZone(DateTimeZone.UTC));
         result.setCreator(ImmutableList.of(Joiner.on('-').skipNulls().appendTo(new StringBuilder("Tool: "),
-                CreationInfo.class.getPackage().getImplementationTitle(),
-                CreationInfo.class.getPackage().getImplementationVersion()).toString()));
+                firstNonNull(currentToolClass.getPackage().getImplementationTitle(), currentToolClass.getSimpleName()),
+                currentToolClass.getPackage().getImplementationVersion()).toString()));
         return result;
+    }
+
+    @VisibleForTesting
+    protected static Class<?> currentToolClass() throws ClassNotFoundException {
+        // The "current tool" should be the owner of the "main" method:
+        for (Entry<Thread, StackTraceElement[]> stackTrace : Thread.getAllStackTraces().entrySet()) {
+            StackTraceElement[] stack = stackTrace.getValue();
+            if (stack.length > 0 && Objects.equals(stack[stack.length - 1].getMethodName(), "main")) {
+                return stackTrace.getKey().getContextClassLoader().loadClass(stack[stack.length - 1].getClassName());
+            }
+        }
+        throw new IllegalStateException("could not locate owner of 'main'");
     }
 
     @Nullable
