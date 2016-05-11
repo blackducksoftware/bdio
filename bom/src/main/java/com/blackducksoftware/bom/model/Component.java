@@ -19,6 +19,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.DoapTerm;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * A component in a Bill of Materials.
@@ -88,7 +89,7 @@ public class Component extends AbstractTopLevelModel<Component> {
 
     public Component() {
         super(BlackDuckType.COMPONENT,
-                NAME, VERSION, HOMEPAGE, LICENSE);
+                ImmutableSet.<ModelField<Component, ?>> of(NAME, VERSION, HOMEPAGE, LICENSE));
     }
 
     @Nullable

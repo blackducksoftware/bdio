@@ -29,6 +29,7 @@ import com.blackducksoftware.bom.BlackDuckValue;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
 /**
@@ -124,7 +125,7 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
 
     public ExternalIdentifier() {
         super(BlackDuckType.EXTERNAL_IDENTIFIER,
-                EXTERNAL_SYSTEM_TYPE_ID, EXTERNAL_ID, EXTERNAL_REPOSITORY_LOCATION);
+                ImmutableSet.<ModelField<ExternalIdentifier, ?>> of(EXTERNAL_SYSTEM_TYPE_ID, EXTERNAL_ID, EXTERNAL_REPOSITORY_LOCATION));
     }
 
     /**

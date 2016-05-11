@@ -19,6 +19,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.SpdxTerm;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * A license in a Bill of Materials.
@@ -45,7 +46,8 @@ public class License extends AbstractTopLevelModel<License> {
     private String name;
 
     public License() {
-        super(BlackDuckType.LICENSE, NAME);
+        super(BlackDuckType.LICENSE,
+                ImmutableSet.<ModelField<License, ?>> of(NAME));
     }
 
     @Nullable

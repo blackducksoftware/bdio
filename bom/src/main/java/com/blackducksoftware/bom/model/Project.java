@@ -19,6 +19,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.DoapTerm;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * A project in a Bill of Materials.
@@ -64,7 +65,7 @@ public class Project extends AbstractTopLevelModel<Project> {
 
     public Project() {
         super(BlackDuckType.PROJECT,
-                NAME, VERSION);
+                ImmutableSet.<ModelField<Project, ?>> of(NAME, VERSION));
     }
 
     @Nullable

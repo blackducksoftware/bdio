@@ -22,6 +22,7 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bom.SpdxTerm;
 import com.blackducksoftware.bom.SpdxType;
 import com.blackducksoftware.bom.SpdxValue;
+import com.google.common.collect.ImmutableSet;
 
 public class Relationship extends AbstractEmbeddedModel<Relationship> {
     private static final ModelField<Relationship, String> RELATED = new ModelField<Relationship, String>(SpdxTerm.RELATED_SPDX_ELEMENT) {
@@ -56,7 +57,7 @@ public class Relationship extends AbstractEmbeddedModel<Relationship> {
 
     public Relationship() {
         super(SpdxType.RELATIONSHIP,
-                RELATED, RELATIONSHIP_TYPE);
+                ImmutableSet.<ModelField<Relationship, ?>> of(RELATED, RELATIONSHIP_TYPE));
     }
 
     /**

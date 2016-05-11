@@ -17,11 +17,9 @@ package com.blackducksoftware.bom;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import java.util.Arrays;
-
 import org.junit.Test;
 
-import com.google.common.collect.Iterables;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * Tests for various terms.
@@ -33,12 +31,13 @@ public class TermTest {
     /**
      * Collect all of the known term constants we have in a single iterable.
      */
-    private static final Iterable<Term> KNOWN_TERMS = Iterables.concat(
-            Arrays.<Term> asList(BlackDuckTerm.values()),
-            Arrays.<Term> asList(DoapTerm.values()),
-            Arrays.<Term> asList(RdfsTerm.values()),
-            Arrays.<Term> asList(RdfTerm.values()),
-            Arrays.<Term> asList(SpdxTerm.values()));
+    private static final Iterable<Term> KNOWN_TERMS = ImmutableSet.<Term> builder()
+            .add(BlackDuckTerm.values())
+            .add(DoapTerm.values())
+            .add(RdfsTerm.values())
+            .add(RdfTerm.values())
+            .add(SpdxTerm.values())
+            .build();
 
     @Test
     public void testSimpleTermInstanceCache() {

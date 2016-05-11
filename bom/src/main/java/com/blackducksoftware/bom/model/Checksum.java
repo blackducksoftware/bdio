@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bom.SpdxTerm;
 import com.blackducksoftware.bom.SpdxType;
 import com.blackducksoftware.bom.SpdxValue;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.hash.HashCode;
 
 public class Checksum extends AbstractEmbeddedModel<Checksum> {
@@ -59,7 +60,7 @@ public class Checksum extends AbstractEmbeddedModel<Checksum> {
 
     public Checksum() {
         super(SpdxType.CHECKSUM,
-                ALGORITHM, CHECKSUM_VALUE);
+                ImmutableSet.of(ALGORITHM, CHECKSUM_VALUE));
     }
 
     /**

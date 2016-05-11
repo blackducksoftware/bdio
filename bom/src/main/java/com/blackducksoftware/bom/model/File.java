@@ -26,6 +26,7 @@ import com.blackducksoftware.bom.BlackDuckValue;
 import com.blackducksoftware.bom.SpdxTerm;
 import com.blackducksoftware.bom.SpdxValue;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * A file in a Bill of Materials.
@@ -158,7 +159,9 @@ public class File extends AbstractTopLevelModel<File> {
 
     public File() {
         super(BlackDuckType.FILE,
-                PATH, FILE_TYPES, SIZE, CHECKSUMS, COMPONENT, LICENSE, MATCH_DETAILS);
+                ImmutableSet.<ModelField<File, ?>> builder()
+                        .add(PATH).add(FILE_TYPES).add(SIZE).add(CHECKSUMS).add(COMPONENT).add(LICENSE).add(MATCH_DETAILS)
+                        .build());
     }
 
     @Nullable

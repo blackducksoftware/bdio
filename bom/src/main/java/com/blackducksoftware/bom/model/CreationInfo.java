@@ -31,6 +31,7 @@ import com.blackducksoftware.bom.SpdxType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 public class CreationInfo extends AbstractEmbeddedModel<CreationInfo> {
     private static final ModelField<CreationInfo, List<String>> CREATOR = new ModelField<CreationInfo, List<String>>(SpdxTerm.CREATOR) {
@@ -64,7 +65,8 @@ public class CreationInfo extends AbstractEmbeddedModel<CreationInfo> {
     private DateTime created;
 
     public CreationInfo() {
-        super(SpdxType.CREATION_INFO, CREATOR, CREATED);
+        super(SpdxType.CREATION_INFO,
+                ImmutableSet.of(CREATOR, CREATED));
     }
 
     public static CreationInfo currentTool() {
@@ -89,7 +91,12 @@ public class CreationInfo extends AbstractEmbeddedModel<CreationInfo> {
         for (Entry<Thread, StackTraceElement[]> stackTrace : Thread.getAllStackTraces().entrySet()) {
             StackTraceElement[] stack = stackTrace.getValue();
             if (stack.length > 0 && Objects.equals(stack[stack.length - 1].getMethodName(), "main")) {
-                return stackTrace.getKey().getContextClassLoader().loadClass(stack[stack.length - 1].getClassName());
+                final String className = stack[stack.length - 1].getClassName();
+                try {
+                    return stackTrace.getKey().getContextClassLoader().loadClass(className);
+                } catch (ClassNotFoundException e) {
+                    return Class.forName(className);
+                }
             }
         }
         throw new IllegalStateException("could not locate owner of 'main'");

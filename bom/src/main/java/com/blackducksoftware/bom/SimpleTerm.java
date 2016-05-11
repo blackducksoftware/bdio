@@ -19,7 +19,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.Objects;
 
 import com.google.common.base.Function;
@@ -27,7 +26,7 @@ import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 
 /**
@@ -50,12 +49,13 @@ public class SimpleTerm implements Term, Serializable {
 
     static {
         // Preload the cache with the known terms so we don't create instances we don't need
-        for (Term term : Iterables.concat(
-                Arrays.asList(BlackDuckTerm.values()),
-                Arrays.asList(DoapTerm.values()),
-                Arrays.asList(RdfsTerm.values()),
-                Arrays.asList(RdfTerm.values()),
-                Arrays.asList(SpdxTerm.values()))) {
+        for (Term term : ImmutableSet.<Term> builder()
+                .add(BlackDuckTerm.values())
+                .add(DoapTerm.values())
+                .add(RdfsTerm.values())
+                .add(RdfTerm.values())
+                .add(SpdxTerm.values())
+                .build()) {
             INSTANCES.put(term.toString(), term);
         }
     }

@@ -24,7 +24,7 @@ import com.blackducksoftware.bom.Type;
  */
 public class AbstractEmbeddedModel<M extends AbstractEmbeddedModel<M>> extends AbstractModel<M> {
 
-    protected AbstractEmbeddedModel(Type type, ModelField<M, ?>... fields) {
+    protected AbstractEmbeddedModel(Type type, Iterable<ModelField<M, ?>> fields) {
         super(type, fields);
     }
 

@@ -21,6 +21,7 @@ import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.RdfsTerm;
 import com.blackducksoftware.bom.SpdxTerm;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * The Bill of Materials itself.
@@ -93,7 +94,7 @@ public class BillOfMaterials extends AbstractTopLevelModel<BillOfMaterials> {
 
     public BillOfMaterials() {
         super(BlackDuckType.BILL_OF_MATERIALS,
-                SPEC_VERSION, NAME, CREATION_INFO, COMMENT);
+                ImmutableSet.of(SPEC_VERSION, NAME, CREATION_INFO, COMMENT));
     }
 
     @Nullable

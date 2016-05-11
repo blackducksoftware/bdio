@@ -20,7 +20,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +43,6 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
@@ -139,9 +137,9 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
 
         private final Map<Term, Object> extraData = new LinkedHashMap<>();
 
-        private ModelMap(M model, ModelField<M, ?>[] fields) {
+        private ModelMap(M model, Iterable<ModelField<M, ?>> fields) {
             this.model = model;
-            this.fields = Maps.uniqueIndex(Arrays.asList(fields), new Function<ModelField<?, ?>, Term>() {
+            this.fields = Maps.uniqueIndex(fields, new Function<ModelField<?, ?>, Term>() {
                 @Override
                 public Term apply(ModelField<?, ?> field) {
                     return field.term;
@@ -236,9 +234,15 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
      */
     private final Map<Term, Object> data;
 
-    AbstractModel(Type type, ModelField<M, ?>... fields) {
+    AbstractModel(Type type, Iterable<ModelField<M, ?>> fields) {
         types = ImmutableSet.of(type);
-        data = Maps.filterValues(new ModelMap<M>((M) this, fields), Predicates.notNull());
+        data = Maps.filterValues(new ModelMap<M>(self(), fields), Predicates.notNull());
+    }
+
+    @SuppressWarnings("unchecked")
+    protected final M self() {
+        // This should be safe right? Because AbstractModel<M extends AbstractModel<M>>...
+        return (M) this;
     }
 
     /**
@@ -249,7 +253,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
         this.setId(other.getId());
         this.data().clear();
         this.data().putAll(other.data());
-        return (M) this;
+        return self();
     }
 
     /**
@@ -316,7 +320,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
      * Helper to safely add a value to a list. If the current value is {@code null}, a new array list is created.
      */
     protected <T, C extends List<? super T>> M safeAddArrayList(ModelField<M, C> field, T value) {
-        final M model = (M) this;
+        final M model = self();
         if (value != null) {
             C currentValue = field.get(model);
             if (currentValue != null) {
@@ -329,19 +333,21 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
                     field.set(model, newValue);
                 }
             } else {
-                field.set(model, Lists.newArrayList(value));
+                List<Object> newValue = new ArrayList<>();
+                newValue.add(value);
+                field.set(model, newValue);
             }
         }
-        return (M) this;
+        return model;
     }
 
     /**
      * Helper to safely stream an iterable. If the current value is {@code null}, an empty stream is returned.
      */
-    protected <T, C extends Iterable<? super T>> FluentIterable<T> safeGet(ModelField<M, C> field) {
-        C value = field.get((M) this);
+    protected <T> FluentIterable<T> safeGet(ModelField<M, ? extends Iterable<T>> field) {
+        Iterable<T> value = field.get(self());
         if (value != null) {
-            return FluentIterable.from((Iterable<T>) value);
+            return FluentIterable.from(value);
         } else {
             return FluentIterable.from(ImmutableList.<T> of());
         }
@@ -423,7 +429,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
             return (Node) value;
         } else if (value instanceof Map<?, ?>) {
             // TODO Is this the best way to do this?
-            return new LinkedDataContext().expandToNode((Map<String, Object>) value);
+            return new LinkedDataContext().expandToNode((Map<?, ?>) value);
         } else {
             return null;
         }

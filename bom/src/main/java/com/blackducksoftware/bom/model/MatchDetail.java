@@ -25,6 +25,7 @@ import com.blackducksoftware.bom.BlackDuckTerm;
 import com.blackducksoftware.bom.BlackDuckType;
 import com.blackducksoftware.bom.BlackDuckValue;
 import com.blackducksoftware.bom.SpdxTerm;
+import com.google.common.collect.ImmutableSet;
 
 public class MatchDetail extends AbstractEmbeddedModel<MatchDetail> {
     private static final ModelField<MatchDetail, String> MATCH_TYPE = new ModelField<MatchDetail, String>(BlackDuckTerm.MATCH_TYPE) {
@@ -91,7 +92,7 @@ public class MatchDetail extends AbstractEmbeddedModel<MatchDetail> {
 
     public MatchDetail() {
         super(BlackDuckType.MATCH_DETAIL,
-                MATCH_TYPE, CONTENT, COMPONENT, LICENSE);
+                ImmutableSet.<ModelField<MatchDetail, ?>> of(MATCH_TYPE, CONTENT, COMPONENT, LICENSE));
     }
 
     /**

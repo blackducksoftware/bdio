@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bom.Term;
 import com.blackducksoftware.bom.Type;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.hash.HashCode;
 
 /**
@@ -128,7 +129,7 @@ public class TestModel extends AbstractModel<TestModel> {
 
     public TestModel() {
         super(TestType.TEST,
-                NAME, COUNT, FLAG, HASH_CODE);
+                ImmutableSet.of(NAME, COUNT, FLAG, HASH_CODE));
     }
 
     @Nullable

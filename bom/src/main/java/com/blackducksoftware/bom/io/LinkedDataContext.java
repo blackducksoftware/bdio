@@ -53,7 +53,6 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -226,7 +225,7 @@ public class LinkedDataContext {
     /**
      * Alternate version of expand that produces a node from a map.
      */
-    public Node expandToNode(Map<String, Object> nodeMap) {
+    public Node expandToNode(Map<?, ?> nodeMap) {
         ImmutableNode.Builder result = ImmutableNode.builder();
         Object id = nodeMap.get("@id");
         if (id != null) {
@@ -240,8 +239,8 @@ public class LinkedDataContext {
         } else if (type != null) {
             result.addType(SimpleType.create(expandIri(type.toString(), false)));
         }
-        for (Entry<String, Object> entry : nodeMap.entrySet()) {
-            Term term = term(expandIri(entry.getKey(), false));
+        for (Entry<?, ?> entry : nodeMap.entrySet()) {
+            Term term = term(expandIri(entry.getKey().toString(), false));
             if (term != JsonLdTerm.ID && term != JsonLdTerm.TYPE) {
                 TermDefinition definition = termDefinitions.getUnchecked(term);
                 Object value = expandValue(definition, entry.getValue());
@@ -300,11 +299,13 @@ public class LinkedDataContext {
             return embeddedNode;
         } else if (value instanceof Map<?, ?>) {
             // TODO Is there a better way to do this?
-            Map<String, Object> embeddedNode = expand(expandToNode((Map<String, Object>) value));
+            Map<String, Object> embeddedNode = expand(expandToNode((Map<?, ?>) value));
             Iterable<String> definitionTypes = FluentIterable.from(definition.getTypes()).transform(Functions.toStringFunction()).toList();
             if (embeddedNode.containsKey(JsonLdTerm.TYPE.toString())) {
-                embeddedNode.put(JsonLdTerm.TYPE.toString(),
-                        FluentIterable.from(Iterables.concat(definitionTypes, (Iterable<String>) embeddedNode.get(JsonLdTerm.TYPE.toString()))).toList());
+                embeddedNode.put(JsonLdTerm.TYPE.toString(), ImmutableList.builder()
+                        .addAll(definitionTypes)
+                        .addAll(FluentIterable.from((Iterable<?>) embeddedNode.get(JsonLdTerm.TYPE.toString())).transform(Functions.toStringFunction()))
+                        .build());
             } else {
                 embeddedNode.put(JsonLdTerm.TYPE.toString(), definitionTypes);
             }
@@ -367,14 +368,14 @@ public class LinkedDataContext {
      * expansion operation. Embedded nodes should have an associated term definition, the top level term definition can
      * be omitted.
      */
-    private Map<String, Object> compactNode(@Nullable TermDefinition definition, Map<String, Object> expanded) {
+    private Map<String, Object> compactNode(@Nullable TermDefinition definition, Map<?, ?> expanded) {
         Map<String, Object> result = new LinkedHashMap<>();
-        for (Entry<String, Object> entry : expanded.entrySet()) {
-            Term term = term(entry.getKey());
+        for (Entry<?, ?> entry : expanded.entrySet()) {
+            Term term = term(entry.getKey().toString());
             Object value = entry.getValue();
             if (term == JsonLdTerm.TYPE && definition != null) {
                 // Omit types specified by the definition
-                Set<String> declaredTypes = ImmutableSet.copyOf((Iterable<String>) entry.getValue());
+                Set<String> declaredTypes = FluentIterable.from((Iterable<?>) entry.getValue()).transform(Functions.toStringFunction()).toSet();
                 Set<String> definedTypes = FluentIterable.from(definition.getTypes()).transform(Functions.toStringFunction()).toSet();
                 value = ImmutableList.copyOf(Sets.difference(declaredTypes, definedTypes));
             }
@@ -413,7 +414,7 @@ public class LinkedDataContext {
             throw new IllegalStateException("Compact did go through expand first");
         } else if (value instanceof Map<?, ?>) {
             // Recurse to map compaction method
-            return compactNode(definition, (Map<String, Object>) value);
+            return compactNode(definition, (Map<?, ?>) value);
         } else if (value != null) {
             // Scalar, convert based on type
             return convertCompact(value, definition.getTypes());

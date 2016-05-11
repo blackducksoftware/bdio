@@ -212,7 +212,7 @@ public class BillOfMaterialsReader implements AutoCloseable {
             public void call(SubscriptionState<Observable<Object>, BillOfMaterialsReader> t) {
                 try {
                     // Parse the whole input
-                    List<Object> input = t.state().jp.readValueAs(List.class);
+                    List<?> input = t.state().jp.readValueAs(List.class);
                     String specVersion = scanForSpecVersion(input);
 
                     // THIS IS THE EXPENSIVE BIT...
@@ -223,7 +223,7 @@ public class BillOfMaterialsReader implements AutoCloseable {
                     List<Object> expandedInput = JsonLdProcessor.expand(input, opts);
                     List<Object> expandedFrame = JsonLdProcessor.expand(context.newImportFrame(), opts);
                     List<Object> framed = new JsonLdApi(opts).frame(expandedInput, expandedFrame);
-                    List<Object> compacted = (List<Object>) JsonLdProcessor.compact(framed, context.serialize(), opts).get("@graph");
+                    List<?> compacted = (List<?>) JsonLdProcessor.compact(framed, context.serialize(), opts).get("@graph");
                     // TODO How do we eliminate the blank node identifiers introduced during expansion?
 
                     // We only emit a single element: an observable over the raw objects in the graph
@@ -239,7 +239,7 @@ public class BillOfMaterialsReader implements AutoCloseable {
                 // Convert the raw JSON to Node instances, but only if each element is actually a Map
                 // (e.g. scalars in the graph are safely ignored)
                 if (nodeMap instanceof Map<?, ?>) {
-                    return Observable.just(context.expandToNode((Map<String, Object>) nodeMap));
+                    return Observable.just(context.expandToNode((Map<?, ?>) nodeMap));
                 } else {
                     return Observable.empty();
                 }
