@@ -19,6 +19,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bom.BlackDuckTerm;
+import com.blackducksoftware.bom.SpdxTerm;
 import com.blackducksoftware.bom.Type;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -30,8 +31,12 @@ import com.google.common.collect.Lists;
  * @author jgustie
  */
 public class AbstractTopLevelModel<M extends AbstractTopLevelModel<M>> extends AbstractModel<M> {
+
     @Nullable
     private List<ExternalIdentifier> externalIdentifiers;
+
+    @Nullable
+    private List<Relationship> relationships;
 
     protected AbstractTopLevelModel(Type type, ModelField<M, ?>... fields) {
         super(type, addTopLevelFields(fields));
@@ -62,9 +67,37 @@ public class AbstractTopLevelModel<M extends AbstractTopLevelModel<M>> extends A
         return FluentIterable.from(firstNonNull(getExternalIdentifiers(), ImmutableList.<ExternalIdentifier> of()));
     }
 
+    @Nullable
+    public List<Relationship> getRelationships() {
+        return relationships;
+    }
+
+    public void setRelationships(@Nullable List<Relationship> relationships) {
+        this.relationships = relationships;
+    }
+
+    public M addRelationship(Relationship relationship) {
+        if (relationship != null) {
+            List<Relationship> relationships = getRelationships();
+            if (relationships != null) {
+                relationships.add(relationship);
+            } else {
+                setRelationships(Lists.newArrayList(relationship));
+            }
+        }
+        return (M) this;
+    }
+
+    public FluentIterable<Relationship> relationships() {
+        return FluentIterable.from(firstNonNull(getRelationships(), ImmutableList.<Relationship> of()));
+    }
+
     private static <M extends AbstractModel<M>> ModelField<M, ?>[] addTopLevelFields(ModelField<M, ?>[] fields) {
-        ModelField<M, ?>[] newFields = Arrays.copyOf(fields, fields.length + 1);
-        newFields[fields.length] = new ModelField<M, List<ExternalIdentifier>>(BlackDuckTerm.EXTERNAL_IDENTIFIER) {
+        ModelField<M, ?>[] newFields = Arrays.copyOf(fields, fields.length + 2);
+        int index = fields.length;
+
+        // External identifiers
+        newFields[index++] = new ModelField<M, List<ExternalIdentifier>>(BlackDuckTerm.EXTERNAL_IDENTIFIER) {
             @Override
             protected List<ExternalIdentifier> get(M model) {
                 return ((AbstractTopLevelModel<?>) model).getExternalIdentifiers();
@@ -74,6 +107,19 @@ public class AbstractTopLevelModel<M extends AbstractTopLevelModel<M>> extends A
             protected void set(M model, Object value) {
                 ((AbstractTopLevelModel<?>) model).setExternalIdentifiers(emptyToNull(valueToNodes(value).transformAndConcat(toModel(ExternalIdentifier.class))
                         .toList()));
+            }
+        };
+
+        // Relationships
+        newFields[index++] = new ModelField<M, List<Relationship>>(SpdxTerm.RELATIONSHIP) {
+            @Override
+            protected List<Relationship> get(M model) {
+                return ((AbstractTopLevelModel<?>) model).getRelationships();
+            }
+
+            @Override
+            protected void set(M model, Object value) {
+                ((AbstractTopLevelModel<?>) model).setRelationships(emptyToNull(valueToNodes(value).transformAndConcat(toModel(Relationship.class)).toList()));
             }
         };
         return newFields;

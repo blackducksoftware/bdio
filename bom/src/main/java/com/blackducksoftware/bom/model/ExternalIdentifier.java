@@ -33,13 +33,27 @@ import com.google.common.collect.Iterables;
  * @author jgustie
  */
 public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier> {
+
+    /**
+     * Functions for converting/extracting strings.
+     */
+    private enum ToStringFunction implements Function<ExternalIdentifier, String> {
+        EXTERNAL_ID {
+            @Override
+            @Nullable
+            public String apply(@Nullable ExternalIdentifier externalIdentifier) {
+                return externalIdentifier != null ? externalIdentifier.getExternalId() : null;
+            }
+        }
+    }
+
     /**
      * Filter for external identifiers by their system type identifier.
      */
     private static final class ExternalSystemTypeIdFilter implements Predicate<ExternalIdentifier> {
-        private static final Predicate<ExternalIdentifier> BD_SUITE = new ExternalSystemTypeIdFilter(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE.id());
+        private static final Predicate<ExternalIdentifier> BDSUITE = new ExternalSystemTypeIdFilter(BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE.id());
 
-        private static final Predicate<ExternalIdentifier> BD_HUB = new ExternalSystemTypeIdFilter(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_HUB.id());
+        private static final Predicate<ExternalIdentifier> BDHUB = new ExternalSystemTypeIdFilter(BlackDuckValue.EXTERNAL_IDENTIFIER_BDHUB.id());
 
         private final String externalSystemTypeId;
 
@@ -92,20 +106,7 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
             externalIdentifier.setExternalRepositoryLocation(valueToString(value));
         }
     };
-    
-    /**
-     * Functions for converting/extracting strings.
-     */
-    private enum ToStringFunction implements Function<ExternalIdentifier, String> {
-        EXTERNAL_ID {
-            @Override
-            @Nullable
-            public String apply(@Nullable ExternalIdentifier externalIdentifier) {
-                return externalIdentifier != null ? externalIdentifier.getExternalId() : null;
-            }
-        }
-    }
-    
+
     @Nullable
     private String externalSystemTypeId;
 
@@ -134,14 +135,14 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
      * Returns a predicate that matches Black Duck Suite external identifiers.
      */
     public static Predicate<ExternalIdentifier> bdSuite() {
-        return ExternalSystemTypeIdFilter.BD_SUITE;
+        return ExternalSystemTypeIdFilter.BDSUITE;
     }
 
     /**
      * Returns a predicate that matches Black Duck Suite external identifiers.
      */
     public static Predicate<ExternalIdentifier> bdHub() {
-        return ExternalSystemTypeIdFilter.BD_HUB;
+        return ExternalSystemTypeIdFilter.BDHUB;
     }
 
     /**
@@ -153,27 +154,24 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
 
     /**
      * Helper to create a new Black Duck Suite identifier.
+     *
+     * @deprecated Use {@link ExternalIdentifierBuilder#blackDuckSuite(String)} instead.
      */
+    @Deprecated
     @Nullable
     public static ExternalIdentifier blackDuckSuite(@Nullable String id) {
-        return id != null ? create(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE.id(), id, null) : null;
+        return ExternalIdentifierBuilder.create().blackDuckSuite(id).build().orNull();
     }
 
     /**
      * Helper to create a new Black Duck Hub identifier.
+     *
+     * @deprecated Use {@link ExternalIdentifierBuilder#blackDuckHub(String, UUID)} instead.
      */
+    @Deprecated
     @Nullable
     public static ExternalIdentifier blackDuckHub(String entityType, @Nullable UUID id) {
-        checkNotNull(entityType);
-        return id != null ? create(BlackDuckValue.EXTERNAL_IDENTIFIER_BD_HUB.id(), entityType + "~" + id.toString(), null) : null;
-    }
-
-    private static ExternalIdentifier create(String systemTypeId, String id, String repositoryLocation) {
-        ExternalIdentifier externalIdentifier = new ExternalIdentifier();
-        externalIdentifier.setExternalSystemTypeId(systemTypeId);
-        externalIdentifier.setExternalId(id);
-        externalIdentifier.setExternalRepositoryLocation(repositoryLocation);
-        return externalIdentifier;
+        return ExternalIdentifierBuilder.create().blackDuckHub(entityType, id).build().orNull();
     }
 
     @Nullable
@@ -217,7 +215,7 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
     }
 
     private Iterable<String> getBdSuiteId() {
-        checkState(Objects.equals(getExternalSystemTypeId(), BlackDuckValue.EXTERNAL_IDENTIFIER_BD_SUITE.id()), "not a BD-Suite identifier");
+        checkState(Objects.equals(getExternalSystemTypeId(), BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE.id()), "not a bdsuite identifier");
         return Splitter.on('#').limit(2).split(getExternalId());
     }
 

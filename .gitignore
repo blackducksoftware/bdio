@@ -9,6 +9,9 @@ build/
 .classpath
 .project
 
+# Eclipse output
+build-eclipse/
+
 # Eclipse TestNG plugin output
 test-output/
 
