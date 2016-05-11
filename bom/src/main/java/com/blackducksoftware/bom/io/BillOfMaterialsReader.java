@@ -176,7 +176,9 @@ public class BillOfMaterialsReader implements AutoCloseable {
     /**
      * Returns an observable from a character source.
      */
-    public static Observable<Node> open(LinkedDataContext context, CharSource source) {
+    public static Observable<Node> open(final LinkedDataContext context, final CharSource source) {
+        checkNotNull(context);
+        checkNotNull(source);
         return AbstractOnSubscribe.create(new Action1<SubscriptionState<Node, BillOfMaterialsReader>>() {
             @Override
             public void call(SubscriptionState<Node, BillOfMaterialsReader> t) {
