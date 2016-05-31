@@ -39,7 +39,7 @@ import com.google.common.hash.Hashing;
  *
  * @author jgustie
  */
-public class BillOfMaterialsReaderTest {
+public class BdioReaderTest {
 
     @Test
     public void testSimpleRead() throws Exception {
@@ -59,7 +59,7 @@ public class BillOfMaterialsReaderTest {
                 + "  }"
                 + "} ]");
 
-        try (BillOfMaterialsReader reader = new BillOfMaterialsReader(context, in)) {
+        try (BdioReader reader = new BdioReader(context, in)) {
             Node node1 = reader.read();
             assertThat(node1.id()).isEqualTo("foo");
             assertThat(node1.types()).containsExactly(BlackDuckType.FILE);
@@ -96,7 +96,7 @@ public class BillOfMaterialsReaderTest {
                 + "  \"specVersion\": \"1.0.0\""
                 + " } ]");
 
-        try (BillOfMaterialsReader reader = new BillOfMaterialsReader(context, in)) {
+        try (BdioReader reader = new BdioReader(context, in)) {
             Node node = reader.read();
             assertThat(node.data().get(BlackDuckTerm.SPEC_VERSION)).isEqualTo("1.0.0");
             assertThat(reader.context().getSpecVersion()).isEqualTo("1.0.0");

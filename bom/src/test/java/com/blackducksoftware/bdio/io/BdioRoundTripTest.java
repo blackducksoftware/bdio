@@ -33,7 +33,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.hash.HashCode;
 
-public class BillOfMaterialsRoundTripTest {
+public class BdioRoundTripTest {
 
     @Test
     public void testFileRoundTrip() throws IOException {
@@ -46,12 +46,12 @@ public class BillOfMaterialsRoundTripTest {
 
         LinkedDataContext context = new LinkedDataContext();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        try (BillOfMaterialsWriter writer = new BillOfMaterialsWriter(context, out)) {
+        try (BdioWriter writer = new BdioWriter(context, out)) {
             writer.write(expectedFile);
         }
         String output = new String(out.toByteArray(), StandardCharsets.UTF_8);
         StringReader in = new StringReader(output);
-        try (BillOfMaterialsReader reader = new BillOfMaterialsReader(context, in)) {
+        try (BdioReader reader = new BdioReader(context, in)) {
             Node node = reader.read();
             actualFile.setId(node.id());
             actualFile.data().putAll(node.data());

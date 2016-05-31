@@ -36,7 +36,7 @@ import rx.functions.Action1;
  *
  * @author jgustie
  */
-public class BillOfMaterialsWriter implements Closeable, Flushable {
+public class BdioWriter implements Closeable, Flushable {
 
     /**
      * The linked data context.
@@ -51,7 +51,7 @@ public class BillOfMaterialsWriter implements Closeable, Flushable {
     /**
      * Create a new writer that produces UTF-8 encoded JSON.
      */
-    public BillOfMaterialsWriter(LinkedDataContext context, OutputStream out) throws IOException {
+    public BdioWriter(LinkedDataContext context, OutputStream out) throws IOException {
         this.context = checkNotNull(context);
 
         // Setup the JSON generator
@@ -66,7 +66,7 @@ public class BillOfMaterialsWriter implements Closeable, Flushable {
     /**
      * Just keep calling this.
      */
-    public BillOfMaterialsWriter write(Node node) throws IOException {
+    public BdioWriter write(Node node) throws IOException {
         jgen.writeObject(context.compact(checkNotNull(node)));
         return this;
     }
@@ -91,12 +91,12 @@ public class BillOfMaterialsWriter implements Closeable, Flushable {
         checkNotNull(sink);
         checkNotNull(onError);
         return new Subscriber<Node>() {
-            private BillOfMaterialsWriter writer;
+            private BdioWriter writer;
 
             @Override
             public void onStart() {
                 try {
-                    writer = new BillOfMaterialsWriter(context, sink.openBufferedStream());
+                    writer = new BdioWriter(context, sink.openBufferedStream());
                 } catch (IOException e) {
                     onError(e);
                 }

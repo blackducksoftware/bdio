@@ -46,7 +46,7 @@ public class VersionChangeTest {
                 + "  }"
                 + "} ]");
 
-        try (BillOfMaterialsReader reader = new BillOfMaterialsReader(context, in)) {
+        try (BdioReader reader = new BdioReader(context, in)) {
             // Eat the BOM node (should push the version back to 1.0.0)
             reader.read();
             assertThat(reader.context().getSpecVersion()).isEqualTo("1.0.0");

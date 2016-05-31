@@ -35,13 +35,13 @@ import com.google.common.collect.ImmutableSet;
  *
  * @author jgustie
  */
-public class BillOfMaterialsWriterTest {
+public class BdioWriterTest {
 
     @Test
     public void simpleWriteFileModelTest() throws IOException {
         LinkedDataContext context = new LinkedDataContext();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (BillOfMaterialsWriter writer = new BillOfMaterialsWriter(context, baos)) {
+        try (BdioWriter writer = new BdioWriter(context, baos)) {
             writer.write(ImmutableNode.builder()
                     .id("foo")
                     .addType(BlackDuckType.FILE)

@@ -17,6 +17,7 @@ package com.blackducksoftware.bdio.io;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.Collection;
@@ -51,7 +52,7 @@ import rx.observables.AbstractOnSubscribe.SubscriptionState;
  *
  * @author jgustie
  */
-public class BillOfMaterialsReader implements AutoCloseable {
+public class BdioReader implements Closeable {
 
     /**
      * We want to read nodes out as a map we can pass into the context.
@@ -62,9 +63,9 @@ public class BillOfMaterialsReader implements AutoCloseable {
     /**
      * A reactive termination action used to close a reader.
      */
-    private static final Action1<BillOfMaterialsReader> ON_TERMINATED = new Action1<BillOfMaterialsReader>() {
+    private static final Action1<BdioReader> ON_TERMINATED = new Action1<BdioReader>() {
         @Override
-        public void call(BillOfMaterialsReader reader) {
+        public void call(BdioReader reader) {
             try {
                 reader.close();
             } catch (IOException e) {
@@ -76,12 +77,12 @@ public class BillOfMaterialsReader implements AutoCloseable {
     /**
      * Produces a reactive subscription action that creates a new reader.
      */
-    private static Func1<Subscriber<?>, BillOfMaterialsReader> onSubscribe(final LinkedDataContext context, final CharSource source) {
-        return new Func1<Subscriber<?>, BillOfMaterialsReader>() {
+    private static Func1<Subscriber<?>, BdioReader> onSubscribe(final LinkedDataContext context, final CharSource source) {
+        return new Func1<Subscriber<?>, BdioReader>() {
             @Override
-            public BillOfMaterialsReader call(Subscriber<?> t) {
+            public BdioReader call(Subscriber<?> t) {
                 try {
-                    return new BillOfMaterialsReader(context, source.openBufferedStream());
+                    return new BdioReader(context, source.openBufferedStream());
                 } catch (IOException e) {
                     t.onError(e);
                     return null;
@@ -131,7 +132,7 @@ public class BillOfMaterialsReader implements AutoCloseable {
      */
     private final JsonParser jp;
 
-    public BillOfMaterialsReader(LinkedDataContext context, Reader in) throws IOException {
+    public BdioReader(LinkedDataContext context, Reader in) throws IOException {
         // Store the context, we may need to overwrite it later
         this.context = checkNotNull(context);
 
@@ -183,9 +184,9 @@ public class BillOfMaterialsReader implements AutoCloseable {
     public static Observable<Node> open(final LinkedDataContext context, final CharSource source) {
         checkNotNull(context);
         checkNotNull(source);
-        return AbstractOnSubscribe.create(new Action1<SubscriptionState<Node, BillOfMaterialsReader>>() {
+        return AbstractOnSubscribe.create(new Action1<SubscriptionState<Node, BdioReader>>() {
             @Override
-            public void call(SubscriptionState<Node, BillOfMaterialsReader> t) {
+            public void call(SubscriptionState<Node, BdioReader> t) {
                 // Iterate over the nodes in the file as we see them
                 try {
                     Node node = t.state().read();
@@ -207,9 +208,9 @@ public class BillOfMaterialsReader implements AutoCloseable {
      */
     public static Observable<Node> readFully(final LinkedDataContext context, CharSource source) {
         // We end up with an Observable<Observable<Object>> so use merge to flatten it out
-        return Observable.merge(AbstractOnSubscribe.create(new Action1<SubscriptionState<Observable<Object>, BillOfMaterialsReader>>() {
+        return Observable.merge(AbstractOnSubscribe.create(new Action1<SubscriptionState<Observable<Object>, BdioReader>>() {
             @Override
-            public void call(SubscriptionState<Observable<Object>, BillOfMaterialsReader> t) {
+            public void call(SubscriptionState<Observable<Object>, BdioReader> t) {
                 try {
                     // Parse the whole input
                     List<?> input = t.state().jp.readValueAs(List.class);
