@@ -1,4 +1,4 @@
-description = 'Common BOM Representation API'
+description = 'Black Duck I/O API'
 
 dependencies {
 	compile 'com.google.code.findbugs:jsr305'
