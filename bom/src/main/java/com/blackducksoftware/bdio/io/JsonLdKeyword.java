@@ -26,40 +26,79 @@ import com.blackducksoftware.bdio.Term;
  * to express them as terms.
  *
  * @author jgustie
+ * @see <a href="http://www.w3.org/TR/json-ld/#dfn-keyword">Syntax Tokens and Keywords</a>
  */
-// TODO Rename to JsonLdKeyword
-public enum JsonLdTerm implements Term {
+public enum JsonLdKeyword implements Term {
 
-    // TODO Doc
+    /**
+     * Used to define the short-hand names that are used throughout a JSON-LD document.
+     */
     CONTEXT("@context"),
 
     /**
-     * A keyword for the identifier of a node. The value must be a valid IRI.
+     * Used to uniquely identify things that are being described in the document with IRIs or blank node identifiers.
      */
     ID("@id"),
 
-    // TODO Doc
+    /**
+     * Used to specify the data that is associated with a particular property in the graph.
+     */
     VALUE("@value"),
 
-    // TODO Doc
+    /**
+     * Used to specify the language for a particular string value or the default language of a JSON-LD document.
+     */
     LANGUAGE("@language"),
 
     /**
-     * A keyword for the types of a node. The value must be one or more valid IRI(s).
+     * Used to set the data type of a node or typed value.
      */
     TYPE("@type"),
 
-    // TODO Other keywords: container,list,set,reverse,index,base
+    /**
+     * Used to set the default container type for a term.
+     */
+    CONTAINER("@container"),
 
-    // TODO Doc
+    /**
+     * Used to express an ordered set of data.
+     */
+    LIST("@list"),
+
+    /**
+     * Used to express an unordered set of data and to ensure that values are always represented as arrays.
+     */
+    SET("@set"),
+
+    /**
+     * Used to express reverse properties.
+     */
+    REVERSE("@reverse"),
+
+    /**
+     * Used to specify that a container is used to index information and that processing should continue deeper into a
+     * JSON data structure.
+     */
+    INDEX("@index"),
+
+    /**
+     * Used to set the base IRI against which relative IRIs are resolved.
+     */
+    BASE("@base"),
+
+    /**
+     * Used to expand properties and values in @type with a common prefix IRI.
+     */
     VOCAB("@vocab"),
 
-    // TODO Doc
+    /**
+     * Used to express a graph.
+     */
     GRAPH("@graph");
 
     private final String keyword;
 
-    private JsonLdTerm(String keyword) {
+    private JsonLdKeyword(String keyword) {
         checkArgument(keyword.charAt(0) == '@', "keyword must start with @: %s", keyword);
         this.keyword = keyword;
     }

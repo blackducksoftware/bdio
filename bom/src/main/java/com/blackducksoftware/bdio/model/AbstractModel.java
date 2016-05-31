@@ -164,7 +164,6 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
 
         @Override
         public Set<Entry<Term, Object>> entrySet() {
-            // TODO Is this right?
             return Maps.asMap(keySet(), Functions.forMap(this)).entrySet();
         }
 
@@ -428,7 +427,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
         if (value instanceof Node) {
             return (Node) value;
         } else if (value instanceof Map<?, ?>) {
-            // TODO Is this the best way to do this?
+            // TODO We probably should not create a linked data context here
             return new LinkedDataContext().expandToNode((Map<?, ?>) value);
         } else {
             return null;

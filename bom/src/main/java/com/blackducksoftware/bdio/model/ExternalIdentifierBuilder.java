@@ -23,6 +23,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio.BlackDuckValue;
 import com.blackducksoftware.bdio.Node;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 
 /**
@@ -158,24 +159,35 @@ public class ExternalIdentifierBuilder {
         return formatId("%s#%s", packageName, version).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_BOWER).withoutRepo();
     }
 
-    public ExternalIdentifierBuilder cpan() {
-        // TODO
-        return systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_CPAN).withoutRepo();
+    public ExternalIdentifierBuilder cpan(String... moduleNames) {
+        // TODO Eliminate varargs and null ambiguity
+        return formatId("%s", Joiner.on("::").join(moduleNames)).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_CPAN).withoutRepo();
     }
 
-    public ExternalIdentifierBuilder goget() {
-        // TODO
-        return systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_GOGET).withoutRepo();
+    public ExternalIdentifierBuilder goget(@Nullable String packageImportPath) {
+        return formatId("%s", packageImportPath).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_GOGET).withoutRepo();
     }
 
-    // TODO Maven classifier? Packaging?
-    public ExternalIdentifierBuilder maven(@Nullable String groupId, @Nullable String artifactId, @Nullable String version) {
-        systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_MAVEN).withoutRepo();
-        if (version != null) {
-            return formatId("%s:%s:%s", groupId, artifactId, version);
-        } else {
-            return formatId("%s:%s", groupId, artifactId);
+    public ExternalIdentifierBuilder maven(@Nullable String groupId, @Nullable String artifactId, @Nullable String packaging, @Nullable String classifier,
+            @Nullable String version) {
+        StringBuilder id = new StringBuilder();
+        id.append("%1$s:%2$s");
+        if (packaging != null) {
+            id.append(":%3$s");
+            if (classifier != null) {
+                id.append(":%4$s");
+            }
         }
+        if (packaging != null || version != null) {
+            id.append(":%5$s");
+        }
+        return formatId(id.toString(), groupId, artifactId, packaging, classifier, version)
+                .systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_MAVEN)
+                .withoutRepo();
+    }
+
+    public ExternalIdentifierBuilder maven(@Nullable String groupId, @Nullable String artifactId, @Nullable String version) {
+        return maven(groupId, artifactId, null, null, version);
     }
 
     public ExternalIdentifierBuilder npm(@Nullable String packageName, @Nullable String version) {

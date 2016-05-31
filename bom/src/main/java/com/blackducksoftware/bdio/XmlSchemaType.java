@@ -21,10 +21,13 @@ import java.net.URI;
  * Type constants corresponding to the XML Schema types.
  *
  * @author jgustie
+ * @see <a href="http://www.w3.org/TR/xmlschema-2/">XML Schema Part 2: Datatypes Second Edition</a>
  */
 public enum XmlSchemaType implements Type {
 
-    // TODO More of these
+    // TODO Include more primitive types
+    // http://www.w3.org/TR/xmlschema-2/#built-in-primitive-datatypes
+
     LONG("http://www.w3.org/2001/XMLSchema#long");
 
     private final URI uri;

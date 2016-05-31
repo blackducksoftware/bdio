@@ -22,7 +22,7 @@ import com.blackducksoftware.bdio.Type;
  *
  * @author jgustie
  */
-public class AbstractEmbeddedModel<M extends AbstractEmbeddedModel<M>> extends AbstractModel<M> {
+public abstract class AbstractEmbeddedModel<M extends AbstractEmbeddedModel<M>> extends AbstractModel<M> {
 
     protected AbstractEmbeddedModel(Type type, Iterable<ModelField<M, ?>> fields) {
         super(type, fields);

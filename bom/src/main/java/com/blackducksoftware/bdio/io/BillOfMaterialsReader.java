@@ -68,7 +68,7 @@ public class BillOfMaterialsReader implements AutoCloseable {
             try {
                 reader.close();
             } catch (IOException e) {
-                // TODO ???
+                return;
             }
         }
     };
@@ -106,7 +106,7 @@ public class BillOfMaterialsReader implements AutoCloseable {
                 }
 
                 // There should only be one BillOfMaterials node so if we see it, this is v0 file
-                Object type = ((Map<?, ?>) o).get(JsonLdTerm.TYPE.toString());
+                Object type = ((Map<?, ?>) o).get(JsonLdKeyword.TYPE.toString());
                 if (type.equals(fragment) || (type instanceof Collection<?> && ((Collection<?>) type).contains(BlackDuckType.BILL_OF_MATERIALS.toString()))) {
                     break;
                 }

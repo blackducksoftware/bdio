@@ -74,7 +74,7 @@ public class BillOfMaterialsReaderTest {
             assertThat(node2.data()).isEqualTo(ImmutableMap.builder()
                     .put(BlackDuckTerm.SIZE, 333L)
                     .put(SpdxTerm.CHECKSUM, ImmutableMap.builder()
-                            .put(JsonLdTerm.TYPE.toString(), ImmutableList.of(SpdxType.CHECKSUM.toString()))
+                            .put(JsonLdKeyword.TYPE.toString(), ImmutableList.of(SpdxType.CHECKSUM.toString()))
                             .put(SpdxTerm.ALGORITHM.toString(), SpdxValue.CHECKSUM_ALGORITHM_SHA1.id())
                             .put(SpdxTerm.CHECKSUM_VALUE.toString(), Hashing.sha1().hashInt(0).toString())
                             .build())

@@ -27,7 +27,6 @@ import com.google.common.collect.ImmutableSet;
  * Node constants corresponding to the Software Package Data Exchange individuals.
  *
  * @author jgustie
- * @see <a href="http://spdx.org/rdf/ontology/spdx-2-0/">SPDX RDF Terms</a>
  */
 public enum BlackDuckValue implements Node {
 

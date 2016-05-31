@@ -15,8 +15,6 @@
  */
 package com.blackducksoftware.bdio.io;
 
-import static com.google.common.base.CaseFormat.LOWER_HYPHEN;
-import static com.google.common.base.CaseFormat.UPPER_UNDERSCORE;
 import static com.google.common.base.Objects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -143,8 +141,8 @@ public class LinkedDataContext {
         this.definitions = ImmutableMap.copyOf(definitions);
 
         // Hard code some dummy definitions for the keywords
-        termDefinitions.put(JsonLdTerm.ID, TermDefinition.JSON_LD_ID);
-        termDefinitions.put(JsonLdTerm.TYPE, TermDefinition.JSON_LD_TYPE);
+        termDefinitions.put(JsonLdKeyword.ID, TermDefinition.JSON_LD_ID);
+        termDefinitions.put(JsonLdKeyword.TYPE, TermDefinition.JSON_LD_TYPE);
     }
 
     /**
@@ -170,7 +168,7 @@ public class LinkedDataContext {
      */
     private static Term term(String iri) {
         if (iri.startsWith("@")) {
-            for (JsonLdTerm keyword : JsonLdTerm.values()) {
+            for (JsonLdKeyword keyword : JsonLdKeyword.values()) {
                 if (iri.equals(keyword.toString())) {
                     return keyword;
                 }
@@ -209,7 +207,7 @@ public class LinkedDataContext {
      */
     public Map<String, Object> expandToGraph(String graphLabel, Iterable<Node> nodes) {
         Map<String, Object> graph = new LinkedHashMap<>();
-        graph.put(JsonLdTerm.ID.toString(), graphLabel);
+        graph.put(JsonLdKeyword.ID.toString(), graphLabel);
 
         // The JSON-LD library is picky about getting lists
         List<Map<String, Object>> graphNodes;
@@ -218,7 +216,7 @@ public class LinkedDataContext {
         } else {
             graphNodes = FluentIterable.from(nodes).transform(expander).toList();
         }
-        graph.put(JsonLdTerm.GRAPH.toString(), graphNodes);
+        graph.put(JsonLdKeyword.GRAPH.toString(), graphNodes);
         return graph;
     }
 
@@ -241,7 +239,7 @@ public class LinkedDataContext {
         }
         for (Entry<?, ?> entry : nodeMap.entrySet()) {
             Term term = term(expandIri(entry.getKey().toString(), false));
-            if (term != JsonLdTerm.ID && term != JsonLdTerm.TYPE) {
+            if (term != JsonLdKeyword.ID && term != JsonLdKeyword.TYPE) {
                 TermDefinition definition = termDefinitions.getUnchecked(term);
                 Object value = expandValue(definition, entry.getValue());
                 if (value != null) {
@@ -260,11 +258,11 @@ public class LinkedDataContext {
         Map<String, Object> result = new LinkedHashMap<>(((2 + node.data().size()) * 2) / 3);
         if (node.id() != null) {
             // Expand the identifier against the base IRI
-            result.put(JsonLdTerm.ID.toString(), expandIri(node.id(), true));
+            result.put(JsonLdKeyword.ID.toString(), expandIri(node.id(), true));
         }
         if (!node.types().isEmpty()) {
             // Type instances are already fully qualified IRI, no need to expand
-            result.put(JsonLdTerm.TYPE.toString(), FluentIterable.from(node.types()).transform(Functions.toStringFunction()).toList());
+            result.put(JsonLdKeyword.TYPE.toString(), FluentIterable.from(node.types()).transform(Functions.toStringFunction()).toList());
         }
         for (Entry<Term, Object> entry : node.data().entrySet()) {
             // Expand the value, term instances are already fully qualified
@@ -291,23 +289,23 @@ public class LinkedDataContext {
             return definition.getContainer().copyOf(values);
         } else if (value instanceof Node) {
             // Expand the node and merge the types from the definition
-            // TODO Isn't this dead code?
             Map<String, Object> embeddedNode = expand((Node) value);
-            embeddedNode.put(JsonLdTerm.TYPE.toString(),
+            embeddedNode.put(JsonLdKeyword.TYPE.toString(),
                     FluentIterable.from(Iterables.concat(definition.getTypes(), ((Node) value).types()))
                             .transform(Functions.toStringFunction()).toList());
             return embeddedNode;
         } else if (value instanceof Map<?, ?>) {
-            // TODO Is there a better way to do this?
+            // First convert the map into a node and then expand that
             Map<String, Object> embeddedNode = expand(expandToNode((Map<?, ?>) value));
+            // TODO FluentIterable.append is available (again?) in Guava 18.0
             Iterable<String> definitionTypes = FluentIterable.from(definition.getTypes()).transform(Functions.toStringFunction()).toList();
-            if (embeddedNode.containsKey(JsonLdTerm.TYPE.toString())) {
-                embeddedNode.put(JsonLdTerm.TYPE.toString(), ImmutableList.builder()
+            if (embeddedNode.containsKey(JsonLdKeyword.TYPE.toString())) {
+                embeddedNode.put(JsonLdKeyword.TYPE.toString(), ImmutableList.builder()
                         .addAll(definitionTypes)
-                        .addAll(FluentIterable.from((Iterable<?>) embeddedNode.get(JsonLdTerm.TYPE.toString())).transform(Functions.toStringFunction()))
+                        .addAll(FluentIterable.from((Iterable<?>) embeddedNode.get(JsonLdKeyword.TYPE.toString())).transform(Functions.toStringFunction()))
                         .build());
             } else {
-                embeddedNode.put(JsonLdTerm.TYPE.toString(), definitionTypes);
+                embeddedNode.put(JsonLdKeyword.TYPE.toString(), definitionTypes);
             }
             return embeddedNode;
         } else if (value != null) {
@@ -373,7 +371,7 @@ public class LinkedDataContext {
         for (Entry<?, ?> entry : expanded.entrySet()) {
             Term term = term(entry.getKey().toString());
             Object value = entry.getValue();
-            if (term == JsonLdTerm.TYPE && definition != null) {
+            if (term == JsonLdKeyword.TYPE && definition != null) {
                 // Omit types specified by the definition
                 Set<String> declaredTypes = FluentIterable.from((Iterable<?>) entry.getValue()).transform(Functions.toStringFunction()).toSet();
                 Set<String> definedTypes = FluentIterable.from(definition.getTypes()).transform(Functions.toStringFunction()).toSet();
@@ -475,11 +473,12 @@ public class LinkedDataContext {
             try {
                 return Long.parseLong(value.toString());
             } catch (NumberFormatException e) {
+                // TODO When we have more types, continue attempting other conversions
                 return value.toString();
             }
         }
 
-        // TODO Other types?
+        // TODO Include more primitive types (see XmlSchemaType)
 
         return value.toString();
     }
@@ -491,10 +490,10 @@ public class LinkedDataContext {
         final Map<String, Object> context = new LinkedHashMap<>();
         final Map<String, TermDefinition> localContext = new LinkedHashMap<>();
         if (getBase() != null) {
-            context.put("@base", getBase().toString());
+            context.put(JsonLdKeyword.BASE.toString(), getBase().toString());
         }
         if (getVocab() != null) {
-            context.put("@vocab", getVocab());
+            context.put(JsonLdKeyword.VOCAB.toString(), getVocab());
         }
         for (Entry<String, TermDefinition> entry : definitions.entrySet()) {
             TermDefinition definition = entry.getValue();
@@ -502,12 +501,12 @@ public class LinkedDataContext {
             if (!definition.getTypes().isEmpty() || definition.getContainer() != Container.UNKNOWN) {
                 Map<String, Object> definitionMap = new LinkedHashMap<>(3);
                 if (!entry.getKey().equals(serializedDefinition)) {
-                    definitionMap.put("@id", serializedDefinition);
+                    definitionMap.put(JsonLdKeyword.ID.toString(), serializedDefinition);
                 }
                 if (definition.getTypes().size() == 1) {
-                    definitionMap.put("@type", compactIri(Iterables.getOnlyElement(definition.getTypes()).toString(), localContext));
+                    definitionMap.put(JsonLdKeyword.TYPE.toString(), compactIri(Iterables.getOnlyElement(definition.getTypes()).toString(), localContext));
                 } else if (!definition.getTypes().isEmpty()) {
-                    definitionMap.put("@type", FluentIterable.from(definition.getTypes())
+                    definitionMap.put(JsonLdKeyword.TYPE.toString(), FluentIterable.from(definition.getTypes())
                             .transform(Functions.toStringFunction())
                             .transform(new Function<String, String>() {
                                 @Override
@@ -517,14 +516,14 @@ public class LinkedDataContext {
                             }).toList());
                 }
                 if (definition.getContainer() != Container.UNKNOWN) {
-                    definitionMap.put("@container", "@" + UPPER_UNDERSCORE.to(LOWER_HYPHEN, definition.getContainer().toString()));
+                    definitionMap.put(JsonLdKeyword.CONTAINER.toString(), definition.getContainer().toString());
                 }
                 serializedDefinition = definitionMap;
             }
             context.put(entry.getKey(), serializedDefinition);
             localContext.put(entry.getKey(), definition);
         }
-        return ImmutableMap.<String, Object> of("@context", context);
+        return ImmutableMap.<String, Object> of(JsonLdKeyword.CONTEXT.toString(), context);
     }
 
     /**

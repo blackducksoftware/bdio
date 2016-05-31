@@ -210,6 +210,15 @@ class Specification {
             // The result always needs to be a List or the JSON-LD library will choke
             return ImmutableList.copyOf(elements);
         }
+
+        @Override
+        public String toString() {
+            if (this != Container.UNKNOWN) {
+                return Enum.valueOf(JsonLdKeyword.class, name()).toString();
+            } else {
+                throw new IllegalStateException("attempt to reference unknown container type");
+            }
+        }
     }
 
     /**
@@ -220,12 +229,12 @@ class Specification {
         /**
          * A special term definition used for the JSON-LD "@id" keyword.
          */
-        public static TermDefinition JSON_LD_ID = new TermDefinition(JsonLdTerm.ID, ImmutableSet.of(JsonLdType.ID), null);
+        public static TermDefinition JSON_LD_ID = new TermDefinition(JsonLdKeyword.ID, ImmutableSet.of(JsonLdType.ID), null);
 
         /**
          * A special term definition used for the JSON-LD "@type" keyword.
          */
-        public static TermDefinition JSON_LD_TYPE = new TermDefinition(JsonLdTerm.TYPE, ImmutableSet.of(JsonLdType.ID), Container.SET);
+        public static TermDefinition JSON_LD_TYPE = new TermDefinition(JsonLdKeyword.TYPE, ImmutableSet.of(JsonLdType.ID), Container.SET);
 
         /**
          * The fully qualified term identifier.

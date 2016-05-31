@@ -24,6 +24,7 @@ import java.net.URI;
  */
 public enum BlackDuckType implements Type {
 
+    // TODO Rename BillOfMaterials in next version of the spec
     BILL_OF_MATERIALS("http://blackducksoftware.com/rdf/terms#BillOfMaterials"),
     COMPONENT("http://blackducksoftware.com/rdf/terms#Component"),
     FILE("http://blackducksoftware.com/rdf/terms#File"),

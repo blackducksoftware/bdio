@@ -17,26 +17,18 @@ package com.blackducksoftware.bdio;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.io.Serializable;
-import java.net.URI;
-import java.util.Objects;
-
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.util.concurrent.UncheckedExecutionException;
 
 /**
  * Term instance to use when there is no constant value.
  *
  * @author jgustie
  */
-public class SimpleTerm implements Term, Serializable {
-    // TODO Consolidate this with SimpleType?
-
+public class SimpleTerm extends SimpleBase implements Term {
     /**
      * Cache of known terms.
      */
@@ -60,19 +52,16 @@ public class SimpleTerm implements Term, Serializable {
         }
     }
 
-    private final URI uri;
-
     private SimpleTerm(String fullyQualifiedName) {
-        // Verify that the supplied term is a valid non-empty IRI (URI)
-        checkArgument(!fullyQualifiedName.isEmpty());
+        super(fullyQualifiedName);
         checkArgument(fullyQualifiedName.charAt(0) != '@', "unexpected keyword: %s", fullyQualifiedName.substring(1));
-        uri = URI.create(fullyQualifiedName);
     }
 
     /**
      * Returns a string converter for terms. Will return existing constants when possible.
      */
     public static Function<String, Term> stringConverter() {
+        // TODO Wrap this
         return INSTANCES;
     }
 
@@ -80,35 +69,6 @@ public class SimpleTerm implements Term, Serializable {
      * Converts a string to term. Will return an existing constant when possible.
      */
     public static Term create(String value) {
-        try {
-            return stringConverter().apply(value);
-        } catch (UncheckedExecutionException e) {
-            Throwables.propagateIfPossible(e.getCause());
-            throw e;
-        }
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(uri);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof SimpleTerm) {
-            return uri.equals(((SimpleTerm) obj).uri);
-        } else {
-            return false;
-        }
-    }
-
-    @Override
-    public String toString() {
-        return uri.toString();
-    }
-
-    @Override
-    public URI toUri() {
-        return uri;
+        return apply(stringConverter(), value);
     }
 }

@@ -36,7 +36,7 @@ import com.google.common.collect.Lists;
  *
  * @author jgustie
  */
-public class AbstractTopLevelModel<M extends AbstractTopLevelModel<M>> extends AbstractModel<M> {
+public abstract class AbstractTopLevelModel<M extends AbstractTopLevelModel<M>> extends AbstractModel<M> {
 
     @Nullable
     private List<ExternalIdentifier> externalIdentifiers;

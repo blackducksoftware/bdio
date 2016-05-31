@@ -16,7 +16,6 @@
 package com.blackducksoftware.bdio.io;
 
 import static com.google.common.truth.Truth.assertThat;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -28,7 +27,7 @@ import com.blackducksoftware.bdio.BlackDuckType;
 import com.blackducksoftware.bdio.ImmutableNode;
 import com.blackducksoftware.bdio.SpdxTerm;
 import com.blackducksoftware.bdio.SpdxValue;
-import com.google.common.base.Joiner;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSet;
 
 /**
@@ -52,15 +51,13 @@ public class BillOfMaterialsWriterTest {
                     .build());
         }
 
-        // TODO There appears to better ways of doing this:
-        // http://stackoverflow.com/questions/2253750/compare-two-json-objects-in-java
-        // TODO I have seen: testCompile 'org.skyscreamer:jsonassert:1.2.1'
-        assertThat(new String(baos.toByteArray(), UTF_8)).isEqualTo(Joiner.on('\n').join(new String[] { "[ {",
-                "  \"@id\" : \"foo\",",
-                "  \"@type\" : \"File\",",
-                "  \"fileName\" : \"./foo/bar\",",
-                "  \"fileType\" : \"SOURCE\",",
-                "  \"size\" : 10",
-                "} ]" }));
+        final ObjectMapper objectMapper = new ObjectMapper();
+        assertThat(objectMapper.readTree(baos.toByteArray())).isEqualTo(objectMapper.readTree("[ {"
+                + "  \"@id\" : \"foo\","
+                + "  \"@type\" : \"File\","
+                + "  \"fileName\" : \"./foo/bar\","
+                + "  \"fileType\" : \"SOURCE\","
+                + "  \"size\" : 10"
+                + "} ]"));
     }
 }
