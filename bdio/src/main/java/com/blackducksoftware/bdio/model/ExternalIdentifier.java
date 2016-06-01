@@ -19,13 +19,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.util.Objects;
-import java.util.UUID;
 
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio.BlackDuckTerm;
 import com.blackducksoftware.bdio.BlackDuckType;
 import com.blackducksoftware.bdio.BlackDuckValue;
+import com.blackducksoftware.bdio.Node;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
@@ -55,6 +55,7 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
     /**
      * Filter for external identifiers by their system type identifier.
      */
+    @Deprecated
     private static final class ExternalSystemTypeIdFilter implements Predicate<ExternalIdentifier> {
         private static final Predicate<ExternalIdentifier> BDSUITE = new ExternalSystemTypeIdFilter(BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE.id());
 
@@ -137,15 +138,30 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
     }
 
     /**
-     * Returns a predicate that matches Black Duck Suite external identifiers.
+     * Returns a filter that only excepts external identifiers with a specific system.
+     *
+     * @see #bySystem(String)
      */
+    public static Predicate<ExternalIdentifier> bySystem(Node externalSystem) {
+        return bySystem(externalSystem.id());
+    }
+
+    /**
+     * Returns a predicate that matches Black Duck Suite external identifiers.
+     *
+     * @deprecated Use {@code bySystem(BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE)} instead.
+     */
+    @Deprecated
     public static Predicate<ExternalIdentifier> bdSuite() {
         return ExternalSystemTypeIdFilter.BDSUITE;
     }
 
     /**
      * Returns a predicate that matches Black Duck Suite external identifiers.
+     *
+     * @deprecated Use {@code bySystem(BlackDuckValue.EXTERNAL_IDENTIFIER_BDHUB)} instead.
      */
+    @Deprecated
     public static Predicate<ExternalIdentifier> bdHub() {
         return ExternalSystemTypeIdFilter.BDHUB;
     }
@@ -155,28 +171,6 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
      */
     public static Function<ExternalIdentifier, String> toExternalId() {
         return ToStringFunction.EXTERNAL_ID;
-    }
-
-    /**
-     * Helper to create a new Black Duck Suite identifier.
-     *
-     * @deprecated Use {@link ExternalIdentifierBuilder#blackDuckSuite(String)} instead.
-     */
-    @Deprecated
-    @Nullable
-    public static ExternalIdentifier blackDuckSuite(@Nullable String id) {
-        return ExternalIdentifierBuilder.create().blackDuckSuite(id).build().orNull();
-    }
-
-    /**
-     * Helper to create a new Black Duck Hub identifier.
-     *
-     * @deprecated Use {@link ExternalIdentifierBuilder#blackDuckHub(String, UUID)} instead.
-     */
-    @Deprecated
-    @Nullable
-    public static ExternalIdentifier blackDuckHub(String entityType, @Nullable UUID id) {
-        return ExternalIdentifierBuilder.create().blackDuckHub(entityType, id).build().orNull();
     }
 
     @Nullable

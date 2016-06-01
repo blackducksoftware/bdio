@@ -127,8 +127,4 @@ public class Component extends AbstractTopLevelModel<Component> {
     public void setLicense(@Nullable String license) {
         this.license = license;
     }
-
-    public boolean isVersion() {
-        return ((name != null) && (version != null));
-    }
 }
