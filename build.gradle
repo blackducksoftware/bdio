@@ -1,26 +1,19 @@
 buildscript {
-	repositories {
-		maven { url 'http://artifactory.blackducksoftware.com:8081/artifactory/blackduck-builder-repos' }
-	}
-
-	dependencies { classpath 'com.blackducksoftware.gradle.plugins:gradle-management-plugins:1.1.0' }
-	dependencies { classpath 'com.blackducksoftware.gradle.plugins:gradle-plugins:1.55' }
+	repositories { jcenter() }
 	dependencies { classpath 'com.netflix.nebula:nebula-dependency-recommender:3.3.0' }
-	dependencies { classpath 'com.netflix.nebula:nebula-publishing-plugin:4.4.4' }
+	dependencies { classpath 'com.netflix.nebula:nebula-publishing-plugin:4.6.0' }
 }
-
-apply plugin: 'release'
 
 allprojects {
 	apply plugin: 'nebula.dependency-recommender'
 	apply plugin: 'eclipse'
 
 	repositories {
-		maven { url 'http://artifactory.blackducksoftware.com:8081/artifactory/blackduck-staging-repos' }
+		jcenter()
 	}
 
 	dependencyRecommendations {
-		mavenBom module: 'com.blackducksoftware.commoncomp:dependencies:0.1.1'
+		propertiesFile file: file("$rootDir/dependencies.properties")
 	}
 
 	eclipse {
@@ -32,52 +25,26 @@ allprojects {
 
 subprojects {
 	apply plugin: 'java'
-	apply plugin: 'maven-publish'
+	apply plugin: 'nebula.maven-base-publish'
 	apply plugin: 'nebula.maven-resolved-dependencies'
-	apply plugin: 'manifestattributes'
+	apply plugin: 'nebula.source-jar'
 
 	sourceCompatibility = 1.7
-	targetCompatibility = 1.7
 	
 	dependencies {
 		testCompile 'junit:junit'
 		testCompile 'com.google.truth:truth'
-		testCompile 'com.google.guava:guava-testlib'
 	}
 
 	jar {
 		manifest {
-			attributes(manifestAttributes, 'BDS-Info')
-			attributes('Implementation-Version': version,
+			attributes('Implementation-Title': project.description,
+			           'Implementation-Version': project.version,
 			           'Specification-Title': specTitle,
 			           'Specification-Version': specVersion,
 			           'Specification-Vendor': specVendor)
 		}
 	}
-
-	task sourcesJar(type: Jar) {
-		from sourceSets.main.allSource
-	}
-	
-	publishing {
-		publications {
-			nebula(MavenPublication) {
-				artifact sourcesJar {
-					classifier 'sources'
-				}
-			}
-		}
-		
-		repositories {
-			maven {
-				url 'http://artifactory.blackducksoftware.com:8081/artifactory/bds-suite-repo'
-				credentials {
-					username 'builder'
-					password 'builder'
-				}
-			}
-		}
-	}
 }
 
-task wrapper(type: Wrapper) { gradleVersion = '2.11' }
+task wrapper(type: Wrapper) { gradleVersion = '2.13' }
