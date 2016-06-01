@@ -55,10 +55,11 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
     /**
      * Filter for external identifiers by their system type identifier.
      */
-    @Deprecated
     private static final class ExternalSystemTypeIdFilter implements Predicate<ExternalIdentifier> {
+        @Deprecated
         private static final Predicate<ExternalIdentifier> BDSUITE = new ExternalSystemTypeIdFilter(BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE.id());
 
+        @Deprecated
         private static final Predicate<ExternalIdentifier> BDHUB = new ExternalSystemTypeIdFilter(BlackDuckValue.EXTERNAL_IDENTIFIER_BDHUB.id());
 
         private final String externalSystemTypeId;
