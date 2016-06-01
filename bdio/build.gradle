@@ -1,0 +1,12 @@
+description = 'Black Duck I/O API'
+
+dependencies {
+	compile 'com.google.code.findbugs:jsr305'
+	compile 'com.google.guava:guava'
+	compile 'joda-time:joda-time'
+    compile 'com.fasterxml.jackson.core:jackson-databind'
+    compile 'com.fasterxml.jackson.datatype:jackson-datatype-guava'
+    compile 'com.fasterxml.jackson.datatype:jackson-datatype-joda'
+    compile 'com.github.jsonld-java:jsonld-java'
+    compile 'io.reactivex:rxjava'
+}
