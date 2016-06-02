@@ -16,6 +16,7 @@
 package com.blackducksoftware.bdio.model;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Strings.nullToEmpty;
 
 import java.util.UUID;
 
@@ -181,7 +182,7 @@ public class ExternalIdentifierBuilder {
         if (packaging != null || version != null) {
             id.append(":%5$s");
         }
-        return formatId(id.toString(), groupId, artifactId, packaging, classifier, version)
+        return formatId(id.toString(), groupId, artifactId, nullToEmpty(packaging), nullToEmpty(classifier), nullToEmpty(version))
                 .systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_MAVEN)
                 .withoutRepo();
     }
