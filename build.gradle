@@ -1,12 +1,12 @@
 buildscript {
 	repositories { jcenter() }
 	dependencies { classpath 'com.netflix.nebula:nebula-dependency-recommender:3.3.0' }
-	dependencies { classpath 'com.netflix.nebula:nebula-publishing-plugin:4.6.0' }
+	dependencies { classpath 'com.netflix.nebula:nebula-publishing-plugin:4.7.0' }
 }
 
 allprojects {
-	apply plugin: 'nebula.dependency-recommender'
 	apply plugin: 'eclipse'
+	apply plugin: 'nebula.dependency-recommender'
 
 	repositories {
 		jcenter()
@@ -25,9 +25,8 @@ allprojects {
 
 subprojects {
 	apply plugin: 'java'
-	apply plugin: 'nebula.maven-base-publish'
-	apply plugin: 'nebula.maven-resolved-dependencies'
 	apply plugin: 'nebula.source-jar'
+	apply plugin: 'nebula.maven-publish'
 
 	sourceCompatibility = 1.7
 	
