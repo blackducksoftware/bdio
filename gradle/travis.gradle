@@ -2,6 +2,7 @@ initscript {
 	repositories { jcenter() }
 	dependencies { classpath 'org.jfrog.buildinfo:build-info-extractor-gradle:4.0.0' }
 	dependencies { classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.6' }
+	dependencies { classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:2.6.3' }
 }
 
 // Travis inspiration from:
@@ -19,6 +20,26 @@ if (System.getenv('TRAVIS_REPO_SLUG') == 'blackducksoftware/bdio'
 	&& !Boolean.getBoolean('TRAVIS_PULL_REQUEST')) {
 
 	rootProject {
+		// Run coverage
+		apply plugin: 'jacoco'
+		apply plugin: org.kt3k.gradle.plugin.CoverallsPlugin
+		projectsLoaded {
+			task jacocoRootReport(type: JacocoReport) {
+				dependsOn = subprojects.test
+				sourceDirectories = files(publishedProjects.sourceSets.main.allSource.srcDirs)
+				classDirectories = files(publishedProjects.sourceSets.main.output)
+				executionData = files(publishedProjects.jacocoTestReport.executionData)
+				reports {
+					html.enabled = false
+					xml.enabled = true
+				}
+			}
+			coveralls {
+				sourceDirs = subprojects.sourceSets.main.allSource.srcDirs.flatten()
+	  		}
+  		}
+	
+		// Deploy artifacts
 		if (version.endsWith('-SNAPSHOT')) {
 			// Snapshot version goes to oss.jfrog.org
 			apply plugin: org.jfrog.gradle.plugin.artifactory.ArtifactoryPlugin
