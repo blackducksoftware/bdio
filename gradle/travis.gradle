@@ -19,27 +19,32 @@ if (System.getenv('TRAVIS_REPO_SLUG') == 'blackducksoftware/bdio'
 	&& System.getenv('TRAVIS_BRANCH') == 'master'
 	&& !Boolean.getBoolean('TRAVIS_PULL_REQUEST')) {
 
-	rootProject {
+	projectsEvaluated {
 		// Run coverage
-		apply plugin: 'jacoco'
-		apply plugin: org.kt3k.gradle.plugin.CoverallsPlugin
-		projectsLoaded {
+		allprojects {
+			apply plugin: 'jacoco'
+		}
+		rootProject {
+			apply plugin: org.kt3k.gradle.plugin.CoverallsPlugin
 			task jacocoRootReport(type: JacocoReport) {
 				dependsOn = subprojects.test
-				sourceDirectories = files(publishedProjects.sourceSets.main.allSource.srcDirs)
-				classDirectories = files(publishedProjects.sourceSets.main.output)
-				executionData = files(publishedProjects.jacocoTestReport.executionData)
+				sourceDirectories = files(subprojects.sourceSets.main.allSource.srcDirs)
+				classDirectories = files(subprojects.sourceSets.main.output)
+				executionData = files(subprojects.jacocoTestReport.executionData)
 				reports {
 					html.enabled = false
 					xml.enabled = true
-					xml.destination = "${buildDir}/reports/jacoco/test/jacocoTestReport.xml"
 				}
 			}
 			coveralls {
 				sourceDirs = subprojects.sourceSets.main.allSource.srcDirs.flatten()
+				jacocoReportPath = "${buildDir}/reports/jacoco/jacocoRootReport/jacocoRootReport.xml"
 	  		}
+	  		tasks.coveralls.dependsOn jacocoRootReport
   		}
-	
+	}
+
+	rootProject {
 		// Deploy artifacts
 		if (version.endsWith('-SNAPSHOT')) {
 			// Snapshot version goes to oss.jfrog.org
