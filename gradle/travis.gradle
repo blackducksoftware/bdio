@@ -32,6 +32,7 @@ if (System.getenv('TRAVIS_REPO_SLUG') == 'blackducksoftware/bdio'
 				reports {
 					html.enabled = false
 					xml.enabled = true
+					xml.destination = "${buildDir}/reports/jacoco/test/jacocoTestReport.xml"
 				}
 			}
 			coveralls {
