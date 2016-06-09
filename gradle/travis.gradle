@@ -10,6 +10,10 @@ initscript {
 //  https://coderwall.com/p/9b_lfq
 //  http://benlimmer.com/2013/12/26/automatically-publish-javadoc-to-gh-pages-with-travis-ci/
 
+// Jacoco/Coveralls inspiration from:
+//  https://gist.github.com/aalmiray/3e0e70cba66effdb449a
+//  https://github.com/ben-manes/caffeine/blob/master/build.gradle
+
 // Applying plugins must be done by class name instead of plugin identifier:
 //  http://stackoverflow.com/questions/14595606
 
@@ -19,12 +23,14 @@ if (System.getenv('TRAVIS_REPO_SLUG') == 'blackducksoftware/bdio'
 	&& System.getenv('TRAVIS_BRANCH') == 'master'
 	&& !Boolean.getBoolean('TRAVIS_PULL_REQUEST')) {
 
+	// Run Jacoco coverage and publish to Coveralls
 	projectsEvaluated {
-		// Run coverage
 		allprojects {
 			apply plugin: 'jacoco'
 		}
+		
 		rootProject {
+			// Generate the aggregate report from all the subprojects
 			apply plugin: org.kt3k.gradle.plugin.CoverallsPlugin
 			task jacocoRootReport(type: JacocoReport) {
 				dependsOn = subprojects.test
@@ -40,12 +46,15 @@ if (System.getenv('TRAVIS_REPO_SLUG') == 'blackducksoftware/bdio'
 				sourceDirs = subprojects.sourceSets.main.allSource.srcDirs.flatten()
 				jacocoReportPath = "${buildDir}/reports/jacoco/jacocoRootReport/jacocoRootReport.xml"
 	  		}
-	  		tasks.coveralls.dependsOn jacocoRootReport
+			
+			// Run the root report from `script:` instead of `after_success:`
+			apply plugin: 'base'
+			tasks.check.dependsOn jacocoRootReport
   		}
 	}
 
+	// Deploy artifacts
 	rootProject {
-		// Deploy artifacts
 		if (version.endsWith('-SNAPSHOT')) {
 			// Snapshot version goes to oss.jfrog.org
 			apply plugin: org.jfrog.gradle.plugin.artifactory.ArtifactoryPlugin
