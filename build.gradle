@@ -44,6 +44,21 @@ subprojects {
 			           'Specification-Vendor': specVendor)
 		}
 	}
+	
+	publishing {
+	    publications {
+	        nebula(MavenPublication) {
+	            pom.withXml {
+	                configurations.compile.resolvedConfiguration.firstLevelModuleDependencies.each { dep ->
+	                    asNode().dependencies[0].dependency.find {
+	                        it.artifactId[0].text() == dep.moduleName && 
+	                        it.groupId[0].text() == dep.moduleGroup
+	                    }?.scope[0]?.value = 'compile'
+	                }
+	            }
+	        }
+	    }
+	}
 }
 
 task wrapper(type: Wrapper) { gradleVersion = '2.13' }
