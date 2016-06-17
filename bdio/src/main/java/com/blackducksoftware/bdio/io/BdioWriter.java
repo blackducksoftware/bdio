@@ -78,9 +78,10 @@ public class BdioWriter implements Closeable, Flushable {
 
     @Override
     public void close() throws IOException {
-        // Close the list (and object enclosing the context if necessary)
-        jgen.writeEndArray();
-        jgen.close();
+        if (!jgen.isClosed()) {
+            jgen.writeEndArray();
+            jgen.close();
+        }
     }
 
     /**
