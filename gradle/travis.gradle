@@ -95,6 +95,7 @@ if (System.getenv('TRAVIS_REPO_SLUG') == 'blackducksoftware/bdio'
 					pkg {
 						repo = 'oss'
 						name = 'bdio'
+						userOrg = 'bds'
 					}
 				}
 		
