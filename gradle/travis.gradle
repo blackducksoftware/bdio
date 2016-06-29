@@ -46,12 +46,15 @@ if (System.getenv('TRAVIS_REPO_SLUG') == 'blackducksoftware/bdio'
 			coveralls {
 				sourceDirs = subprojects.sourceSets.main.allSource.srcDirs.flatten()
 				jacocoReportPath = "${buildDir}/reports/jacoco/jacocoRootReport/jacocoRootReport.xml"
-	  		}
+			}
+			afterEvaluate {
+				publish.dependsOn coveralls
+			}
 			
 			// Run the root report from `script:` instead of `after_success:`
 			apply plugin: 'base'
 			tasks.check.dependsOn jacocoRootReport
-  		}
+		}
 	}
 
 	// Deploy artifacts
