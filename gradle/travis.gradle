@@ -52,8 +52,7 @@ if (System.getenv('TRAVIS_REPO_SLUG') == 'blackducksoftware/bdio'
 			}
 			
 			// Run the root report from `script:` instead of `after_success:`
-			apply plugin: 'base'
-			tasks.check.dependsOn jacocoRootReport
+			task('check').dependsOn jacocoRootReport
 		}
 	}
 
