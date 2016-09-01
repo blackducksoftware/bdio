@@ -39,13 +39,15 @@ import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
 import com.google.common.io.CharSource;
+import com.google.common.util.concurrent.CheckedFuture;
+import com.google.common.util.concurrent.Futures;
 
 import rx.Observable;
-import rx.Subscriber;
-import rx.functions.Action1;
+import rx.Observer;
+import rx.Single;
+import rx.SingleSubscriber;
 import rx.functions.Func1;
-import rx.observables.AbstractOnSubscribe;
-import rx.observables.AbstractOnSubscribe.SubscriptionState;
+import rx.observables.SyncOnSubscribe;
 
 /**
  * A simple reader for consuming a JSON formatted Bill of Materials from a source of characters.
@@ -59,37 +61,6 @@ public class BdioReader implements Closeable {
      */
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<Map<String, Object>>() {
     };
-
-    /**
-     * A reactive termination action used to close a reader.
-     */
-    private static final Action1<BdioReader> ON_TERMINATED = new Action1<BdioReader>() {
-        @Override
-        public void call(BdioReader reader) {
-            try {
-                reader.close();
-            } catch (IOException e) {
-                return;
-            }
-        }
-    };
-
-    /**
-     * Produces a reactive subscription action that creates a new reader.
-     */
-    private static Func1<Subscriber<?>, BdioReader> onSubscribe(final LinkedDataContext context, final CharSource source) {
-        return new Func1<Subscriber<?>, BdioReader>() {
-            @Override
-            public BdioReader call(Subscriber<?> t) {
-                try {
-                    return new BdioReader(context, source.openBufferedStream());
-                } catch (IOException e) {
-                    t.onError(e);
-                    return null;
-                }
-            }
-        };
-    }
 
     /**
      * Attempts to locate the specification version from a list of raw deserialized JSON objects (i.e. a list of
@@ -184,12 +155,22 @@ public class BdioReader implements Closeable {
     public static Observable<Node> open(final LinkedDataContext context, final CharSource source) {
         checkNotNull(context);
         checkNotNull(source);
-        return AbstractOnSubscribe.create(new Action1<SubscriptionState<Node, BdioReader>>() {
+        // Use CheckedFuture as a wrapper for either a BdioReader or an IOException
+        return Observable.create(new SyncOnSubscribe<CheckedFuture<BdioReader, IOException>, Node>() {
             @Override
-            public void call(SubscriptionState<Node, BdioReader> t) {
+            protected CheckedFuture<BdioReader, IOException> generateState() {
+                try {
+                    return Futures.immediateCheckedFuture(new BdioReader(context, source.openBufferedStream()));
+                } catch (IOException e) {
+                    return Futures.immediateFailedCheckedFuture(e);
+                }
+            }
+
+            @Override
+            protected CheckedFuture<BdioReader, IOException> next(CheckedFuture<BdioReader, IOException> s, Observer<? super Node> t) {
                 // Iterate over the nodes in the file as we see them
                 try {
-                    Node node = t.state().read();
+                    Node node = s.checkedGet().read();
                     if (node != null) {
                         t.onNext(node);
                     } else {
@@ -198,22 +179,31 @@ public class BdioReader implements Closeable {
                 } catch (IOException e) {
                     t.onError(e);
                 }
+                return s;
             }
-        }, onSubscribe(context, source), ON_TERMINATED).toObservable();
+
+            @Override
+            protected void onUnsubscribe(CheckedFuture<BdioReader, IOException> s) {
+                try {
+                    s.checkedGet().close();
+                } catch (IOException e) {
+                    return;
+                }
+            }
+        });
     }
 
     /**
      * Reads the entire BOM into memory. This will normalize the data so that each node is "complete",
      * however this requires a significant amount of up front resources: both in terms of memory and CPU.
      */
-    public static Observable<Node> readFully(final LinkedDataContext context, CharSource source) {
-        // We end up with an Observable<Observable<Object>> so use merge to flatten it out
-        return Observable.merge(AbstractOnSubscribe.create(new Action1<SubscriptionState<Observable<Object>, BdioReader>>() {
+    public static Observable<Node> readFully(final LinkedDataContext context, final CharSource source) {
+        return Single.create(new Single.OnSubscribe<List<Object>>() {
             @Override
-            public void call(SubscriptionState<Observable<Object>, BdioReader> t) {
-                try {
+            public void call(SingleSubscriber<? super List<Object>> t) {
+                try (BdioReader reader = new BdioReader(context, source.openBufferedStream())) {
                     // Parse the whole input
-                    List<?> input = t.state().jp.readValueAs(List.class);
+                    List<?> input = reader.jp.readValueAs(List.class);
                     String specVersion = scanForSpecVersion(input);
 
                     // THIS IS THE EXPENSIVE BIT...
@@ -224,17 +214,22 @@ public class BdioReader implements Closeable {
                     List<Object> expandedInput = JsonLdProcessor.expand(input, opts);
                     List<Object> expandedFrame = JsonLdProcessor.expand(context.newImportFrame(), opts);
                     List<Object> framed = new JsonLdApi(opts).frame(expandedInput, expandedFrame);
-                    List<?> compacted = (List<?>) JsonLdProcessor.compact(framed, context.serialize(), opts).get("@graph");
+                    List<Object> compacted = (List<Object>) JsonLdProcessor.compact(framed, context.serialize(), opts).get("@graph");
                     // TODO How do we eliminate the blank node identifiers introduced during expansion?
 
                     // We only emit a single element: an observable over the raw objects in the graph
-                    t.onNext(Observable.from(compacted));
-                    t.onCompleted();
+                    t.onSuccess(compacted);
                 } catch (IOException | JsonLdError e) {
                     t.onError(e);
                 }
             }
-        }, onSubscribe(context, source), ON_TERMINATED).toObservable()).flatMap(new Func1<Object, Observable<Node>>() {
+        }).flatMapObservable(new Func1<List<Object>, Observable<Object>>() {
+            @Override
+            public Observable<Object> call(List<Object> graph) {
+                // Wrap the "graph" (list of nodes) in an observable
+                return Observable.from(graph);
+            }
+        }).flatMap(new Func1<Object, Observable<Node>>() {
             @Override
             public Observable<Node> call(Object nodeMap) {
                 // Convert the raw JSON to Node instances, but only if each element is actually a Map
