@@ -30,12 +30,7 @@ subprojects {
 	apply plugin: 'nebula.maven-publish'
 	apply plugin: 'net.ltgt.errorprone'
 
-	sourceCompatibility = 1.7
-	
-	dependencies {
-		testCompile 'junit:junit'
-		testCompile 'com.google.truth:truth'
-	}
+	sourceCompatibility = 1.8
 
 	jar {
 		manifest {
@@ -62,5 +57,3 @@ subprojects {
 	    }
 	}
 }
-
-task wrapper(type: Wrapper) { gradleVersion = '3.0' }
