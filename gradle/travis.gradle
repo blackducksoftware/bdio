@@ -2,7 +2,7 @@ initscript {
 	repositories { jcenter() }
 	dependencies { classpath 'org.jfrog.buildinfo:build-info-extractor-gradle:4.0.0' }
 	dependencies { classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.6' }
-	dependencies { classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:2.6.3' }
+	dependencies { classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:2.7.1' }
 }
 
 // Travis inspiration from:
@@ -47,9 +47,7 @@ if (System.getenv('TRAVIS_REPO_SLUG') == 'blackducksoftware/bdio'
 				sourceDirs = subprojects.sourceSets.main.allSource.srcDirs.flatten()
 				jacocoReportPath = "${buildDir}/reports/jacoco/jacocoRootReport/jacocoRootReport.xml"
 			}
-			afterEvaluate {
-				publish.dependsOn coveralls
-			}
+			task('publish').dependsOn tasks.coveralls
 			
 			// Run the root report from `script:` instead of `after_success:`
 			task('check').dependsOn jacocoRootReport
