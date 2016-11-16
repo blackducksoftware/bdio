@@ -174,7 +174,7 @@ class Specification {
             case "BD-Suite":
                 return TermDefinition.forValue(BlackDuckValue.EXTERNAL_IDENTIFIER_BDSUITE);
             case "licence":
-                return new TermDefinition(DoapTerm.LICENSE, ImmutableSet.of(JsonLdType.ID), null);
+                return new TermDefinition(DoapTerm.LICENSE, ImmutableSet.<Type> of(JsonLdType.ID), null);
             default:
                 return v1_0_0.importResolver().removed(alias, oldDefinition);
             }
@@ -229,12 +229,12 @@ class Specification {
         /**
          * A special term definition used for the JSON-LD "@id" keyword.
          */
-        public static TermDefinition JSON_LD_ID = new TermDefinition(JsonLdKeyword.ID, ImmutableSet.of(JsonLdType.ID), null);
+        public static TermDefinition JSON_LD_ID = new TermDefinition(JsonLdKeyword.ID, ImmutableSet.<Type> of(JsonLdType.ID), null);
 
         /**
          * A special term definition used for the JSON-LD "@type" keyword.
          */
-        public static TermDefinition JSON_LD_TYPE = new TermDefinition(JsonLdKeyword.TYPE, ImmutableSet.of(JsonLdType.ID), Container.SET);
+        public static TermDefinition JSON_LD_TYPE = new TermDefinition(JsonLdKeyword.TYPE, ImmutableSet.<Type> of(JsonLdType.ID), Container.SET);
 
         /**
          * The fully qualified term identifier.
@@ -251,7 +251,7 @@ class Specification {
          */
         private final Container container;
 
-        private TermDefinition(Term term, Set<? extends Type> types, @Nullable Container container) {
+        private TermDefinition(Term term, Set<Type> types, @Nullable Container container) {
             this.term = checkNotNull(term);
             this.types = ImmutableSet.copyOf(types);
             this.container = firstNonNull(container, Container.UNKNOWN);

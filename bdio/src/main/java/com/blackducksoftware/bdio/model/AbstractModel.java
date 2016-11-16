@@ -68,7 +68,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
         public Iterable<M> apply(@Nullable Node node) {
             if (node != null) {
                 try {
-                    M model = modelType.newInstance();
+                    M model = modelType.getConstructor().newInstance();
                     if (node.types().containsAll(model.types())) {
                         model.setId(node.id());
                         model.data().putAll(node.data());
@@ -235,7 +235,7 @@ public abstract class AbstractModel<M extends AbstractModel<M>> implements Node 
 
     AbstractModel(Type type, Iterable<ModelField<M, ?>> fields) {
         types = ImmutableSet.of(type);
-        data = Maps.filterValues(new ModelMap<M>(self(), fields), Predicates.notNull());
+        data = Maps.filterValues(new ModelMap<>(self(), fields), Predicates.notNull());
     }
 
     @SuppressWarnings("unchecked")
