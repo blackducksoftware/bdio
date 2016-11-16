@@ -20,7 +20,7 @@ initscript {
 // It does not seem possible to apply another init script from an init script...
 
 if (System.getenv('TRAVIS_REPO_SLUG') == 'blackducksoftware/bdio'
-	&& System.getenv('TRAVIS_BRANCH') == 'master'
+	&& (System.getenv('TRAVIS_BRANCH') == 'master' || System.getenv('TRAVIS_BRANCH') == 'bdio_30')
 	&& !Boolean.getBoolean('TRAVIS_PULL_REQUEST')) {
 
 	// Run Jacoco coverage and publish to Coveralls
