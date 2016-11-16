@@ -15,7 +15,7 @@
  */
 package com.blackducksoftware.bdio.model;
 
-import static com.google.common.base.Objects.firstNonNull;
+import static com.google.common.base.MoreObjects.firstNonNull;
 
 import java.util.ArrayList;
 import java.util.Collection;

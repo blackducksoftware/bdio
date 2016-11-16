@@ -15,7 +15,7 @@
  */
 package com.blackducksoftware.bdio;
 
-import static com.google.common.base.Objects.toStringHelper;
+import static com.google.common.base.MoreObjects.toStringHelper;
 
 import java.io.Serializable;
 import java.util.LinkedHashMap;
