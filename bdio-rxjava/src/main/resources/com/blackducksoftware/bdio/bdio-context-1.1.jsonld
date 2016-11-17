@@ -1,0 +1,90 @@
+{
+  "@context" : {
+    "@vocab" : "http://blackducksoftware.com/rdf/terms#",
+    "spdx" : "http://spdx.org/rdf/terms#",
+    "doap" : "http://usefulinc.com/ns/doap#",
+    "rdfs" : "http://www.w3.org/2000/01/rdf-schema#",
+    "xsd" : "http://www.w3.org/2001/XMLSchema#",
+    "size" : {
+      "@type" : "xsd:long"
+    },
+    "externalIdentifier" : {
+      "@type" : "ExternalIdentifier"
+    },
+    "externalSystemTypeId" : {
+      "@type" : "@id"
+    },
+    "matchDetail" : {
+      "@type" : "MatchDetail"
+    },
+    "matchType" : {
+      "@type" : "@id"
+    },
+    "name" : "doap:name",
+    "homepage" : "doap:homepage",
+    "revision" : "doap:revision",
+    "fileName" : "spdx:fileName",
+    "fileType" : {
+      "@id" : "spdx:fileType",
+      "@type" : "@id",
+      "@container" : "@set"
+    },
+    "checksumValue" : "spdx:checksumValue",
+    "checksum" : {
+      "@id" : "spdx:checksum",
+      "@type" : "spdx:Checksum"
+    },
+    "algorithm" : {
+      "@id" : "spdx:algorithm",
+      "@type" : "@id"
+    },
+    "artifactOf" : {
+      "@id" : "spdx:artifactOf",
+      "@type" : "@id"
+    },
+    "licenseConcluded" : {
+      "@id" : "spdx:licenseConcluded",
+      "@type" : "@id"
+    },
+    "creationInfo" : {
+      "@id" : "spdx:creationInfo",
+      "@type" : "spdx:CreationInfo"
+    },
+    "DEPENDENCY" : "matchType:_dependency",
+    "PARTIAL" : "matchType:_partial",
+    "DIRECTORY" : "fileType_directory",
+    "ARCHIVE" : "fileType:_archive",
+    "BINARY" : "fileType:_binary",
+    "OTHER" : "fileType:_other",
+    "SOURCE" : "fileType:_source",
+    "sha1" : "checksum:Algorithm_sha1",
+    "md5" : "checksum:Algorithm_md5",
+    "relationshipType" : {
+      "@id" : "spdx:relationshipType",
+      "@type" : "@id"
+    },
+    "relationship" : {
+      "@id" : "spdx:relationship",
+      "@type" : "spdx:Relationship"
+    },
+    "related" : {
+      "@id" : "spdx:relatedSpdxElement",
+      "@type" : "@id"
+    },
+    "DYNAMIC_LINK" : "relationshipType:_dynamicLink",
+    "anaconda" : "externalIdentifier:_anaconda",
+    "bower" : "externalIdentifier:_bower",
+    "cpan" : "externalIdentifier:_cpan",
+    "goget" : "externalIdentifier:_goget",
+    "maven" : "externalIdentifier:_maven",
+    "npm" : "externalIdentifier:_npm",
+    "nuget" : "externalIdentifier:_nuget",
+    "rubygems" : "externalIdentifier:_rubygems",
+    "bdhub" : "externalIdentifier:_bdhub",
+    "bdsuite" : "externalIdentifier:_bdsuite",
+    "license" : {
+      "@id" : "doap:license",
+      "@type" : "@id"
+    }
+  }
+}

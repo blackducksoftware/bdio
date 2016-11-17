@@ -4,20 +4,20 @@ Black Duck I/O is a specification for how to transfer data between Black Duck pr
 
 ## Requirements
 
-The Black Duck I/O API requires Java 7 or later. The formated data must conform to the [JSON-LD 1.0][json-ld-1.0] specification.
+The Black Duck I/O API requires Java 8 or later. The formated data must conform to the [BDIO][bdio] specification.
 
 ## Dependency Information
 
 Gradle
 ````
-compile 'com.blackducksoftware.bdio:bdio:x.y.z'
+compile 'com.blackducksoftware.bdio:bdio-rxjava:x.y.z'
 ````
 
 Maven
 ````
     <dependency>
       <groupId>com.blackducksoftware.bdio</groupId>
-      <artifactId>bdio</artifactId>
+      <artifactId>bdio-rxjava</artifactId>
       <version>x.y.z</version>
     </dependency>
 ````
@@ -29,8 +29,8 @@ Please refer to the [project wiki][wiki].
 ## Build
 
 ````
-$ git clone git@github.com:blackducksoftware/bdio.git
-$ cd bdio/
+$ git clone git@github.com:blackducksoftware/bdio.git bdio-libraries
+$ cd bdio-libraries/
 $ ./gradlew build
 ````
 
@@ -54,5 +54,5 @@ specific language governing permissions and limitations
 under the License.
 
 [json-ld]: http://json-ld.org
-[json-ld-1.0]: http://www.w3.org/TR/json-ld/
+[bdio]: https://github.com/blackducksoftware/bdio/docs/specification.md
 [wiki]: https://github.com/blackducksoftware/bdio/wiki
