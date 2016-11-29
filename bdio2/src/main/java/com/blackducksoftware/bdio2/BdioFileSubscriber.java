@@ -9,9 +9,8 @@
  * accordance with the terms of the license agreement you entered into
  * with Black Duck Software.
  */
-package com.blackducksoftware.bdio;
+package com.blackducksoftware.bdio2;
 
-import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -26,26 +25,31 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import com.blackducksoftware.bdio.jsonld.JsonLdKeyword;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
+
+import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.base.Functions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
-import rx.Subscriber;
-import rx.exceptions.OnErrorNotImplementedException;
-
 /**
- * A subscriber for serializing a BDIO document to a byte stream. This subscriber always produces the Zip form of BDIO
+ * A subscriber for serializing BDIO nodes to a byte stream. This subscriber always produces the Zip form of BDIO
  * data, generally this is used to write data to disk. For writing BDIO data to the network, it is likely better to
  * break up the data into multiple requests prior to serialization.
  *
  * @author jgustie
  */
-class BdioSubscriber extends Subscriber<Map<String, Object>> {
+public class BdioFileSubscriber implements Subscriber<Map<String, Object>> {
 
     // TODO What about signing?
+
+    /**
+     * The BDIO metadata.
+     */
+    private final BdioMetadata metadata;
 
     /**
      * The number of entries written to the BDIO document. Starts at -1 to account for an initial "header" entry that
@@ -68,11 +72,6 @@ class BdioSubscriber extends Subscriber<Map<String, Object>> {
     private final ZipOutputStream out;
 
     /**
-     * The first entry written to the Zip file, generally this only for named graph metadata.
-     */
-    private final Map<String, Object> headerEntry;
-
-    /**
      * The leading bytes used to start each entry in the Zip file.
      */
     private final byte[] header;
@@ -87,30 +86,46 @@ class BdioSubscriber extends Subscriber<Map<String, Object>> {
      */
     private final byte[] footer;
 
-    BdioSubscriber(BdioMetadata metadata, OutputStream out) {
-        // TODO Always buffer the stream?
-        this.out = new ZipOutputStream(new BufferedOutputStream(Objects.requireNonNull(out)));
+    /**
+     * The current subscription.
+     */
+    private Subscription subscription;
 
-        // Generate a representation of the first named graph in the sequence
-        headerEntry = ImmutableMap.<String, Object> builder()
-                .putAll(metadata)
-                .put(JsonLdKeyword.graph.toString(), ImmutableList.of())
-                .build();
+    public BdioFileSubscriber(BdioMetadata metadata, OutputStream out) {
+        this.metadata = Objects.requireNonNull(metadata);
+        this.out = new ZipOutputStream(Objects.requireNonNull(out));
 
         // Generate these fixed byte arrays used to serialize each graph
-        header = formatUtf8Bytes("{%n  \"%s\" : \"%s\",%n  \"%s\" : [ ", JsonLdKeyword.id, metadata.id(), JsonLdKeyword.graph);
+        header = formatUtf8Bytes("{%n  \"%s\" : \"%s\",%n  \"%s\" : [ ", JsonLdConsts.ID, metadata.id(), JsonLdConsts.GRAPH);
         delimiter = formatUtf8Bytes(", ");
         footer = formatUtf8Bytes(" ]%n}%n");
     }
 
     @Override
-    public void onStart() {
+    public void onSubscribe(Subscription s) {
+        // Validate the subscription
+        Objects.requireNonNull(s, "subscription is null");
+        if (subscription != null) {
+            subscription.cancel();
+            throw new IllegalStateException("subscription was already set");
+        } else {
+            subscription = s;
+        }
+
         try {
             // Generate the header entry and serialize the JSON to it
             out.putNextEntry(new ZipEntry(Bdio.dataEntryName(entryCount.getAndIncrement())));
+
+            // Generate a representation of the first named graph in the sequence
             Writer writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);
-            JsonUtils.writePrettyPrint(writer, headerEntry);
+            JsonUtils.writePrettyPrint(writer, ImmutableMap.builder()
+                    .putAll(metadata)
+                    .put(JsonLdConsts.GRAPH, ImmutableList.of())
+                    .build());
             writer.flush();
+
+            // Start the flow of nodes
+            subscription.request(Long.MAX_VALUE);
         } catch (IOException e) {
             onError(e);
         }
@@ -144,7 +159,7 @@ class BdioSubscriber extends Subscriber<Map<String, Object>> {
     }
 
     @Override
-    public void onCompleted() {
+    public void onComplete() {
         try {
             // Write the footer for the current entry
             if (entryCount.get() > 0) {
@@ -156,6 +171,7 @@ class BdioSubscriber extends Subscriber<Map<String, Object>> {
             // Finish the Zip file and flush the (buffered) contents
             out.finish();
             out.flush();
+            // TODO Close?
         } catch (IOException e) {
             onError(e);
         }
@@ -163,8 +179,8 @@ class BdioSubscriber extends Subscriber<Map<String, Object>> {
 
     @Override
     public void onError(Throwable e) {
-        // TODO Is this ok?
-        throw new OnErrorNotImplementedException(e);
+        // TODO What do we do?
+        e.printStackTrace();
     }
 
     /**
@@ -187,7 +203,7 @@ class BdioSubscriber extends Subscriber<Map<String, Object>> {
     /**
      * The node keys that should be preserved across split nodes.
      */
-    private static final Set<String> REQUIRED_NODE_KEYS = FluentIterable.from(Arrays.asList(JsonLdKeyword.id, JsonLdKeyword.type))
+    private static final Set<String> REQUIRED_NODE_KEYS = FluentIterable.from(Arrays.asList(JsonLdConsts.ID, JsonLdConsts.TYPE))
             .transform(Functions.toStringFunction()).toSet();
 
     /**

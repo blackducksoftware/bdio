@@ -9,7 +9,7 @@
  * accordance with the terms of the license agreement you entered into
  * with Black Duck Software.
  */
-package com.blackducksoftware.bdio.jsonld;
+package com.blackducksoftware.bdio2;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -39,7 +39,7 @@ import com.google.common.io.Resources;
  *
  * @author jgustie
  */
-public class RemoteDocumentLoader extends DocumentLoader {
+class RemoteDocumentLoader extends DocumentLoader {
 
     /**
      * A builder to construct a remote document loader. Callers can add "offline" documents stored as class loader

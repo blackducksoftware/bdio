@@ -9,15 +9,14 @@
  * accordance with the terms of the license agreement you entered into
  * with Black Duck Software.
  */
-package com.blackducksoftware.bdio;
+package com.blackducksoftware.bdio2;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Objects;
 
 import javax.annotation.Nullable;
-
-import org.joda.time.Instant;
 
 import com.github.jsonldjava.core.JsonLdConsts;
 
@@ -27,6 +26,8 @@ import com.github.jsonldjava.core.JsonLdConsts;
  * @author jgustie
  */
 public class BdioObject extends LinkedHashMap<String, Object> {
+
+    // TODO Can we play with the property ordering to make these compress better?
 
     // TODO Technically properties can almost always be lists, put "cardinality" on the properties so we can see how we
     // should behave; also have getAll/getFirst like variants

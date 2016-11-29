@@ -1,4 +1,0 @@
-@ParametersAreNonnullByDefault
-package com.blackducksoftware.bdio.jsonld;
-
-import javax.annotation.ParametersAreNonnullByDefault;

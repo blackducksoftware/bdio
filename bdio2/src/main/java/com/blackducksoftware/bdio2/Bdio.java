@@ -9,9 +9,16 @@
  * accordance with the terms of the license agreement you entered into
  * with Black Duck Software.
  */
-package com.blackducksoftware.bdio;
+package com.blackducksoftware.bdio2;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+
+import javax.annotation.Nullable;
+
+import com.github.jsonldjava.core.JsonLdConsts;
+import com.github.jsonldjava.core.JsonLdError;
 
 /**
  * A collection of constants and helpers pertaining to the BDIO specification.
@@ -309,6 +316,73 @@ public class Bdio {
         } else {
             // 2 digits still gives us ~1.5 GB, right?
             return String.format("bdio-entry-%02d.jsonld", entryNumber);
+        }
+    }
+
+    /**
+     * Checks to see if the supplied entry name represents BDIO data.
+     */
+    public static boolean isDataEntryName(String name) {
+        return name.endsWith(".jsonld");
+    }
+
+    // TODO These should probably go someplace else, they are not part of the specification...
+
+    /**
+     * Returns the list of JSON-LD nodes extracted from the supplied input.
+     */
+    // TODO Should this accept an optional identifier for getting a particular named graph?
+    public static List<Map<String, Object>> extractNodes(Object input) throws JsonLdError {
+        Object nodes = null;
+        if (input instanceof List<?>) {
+            for (Object item : (List<?>) input) {
+                nodes = getGraph(item);
+                if (nodes != null) {
+                    break;
+                }
+            }
+            if (nodes == null) {
+                nodes = input;
+            }
+        } else if (input instanceof Map<?, ?>) {
+            nodes = getGraph(input);
+        }
+
+        if (nodes instanceof List<?>) {
+            // TODO How can we verify these casts? What does the JSON-LD library do?
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> nodeList = (List<Map<String, Object>>) nodes;
+            // TODO Sort these while we have the in memory list?
+            return nodeList;
+        } else {
+            // TODO Emit just the input as a single node list? Only if it has '@id'?
+            throw new JsonLdError(JsonLdError.Error.SYNTAX_ERROR);
+        }
+    }
+
+    /**
+     * Framing does not work on named graphs so we need to pull just the graph nodes out.
+     *
+     * @see <a href="https://github.com/jsonld-java/jsonld-java/issues/109">#109</a>
+     */
+    @Nullable
+    public static Object dropGraphLabel(@Nullable Object input) {
+        if (input instanceof Map<?, ?>
+                && ((Map<?, ?>) input).containsKey(JsonLdConsts.ID)
+                && ((Map<?, ?>) input).containsKey(JsonLdConsts.GRAPH)) {
+            return ((Map<?, ?>) input).get(JsonLdConsts.GRAPH);
+        } else {
+            return input;
+        }
+    }
+
+    @Nullable
+    private static Object getGraph(@Nullable Object input) {
+        if (input instanceof Map<?, ?>) {
+            // TODO Do we need an ID to check to determine which graph to get?
+            return ((Map<?, ?>) input).get(JsonLdConsts.GRAPH);
+        } else {
+            return null;
         }
     }
 

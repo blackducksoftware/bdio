@@ -9,13 +9,12 @@
  * accordance with the terms of the license agreement you entered into
  * with Black Duck Software.
  */
-package com.blackducksoftware.bdio;
+package com.blackducksoftware.bdio2;
 
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -23,24 +22,14 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.joda.time.Instant;
+import org.reactivestreams.Processor;
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
 
-import com.blackducksoftware.bdio.BdioOnSubscribe;
-import com.blackducksoftware.bdio.BdioSubscriber;
-import com.blackducksoftware.bdio.jsonld.JsonLdKeyword;
-import com.blackducksoftware.bdio.jsonld.RemoteDocumentLoader;
-import com.blackducksoftware.bdio.rx.OperatorGraphNodes;
-import com.blackducksoftware.bdio.rx.RxJsonLdProcessor;
 import com.github.jsonldjava.core.JsonLdOptions;
+import com.github.jsonldjava.core.JsonLdProcessor;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.StandardSystemProperty;
-
-import rx.Observable;
-import rx.Observable.Transformer;
-import rx.Subscriber;
-import rx.functions.Func1;
-import rx.observers.Subscribers;
-import rx.subjects.PublishSubject;
 
 /**
  * A BDIO Document. A BDIO document is a {@link rx.subjects.Subject} of JSON-LD graphs; each element published or
@@ -54,7 +43,41 @@ import rx.subjects.PublishSubject;
  *
  * @author jgustie
  */
-public final class BdioDocument {
+public abstract class BdioDocument {
+
+    /**
+     * Exposes the BDIO document using the JSON-LD processing API.
+     */
+    public interface JsonLdProcessing {
+        /**
+         * Compacts each element in the sequence according to the steps in the JSON-LD Compaction algorithm.
+         *
+         * @see JsonLdProcessor#compact(Object, Object, JsonLdOptions)
+         */
+        Publisher<Map<String, Object>> compact(Object context);
+
+        /**
+         * Expands each element in the sequence according to the steps in the Expansion algorithm.
+         *
+         * @see JsonLdProcessor#expand(Object, JsonLdOptions)
+         */
+        Publisher<List<Object>> expand();
+
+        /**
+         * Flattens each element in the sequence and compacts it using the passed context according to the steps in the
+         * Flattening algorithm.
+         *
+         * @see JsonLdProcessor#flatten(Object, Object, JsonLdOptions)
+         */
+        Publisher<Object> flatten(@Nullable Object context);
+
+        /**
+         * Frames each element in the sequence using the frame according to the steps in the Framing Algorithm.
+         *
+         * @see JsonLdProcessor#frame(Object, Object, JsonLdOptions)
+         */
+        Publisher<Map<String, Object>> frame(Object frame);
+    }
 
     /**
      * The linked data graph metadata.
@@ -66,142 +89,62 @@ public final class BdioDocument {
      */
     private final JsonLdOptions options;
 
-    /**
-     * The data for this document, represented as an observable subject.
-     */
-    // TODO Should read/write propagate errors out to this subject?
-    private PublishSubject<Object> data = PublishSubject.create();
-
-    private BdioDocument(Builder builder) {
+    protected BdioDocument(Builder builder) {
+        // Construct a new metadata instance
         metadata = new BdioMetadata(MoreObjects.firstNonNull(builder.id, "@default"));
         metadata.setCreation(MoreObjects.firstNonNull(builder.creation, Instant.now()));
         metadata.setCreator(MoreObjects.firstNonNull(builder.creator, StandardSystemProperty.USER_NAME.value()));
 
+        // Construct the JSON-LD options
         options = new JsonLdOptions(MoreObjects.firstNonNull(builder.base, ""));
         options.setExpandContext(MoreObjects.firstNonNull(builder.expandContext, Bdio.Context.DEFAULT.toString()));
         options.setDocumentLoader(builder.documentLoader.build());
     }
 
-    // TODO Does having this make sense?
-    public void reset() {
-        // Complete the subject before tossing it
-        data.onCompleted();
-
-        // Create a new subject
-        data = PublishSubject.create();
+    /**
+     * Returns the graph metadata for this document.
+     */
+    protected final BdioMetadata metadata() {
+        return metadata;
     }
 
     /**
-     * Allows you to consume the raw JSON-LD graph elements from this document.
+     * Returns the JSON-LD API configuration options.
      */
-    public Observable<Object> asObservable() {
-        return data.asObservable();
+    protected final JsonLdOptions options() {
+        return options;
     }
 
     /**
-     * Frames each of the JSON-LD graph elements using the supplied frame.
-     *
-     * @see com.github.jsonldjava.core.JsonLdProcessor#frame(Object, Object, JsonLdOptions)
+     * Allows you to add or consume JSON-LD graphs using this document.
      */
-    public Observable<Map<String, Object>> frame(Object frame) {
-        return asObservable()
-                .map(new Func1<Object, Object>() {
-                    @Override
-                    public Object call(Object input) {
-                        // Framing does not work on named graphs so we need to pull just the graph nodes out
-                        // https://github.com/jsonld-java/jsonld-java/issues/109
-                        Object graph = OperatorGraphNodes.getGraph(input);
-                        return graph != null ? graph : input;
-                        // if (input instanceof Map<?, ?> && ((Map<?, ?>)
-                        // input).containsKey(JsonLdKeyword.graph.toString())) {
-                        // Map<String, Object> result = new LinkedHashMap<>();
-                        // result.put("@id", "@default");
-                        // result.put(JsonLdKeyword.graph.toString(), ((Map<?, ?>)
-                        // input).get(JsonLdKeyword.graph.toString()));
-                        // return result;
-                        // }
-                        // return input;
-                    }
-                })
-                .compose(RxJsonLdProcessor.frame(frame, options));
-        // TODO Restore the graph identifier from the metadata?
-    }
-
-    /**
-     * Expands each of the JSON-LD graph elements.
-     *
-     * @see com.github.jsonldjava.core.JsonLdProcessor#expand(Object, JsonLdOptions)
-     */
-    public Observable<List<Object>> expand() {
-        return asObservable().compose(RxJsonLdProcessor.expand(options));
-    }
-
-    /**
-     * Writes the BDIO data coming into this document out to the supplied byte stream.
-     */
-    public BdioDocument writeTo(OutputStream out) {
-        Observable.merge(expand()
-                .lift(OperatorGraphNodes.instance()))
-                .subscribe(new BdioSubscriber(metadata, out));
-        return this;
-    }
-
-    /**
-     * Allows you to add JSON-LD graph elements to this document.
-     */
-    public Subscriber<Object> asSubscriber() {
-        return Subscribers.from(data);
-    }
+    public abstract Processor<Object, Object> processor();
 
     /**
      * Allows you to add JSON-LD nodes to this document.
      */
-    public Subscriber<Map<String, Object>> asNodeSubscriber() {
-        // TODO Is this right?
-        PublishSubject<Map<String, Object>> nodes = PublishSubject.create();
-        nodes.compose(fromNodes()).subscribe(asSubscriber());
-        return Subscribers.from(nodes);
-    }
+    public abstract Subscriber<Map<String, Object>> asNodeSubscriber();
 
     /**
-     * A transformer for converting a sequence of nodes into a graph.
+     * Allows you to consume the processed JSON-LD graph elements from this document.
      */
-    private Transformer<Map<String, Object>, Object> fromNodes() {
-        final Map<String, Object> header = new LinkedHashMap<>();
-        header.putAll(metadata);
-        header.put(JsonLdKeyword.graph.toString(), new ArrayList<>(0));
-        return new Transformer<Map<String, Object>, Object>() {
-            @Override
-            public Observable<Object> call(Observable<Map<String, Object>> nodes) {
-                // NOTE: The buffer size choice was arbitrary, we just want to ensure we never
-                // hit the BDIO imposed 16MB limit on the serialized size
-                return nodes.buffer(1000).map(new Func1<List<Map<String, Object>>, Object>() {
-                    @Override
-                    public Object call(List<Map<String, Object>> graph) {
-                        Map<String, Object> result = new LinkedHashMap<>();
-                        result.put(JsonLdKeyword.id.toString(), metadata.id());
-                        // TODO Sort the graph while we have it in memory here?
-                        result.put(JsonLdKeyword.graph.toString(), graph);
-                        return result;
-                    }
-                }).startWith(header);
-            }
-        };
-    }
+    public abstract JsonLdProcessing jsonld();
+
+    /**
+     * Writes the BDIO data coming into this document out to the supplied byte stream.
+     */
+    // TODO Also take an Action1<Throwable> for error handling?
+    public abstract BdioDocument writeToFile(OutputStream out);
 
     /**
      * Reads BDIO data into this document from the supplied byte stream.
      */
-    public BdioDocument read(InputStream in) {
-        // TODO Ignore onComplete from the OnSubscribe? Need to explicitly complete the subject?
-        Observable.create(new BdioOnSubscribe(in)).subscribe(asSubscriber());
-        return this;
-    }
+    public abstract BdioDocument read(InputStream in);
 
     /**
      * A builder for constructing BDIO documents.
      */
-    public static final class Builder {
+    public static class Builder {
 
         private String id;
 
@@ -223,10 +166,14 @@ public final class BdioDocument {
         }
 
         /**
-         * Creates a new BDIO document from the current state of this builder.
+         * Creates a new BDIO document of the specified type from the current state of this builder.
          */
-        public BdioDocument build() {
-            return new BdioDocument(this);
+        public <D extends BdioDocument> D build(Class<D> type) {
+            try {
+                return type.getConstructor(getClass()).newInstance(this);
+            } catch (ReflectiveOperationException e) {
+                throw new IllegalStateException("cannot construct BdioDocument: " + type.getName(), e);
+            }
         }
 
         /**

@@ -1,1 +1,1 @@
-include 'bdio'
+include 'bdio', 'bdio2'

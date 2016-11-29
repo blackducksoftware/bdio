@@ -1,0 +1,16 @@
+description = 'Black Duck I/O API'
+
+dependencies {
+	compile 'org.reactivestreams:reactive-streams'
+	compile 'com.blackducksoftware.magpie:magpie'
+	compile 'com.google.code.findbugs:jsr305'
+	compile 'com.google.guava:guava'
+    compile 'com.github.jsonld-java:jsonld-java'
+    compile 'org.apache.httpcomponents:httpclient'
+
+	// TODO SLF4J No op binding?
+
+    testCompile 'junit:junit'
+    testCompile 'com.google.truth:truth'
+    testCompile 'org.mockito:mockito-core'
+}

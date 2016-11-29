@@ -9,7 +9,7 @@
  * accordance with the terms of the license agreement you entered into
  * with Black Duck Software.
  */
-package com.blackducksoftware.bdio;
+package com.blackducksoftware.bdio2;
 
 import java.io.IOException;
 
@@ -42,7 +42,7 @@ public class EntrySizeViolationException extends IOException {
     /**
      * Creates a new exception for when an entry is too large.
      */
-    EntrySizeViolationException(@Nullable String name, long estimatedSize) {
+    public EntrySizeViolationException(@Nullable String name, long estimatedSize) {
         super(message(name, estimatedSize));
         this.name = name;
         this.estimatedSize = estimatedSize;

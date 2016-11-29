@@ -9,9 +9,9 @@
  * accordance with the terms of the license agreement you entered into
  * with Black Duck Software.
  */
-package com.blackducksoftware.bdio.model2;
+package com.blackducksoftware.bdio2.model;
 
-import com.blackducksoftware.bdio.Bdio;
+import com.blackducksoftware.bdio2.Bdio;
 
 public class Version extends Project {
 
