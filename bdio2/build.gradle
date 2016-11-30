@@ -10,7 +10,8 @@ dependencies {
 
 	// TODO SLF4J No op binding?
 
-    testCompile 'junit:junit'
+	testCompile 'com.blackducksoftware.magpie:magpie-test'
     testCompile 'com.google.truth:truth'
+    testCompile 'junit:junit'
     testCompile 'org.mockito:mockito-core'
 }

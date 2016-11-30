@@ -15,11 +15,9 @@ import java.io.Closeable;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -165,6 +163,14 @@ public class BdioReader implements Closeable {
     }
 
     @Nullable
+    public Object nextEntry() throws IOException {
+        try (InputStream input = nextStream()) {
+            // Use the JSON-LD API's method for parsing JSON, assumes (properly) UTF-8
+            return input != null ? JsonUtils.fromInputStream(input) : null;
+        }
+    }
+
+    @Nullable
     private synchronized InputStream nextStream() throws IOException {
         switch (state) {
         case OPEN:
@@ -212,45 +218,6 @@ public class BdioReader implements Closeable {
             }
         } finally {
             state = State.CLOSED;
-        }
-    }
-
-    @Nullable
-    public Object nextEntry() throws IOException {
-        try (InputStream input = nextStream()) {
-            // Use the JSON-LD API's method for parsing JSON, assumes (properly) UTF-8
-            return input != null ? JsonUtils.fromInputStream(input) : null;
-        }
-    }
-
-    /**
-     * Callback used to advance this reader. The {@code onNext} callback will be invoked with the parsed JSON data from
-     * available entry, typically this will be a {@code Map<String, Object>} but it could also be a list.
-     */
-    public void generate(Consumer<Object> onNext, Consumer<Throwable> onError, Runnable onComplete) {
-        Objects.requireNonNull(onNext);
-        Objects.requireNonNull(onError);
-        Objects.requireNonNull(onComplete);
-        try {
-            Object next = nextEntry();
-            if (next != null) {
-                onNext.accept(next);
-            } else {
-                onComplete.run();
-            }
-        } catch (IOException e) {
-            onError.accept(e);
-        }
-    }
-
-    /**
-     * Unchecked version of {@link #close()}.
-     */
-    public void dispose() throws UncheckedIOException {
-        try {
-            close();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
         }
     }
 

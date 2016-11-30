@@ -26,6 +26,7 @@ import org.reactivestreams.Processor;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
+import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
 import com.google.common.base.MoreObjects;
@@ -91,7 +92,7 @@ public abstract class BdioDocument {
 
     protected BdioDocument(Builder builder) {
         // Construct a new metadata instance
-        metadata = new BdioMetadata(MoreObjects.firstNonNull(builder.id, "@default"));
+        metadata = new BdioMetadata(MoreObjects.firstNonNull(builder.id, JsonLdConsts.DEFAULT));
         metadata.setCreation(MoreObjects.firstNonNull(builder.creation, Instant.now()));
         metadata.setCreator(MoreObjects.firstNonNull(builder.creator, StandardSystemProperty.USER_NAME.value()));
 
