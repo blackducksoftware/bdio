@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -27,10 +28,12 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
 import com.github.jsonldjava.core.JsonLdConsts;
+import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.StandardSystemProperty;
+import com.google.common.collect.Lists;
 
 /**
  * A BDIO Document. A BDIO document is a {@link rx.subjects.Subject} of JSON-LD graphs; each element published or
@@ -283,6 +286,102 @@ public abstract class BdioDocument {
             }
         }
 
+    }
+
+    // NOTE: This is one place where we are opinionated on our JSON-LD usage, that means this code can break
+    // general JSON-LD interoperability if someone produces something we weren't expecting...
+
+    /**
+     * Returns the list of JSON-LD nodes extracted from the supplied input.
+     */
+    protected final List<Map<String, Object>> extractNodes(Object input) throws JsonLdError {
+        // TODO Should this consider the identifier from `metadata.id()`?
+        Object nodes = null;
+        if (input instanceof List<?>) {
+            for (Object item : (List<?>) input) {
+                nodes = getGraph(item);
+                if (nodes != null) {
+                    break;
+                }
+            }
+            if (nodes == null) {
+                nodes = input;
+            }
+        } else if (input instanceof Map<?, ?>) {
+            nodes = getGraph(input);
+        }
+
+        if (nodes instanceof List<?>) {
+            // TODO How can we verify these casts? What does the JSON-LD library do?
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> nodeList = (List<Map<String, Object>>) nodes;
+            // TODO Sort these while we have the in memory list?
+            return nodeList;
+        } else {
+            // TODO Emit just the input as a single node list? Only if it has '@id'?
+            throw new JsonLdError(JsonLdError.Error.SYNTAX_ERROR);
+        }
+    }
+
+    /**
+     * Framing does not work on named graphs so we need to pull just the graph nodes out.
+     *
+     * @see <a href="https://github.com/jsonld-java/jsonld-java/issues/109">#109</a>
+     */
+    @Nullable
+    protected final Object dropGraphLabel(@Nullable Object input) {
+        if (input instanceof Map<?, ?>
+                && ((Map<?, ?>) input).containsKey(JsonLdConsts.ID)
+                && ((Map<?, ?>) input).containsKey(JsonLdConsts.GRAPH)) {
+            return ((Map<?, ?>) input).get(JsonLdConsts.GRAPH);
+        } else {
+            return input;
+        }
+    }
+
+    @Nullable
+    private static Object getGraph(@Nullable Object input) {
+        if (input instanceof Map<?, ?>) {
+            // TODO Do we need an ID to check to determine which graph to get?
+            return ((Map<?, ?>) input).get(JsonLdConsts.GRAPH);
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Returns a function which performs input normalization. Input normalization simply ensures that all JSON-LD
+     * entries take a named graph form where the {@value JsonLdConsts#GRAPH} value is a list of node objects. Additional
+     * named graph metadata may be introduced with normalization.
+     */
+    protected final Map<String, Object> normalizeGraph(Object input) {
+        if (input instanceof Map<?, ?>) {
+            if (((Map<?, ?>) input).containsKey(JsonLdConsts.GRAPH)) {
+                // Named graph
+                // TODO How can we verify these casts? What does the JSON-LD library do?
+                @SuppressWarnings("unchecked")
+                Map<String, Object> nodeObject = (Map<String, Object>) input;
+                if (!Objects.equals(nodeObject.get(JsonLdConsts.ID), metadata.id())) {
+                    nodeObject.put(JsonLdConsts.ID, metadata.id());
+                }
+                return nodeObject;
+            } else {
+                // Assume a single node object
+                Map<String, Object> nodeObject = new LinkedHashMap<>();
+                nodeObject.put(JsonLdConsts.ID, metadata.id());
+                nodeObject.put(JsonLdConsts.GRAPH, Lists.newArrayList(input));
+                return nodeObject;
+            }
+        } else if (input instanceof List<?>) {
+            // Array of node objects
+            Map<String, Object> nodeObject = new LinkedHashMap<>();
+            nodeObject.put(JsonLdConsts.ID, metadata.id());
+            nodeObject.put(JsonLdConsts.GRAPH, input);
+            return nodeObject;
+        }
+
+        // TODO What should we do here? Make it a checked exception?
+        throw new IllegalArgumentException("unable to normalize input");
     }
 
 }
