@@ -1,5 +1,30 @@
 {
   "@context" : {
-    "@vocab" : "http://blackducksoftware.com/rdf/terms#"
+    "bdio" : "http://blackducksoftware.com/rdf/terms#",
+    "xsd" : "http://www.w3.org/2001/XMLSchema#",
+    "Project" : "bdio:Project",
+    "Version" : "bdio:Version",
+    "Component" : "bdio:Component",
+    "License" : "bdio:License",
+    "File" : "bdio:File",
+    "Identifier" : "bdio:Identifier",
+    "Fingerprint" : "bdio:Fingerprint",
+    "Vulnerability" : "bdio:Vulnerability",
+    "subproject" : {
+      "@id" : "bdio:hasSubproject",
+      "@type" : "@id"
+    },
+    "creation" : {
+      "@id" : "bdio:hasCreation",
+      "@type" : "xsd:dateTime"
+    },
+    "creator" : "bdio:hasCreator",
+    "producer" : "bdio:hasProducer",
+    "name" : "bdio:hasName",
+    "version" : "bdio:hasVersion",
+    "byteCount" : {
+      "@id" : "bdio:hasByteCount",
+      "@type" : "xsd:long"
+    }
   }
 }
