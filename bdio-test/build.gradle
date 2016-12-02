@@ -1,0 +1,8 @@
+description = 'Black Duck I/O Test'
+
+dependencies {
+	compile 'com.blackducksoftware.magpie:magpie'
+	compile 'com.blackducksoftware.magpie:magpie-test'
+	compile 'com.google.code.findbugs:jsr305'
+	compile 'com.google.guava:guava'
+}

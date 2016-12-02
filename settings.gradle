@@ -1,1 +1,1 @@
-include 'bdio', 'bdio2'
+include 'bdio', 'bdio2', 'bdio-test'

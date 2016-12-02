@@ -10,6 +10,7 @@ dependencies {
 
 	// TODO SLF4J No op binding?
 
+	testCompile project(':bdio-test')
 	testCompile 'com.blackducksoftware.magpie:magpie-test'
     testCompile 'com.google.truth:truth'
     testCompile 'junit:junit'
