@@ -1,4 +1,8 @@
-description = 'Black Duck I/O API'
+description = 'Black Duck I/O API and Tooling'
+
+apply plugin: 'application'
+
+mainClassName = 'com.blackducksoftware.bdio2.tool.BdioMain'
 
 dependencies {
 	compile 'org.reactivestreams:reactive-streams'
@@ -15,4 +19,12 @@ dependencies {
     testCompile 'com.google.truth:truth'
     testCompile 'junit:junit'
     testCompile 'org.mockito:mockito-core'
+}
+
+distributions {
+	main {
+		contents {
+			from("${rootDir}/LICENSE", "${rootDir}/NOTICE")
+		}
+	}
 }

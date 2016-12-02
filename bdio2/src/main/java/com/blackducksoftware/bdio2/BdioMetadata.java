@@ -29,7 +29,7 @@ public final class BdioMetadata extends LinkedHashMap<String, Object> {
 
     // TODO CI environment
 
-    BdioMetadata(@Nullable String id) {
+    public BdioMetadata(@Nullable String id) {
         if (id != null) {
             put(JsonLdConsts.ID, id);
         }
