@@ -15,7 +15,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.Objects;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+
+import com.google.common.collect.AbstractIterator;
 
 /**
  * A generator for producing BDIO entries from a byte stream.
@@ -61,6 +67,31 @@ public class BdioGenerator {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * Returns a stream for accessing the contents of the BDIO entries. Use this instead of the {@code generate}/
+     * {@code dispose} methods.
+     */
+    public Stream<Object> stream() {
+        return StreamSupport.stream(() -> {
+            return Spliterators.spliteratorUnknownSize(new AbstractIterator<Object>() {
+                @Override
+                protected Object computeNext() {
+                    try {
+                        Object entry = reader.nextEntry();
+                        if (entry != null) {
+                            return entry;
+                        } else {
+                            reader.close();
+                            return endOfData();
+                        }
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                }
+            }, Spliterator.NONNULL);
+        }, Spliterator.NONNULL, false);
     }
 
 }
