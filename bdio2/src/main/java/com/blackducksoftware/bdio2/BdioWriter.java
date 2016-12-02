@@ -19,10 +19,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
@@ -32,7 +30,6 @@ import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 
 /**
  * A writer for serializing BDIO nodes to a byte stream. This writer always produces the Zip form of BDIO data,
@@ -44,13 +41,6 @@ import com.google.common.collect.ImmutableSet;
 public class BdioWriter implements Closeable {
 
     // TODO What about signing?
-
-    // TODO Make max size configurable for testing?
-
-    /**
-     * The node keys that should be preserved across split nodes.
-     */
-    private static final Set<String> REQUIRED_NODE_KEYS = ImmutableSet.of(JsonLdConsts.ID, JsonLdConsts.TYPE);
 
     /**
      * Closed state.
@@ -152,13 +142,19 @@ public class BdioWriter implements Closeable {
             if (remaining.addAndGet(serializedNode.length * -1) >= 0L) {
                 out.write(serializedNode);
             } else {
-                // Add back the space since we didn't write it out
-                remaining.getAndAdd(serializedNode.length * -1);
-
-                // Split the node into smaller pieces, this should be rare
-                splitNode(node);
+                throw new EntrySizeViolationException(
+                        Bdio.dataEntryName(entryCount.get() - 1),
+                        Math.abs(remaining.get()) + Bdio.MAX_ENTRY_SIZE);
             }
         }
+    }
+
+    /**
+     * Force close the current entry before reaching the maximum file size.
+     */
+    public void closeEntry() {
+        // Really just drain the remaining size so the next write will open a new entry
+        remaining.set(0);
     }
 
     /**
@@ -193,34 +189,6 @@ public class BdioWriter implements Closeable {
         out.putNextEntry(new ZipEntry(Bdio.dataEntryName(entryNumber)));
         out.write(header);
         remaining.set(Bdio.MAX_ENTRY_SIZE - header.length - footer.length);
-    }
-
-    /**
-     * Splits a single node that is too large to write completely. This is an edge case to say the least.
-     */
-    private void splitNode(Map<String, Object> node) throws IOException {
-        if (node.size() == REQUIRED_NODE_KEYS.size() + 1) {
-            // Recursive rock bottom: we only have one non-required value left
-            throw new IllegalStateException("Node cannot be split, one field exceeds the maximum entry size");
-        }
-
-        // Create a map sized for all the required keys plus half of the non-required keys
-        int limit = ((node.size() - REQUIRED_NODE_KEYS.size()) / 2) + REQUIRED_NODE_KEYS.size();
-        Map<String, Object> partitionMap = new LinkedHashMap<>(limit);
-        for (String requiredKey : REQUIRED_NODE_KEYS) {
-            partitionMap.put(requiredKey, node.get(requiredKey));
-        }
-
-        // Try recursively writing out each partition, the paritions should go to different entries
-        for (Map.Entry<String, Object> entry : node.entrySet()) {
-            if (!REQUIRED_NODE_KEYS.contains(entry.getKey())) {
-                partitionMap.put(entry.getKey(), entry.getValue());
-                if (partitionMap.size() == limit) {
-                    next(partitionMap);
-                    partitionMap.keySet().retainAll(REQUIRED_NODE_KEYS);
-                }
-            }
-        }
     }
 
 }
