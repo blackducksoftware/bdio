@@ -14,11 +14,11 @@ package com.blackducksoftware.bdio2;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
-import java.time.Instant;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
@@ -31,9 +31,8 @@ import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.StandardSystemProperty;
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 
 /**
  * A BDIO Document. A BDIO document is a {@link rx.subjects.Subject} of JSON-LD graphs; each element published or
@@ -84,32 +83,24 @@ public abstract class BdioDocument {
     }
 
     /**
-     * The linked data graph metadata.
-     */
-    private final BdioMetadata metadata;
-
-    /**
      * The JSON-LD options used to manipulate the data.
      */
     private final JsonLdOptions options;
 
-    protected BdioDocument(Builder builder) {
-        // Construct a new metadata instance
-        metadata = new BdioMetadata(MoreObjects.firstNonNull(builder.id, JsonLdConsts.DEFAULT));
-        metadata.setCreation(MoreObjects.firstNonNull(builder.creation, Instant.now()));
-        metadata.setCreator(MoreObjects.firstNonNull(builder.creator, StandardSystemProperty.USER_NAME.value()));
-
-        // Construct the JSON-LD options
-        options = new JsonLdOptions(MoreObjects.firstNonNull(builder.base, ""));
-        options.setExpandContext(MoreObjects.firstNonNull(builder.expandContext, Bdio.Context.DEFAULT.toString()));
-        options.setDocumentLoader(builder.documentLoader.build());
-    }
-
     /**
-     * Returns the graph metadata for this document.
+     * A factory used to create new parser instances. This is configurable so we can support the loading of legacy
+     * formats, like scan containers and BDIO 1.x.
      */
-    protected final BdioMetadata metadata() {
-        return metadata;
+    private final Function<InputStream, Emitter> parserFactory;
+
+    protected BdioDocument(Builder builder) {
+        // Construct the JSON-LD options
+        options = new JsonLdOptions(Objects.requireNonNull(builder.base));
+        options.setExpandContext(Objects.requireNonNull(builder.expandContext));
+        options.setDocumentLoader(builder.documentLoader.build());
+
+        // Store a reference to the parser factory
+        parserFactory = Objects.requireNonNull(builder.parserFactory);
     }
 
     /**
@@ -120,25 +111,37 @@ public abstract class BdioDocument {
     }
 
     /**
-     * Allows you to add or consume JSON-LD graphs using this document.
+     * Returns a new parser for the supplied byte stream.
+     */
+    protected final Emitter newParser(InputStream in) {
+        return parserFactory.apply(in);
+    }
+
+    /**
+     * Allows you to add or consume JSON-LD graph entries.
      */
     public abstract Processor<Object, Object> processor();
 
     /**
      * Allows you to add JSON-LD nodes to this document.
      */
-    public abstract Subscriber<Map<String, Object>> asNodeSubscriber();
+    public abstract Subscriber<Map<String, Object>> asNodeSubscriber(BdioMetadata metadata);
 
     /**
-     * Allows you to consume the processed JSON-LD graph elements from this document.
+     * Allows you to consume the aggregate BDIO metadata across all entries.
+     */
+    public abstract void metadata(Consumer<BdioMetadata> metadataSubscriber);
+
+    /**
+     * Allows you to consume the processed JSON-LD graph entries from this document.
      */
     public abstract JsonLdProcessing jsonld();
 
     /**
      * Writes the BDIO data coming into this document out to the supplied byte stream.
      */
-    // TODO Also take an Action1<Throwable> for error handling?
-    public abstract BdioDocument writeToFile(OutputStream out);
+    // TODO Also take a Consumer<Throwable> for error handling?
+    public abstract BdioDocument writeToFile(BdioMetadata metadata, OutputStream out);
 
     /**
      * Reads BDIO data into this document from the supplied byte stream.
@@ -150,17 +153,13 @@ public abstract class BdioDocument {
      */
     public static class Builder {
 
-        private String id;
+        private String base = "";
 
-        private Instant creation;
-
-        private String creator;
-
-        private String base;
-
-        private Object expandContext;
+        private Object expandContext = Bdio.Context.DEFAULT.toString();
 
         private final RemoteDocumentLoader.Builder documentLoader = new RemoteDocumentLoader.Builder();
+
+        private Function<InputStream, Emitter> parserFactory = BdioEmitter::new;
 
         public Builder() {
             // Always load all versions of the BDIO context for offline access
@@ -178,32 +177,6 @@ public abstract class BdioDocument {
             } catch (ReflectiveOperationException e) {
                 throw new IllegalStateException("cannot construct BdioDocument: " + type.getName(), e);
             }
-        }
-
-        /**
-         * Specifies the identifier used to name the graph. The value must be a valid URI.
-         */
-        public Builder id(String id) {
-            this.id = Objects.requireNonNull(id);
-            // TODO Verify URI syntax?
-            return this;
-        }
-
-        /**
-         * Specifies the creation time for the graph. If not specified, the time at which the {@link #build()}
-         * method is invoked will be used.
-         */
-        public Builder creation(Instant creation) {
-            this.creation = Objects.requireNonNull(creation);
-            return this;
-        }
-
-        /**
-         * Specifies the creator of the graph. If not specified, the owner of the current process will be used.
-         */
-        public Builder creator(String creator) {
-            this.creator = Objects.requireNonNull(creator);
-            return this;
         }
 
         /**
@@ -286,6 +259,14 @@ public abstract class BdioDocument {
             }
         }
 
+        /**
+         * Use an alternate BDIO parser for reading.
+         */
+        public Builder usingParser(Function<InputStream, Emitter> parserFactory) {
+            this.parserFactory = Objects.requireNonNull(parserFactory);
+            return this;
+        }
+
     }
 
     // NOTE: This is one place where we are opinionated on our JSON-LD usage, that means this code can break
@@ -350,38 +331,17 @@ public abstract class BdioDocument {
     }
 
     /**
-     * Returns a function which performs input normalization. Input normalization simply ensures that all JSON-LD
-     * entries take a named graph form where the {@value JsonLdConsts#GRAPH} value is a list of node objects. Additional
-     * named graph metadata may be introduced with normalization.
+     * Extracts metadata from the supplied entry.
      */
-    protected final Map<String, Object> normalizeGraph(Object input) {
+    protected final Map<String, Object> extractMetadata(Object input) {
         if (input instanceof Map<?, ?>) {
-            if (((Map<?, ?>) input).containsKey(JsonLdConsts.GRAPH)) {
-                // Named graph
-                // TODO How can we verify these casts? What does the JSON-LD library do?
-                @SuppressWarnings("unchecked")
-                Map<String, Object> nodeObject = (Map<String, Object>) input;
-                if (!Objects.equals(nodeObject.get(JsonLdConsts.ID), metadata.id())) {
-                    nodeObject.put(JsonLdConsts.ID, metadata.id());
-                }
-                return nodeObject;
-            } else {
-                // Assume a single node object
-                Map<String, Object> nodeObject = new LinkedHashMap<>();
-                nodeObject.put(JsonLdConsts.ID, metadata.id());
-                nodeObject.put(JsonLdConsts.GRAPH, Lists.newArrayList(input));
-                return nodeObject;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) input;
+            if (data.containsKey(JsonLdConsts.GRAPH)) {
+                return Maps.filterKeys(data, key -> !key.equals(JsonLdConsts.GRAPH));
             }
-        } else if (input instanceof List<?>) {
-            // Array of node objects
-            Map<String, Object> nodeObject = new LinkedHashMap<>();
-            nodeObject.put(JsonLdConsts.ID, metadata.id());
-            nodeObject.put(JsonLdConsts.GRAPH, input);
-            return nodeObject;
         }
-
-        // TODO What should we do here? Make it a checked exception?
-        throw new IllegalArgumentException("unable to normalize input");
+        return ImmutableMap.of();
     }
 
 }

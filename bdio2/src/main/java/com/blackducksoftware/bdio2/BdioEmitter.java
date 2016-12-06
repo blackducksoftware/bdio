@@ -21,20 +21,24 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import com.blackducksoftware.common.io.ExtraIO;
 import com.google.common.collect.AbstractIterator;
 
 /**
- * A generator for producing BDIO entries from a byte stream.
+ * An emitter that wraps a {@code BdioReader} for producing BDIO entries from a byte stream.
  *
  * @author jgustie
  * @see BdioReader
  */
-public class BdioGenerator {
+public class BdioEmitter implements Emitter {
 
+    /**
+     * The BDIO reader.
+     */
     private final BdioReader reader;
 
-    public BdioGenerator(InputStream in) {
-        reader = new BdioReader(in);
+    public BdioEmitter(InputStream in) {
+        reader = new BdioReader(ExtraIO.buffer(in));
     }
 
     /**
@@ -42,7 +46,8 @@ public class BdioGenerator {
      * sent to {@code onNext} are the raw parsed JSON entries; in general this should be a {@code Map<String, Object>}
      * or a {@code List<Map<String, Object>>} but it could also be a scalar value in some cases.
      */
-    public void generate(Consumer<Object> onNext, Consumer<Throwable> onError, Runnable onComplete) {
+    @Override
+    public void emit(Consumer<Object> onNext, Consumer<Throwable> onError, Runnable onComplete) {
         Objects.requireNonNull(onNext);
         Objects.requireNonNull(onError);
         Objects.requireNonNull(onComplete);
@@ -61,7 +66,8 @@ public class BdioGenerator {
     /**
      * Unchecked version of {@link BdioReader#close()}.
      */
-    public void dispose() throws UncheckedIOException {
+    @Override
+    public void dispose() {
         try {
             reader.close();
         } catch (IOException e) {

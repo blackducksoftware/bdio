@@ -16,7 +16,7 @@ import static com.google.common.base.Preconditions.checkState;
 import java.io.IOException;
 import java.util.Objects;
 
-import com.blackducksoftware.bdio2.BdioGenerator;
+import com.blackducksoftware.bdio2.BdioEmitter;
 import com.google.common.collect.Iterables;
 import com.google.common.io.ByteSource;
 
@@ -51,7 +51,7 @@ public class EntriesTool extends Tool {
     @Override
     public void execute() throws IOException {
         checkState(input != null, "input is not set");
-        new BdioGenerator(input.openBufferedStream()).stream().forEach(this::printJson);
+        new BdioEmitter(input.openBufferedStream()).stream().forEach(this::printJson);
     }
 
 }

@@ -27,11 +27,11 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.google.common.collect.Lists;
 
 /**
- * Tests for {@link BdioGenerator}.
+ * Tests for {@link BdioEmitter}.
  *
  * @author jgustie
  */
-public class BdioGeneratorTest {
+public class BdioEmitterTest {
 
     @Mock
     private Subscriber<Object> subscriber;
@@ -43,32 +43,32 @@ public class BdioGeneratorTest {
 
     @Test
     public void readOne() {
-        BdioGenerator generator = new BdioGenerator(zipBytes("[ \"test\" ]"));
+        BdioEmitter emitter = new BdioEmitter(zipBytes("[ \"test\" ]"));
         try {
             reset(subscriber);
-            generator.generate(subscriber::onNext, subscriber::onError, subscriber::onComplete);
+            emitter.emit(subscriber::onNext, subscriber::onError, subscriber::onComplete);
             verify(subscriber).onNext(Lists.newArrayList("test"));
             verifyNoMoreInteractions(subscriber);
 
             reset(subscriber);
-            generator.generate(subscriber::onNext, subscriber::onError, subscriber::onComplete);
+            emitter.emit(subscriber::onNext, subscriber::onError, subscriber::onComplete);
             verify(subscriber).onComplete();
             verifyNoMoreInteractions(subscriber);
         } finally {
-            generator.dispose();
+            emitter.dispose();
         }
     }
 
     @Test
     public void readSyntaxError() {
-        BdioGenerator generator = new BdioGenerator(zipBytes("I'm not JSON"));
+        BdioEmitter emitter = new BdioEmitter(zipBytes("I'm not JSON"));
         try {
             reset(subscriber);
-            generator.generate(subscriber::onNext, subscriber::onError, subscriber::onComplete);
+            emitter.emit(subscriber::onNext, subscriber::onError, subscriber::onComplete);
             verify(subscriber).onError(any(JsonParseException.class));
             verifyNoMoreInteractions(subscriber);
         } finally {
-            generator.dispose();
+            emitter.dispose();
         }
     }
 

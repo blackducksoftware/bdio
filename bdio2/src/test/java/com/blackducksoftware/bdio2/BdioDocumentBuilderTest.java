@@ -23,16 +23,6 @@ import org.junit.Test;
 public class BdioDocumentBuilderTest {
 
     @Test(expected = NullPointerException.class)
-    public void builder_nullId() {
-        new BdioDocument.Builder().id(null);
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void builder_nullCreation() {
-        new BdioDocument.Builder().creation(null);
-    }
-
-    @Test(expected = NullPointerException.class)
     public void builder_nullBaseString() {
         new BdioDocument.Builder().base((String) null);
     }
