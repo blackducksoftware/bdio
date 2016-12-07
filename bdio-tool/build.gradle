@@ -1,0 +1,19 @@
+description = 'Black Duck I/O Tooling'
+
+apply plugin: 'application'
+
+mainClassName = 'com.blackducksoftware.bdio2.tool.BdioMain'
+
+dependencies {
+
+	// TODO SLF4J No op binding?
+
+}
+
+distributions {
+	main {
+		contents {
+			from("${rootDir}/LICENSE", "${rootDir}/NOTICE")
+		}
+	}
+}

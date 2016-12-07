@@ -17,6 +17,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.UncheckedIOException;
@@ -32,6 +33,7 @@ import com.blackducksoftware.common.io.ExtraIO;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.io.ByteSink;
 import com.google.common.io.ByteSource;
 import com.google.common.io.Files;
 
@@ -290,6 +292,35 @@ public abstract class Tool implements Runnable {
                     throw new IOException(name); // TODO Message? Exception?
                 } else {
                     return Files.asByteSource(file);
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Returns a byte sink for generating output. If the name is "-" then bytes will go to the standard output
+     * stream, otherwise name is taken as a file path relative to the current working directory.
+     */
+    protected static ByteSink getOutput(String name) {
+        try {
+            if (name.equals("-")) {
+                return new ByteSink() {
+                    @Override
+                    public OutputStream openStream() throws IOException {
+                        // TODO Block closing?
+                        return System.out;
+                    }
+                };
+            } else {
+                File file = new File(name);
+                if (file.isDirectory()) {
+                    throw new IOException(name); // TODO Message? Exception?
+                } else if (file.exists() && !file.canWrite()) {
+                    throw new IOException(name); // TODO Message? Exception?
+                } else {
+                    return Files.asByteSink(file);
                 }
             }
         } catch (IOException e) {
