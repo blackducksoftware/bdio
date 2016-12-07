@@ -30,6 +30,15 @@ public final class BdioMetadata extends LinkedHashMap<String, Object> {
     public BdioMetadata() {
     }
 
+    public BdioMetadata(Map<String, Object> other) {
+        super(other);
+    }
+
+    public BdioMetadata merge(Map<String, Object> other) {
+        putAll(other);
+        return this;
+    }
+
     public String getId() {
         return (String) get(JsonLdConsts.ID);
     }

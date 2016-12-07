@@ -130,7 +130,14 @@ public abstract class BdioDocument {
     /**
      * Allows you to consume the aggregate BDIO metadata across all entries.
      */
-    public abstract void metadata(Consumer<BdioMetadata> metadataSubscriber);
+    public abstract BdioDocument metadata(Consumer<BdioMetadata> metadataSubscriber);
+
+    /**
+     * Allows you to consume just the metadata from the first entry. This is always enough to obtain the identifier,
+     * however, depending on how the data was structured there is no guarantee that other metadata will be available (in
+     * general, if a BDIO file has a header entry, this will give you complete metadata).
+     */
+    public abstract BdioDocument takeFirstMetadata(Consumer<BdioMetadata> metadataSubscriber);
 
     /**
      * Allows you to consume the processed JSON-LD graph entries from this document.
