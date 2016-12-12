@@ -99,6 +99,12 @@ public class ScanContainerEmitter implements Emitter {
 
         private final Map<Long, LegacyScanNode> scanNodeList;
 
+        @Nullable
+        private final String scannerVersion;
+
+        @Nullable
+        private final String signatureVersion;
+
         @JsonCreator
         public LegacyScanContainer(
                 @Nullable @JsonProperty("baseDir") String baseDir,
@@ -107,7 +113,9 @@ public class ScanContainerEmitter implements Emitter {
                 @Nullable @JsonProperty("name") String name,
                 @Nullable @JsonProperty("project") String project,
                 @Nullable @JsonProperty("release") String release,
-                @Nullable @JsonProperty("scanNodeList") List<LegacyScanNode> scanNodeList) {
+                @Nullable @JsonProperty("scanNodeList") List<LegacyScanNode> scanNodeList,
+                @Nullable @JsonProperty("scannerVersion") String scannerVersion,
+                @Nullable @JsonProperty("signatureVersion") String signatureVersion) {
             this.baseDir = baseDir;
             this.createdOn = createdOn;
             this.hostName = hostName;
@@ -115,25 +123,35 @@ public class ScanContainerEmitter implements Emitter {
             this.project = project;
             this.release = release;
             this.scanNodeList = scanNodeList != null ? Maps.uniqueIndex(scanNodeList, scanNode -> scanNode.id) : ImmutableMap.of();
+            this.scannerVersion = scannerVersion;
+            this.signatureVersion = signatureVersion;
         }
 
         private BdioMetadata metadata() {
-            BdioMetadata bdioMetadata = new BdioMetadata();
-            bdioMetadata.setId(toFileUri(hostName, baseDir, null));
-            bdioMetadata.setCreation(createdOn != null ? createdOn.toInstant() : null);
-            return bdioMetadata;
+            // TODO Ids are messed up because this is the same as the root file
+            // TODO Generate producer product string
+            // TODO Get user name?
+            return new BdioMetadata()
+                    .id(toFileUri(hostName, baseDir, null))
+                    .name(name)
+                    .creation(createdOn != null ? createdOn.toInstant() : null);
+
         }
 
-        private Project project() {
-            final String projectId = toFileUri(hostName, baseDir, "PROJECT");
-            final Project bdioProject;
-            if (project != null && release != null) {
-                bdioProject = new Version(projectId).version(release);
-            } else {
-                bdioProject = new Project(projectId);
-            }
+        private Stream<Project> projects() {
+            // TODO Use the project name as the fragment?
+            Project bdioProject = new Project(toFileUri(hostName, baseDir, "PROJECT"));
             bdioProject.name(project);
-            return bdioProject;
+            bdioProject.base(toFileUri(hostName, baseDir, null));
+
+            if (project != null && release != null) {
+                Version bdioVersion = new Version(toFileUri(hostName, baseDir, "PROJECT-" + release));
+                bdioVersion.version(release);
+                bdioProject.currentVersion(bdioVersion.id());
+                return Stream.of(bdioProject, bdioVersion);
+            } else {
+                return Stream.of(bdioProject);
+            }
         }
 
         private Stream<File> files() {
@@ -243,10 +261,8 @@ public class ScanContainerEmitter implements Emitter {
         }, Spliterator.DISTINCT | Spliterator.SIZED, false)
                 .flatMap(scanContainer -> {
                     BdioMetadata metadata = scanContainer.metadata();
-                    Project project = scanContainer.project();
-                    Stream<File> files = scanContainer.files();
                     return Stream.concat(Stream.of(metadata.asNamedGraph(ImmutableList.of())),
-                            partitionNodes(Stream.concat(Stream.of(project), files))
+                            partitionNodes(Stream.concat(scanContainer.projects(), scanContainer.files()))
                                     .map(graph -> (Object) metadata.asNamedGraph(graph, JsonLdConsts.ID)));
                 })
                 .spliterator();

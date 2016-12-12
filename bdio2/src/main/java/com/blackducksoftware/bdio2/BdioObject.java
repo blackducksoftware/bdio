@@ -11,28 +11,45 @@
  */
 package com.blackducksoftware.bdio2;
 
-import java.time.Instant;
-import java.util.Arrays;
+import static com.google.common.base.Preconditions.checkArgument;
+
+import java.util.AbstractMap;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.function.BiFunction;
 
 import javax.annotation.Nullable;
 
+import com.blackducksoftware.bdio2.Bdio.Container;
 import com.github.jsonldjava.core.JsonLdConsts;
+import com.google.common.collect.Lists;
 
 /**
  * Base class used to help model the BDIO JSON-LD classes.
  *
  * @author jgustie
  */
-public class BdioObject extends LinkedHashMap<String, Object> {
+public class BdioObject extends AbstractMap<String, Object> {
 
-    // TODO Can we play with the property ordering to make these compress better?
+    /**
+     * The backing node data for this BDIO object.
+     * <p>
+     * Especially with the explosion in size of the {@code Map} API in Java 8, it does not make sense to directly
+     * extends a specific map implementation and attempt to enforce constraints on it: too much code needs special
+     * consideration and it is prone to changing more frequently because of default method implementations. If the
+     * default {@code AbstractMap} implementations prove to be too slow we can provide optimized implementations calling
+     * through to the value of this field as needed.
+     */
+    private final Map<String, Object> data;
 
-    // TODO Technically properties can almost always be lists, put "cardinality" on the properties so we can see how we
-    // should behave; also have getAll/getFirst like variants
-
+    /**
+     * Constructor for types with an identifier.
+     */
     protected BdioObject(String id, Bdio.Class bdioClass) {
+        data = new LinkedHashMap<>();
         put(JsonLdConsts.ID, Objects.requireNonNull(id));
         put(JsonLdConsts.TYPE, bdioClass.toString());
     }
@@ -41,83 +58,114 @@ public class BdioObject extends LinkedHashMap<String, Object> {
      * Constructor for types which are embedded and leverage blank node identifiers.
      */
     protected BdioObject(Bdio.Class bdioClass) {
+        data = new LinkedHashMap<>();
         put(JsonLdConsts.TYPE, bdioClass.toString());
     }
 
-    @Override
-    public final Object remove(Object key) {
-        // Silently ignore requests to remove the identifier or type
-        if (Objects.equals(key, JsonLdConsts.ID) || Objects.equals(key, JsonLdConsts.TYPE)) {
-            return get(key);
-        } else {
-            return super.remove(key);
-        }
+    /**
+     * Specialty copy constructor for internal use.
+     */
+    BdioObject(Map<String, Object> initialValues) {
+        data = new LinkedHashMap<>(initialValues);
     }
 
     @Override
-    public final void clear() {
-        // Override clear to keep the identifier and type intact
-        keySet().retainAll(Arrays.asList(JsonLdConsts.ID, JsonLdConsts.TYPE));
+    public final Set<Entry<String, Object>> entrySet() {
+        return data.entrySet();
     }
 
     @Override
-    public Object get(Object key) {
-        // Really we want the string representations of our enumerations for keys
-        if (key instanceof Bdio.DataProperty || key instanceof Bdio.ObjectProperty) {
-            return super.get(key.toString());
+    public final Object put(String key, @Nullable Object value) {
+        Objects.requireNonNull(key, "key must not be null");
+        return value != null ? data.put(key, value) : data.remove(key);
+    }
+
+    @Override
+    public final Object get(@Nullable Object key) {
+        return data.get(key);
+    }
+
+    /**
+     * Returns the identifier for this object.
+     */
+    @Nullable
+    public final String id() {
+        return (String) get(JsonLdConsts.ID);
+    }
+
+    /**
+     * Appends a new value to a data property, returning the new value or {@code null} if the property was not
+     * previously mapped and the supplied value is {@code null}.
+     */
+    public final Object putData(Bdio.DataProperty key, @Nullable Object value) {
+        if (value != null) {
+            return merge(key.toString(), checkType(key.type(), value), mergeValue(key.container()));
         } else {
-            return super.get(key);
+            return compute(key.toString(), computeNullValue(key.container()));
         }
     }
 
     /**
-     * Returns the identifier of this node.
+     * Appends a new identifier for a related object, returning the new value or {@code null} if the property was not
+     * previously mapped and the supplied value is {@code null}.
+     */
+    public final Object putObject(Bdio.ObjectProperty key, @Nullable String value) {
+        if (value != null) {
+            return merge(key.toString(), value, mergeValue(key.container()));
+        } else {
+            return compute(key.toString(), computeNullValue(key.container()));
+        }
+    }
+
+    /**
+     * Make sure the incoming value has the appropriate Java type. If minor corrections are necessary, the result may
+     * not be the same as supplied value; however the expectation is that {@code value} will pass through this method.
      */
     @Nullable
-    public final String id() {
-        // We don't guard against `put("@id", null)`
-        return (String) get(JsonLdConsts.ID);
+    private static Object checkType(Bdio.Datatype type, @Nullable Object value) {
+        if (value != null) {
+            checkArgument(type.javaType().isInstance(value), "was expecting %s, got: %s",
+                    type.javaType().getName(), value.getClass().getName());
+
+            // DateTime is a special case because the Instant class isn't handled in JSON-LD's ObjectMapper
+            return type != Bdio.Datatype.DateTime ? value : value.toString();
+        } else {
+            return null;
+        }
     }
 
-    public String getString(Bdio.DataProperty key) {
-        // TODO Get the first string?
-        return (String) get(key.toString());
+    /**
+     * Function for merging two values.
+     */
+    private static BiFunction<Object, Object, Object> mergeValue(Bdio.Container container) {
+        if (container != Container.single) {
+            // If the container type is a list we want to merge the old and new values into a list
+            return (oldValue, newValue) -> {
+                List<Object> values = oldValue instanceof List<?> ? (List<Object>) oldValue : Lists.newArrayList(oldValue);
+                if (newValue instanceof List<?>) {
+                    values.addAll((List<?>) newValue);
+                } else {
+                    values.add(newValue);
+                }
+                return values;
+            };
+        } else {
+            // If the container type is 'single' always just take the new value
+            return (oldValue, value) -> value;
+        }
     }
 
-    public Long getLong(Bdio.DataProperty key) {
-        // TODO Get the first number?
-        Number value = (Number) get(key.toString());
-        return value != null ? value.longValue() : null;
-    }
-
-    public Instant getInstant(Bdio.DataProperty key) {
-        String value = getString(key);
-        return value != null ? Instant.parse(value) : null;
-    }
-
-    public Object getRelated(Bdio.ObjectProperty key) {
-        return get(key.toString());
-    }
-
-    public Object put(Bdio.DataProperty key, Object value) {
-        // TODO Consider container to determine if we merge or overwrite
-        return put(key.toString(), value);
-    }
-
-    public Object putString(Bdio.DataProperty key, String value) {
-        return put(key.toString(), value);
-    }
-
-    public Object putLong(Bdio.DataProperty key, Long value) {
-        return put(key.toString(), value);
-    }
-
-    public Object putInstant(Bdio.DataProperty key, Instant value) {
-        return put(key.toString(), value != null ? value.toString() : null);
-    }
-
-    public Object putRelated(Bdio.ObjectProperty key, Object value) {
-        return put(key.toString(), value);
+    /**
+     * Function for computing the replacement for a {@code null} value.
+     */
+    private static BiFunction<String, Object, Object> computeNullValue(Bdio.Container container) {
+        if (container != Container.single) {
+            // If the container type is a list we just don't want to add anything to it
+            return (key, oldValue) -> oldValue;
+        } else {
+            // If the container type is 'single' we want to remove the existing mapping
+            return (key, oldValue) -> null;
+        }
     }
 
 }

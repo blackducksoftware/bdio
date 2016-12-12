@@ -11,6 +11,8 @@
  */
 package com.blackducksoftware.bdio2.model;
 
+import javax.annotation.Nullable;
+
 import com.blackducksoftware.bdio2.Bdio;
 
 public class Version extends Project {
@@ -24,12 +26,8 @@ public class Version extends Project {
         super(id, bdioClass);
     }
 
-    public String version() {
-        return getString(Bdio.DataProperty.version);
-    }
-
-    public Version version(String version) {
-        putString(Bdio.DataProperty.version, version);
+    public Version version(@Nullable String version) {
+        putData(Bdio.DataProperty.version, version);
         return this;
     }
 

@@ -11,6 +11,8 @@
  */
 package com.blackducksoftware.bdio2.model;
 
+import javax.annotation.Nullable;
+
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 
@@ -25,12 +27,8 @@ public class File extends BdioObject {
         super(id, bdioClass);
     }
 
-    public Long byteCount() {
-        return getLong(Bdio.DataProperty.byteCount);
-    }
-
-    public File byteCount(Long size) {
-        putLong(Bdio.DataProperty.byteCount, size);
+    public File byteCount(@Nullable Long size) {
+        putData(Bdio.DataProperty.byteCount, size);
         return this;
     }
 

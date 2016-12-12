@@ -11,6 +11,8 @@
  */
 package com.blackducksoftware.bdio2.model;
 
+import javax.annotation.Nullable;
+
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 
@@ -25,13 +27,18 @@ public class Project extends BdioObject {
         super(id, bdioClass);
     }
 
-    public String name() {
-        return getString(Bdio.DataProperty.name);
-    }
-
-    public Project name(String name) {
-        putString(Bdio.DataProperty.name, name);
+    public Project name(@Nullable String name) {
+        putData(Bdio.DataProperty.name, name);
         return this;
     }
 
+    public Project currentVersion(@Nullable String currentVersion) {
+        putObject(Bdio.ObjectProperty.currentVersion, currentVersion);
+        return this;
+    }
+
+    public Project base(@Nullable String base) {
+        putObject(Bdio.ObjectProperty.base, base);
+        return this;
+    }
 }

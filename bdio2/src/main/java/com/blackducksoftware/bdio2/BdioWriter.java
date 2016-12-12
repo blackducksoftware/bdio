@@ -95,7 +95,7 @@ public class BdioWriter implements Closeable {
                 .append("{\n  ")
                 .append('"').append(JsonLdConsts.ID).append('"')
                 .append(" : ")
-                .append('"').append(metadata.getId()).append('"')
+                .append('"').append(metadata.id()).append('"')
                 .append(",\n  ")
                 .append('"').append(JsonLdConsts.GRAPH).append('"')
                 .append(" : [ ")
