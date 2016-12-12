@@ -15,7 +15,7 @@ import java.io.IOException;
 
 import javax.annotation.Nullable;
 
-// Thrown when the 16MB limit is violated...
+// Thrown when the 16MB limit is violated...on read OR write
 // TODO Name?
 /**
  *
@@ -23,6 +23,8 @@ import javax.annotation.Nullable;
  * @since 2.0.0
  */
 public class EntrySizeViolationException extends IOException {
+
+    private static final long serialVersionUID = 1627540107517253512L;
 
     /**
      * The name of the entry that exceeded the maximum length.

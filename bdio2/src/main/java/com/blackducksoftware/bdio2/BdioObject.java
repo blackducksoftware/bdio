@@ -141,6 +141,7 @@ public class BdioObject extends AbstractMap<String, Object> {
         if (container != Container.single) {
             // If the container type is a list we want to merge the old and new values into a list
             return (oldValue, newValue) -> {
+                @SuppressWarnings("unchecked")
                 List<Object> values = oldValue instanceof List<?> ? (List<Object>) oldValue : Lists.newArrayList(oldValue);
                 if (newValue instanceof List<?>) {
                     values.addAll((List<?>) newValue);

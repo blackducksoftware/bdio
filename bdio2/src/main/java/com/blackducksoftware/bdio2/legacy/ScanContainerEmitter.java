@@ -175,29 +175,29 @@ public class ScanContainerEmitter implements Emitter {
         @Nullable
         private final String archiveUri;
 
-        private long id;
+        private final long id;
 
         @Nullable
-        private String name;
+        private final String name;
 
         @Nullable
-        private Long parentId;
+        private final Long parentId;
 
         @Nullable
-        private String path;
+        private final String path;
 
-        private Map<String, String> signatures;
-
-        @Nullable
-        private Long size;
+        private final Map<String, String> signatures;
 
         @Nullable
-        private String type;
+        private final Long size;
+
+        @Nullable
+        private final String type;
 
         @JsonCreator
         public LegacyScanNode(
                 @Nullable @JsonProperty("archiveUri") String archiveUri,
-                @Nullable @JsonProperty("id") long id,
+                @Nullable @JsonProperty("id") Long id,
                 @Nullable @JsonProperty("name") String name,
                 @Nullable @JsonProperty("parentId") Long parentId,
                 @Nullable @JsonProperty("path") String path,
@@ -205,7 +205,7 @@ public class ScanContainerEmitter implements Emitter {
                 @Nullable @JsonProperty("size") Long size,
                 @Nullable @JsonProperty("type") String type) {
             this.archiveUri = archiveUri;
-            this.id = id;
+            this.id = id != null ? id.longValue() : -1L;
             this.name = name;
             this.parentId = parentId;
             this.path = path;
