@@ -42,8 +42,7 @@ public class BdioWriterTest {
 
     @Before
     public void createMetadata() {
-        metadata = new BdioMetadata();
-        metadata.setId("urn:uuid:" + UUID.randomUUID());
+        metadata = new BdioMetadata().id("urn:uuid:" + UUID.randomUUID());
     }
 
     @SuppressWarnings("resource")
@@ -90,7 +89,7 @@ public class BdioWriterTest {
         }
         List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
         assertThat(entries).hasSize(1);
-        assertThatJson(entries.get(0)).at("/@id").isEqualTo(metadata.getId());
+        assertThatJson(entries.get(0)).at("/@id").isEqualTo(metadata.id());
         assertThatJson(entries.get(0)).arrayAt("/@graph").hasSize(0);
     }
 
@@ -105,9 +104,9 @@ public class BdioWriterTest {
         List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
         assertThat(entries).hasSize(2);
 
-        assertThatJson(entries.get(0)).at("/@id").isEqualTo(metadata.getId());
+        assertThatJson(entries.get(0)).at("/@id").isEqualTo(metadata.id());
         assertThatJson(entries.get(0)).arrayAt("/@graph").hasSize(0);
-        assertThatJson(entries.get(1)).at("/@id").isEqualTo(metadata.getId());
+        assertThatJson(entries.get(1)).at("/@id").isEqualTo(metadata.id());
         assertThatJson(entries.get(1)).at("/@graph/0/test").isEqualTo("foo");
         assertThatJson(entries.get(1)).at("/@graph/1/test").isEqualTo("bar");
     }
