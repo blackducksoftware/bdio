@@ -11,7 +11,11 @@
  */
 package com.blackducksoftware.bdio2;
 
+import java.time.Instant;
 import java.util.Objects;
+
+import com.blackducksoftware.bdio2.datatype.Fingerprint;
+import com.blackducksoftware.bdio2.datatype.Products;
 
 /**
  * A collection of constants and helpers pertaining to the BDIO specification.
@@ -90,15 +94,6 @@ public class Bdio {
         Identifier("http://blackducksoftware.com/rdf/terms#Identifier"),
 
         /**
-         * It is not generally desirable to include complete file contents in a BDIO document, instead file identity can
-         * be established using a fingerprint of the file. Typically, the fingerprint will be a SHA-1 hash of the file
-         * contents. The fingerprint object is meant to include both the value of the fingerprint and the algorithm used
-         * to compute it.
-         */
-        // TODO Should we even have this? Probably not, just use a datatype
-        Fingerprint("http://blackducksoftware.com/rdf/terms#Fingerprint"),
-
-        /**
          * A vulnerability represents a specific weakness in a project. It is often convenient to reference
          * vulnerabilities from specific project versions or the components linked to those versions. Vulnerabilities
          * may be found through simple look ups based on well know project metadata (e.g.
@@ -126,7 +121,7 @@ public class Bdio {
          * In a JSON-LD framing context, should this class be embedded.
          */
         public boolean embed() {
-            return this == Class.Identifier || this == Class.Fingerprint;
+            return this == Class.Identifier;
         }
     }
 
@@ -136,11 +131,11 @@ public class Bdio {
          * Establishes that a project has a subproject or module relationship to another project.
          */
         // Domain = Project; Range = Project
-        subproject("http://blackducksoftware.com/rdf/terms#hasSubproject")
+        subproject("http://blackducksoftware.com/rdf/terms#hasSubproject", Container.unordered),
 
-        // TODO hasCurrentVersion
-        // TODO hasPreviousVersion
-        // TODO hasBase hasRoot
+        currentVersion("http://blackducksoftware.com/rdf/terms#hasCurrentVersion", Container.single),
+        previousVersion("http://blackducksoftware.com/rdf/terms#hasPreviousVersion", Container.single),
+        base("http://blackducksoftware.com/rdf/terms#hasBase", Container.unordered),
 
         // TODO hasIdentifier
         // TODO hasFingerprint
@@ -149,13 +144,20 @@ public class Bdio {
 
         private final String iri;
 
-        private ObjectProperty(String iri) {
+        private final Container container;
+
+        private ObjectProperty(String iri, Container container) {
             this.iri = Objects.requireNonNull(iri);
+            this.container = Objects.requireNonNull(container);
         }
 
         @Override
         public String toString() {
             return iri;
+        }
+
+        public Container container() {
+            return container;
         }
     }
 
@@ -164,7 +166,7 @@ public class Bdio {
         /**
          * The time at which the BDIO document was created. This property should be specified for the named graph.
          */
-        // TODO Incorporate "time" or "datetime" or "timestamp" into the name?
+        // TODO Incorporate "time" or "datetime" or "timestamp" or "instant" into the name?
         creation("http://blackducksoftware.com/rdf/terms#hasCreation", Datatype.DateTime, Container.single),
 
         /**
@@ -202,11 +204,13 @@ public class Bdio {
         // Domain = File
         byteCount("http://blackducksoftware.com/rdf/terms#hasByteCount", Datatype.Long, Container.single),
 
+        fingerprint("http://blackducksoftware.com/rdf/terms#hasFingerprint", Datatype.Fingerprint, Container.unordered),
+
         // TODO copyrightYear
         // TODO rightsHolder
         // TODO contentType
         // TODO algorithm XXX
-        // TODO fingerprintValue XXX
+
         // TODO hid/path?
 
         ;
@@ -239,21 +243,29 @@ public class Bdio {
 
     public enum Datatype {
 
-        Default(""),
-        DateTime("http://www.w3.org/2001/XMLSchema#dateTime"),
-        Long("http://www.w3.org/2001/XMLSchema#long"),
-
+        Default("", String.class),
+        DateTime("http://www.w3.org/2001/XMLSchema#dateTime", Instant.class),
+        Long("http://www.w3.org/2001/XMLSchema#long", Long.class),
+        Fingerprint("http://blackducksoftware.com/rdf/terms#Fingerprint", Fingerprint.class),
+        Products("http://blackducksoftware.com/rdf/terms#Products", Products.class),
         ;
 
         private final String iri;
 
-        private Datatype(String iri) {
+        private final java.lang.Class<?> javaType;
+
+        private Datatype(String iri, java.lang.Class<?> javaType) {
             this.iri = Objects.requireNonNull(iri);
+            this.javaType = Objects.requireNonNull(javaType);
         }
 
         @Override
         public String toString() {
             return iri;
+        }
+
+        public java.lang.Class<?> javaType() {
+            return javaType;
         }
     }
 
