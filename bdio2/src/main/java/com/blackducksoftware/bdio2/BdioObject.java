@@ -12,14 +12,15 @@
 package com.blackducksoftware.bdio2;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 
+import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.BiFunction;
 
 import javax.annotation.Nullable;
 
@@ -28,7 +29,10 @@ import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.Lists;
 
 /**
- * Base class used to help model the BDIO JSON-LD classes.
+ * Base class used to help model the BDIO JSON-LD classes. This map does not allow {@code null} keys, attempts to map
+ * {@code null} values will result in the removal of the mapping. It is expected that the map represents expanded
+ * JSON-LD content, that is keys are string representations of fully qualified IRIs and typed values are represented as
+ * value objects (i.e. including their value and type).
  *
  * @author jgustie
  */
@@ -90,83 +94,103 @@ public class BdioObject extends AbstractMap<String, Object> {
      */
     @Nullable
     public final String id() {
-        return (String) get(JsonLdConsts.ID);
+        Object value = get(JsonLdConsts.ID);
+        checkState(value == null || value instanceof String, "identifier is not mapped to a string");
+        return (String) value;
     }
 
     /**
      * Appends a new value to a data property, returning the new value or {@code null} if the property was not
      * previously mapped and the supplied value is {@code null}.
      */
-    public final Object putData(Bdio.DataProperty key, @Nullable Object value) {
-        if (value != null) {
-            return merge(key.toString(), checkType(key.type(), value), mergeValue(key.container()));
-        } else {
-            return compute(key.toString(), computeNullValue(key.container()));
-        }
+    protected final Object putData(Bdio.DataProperty key, @Nullable Object value) {
+        return putJsonLd(key, value);
     }
 
     /**
      * Appends a new identifier for a related object, returning the new value or {@code null} if the property was not
      * previously mapped and the supplied value is {@code null}.
      */
-    public final Object putObject(Bdio.ObjectProperty key, @Nullable String value) {
+    protected final Object putObject(Bdio.ObjectProperty key, @Nullable String value) {
+        return putJsonLd(key, value);
+    }
+
+    /**
+     * Generic implementation of {@code put} for JSON-LD values.
+     */
+    private Object putJsonLd(Object key, @Nullable Object value) {
+        Bdio.Container container = container(key);
         if (value != null) {
-            return merge(key.toString(), value, mergeValue(key.container()));
+            // Replace the mapping for a single, otherwise combine the values into a list
+            return merge(key.toString(), expand(key, value), container != Container.single ? BdioObject::combine : (k, v) -> v);
         } else {
-            return compute(key.toString(), computeNullValue(key.container()));
+            // Remove the mapping for a single, otherwise keep the old value (i.e. don't add anything)
+            return compute(key.toString(), (k, v) -> container != Container.single ? v : null);
         }
     }
 
     /**
-     * Make sure the incoming value has the appropriate Java type. If minor corrections are necessary, the result may
-     * not be the same as supplied value; however the expectation is that {@code value} will pass through this method.
+     * Returns the container associated with the specified map key. A container of {@link Bdio.Container#single} behaves
+     * like a normal map, all other containers behave like a list multimap.
+     */
+    private static Bdio.Container container(Object key) {
+        if (key instanceof Bdio.DataProperty) {
+            return ((Bdio.DataProperty) key).container();
+        } else if (key instanceof Bdio.ObjectProperty) {
+            return ((Bdio.ObjectProperty) key).container();
+        } else {
+            return Bdio.Container.single;
+        }
+    }
+
+    /**
+     * Merges two values into a single list value.
+     */
+    @SuppressWarnings("unchecked")
+    private static Object combine(Object oldValue, Object value) {
+        if (oldValue instanceof List<?>) {
+            ((List<Object>) oldValue).add(value);
+            return oldValue;
+        } else {
+            return Lists.newArrayList(oldValue, value);
+        }
+    }
+
+    /**
+     * Generates an expanded JSON-LD representation of a value for a given key.
      */
     @Nullable
-    private static Object checkType(Bdio.Datatype type, @Nullable Object value) {
-        if (value != null) {
-            checkArgument(type.javaType().isInstance(value), "was expecting %s, got: %s",
-                    type.javaType().getName(), value.getClass().getName());
+    private static Object expand(Object key, @Nullable Object value) {
+        if (key instanceof Bdio.DataProperty) {
+            // Ensure data properties are represented using the correct type
+            Bdio.DataProperty dataKey = (Bdio.DataProperty) key;
+            checkArgument(dataKey.type().javaType().isInstance(value), "was expecting %s, got: %s",
+                    dataKey.type().javaType().getName(), value.getClass().getName());
 
-            // DateTime is a special case because the Instant class isn't handled in JSON-LD's ObjectMapper
-            return type != Bdio.Datatype.DateTime ? value : value.toString();
-        } else {
-            return null;
+            // For non-default data types, we need to include the type with value
+            // TODO When do we want to use native JSON types? Number/Boolean/String?
+            if (dataKey.type() != Bdio.Datatype.Default) {
+                return newValue(dataKey.type().toString(), value instanceof Instant ? value.toString() : value);
+            }
+        } else if (key instanceof Bdio.ObjectProperty) {
+            // Relationships in JSON-LD are represented using a value with a type of '@id'
+            checkArgument(value instanceof String, "was expecting string, got: %s", value.getClass().getName());
+            return newValue(JsonLdConsts.ID, value);
         }
+
+        // Fall through to using the raw value
+        return value;
     }
 
     /**
-     * Function for merging two values.
+     * Returns a JSON-LD representation of a typed literal.
      */
-    private static BiFunction<Object, Object, Object> mergeValue(Bdio.Container container) {
-        if (container != Container.single) {
-            // If the container type is a list we want to merge the old and new values into a list
-            return (oldValue, newValue) -> {
-                @SuppressWarnings("unchecked")
-                List<Object> values = oldValue instanceof List<?> ? (List<Object>) oldValue : Lists.newArrayList(oldValue);
-                if (newValue instanceof List<?>) {
-                    values.addAll((List<?>) newValue);
-                } else {
-                    values.add(newValue);
-                }
-                return values;
-            };
-        } else {
-            // If the container type is 'single' always just take the new value
-            return (oldValue, value) -> value;
-        }
-    }
-
-    /**
-     * Function for computing the replacement for a {@code null} value.
-     */
-    private static BiFunction<String, Object, Object> computeNullValue(Bdio.Container container) {
-        if (container != Container.single) {
-            // If the container type is a list we just don't want to add anything to it
-            return (key, oldValue) -> oldValue;
-        } else {
-            // If the container type is 'single' we want to remove the existing mapping
-            return (key, oldValue) -> null;
-        }
+    private static Object newValue(String type, Object value) {
+        Map<String, Object> result = new LinkedHashMap<>(2);
+        result.put(JsonLdConsts.TYPE, type);
+        result.put(JsonLdConsts.VALUE, value);
+        // TODO Container?
+        return result;
     }
 
 }

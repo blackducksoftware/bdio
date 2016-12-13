@@ -11,14 +11,18 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.annotation.Nullable;
 
+import com.blackducksoftware.bdio2.datatype.Products;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableMap;
 
@@ -47,6 +51,11 @@ public final class BdioMetadata extends BdioObject {
      * Merges additional metadata into this metadata instance.
      */
     public BdioMetadata merge(Map<String, Object> other) {
+        // TODO Is this a bad idea or a good idea?
+        Object otherId = other.get(JsonLdConsts.ID);
+        checkArgument(otherId == null || otherId.equals(id()),
+                "identifier mismatch: %s (was expecting %s)", otherId, id());
+
         putAll(other);
         return this;
     }
@@ -79,7 +88,6 @@ public final class BdioMetadata extends BdioObject {
      * Sets the identifier of the user who created the named graph.
      */
     public BdioMetadata creator(@Nullable String creator) {
-        // TODO Should this be an ObjectProperty?
         putData(Bdio.DataProperty.creator, creator);
         return this;
     }
@@ -87,12 +95,10 @@ public final class BdioMetadata extends BdioObject {
     /**
      * Sets the producer string of the tool (or tools) that created the named graph.
      */
-    public BdioMetadata producer(@Nullable String producer) {
+    public BdioMetadata producer(@Nullable Products producer) {
         putData(Bdio.DataProperty.producer, producer);
         return this;
     }
-
-    // TODO CI environment
 
     /**
      * Returns a named graph using the specified keys from this metadata.
@@ -103,6 +109,7 @@ public final class BdioMetadata extends BdioObject {
      *            the metadata keys to include in the named graph (all metadata is included by default).
      */
     public Map<String, Object> asNamedGraph(Object graph, String... keys) {
+        Objects.requireNonNull(graph);
         Map<String, Object> namedGraph = new LinkedHashMap<>(this);
         if (keys.length > 0) {
             namedGraph.keySet().retainAll(Arrays.asList(keys));
