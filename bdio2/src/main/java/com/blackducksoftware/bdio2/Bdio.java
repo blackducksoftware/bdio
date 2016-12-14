@@ -138,7 +138,7 @@ public class Bdio {
         base("http://blackducksoftware.com/rdf/terms#hasBase", Container.unordered),
 
         // TODO hasIdentifier
-        // TODO hasFingerprint
+        // TODO hasDependency
 
         ;
 
@@ -173,14 +173,14 @@ public class Bdio {
          * The user who created the BDIO document. This property should be specified for the named graph.
          */
         // TODO Is this too confusing with "creation"?
+        // TODO Should this be an ObjectProperty?
         creator("http://blackducksoftware.com/rdf/terms#hasCreator", Datatype.Default, Container.single),
 
         /**
          * The tool which produced the BDIO document. This should be specified using the same format as an HTTP user
          * agent. This property should be specified for the named graph.
          */
-        // TODO Do we need a datatype?
-        producer("http://blackducksoftware.com/rdf/terms#hasProducer", Datatype.Default, Container.single),
+        producer("http://blackducksoftware.com/rdf/terms#hasProducer", Datatype.Products, Container.single),
 
         // TODO Continuous Integration environment
         // repository, branch, buildNumber, build[Url], etc.
@@ -205,13 +205,19 @@ public class Bdio {
         byteCount("http://blackducksoftware.com/rdf/terms#hasByteCount", Datatype.Long, Container.single),
 
         fingerprint("http://blackducksoftware.com/rdf/terms#hasFingerprint", Datatype.Fingerprint, Container.unordered),
+        contentType("http://blackducksoftware.com/rdf/terms#hasContentType", Datatype.Default, Container.single),
 
+        // TODO license (SPDX expression)
         // TODO copyrightYear
         // TODO rightsHolder
-        // TODO contentType
-        // TODO algorithm XXX
-
         // TODO hid/path?
+        // TODO Links: issue manager, source control, home page, wiki, documentation, etc.
+        // TODO dependency scope
+        // TODO dependency value
+        // TODO requestedVersion
+        // TODO identifier namespace
+        // TODO identifier context
+        // TODO identifier value
 
         ;
 
@@ -248,6 +254,10 @@ public class Bdio {
         Long("http://www.w3.org/2001/XMLSchema#long", Long.class),
         Fingerprint("http://blackducksoftware.com/rdf/terms#Fingerprint", Fingerprint.class),
         Products("http://blackducksoftware.com/rdf/terms#Products", Products.class),
+
+        // TODO MimeType
+        // TODO Dependency scope
+        // TODO SPDX license expression? Do they have one already?
         ;
 
         private final String iri;
