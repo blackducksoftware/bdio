@@ -32,4 +32,9 @@ public class File extends BdioObject {
         return this;
     }
 
+    public File contentType(@Nullable String contentType) {
+        putData(Bdio.DataProperty.contentType, contentType);
+        return this;
+    }
+
 }

@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -48,12 +49,19 @@ public final class BdioMetadata extends BdioObject {
     }
 
     /**
+     * Creates a new metadata instance with a random identifier.
+     */
+    public static BdioMetadata createRandomUUID() {
+        return new BdioMetadata().id("urn:uuid:" + UUID.randomUUID());
+    }
+
+    /**
      * Merges additional metadata into this metadata instance.
      */
     public BdioMetadata merge(Map<String, Object> other) {
         // TODO Is this a bad idea or a good idea?
         Object otherId = other.get(JsonLdConsts.ID);
-        checkArgument(otherId == null || otherId.equals(id()),
+        checkArgument(otherId == null || id() == null || otherId.equals(id()),
                 "identifier mismatch: %s (was expecting %s)", otherId, id());
 
         putAll(other);

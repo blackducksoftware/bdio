@@ -42,6 +42,7 @@ public class Bdio {
          * instead they reference a specific version. If no versions are present for a project in a BDIO
          * dataset, it is assumed the project defines the current version.
          */
+        // TODO Just get rid of this in favor of properties?
         Version("http://blackducksoftware.com/rdf/terms#Version"),
 
         /**
