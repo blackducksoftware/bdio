@@ -24,6 +24,9 @@ import java.util.zip.ZipOutputStream;
 
 import com.blackducksoftware.common.io.HeapInputStream;
 import com.blackducksoftware.common.io.HeapOutputStream;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.ByteStreams;
 
 /**
@@ -34,6 +37,14 @@ import com.google.common.io.ByteStreams;
  * @author jgustie
  */
 public final class BdioTest {
+
+    // Mimic JSON-LD
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    static {
+        OBJECT_MAPPER.getFactory().disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+        OBJECT_MAPPER.getFactory().disable(JsonFactory.Feature.INTERN_FIELD_NAMES);
+        OBJECT_MAPPER.getFactory().disable(JsonFactory.Feature.CANONICALIZE_FIELD_NAMES);
+    }
 
     /**
      * Returns an input stream representing the UTF-8 encoded bytes of the supplied character sequence.
@@ -52,6 +63,23 @@ public final class BdioTest {
             for (CharSequence entry : entries) {
                 zip.putNextEntry(new ZipEntry(UUID.randomUUID() + ".jsonld"));
                 ByteStreams.copy(utfBytes(entry), zip);
+            }
+        } catch (IOException e) {
+            throw new AssertionError("I/O to heap should not fail", e);
+        }
+        return buffer.getInputStream();
+    }
+
+    /**
+     * Returns an input stream representing a Zip file where each of the supplied objects has been serialized into JSON
+     * in a random entry name that ends with ".jsonld".
+     */
+    public static InputStream zipJsonBytes(Object... entries) {
+        HeapOutputStream buffer = new HeapOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(buffer)) {
+            for (Object entry : entries) {
+                zip.putNextEntry(new ZipEntry(UUID.randomUUID() + ".jsonld"));
+                OBJECT_MAPPER.writeValue(zip, entry);
             }
         } catch (IOException e) {
             throw new AssertionError("I/O to heap should not fail", e);
