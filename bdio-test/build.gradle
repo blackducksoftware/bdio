@@ -5,4 +5,5 @@ dependencies {
 	compile 'com.blackducksoftware.magpie:magpie-test'
 	compile 'com.google.code.findbugs:jsr305'
 	compile 'com.google.guava:guava'
+	compile 'org.slf4j:slf4j-simple'
 }
