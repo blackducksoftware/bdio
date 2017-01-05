@@ -1,4 +1,4 @@
 @ParametersAreNonnullByDefault
-package com.blackducksoftware.bdio.rx;
+package com.blackducksoftware.bdio2.rxjava;
 
 import javax.annotation.ParametersAreNonnullByDefault;

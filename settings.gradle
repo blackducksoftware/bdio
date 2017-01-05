@@ -1,1 +1,1 @@
-include 'bdio', 'bdio2', 'bdio-tool', 'bdio-test'
+include 'bdio', 'bdio2', 'bdio-rxjava', 'bdio-tool', 'bdio-test'

@@ -9,28 +9,32 @@
  * accordance with the terms of the license agreement you entered into
  * with Black Duck Software.
  */
-package com.blackducksoftware.bdio.rx;
+package com.blackducksoftware.bdio2.rxjava;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 import javax.annotation.Nullable;
 
+import org.reactivestreams.Publisher;
+
+import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
 
-import rx.Observable;
-import rx.Observable.Transformer;
-import rx.functions.Func1;
+import io.reactivex.Flowable;
+import io.reactivex.FlowableTransformer;
 
 /**
- * Implementation of the {@code JsonLdProcessor} high level API for RxJava.
+ * Implementation of the {@link JsonLdProcessor} high level API for RxJava.
  *
  * @author jgustie
  */
-public class RxJsonLdProcessor {
+public class RxJavaJsonLdProcessor {
 
     // Note that the gratuitous use of Object stems from the JSON-LD API itself: often times it
     // passes Object when it will accept String, Map<String, Object> or List<Object>.
@@ -38,7 +42,7 @@ public class RxJsonLdProcessor {
     /**
      * Base class used to invoke the JSON-LD processor as a transformation over emitted elements.
      */
-    private static abstract class JsonLdProcessorTransformer<R> implements Transformer<Object, R> {
+    private static abstract class JsonLdProcessorTransformer<R> implements FlowableTransformer<Object, R> {
 
         private final JsonLdOptions options;
 
@@ -47,31 +51,33 @@ public class RxJsonLdProcessor {
         }
 
         @Override
-        public final Observable<R> call(Observable<Object> inputs) {
+        public final Publisher<R> apply(Flowable<Object> inputs) {
             // Use flat map so we can propagate the checked JSON-LD error cleanly
-            return inputs.flatMap(new Func1<Object, Observable<R>>() {
-                @Override
-                public Observable<R> call(Object input) {
-                    try {
-                        return Observable.just(JsonLdProcessorTransformer.this.call(input, options));
-                    } catch (JsonLdError e) {
-                        return Observable.error(e);
-                    }
+            return inputs.flatMap(input -> {
+                try {
+                    return Flowable.just(applyOnce(input, options));
+                } catch (JsonLdError e) {
+                    return Flowable.error(e);
                 }
             });
         }
 
         /**
          * Implemented by subclasses to invoke the appropriate method on the {@code JsonLdProcessor}.
+         *
+         * @param input
+         *            the input to the JSON-LD algorithm, typically a list of nodes or a named graph
+         * @param options
+         *            the JSON-LD options, such as the base IRI
          */
-        protected abstract R call(Object input, JsonLdOptions options) throws JsonLdError;
+        protected abstract R applyOnce(Object input, JsonLdOptions options) throws JsonLdError;
+
     }
 
     /**
      * @see RxJsonLdProcessor#compact(Object, JsonLdOptions)
      */
     private static class CompactTransformer extends JsonLdProcessorTransformer<Map<String, Object>> {
-
         private final Object context;
 
         private CompactTransformer(Object context, JsonLdOptions options) {
@@ -80,7 +86,7 @@ public class RxJsonLdProcessor {
         }
 
         @Override
-        protected Map<String, Object> call(Object input, JsonLdOptions options) throws JsonLdError {
+        protected Map<String, Object> applyOnce(Object input, JsonLdOptions options) throws JsonLdError {
             return JsonLdProcessor.compact(input, context, options);
         }
     }
@@ -94,7 +100,7 @@ public class RxJsonLdProcessor {
         }
 
         @Override
-        protected List<Object> call(Object input, JsonLdOptions options) throws JsonLdError {
+        protected List<Object> applyOnce(Object input, JsonLdOptions options) throws JsonLdError {
             return JsonLdProcessor.expand(input, options);
         }
     }
@@ -112,7 +118,7 @@ public class RxJsonLdProcessor {
         }
 
         @Override
-        protected Object call(Object input, JsonLdOptions options) throws JsonLdError {
+        protected Object applyOnce(Object input, JsonLdOptions options) throws JsonLdError {
             return JsonLdProcessor.flatten(input, context, options);
         }
     }
@@ -129,7 +135,14 @@ public class RxJsonLdProcessor {
         }
 
         @Override
-        protected Map<String, Object> call(Object input, JsonLdOptions options) throws JsonLdError {
+        protected Map<String, Object> applyOnce(Object input, JsonLdOptions options) throws JsonLdError {
+            if (input instanceof List<?> && ((List<?>) input).isEmpty()) {
+                // There is a bug in the JSON-LD API where an empty list causes an NPE
+                Map<String, Object> emptyResult = new HashMap<>(1);
+                emptyResult.put(JsonLdConsts.GRAPH, new ArrayList<>(0));
+                return emptyResult;
+            }
+
             return JsonLdProcessor.frame(input, frame, options);
         }
     }
@@ -139,7 +152,7 @@ public class RxJsonLdProcessor {
      *
      * @see JsonLdProcessor#compact(Object, Object, JsonLdOptions)
      */
-    public static Transformer<Object, Map<String, Object>> compact(Object context, JsonLdOptions options) {
+    public static FlowableTransformer<Object, Map<String, Object>> compact(Object context, JsonLdOptions options) {
         return new CompactTransformer(context, options);
     }
 
@@ -148,7 +161,7 @@ public class RxJsonLdProcessor {
      *
      * @see JsonLdProcessor#expand(Object, JsonLdOptions)
      */
-    public static Transformer<Object, List<Object>> expand(JsonLdOptions options) {
+    public static FlowableTransformer<Object, List<Object>> expand(JsonLdOptions options) {
         return new ExpandTransformer(options);
     }
 
@@ -158,16 +171,16 @@ public class RxJsonLdProcessor {
      *
      * @see JsonLdProcessor#flatten(Object, Object, JsonLdOptions)
      */
-    public static Transformer<Object, Object> flatten(@Nullable Object context, JsonLdOptions options) {
+    public static FlowableTransformer<Object, Object> flatten(@Nullable Object context, JsonLdOptions options) {
         return new FlattenTransformer(context, options);
     }
 
     /**
      * Frames each element in the sequence using the frame according to the steps in the Framing Algorithm.
-     * 
+     *
      * @see JsonLdProcessor#frame(Object, Object, JsonLdOptions)
      */
-    public static Transformer<Object, Map<String, Object>> frame(Object frame, JsonLdOptions options) {
+    public static FlowableTransformer<Object, Map<String, Object>> frame(Object frame, JsonLdOptions options) {
         return new FrameTransformer(frame, options);
     }
 

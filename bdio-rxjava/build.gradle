@@ -1,14 +1,15 @@
 description = 'Black Duck I/O for RxJava2'
 
 dependencies {
+	compile project(':bdio2')
 	compile 'com.blackducksoftware.magpie:magpie'
+	compile 'com.github.jsonld-java:jsonld-java'
 	compile 'com.google.code.findbugs:jsr305'
 	compile 'com.google.guava:guava'
-	compile 'joda-time:joda-time'
-    compile 'com.github.jsonld-java:jsonld-java'
-    compile 'io.reactivex:rxjava'
-    compile 'org.apache.httpcomponents:httpclient'
+	compile 'io.reactivex.rxjava2:rxjava'
+	compile 'org.reactivestreams:reactive-streams'
 
-    testCompile 'junit:junit'
-    testCompile 'com.google.truth:truth'
+	testCompile project(':bdio-test')
+	testCompile 'com.google.truth:truth'
+	testCompile 'junit:junit'
 }
