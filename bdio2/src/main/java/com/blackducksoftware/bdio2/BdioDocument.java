@@ -80,6 +80,11 @@ public abstract class BdioDocument {
          * @see JsonLdProcessor#frame(Object, Object, JsonLdOptions)
          */
         Publisher<Map<String, Object>> frame(Object frame);
+
+        /**
+         * Returns the options to use when invoking the JSON-LD API.
+         */
+        JsonLdOptions options();
     }
 
     /**
@@ -321,7 +326,7 @@ public abstract class BdioDocument {
         if (input instanceof Map<?, ?>
                 && ((Map<?, ?>) input).containsKey(JsonLdConsts.ID)
                 && ((Map<?, ?>) input).containsKey(JsonLdConsts.GRAPH)) {
-            return ((Map<?, ?>) input).get(JsonLdConsts.GRAPH);
+            return getGraph(input);
         } else {
             return input;
         }
