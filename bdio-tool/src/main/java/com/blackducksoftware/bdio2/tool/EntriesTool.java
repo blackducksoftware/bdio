@@ -30,7 +30,7 @@ public class EntriesTool extends Tool {
     // TODO Configurable per-entry delimiters?
 
     public static void main(String[] args) {
-        new EntriesTool().parseArguments(args).run();
+        new EntriesTool().parseArgs(args).run();
     }
 
     private ByteSource input;

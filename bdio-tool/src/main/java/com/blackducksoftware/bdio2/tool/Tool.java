@@ -22,6 +22,7 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -31,6 +32,7 @@ import javax.annotation.OverridingMethodsMustInvokeSuper;
 
 import com.blackducksoftware.common.io.ExtraIO;
 import com.github.jsonldjava.utils.JsonUtils;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteSink;
@@ -117,6 +119,25 @@ public abstract class Tool implements Runnable {
     }
 
     /**
+     * Parses the command line input, handling any errors cleanly. This is the method that should be invoked from you
+     * {@code main} method.
+     */
+    public final Tool parseArgs(String[] args) {
+        try {
+            return parseArguments(args);
+        } catch (Exception e) {
+            if (Level.DEBUG.compareTo(verbosity) <= 0) {
+                e.printStackTrace(stderr);
+            } else if (Level.VERBOSE.compareTo(verbosity) <= 0) {
+                stderr.println(e.toString());
+            } else if (Level.DEFAULT.compareTo(verbosity) <= 0) {
+                stderr.println(formatException(e));
+            }
+            return doNothing();
+        }
+    }
+
+    /**
      * Parses the command line input. Returns the tool instance to be run (which may or may not be this instance).
      * <p>
      * IMPORTANT: When overriding this method, you must remove any option (arg starting with "-")
@@ -162,7 +183,12 @@ public abstract class Tool implements Runnable {
      * Formats an exception for reporting to the user.
      */
     protected String formatException(Throwable failure) {
-        return failure.getLocalizedMessage();
+        Throwable rootCause = Throwables.getRootCause(failure);
+        if (rootCause instanceof FileNotFoundException || rootCause instanceof NoSuchFileException) {
+            return rootCause.getMessage() + ": No such file or directory";
+        } else {
+            return failure.getLocalizedMessage();
+        }
     }
 
     /**

@@ -147,7 +147,7 @@ public class BdioMain extends Tool {
 
     @Override
     protected void execute() throws Exception {
-        Command.named(commandName).factory.get().parseArguments(commandArgs).run();
+        Command.named(commandName).factory.get().parseArgs(commandArgs).run();
     }
 
     /**

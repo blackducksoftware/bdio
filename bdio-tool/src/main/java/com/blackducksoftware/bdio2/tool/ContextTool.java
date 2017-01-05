@@ -29,7 +29,7 @@ import com.github.jsonldjava.core.JsonLdError;
 public class ContextTool extends Tool {
 
     public static void main(String[] args) {
-        new ContextTool().parseArguments(args).run();
+        new ContextTool().parseArgs(args).run();
     }
 
     @Override
