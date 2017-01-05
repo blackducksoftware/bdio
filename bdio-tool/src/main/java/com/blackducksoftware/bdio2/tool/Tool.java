@@ -108,13 +108,7 @@ public abstract class Tool implements Runnable {
         try {
             execute();
         } catch (Exception e) {
-            if (Level.DEBUG.compareTo(verbosity) <= 0) {
-                e.printStackTrace(stderr);
-            } else if (Level.VERBOSE.compareTo(verbosity) <= 0) {
-                stderr.println(e.toString());
-            } else if (Level.DEFAULT.compareTo(verbosity) <= 0) {
-                stderr.println(formatException(e));
-            }
+            handleException(e);
         }
     }
 
@@ -126,14 +120,22 @@ public abstract class Tool implements Runnable {
         try {
             return parseArguments(args);
         } catch (Exception e) {
-            if (Level.DEBUG.compareTo(verbosity) <= 0) {
-                e.printStackTrace(stderr);
-            } else if (Level.VERBOSE.compareTo(verbosity) <= 0) {
-                stderr.println(e.toString());
-            } else if (Level.DEFAULT.compareTo(verbosity) <= 0) {
-                stderr.println(formatException(e));
-            }
+            handleException(e);
             return doNothing();
+        }
+    }
+
+    /**
+     * Internal method for handling an exception based on the current verbosity level.
+     */
+    private void handleException(Exception e) {
+        stderr.print("bdio: "); // TODO Should this be configurable?
+        if (Level.DEBUG.compareTo(verbosity) <= 0) {
+            e.printStackTrace(stderr);
+        } else if (Level.VERBOSE.compareTo(verbosity) <= 0) {
+            stderr.println(e.toString());
+        } else if (Level.DEFAULT.compareTo(verbosity) <= 0) {
+            stderr.println(formatException(e));
         }
     }
 

@@ -28,11 +28,12 @@ import com.google.common.collect.ObjectArrays;
 public class BdioMain extends Tool {
 
     /**
-     * The subcommands support by this tool.
+     * The subcommands supported by this tool.
      */
     private enum Command {
         help("Display help information about BDIO", HelpTool::new, false),
         context("Print the BDIO JSON-LD context", ContextTool::new, true),
+        convert("Convert legacy formats into BDIO", ConvertTool::new, true),
         entries("Dump the JSON-LD content of a BDIO file", EntriesTool::new, true),
         ;
 
@@ -135,7 +136,7 @@ public class BdioMain extends Tool {
             args = removeFirst("--help", args);
         }
 
-        // Display our version number and stop (note that commands can still use '--version')
+        // Display our version number and stop (note that commands can still override '--version')
         if (options(args).contains("--version")
                 && (commandName.equals("help") || isBefore("--version", commandName, args))) {
             printVersion();

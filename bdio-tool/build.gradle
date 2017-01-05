@@ -5,9 +5,8 @@ apply plugin: 'application'
 mainClassName = 'com.blackducksoftware.bdio2.tool.BdioMain'
 
 dependencies {
-
-	// TODO SLF4J No op binding?
-
+	compile project(':bdio-rxjava')
+	compile 'org.slf4j:slf4j-nop'
 }
 
 distributions {
