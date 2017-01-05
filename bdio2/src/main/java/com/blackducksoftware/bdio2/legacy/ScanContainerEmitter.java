@@ -147,7 +147,7 @@ public class ScanContainerEmitter implements Emitter {
             if (project != null && release != null) {
                 Version bdioVersion = new Version(toFileUri(hostName, baseDir, "PROJECT-" + release));
                 bdioVersion.version(release);
-                bdioProject.currentVersion(bdioVersion.id());
+                bdioProject.currentVersion(bdioVersion);
                 return Stream.of(bdioProject, bdioVersion);
             } else {
                 return Stream.of(bdioProject);

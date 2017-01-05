@@ -11,11 +11,7 @@
  */
 package com.blackducksoftware.bdio2;
 
-import java.time.Instant;
 import java.util.Objects;
-
-import com.blackducksoftware.bdio2.datatype.Fingerprint;
-import com.blackducksoftware.bdio2.datatype.Products;
 
 /**
  * A collection of constants and helpers pertaining to the BDIO specification.
@@ -249,11 +245,11 @@ public class Bdio {
 
     public enum Datatype {
 
-        Default("", String.class),
-        DateTime("http://www.w3.org/2001/XMLSchema#dateTime", Instant.class),
-        Long("http://www.w3.org/2001/XMLSchema#long", Long.class),
-        Fingerprint("http://blackducksoftware.com/rdf/terms#Fingerprint", Fingerprint.class),
-        Products("http://blackducksoftware.com/rdf/terms#Products", Products.class),
+        Default(""),
+        DateTime("http://www.w3.org/2001/XMLSchema#dateTime"),
+        Long("http://www.w3.org/2001/XMLSchema#long"),
+        Fingerprint("http://blackducksoftware.com/rdf/terms#Fingerprint"),
+        Products("http://blackducksoftware.com/rdf/terms#Products"),
 
         // TODO MimeType
         // TODO Dependency scope
@@ -262,20 +258,13 @@ public class Bdio {
 
         private final String iri;
 
-        private final java.lang.Class<?> javaType;
-
-        private Datatype(String iri, java.lang.Class<?> javaType) {
+        private Datatype(String iri) {
             this.iri = Objects.requireNonNull(iri);
-            this.javaType = Objects.requireNonNull(javaType);
         }
 
         @Override
         public String toString() {
             return iri;
-        }
-
-        public java.lang.Class<?> javaType() {
-            return javaType;
         }
     }
 

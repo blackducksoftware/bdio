@@ -32,12 +32,12 @@ public class Project extends BdioObject {
         return this;
     }
 
-    public Project currentVersion(@Nullable String currentVersion) {
+    public Project currentVersion(@Nullable Object currentVersion) {
         putObject(Bdio.ObjectProperty.currentVersion, currentVersion);
         return this;
     }
 
-    public Project base(@Nullable String base) {
+    public Project base(@Nullable Object base) {
         putObject(Bdio.ObjectProperty.base, base);
         return this;
     }

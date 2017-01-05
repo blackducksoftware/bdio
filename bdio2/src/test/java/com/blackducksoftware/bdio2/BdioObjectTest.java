@@ -185,17 +185,7 @@ public class BdioObjectTest {
     public void putLongTypeDataProperty() {
         BdioObject bdioObject = new BdioObject(ImmutableMap.of());
         bdioObject.putData(Bdio.DataProperty.byteCount, 1L);
-        assertThat(bdioObject).containsEntry(Bdio.DataProperty.byteCount.toString(),
-                ImmutableMap.of("@value", 1L, "@type", Bdio.Datatype.Long.toString()));
-    }
-
-    /**
-     * Very subtle example of passing an incorrectly typed data type.
-     */
-    @Test(expected = IllegalArgumentException.class)
-    public void putUnexpectedTypeDataProperty() {
-        // Tricky: we put a boxed Integer when we were expected a boxed Long
-        new BdioObject(ImmutableMap.of()).putData(Bdio.DataProperty.byteCount, 1);
+        assertThat(bdioObject).containsEntry(Bdio.DataProperty.byteCount.toString(), 1L);
     }
 
     /**

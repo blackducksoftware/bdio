@@ -11,10 +11,8 @@
  */
 package com.blackducksoftware.bdio2;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,6 +23,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio.Container;
+import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.Lists;
 
@@ -37,6 +36,8 @@ import com.google.common.collect.Lists;
  * @author jgustie
  */
 public class BdioObject extends AbstractMap<String, Object> {
+
+    private static ValueObjectMapper VALUE_OBJECT_MAPPER = new ValueObjectMapper();
 
     /**
      * The backing node data for this BDIO object.
@@ -104,25 +105,25 @@ public class BdioObject extends AbstractMap<String, Object> {
      * previously mapped and the supplied value is {@code null}.
      */
     protected final Object putData(Bdio.DataProperty key, @Nullable Object value) {
-        return putJsonLd(key, value);
+        return putJsonLd(key, VALUE_OBJECT_MAPPER.toValueObject(value));
     }
 
     /**
      * Appends a new identifier for a related object, returning the new value or {@code null} if the property was not
      * previously mapped and the supplied value is {@code null}.
      */
-    protected final Object putObject(Bdio.ObjectProperty key, @Nullable String value) {
-        return putJsonLd(key, value);
+    protected final Object putObject(Bdio.ObjectProperty key, @Nullable Object value) {
+        return putJsonLd(key, VALUE_OBJECT_MAPPER.toReferenceValueObject(value));
     }
 
     /**
      * Generic implementation of {@code put} for JSON-LD values.
      */
-    private Object putJsonLd(Object key, @Nullable Object value) {
+    private Object putJsonLd(Object key, @Nullable Object valueObject) {
         Bdio.Container container = container(key);
-        if (value != null) {
+        if (valueObject != null) {
             // Replace the mapping for a single, otherwise combine the values into a list
-            return merge(key.toString(), expand(key, value), container != Container.single ? BdioObject::combine : (k, v) -> v);
+            return merge(key.toString(), valueObject, container != Container.single ? BdioObject::combine : (k, v) -> v);
         } else {
             // Remove the mapping for a single, otherwise keep the old value (i.e. don't add anything)
             return compute(key.toString(), (k, v) -> container != Container.single ? v : null);
@@ -154,43 +155,6 @@ public class BdioObject extends AbstractMap<String, Object> {
         } else {
             return Lists.newArrayList(oldValue, value);
         }
-    }
-
-    /**
-     * Generates an expanded JSON-LD representation of a value for a given key.
-     */
-    @Nullable
-    private static Object expand(Object key, @Nullable Object value) {
-        if (key instanceof Bdio.DataProperty) {
-            // Ensure data properties are represented using the correct type
-            Bdio.DataProperty dataKey = (Bdio.DataProperty) key;
-            checkArgument(dataKey.type().javaType().isInstance(value), "was expecting %s, got: %s",
-                    dataKey.type().javaType().getName(), value.getClass().getName());
-
-            // For non-default data types, we need to include the type with value
-            // TODO When do we want to use native JSON types? Number/Boolean/String?
-            if (dataKey.type() != Bdio.Datatype.Default) {
-                return newValue(dataKey.type().toString(), value instanceof Instant ? value.toString() : value);
-            }
-        } else if (key instanceof Bdio.ObjectProperty) {
-            // Relationships in JSON-LD are represented using a value with a type of '@id'
-            checkArgument(value instanceof String, "was expecting string, got: %s", value.getClass().getName());
-            return newValue(JsonLdConsts.ID, value);
-        }
-
-        // Fall through to using the raw value
-        return value;
-    }
-
-    /**
-     * Returns a JSON-LD representation of a typed literal.
-     */
-    private static Object newValue(String type, Object value) {
-        Map<String, Object> result = new LinkedHashMap<>(2);
-        result.put(JsonLdConsts.TYPE, type);
-        result.put(JsonLdConsts.VALUE, value);
-        // TODO Container?
-        return result;
     }
 
 }
