@@ -1,0 +1,15 @@
+description = 'Black Duck I/O for TinkerPop'
+
+dependencies {
+	compile project(':bdio-rxjava')
+	compile 'com.blackducksoftware.magpie:magpie'
+	compile 'org.apache.tinkerpop:gremlin-core'
+	compile ('org.umlg:sqlg-postgres') { 
+		exclude group: 'ch.qos.logback'
+	}
+
+	testCompile project(':bdio-test')
+	testCompile 'org.apache.tinkerpop:tinkergraph-gremlin'
+    testCompile 'junit:junit'
+    testCompile 'com.google.truth:truth'
+}

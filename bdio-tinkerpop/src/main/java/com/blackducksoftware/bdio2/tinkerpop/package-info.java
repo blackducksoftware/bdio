@@ -1,0 +1,4 @@
+@ParametersAreNonnullByDefault
+package com.blackducksoftware.bdio2.tinkerpop;
+
+import javax.annotation.ParametersAreNonnullByDefault;
