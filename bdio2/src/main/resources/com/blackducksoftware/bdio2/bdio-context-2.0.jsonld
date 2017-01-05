@@ -1,30 +1,49 @@
 {
   "@context" : {
-    "bdio" : "http://blackducksoftware.com/rdf/terms#",
     "xsd" : "http://www.w3.org/2001/XMLSchema#",
-    "Project" : "bdio:Project",
-    "Version" : "bdio:Version",
-    "Component" : "bdio:Component",
-    "License" : "bdio:License",
-    "File" : "bdio:File",
-    "Identifier" : "bdio:Identifier",
-    "Fingerprint" : "bdio:Fingerprint",
-    "Vulnerability" : "bdio:Vulnerability",
+    "Project" : "http://blackducksoftware.com/rdf/terms#Project",
+    "Version" : "http://blackducksoftware.com/rdf/terms#Version",
+    "Component" : "http://blackducksoftware.com/rdf/terms#Component",
+    "License" : "http://blackducksoftware.com/rdf/terms#License",
+    "File" : "http://blackducksoftware.com/rdf/terms#File",
+    "Identifier" : "http://blackducksoftware.com/rdf/terms#Identifier",
+    "Vulnerability" : "http://blackducksoftware.com/rdf/terms#Vulnerability",
     "subproject" : {
-      "@id" : "bdio:hasSubproject",
+      "@id" : "http://blackducksoftware.com/rdf/terms#hasSubproject",
+      "@type" : "@id"
+    },
+    "currentVersion" : {
+      "@id" : "http://blackducksoftware.com/rdf/terms#hasCurrentVersion",
+      "@type" : "@id"
+    },
+    "previousVersion" : {
+      "@id" : "http://blackducksoftware.com/rdf/terms#hasPreviousVersion",
+      "@type" : "@id"
+    },
+    "base" : {
+      "@id" : "http://blackducksoftware.com/rdf/terms#hasBase",
       "@type" : "@id"
     },
     "creation" : {
-      "@id" : "bdio:hasCreation",
+      "@id" : "http://blackducksoftware.com/rdf/terms#hasCreation",
       "@type" : "xsd:dateTime"
     },
-    "creator" : "bdio:hasCreator",
-    "producer" : "bdio:hasProducer",
-    "name" : "bdio:hasName",
-    "version" : "bdio:hasVersion",
+    "creator" : "http://blackducksoftware.com/rdf/terms#hasCreator",
+    "producer" : {
+      "@id" : "http://blackducksoftware.com/rdf/terms#hasProducer",
+      "@type" : "http://blackducksoftware.com/rdf/terms#Products"
+    },
+    "name" : "http://blackducksoftware.com/rdf/terms#hasName",
+    "version" : "http://blackducksoftware.com/rdf/terms#hasVersion",
     "byteCount" : {
-      "@id" : "bdio:hasByteCount",
+      "@id" : "http://blackducksoftware.com/rdf/terms#hasByteCount",
       "@type" : "xsd:long"
-    }
+    },
+    "fingerprint" : {
+      "@id" : "http://blackducksoftware.com/rdf/terms#hasFingerprint",
+      "@type" : "http://blackducksoftware.com/rdf/terms#Fingerprint",
+      "@container" : "@set"
+    },
+    "contentType" : "http://blackducksoftware.com/rdf/terms#hasContentType"
   }
 }

@@ -44,7 +44,7 @@ public class ContextTool extends Tool {
         Map<String, Object> context = new LinkedHashMap<>();
 
         // Prefixes
-        context.put("bdio", Bdio.Context.DEFAULT + "#");
+        // context.put("bdio", Bdio.Context.DEFAULT + "#");
         context.put("xsd", "http://www.w3.org/2001/XMLSchema#");
 
         // Classes
