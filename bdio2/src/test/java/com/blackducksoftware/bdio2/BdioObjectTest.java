@@ -197,7 +197,7 @@ public class BdioObjectTest {
         BdioObject bdioObject = new BdioObject(ImmutableMap.of());
         bdioObject.putObject(Bdio.ObjectProperty.currentVersion, currentVersionId);
         assertThat(bdioObject).containsEntry(Bdio.ObjectProperty.currentVersion.toString(),
-                ImmutableMap.of("@value", currentVersionId, "@type", "@id"));
+                ImmutableMap.of("@value", currentVersionId));
     }
 
     /**

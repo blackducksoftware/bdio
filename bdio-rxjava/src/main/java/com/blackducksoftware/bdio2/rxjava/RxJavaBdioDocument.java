@@ -118,7 +118,7 @@ public final class RxJavaBdioDocument extends BdioDocument {
             @Override
             public Flowable<Map<String, Object>> frame(Object frame) {
                 // TODO Restore the graph label?
-                return processor().map(RxJavaBdioDocument.this::dropGraphLabel).compose(RxJavaJsonLdProcessor.frame(frame, options()));
+                return processor().map(x -> dropGraphLabel(x)).compose(RxJavaJsonLdProcessor.frame(frame, options()));
             }
 
             @Override

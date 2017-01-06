@@ -129,12 +129,12 @@ public class BlackDuckIoWriter implements GraphWriter {
     }
 
     @Override
-    public void writeVertexProperty(OutputStream outputStream, VertexProperty vp) throws IOException {
+    public void writeVertexProperty(OutputStream outputStream, @SuppressWarnings("rawtypes") VertexProperty vp) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void writeProperty(OutputStream outputStream, Property p) throws IOException {
+    public void writeProperty(OutputStream outputStream, @SuppressWarnings("rawtypes") Property p) throws IOException {
         throw new UnsupportedOperationException();
     }
 

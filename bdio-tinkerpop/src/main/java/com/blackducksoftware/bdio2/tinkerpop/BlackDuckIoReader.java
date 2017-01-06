@@ -321,7 +321,7 @@ public final class BlackDuckIoReader implements GraphReader {
                     System.err.println("STARTING STREAMING EDGES ON " + Thread.currentThread().getName());
                     graphToWriteTo.tx().streamingBatchModeOn();
                 })
-                .flatMapIterable(vertex -> (() -> vertex.edges(Direction.OUT)))
+                .flatMapIterable(vertex -> (Iterable<Edge>) (() -> vertex.edges(Direction.OUT)))
                 .toMultimap(EdgeLabels::fromEdge, EdgeLabels::vertexIdentifiers)
                 .flatMapObservable(multimap -> Observable.fromIterable(multimap.entrySet()))
                 .doOnComplete(() -> {
@@ -357,7 +357,7 @@ public final class BlackDuckIoReader implements GraphReader {
 
                 // Get all of the outgoing edges from the cached vertices
                 .flatMapObservable(cache -> Observable.fromIterable(cache.keySet())
-                        .flatMapIterable(kv -> (() -> kv.edges(Direction.OUT)))
+                        .flatMapIterable(kv -> (Iterable<Edge>) (() -> kv.edges(Direction.OUT)))
 
                         // Connect the edges
                         .map(e -> {
@@ -411,7 +411,7 @@ public final class BlackDuckIoReader implements GraphReader {
         // Add the vertex properties and notify if requested
         addVertexProperties(node, vertex);
         if (vertexAttachMethod != null) {
-            vertexAttachMethod.apply(starGraph.getStarVertex());
+            ((java.util.function.Consumer<Attachable<Vertex>>) vertexAttachMethod::apply).accept(starGraph.getStarVertex());
         }
 
         // Object properties (BDIO only contains outgoing edges)
