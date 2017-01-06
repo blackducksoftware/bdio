@@ -11,6 +11,7 @@
  */
 package com.blackducksoftware.bdio2;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -22,6 +23,7 @@ import javax.annotation.Nullable;
 
 import org.apache.http.impl.client.CloseableHttpClient;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.github.jsonldjava.core.DocumentLoader;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.RemoteDocument;
@@ -49,7 +51,7 @@ class RemoteDocumentLoader extends DocumentLoader {
         @Nullable
         private CloseableHttpClient httpClient;
 
-        private final Map<String, ByteSource> offlineDocuments = new HashMap<>();
+        private final Map<URL, ByteSource> offlineDocuments = new HashMap<>();
 
         public RemoteDocumentLoader build() {
             return new RemoteDocumentLoader(this);
@@ -84,11 +86,10 @@ class RemoteDocumentLoader extends DocumentLoader {
          */
         private Builder putOfflineDocument(String url, ByteSource byteSource) {
             try {
-                new URL(url);
+                offlineDocuments.put(new URL(url), byteSource);
             } catch (MalformedURLException e) {
                 throw new IllegalArgumentException("invalid document URL", e);
             }
-            offlineDocuments.put(url, byteSource);
             return this;
         }
     }
@@ -96,12 +97,12 @@ class RemoteDocumentLoader extends DocumentLoader {
     /**
      * A mapping of offline document URLs to their input stream supplier.
      */
-    private final Map<String, ByteSource> offlineDocuments;
+    private final Map<URL, ByteSource> offlineDocuments;
 
     /**
      * A filter which determines what documents may be loaded remotely.
      */
-    private final Predicate<String> allowedRemoteDocuments;
+    private final Predicate<URL> allowedRemoteDocuments;
 
     private RemoteDocumentLoader(Builder builder) {
         offlineDocuments = ImmutableMap.copyOf(builder.offlineDocuments);
@@ -114,38 +115,38 @@ class RemoteDocumentLoader extends DocumentLoader {
     }
 
     @Override
-    public final RemoteDocument loadDocument(String url) throws JsonLdError {
+    public InputStream openStreamFromURL(URL url) throws IOException {
         ByteSource offlineDocument = offlineDocuments.get(url);
         if (offlineDocument != null) {
-            return loadOfflineDocument(url, offlineDocument);
+            // Delegate to the byte source
+            return offlineDocument.openBufferedStream();
         } else if (allowedRemoteDocuments.apply(url)) {
-            return loadRemoteDocument(url);
+            // Fall through to the super for remote loading
+            return super.openStreamFromURL(url);
         } else {
-            throw new JsonLdError(JsonLdError.Error.LOADING_REMOTE_CONTEXT_FAILED, url);
+            // TODO Create a real exception for this...
+            throw new IOException("remote blocked!");
         }
     }
 
-    private RemoteDocument loadOfflineDocument(String url, ByteSource offlineDocument) throws JsonLdError {
-        try (InputStream in = offlineDocument.openBufferedStream()) {
-            return new RemoteDocument(url, JsonUtils.fromInputStream(in));
-        } catch (Exception e) {
-            throw (JsonLdError) new JsonLdError(JsonLdError.Error.LOADING_REMOTE_CONTEXT_FAILED, url).initCause(e);
-        }
-    }
+    // Override methods from the super to force all code paths through the our openStreamFromURL
 
-    private RemoteDocument loadRemoteDocument(String url) throws JsonLdError {
-        // This is pretty much what the super implementation does
-        final RemoteDocument doc = new RemoteDocument(url, null);
+    @Override
+    public final RemoteDocument loadDocument(String url) throws JsonLdError {
+        // Implement this here because the super has some system properties we want to ignore
         try {
-            if (url.equalsIgnoreCase("http://schema.org/")) {
-                doc.setDocument(JsonUtils.fromURLJavaNet(new URL(url)));
-            } else {
-                doc.setDocument(JsonUtils.fromURL(new URL(url), getHttpClient()));
-            }
+            return new RemoteDocument(url, fromURL(new URL(url)));
         } catch (Exception e) {
             throw (JsonLdError) new JsonLdError(JsonLdError.Error.LOADING_REMOTE_CONTEXT_FAILED, url).initCause(e);
         }
-        return doc;
+    }
+
+    @Override
+    public final Object fromURL(URL url) throws JsonParseException, IOException {
+        // Delegate to our openStreamFromURL so we get access to offline documents
+        try (InputStream in = openStreamFromURL(url)) {
+            return JsonUtils.fromInputStream(in);
+        }
     }
 
     @Override
