@@ -44,6 +44,7 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty.Cardinality;
 import org.apache.tinkerpop.gremlin.structure.io.GraphReader;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
+import org.umlg.sqlg.structure.SqlgExceptions.InvalidIdException;
 import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
@@ -137,8 +138,7 @@ public final class BlackDuckIoReader implements GraphReader {
         }
 
         public void bulkAdd(SqlgGraph graphToWriteTo, Collection<Pair<String, String>> uids) {
-            // TODO Remove cast when fixed in Sqlg
-            graphToWriteTo.bulkAddEdges(inVertexLabel, outVertexLabel, edgeLabel, ID_FIELDS, (List<Pair<String, String>>) uids);
+            graphToWriteTo.bulkAddEdges(inVertexLabel, outVertexLabel, edgeLabel, ID_FIELDS, uids);
         }
 
         @Override
@@ -211,50 +211,6 @@ public final class BlackDuckIoReader implements GraphReader {
         this.objectPropertyNames = ImmutableSet.copyOf(objectPropertyNames);
     }
 
-    /**
-     * Generates the frame and collections of graph property names.
-     */
-    private static void poplateContext(Map<String, Object> initialContext,
-            Map<String, Object> frame, Set<String> dataPropertyNames, Set<String> objectPropertyNames) {
-        Map<String, Object> context = new LinkedHashMap<>();
-        List<String> type = new ArrayList<>();
-
-        // Application specific entries to the context
-        for (Map.Entry<String, Object> entry : initialContext.entrySet()) {
-            if (entry.getValue() instanceof String) {
-                context.put(entry.getKey(), entry.getValue());
-            } else if (entry.getValue() instanceof Map<?, ?>) {
-                Map<?, ?> definition = (Map<?, ?>) entry.getValue();
-                Object id = definition.get(JsonLdConsts.ID);
-                if (id != null) {
-                    context.put(entry.getKey(), id);
-                }
-                if (Objects.equals(definition.get(JsonLdConsts.TYPE), JsonLdConsts.ID)) {
-                    objectPropertyNames.add(entry.getKey());
-                } else {
-                    dataPropertyNames.add(entry.getKey());
-                }
-            }
-        }
-
-        // Standard BDIO
-        for (Bdio.Class bdioClass : Bdio.Class.values()) {
-            context.put(bdioClass.name(), bdioClass.toString());
-            type.add(bdioClass.toString());
-        }
-        for (Bdio.DataProperty bdioDataProperty : Bdio.DataProperty.values()) {
-            context.put(bdioDataProperty.name(), bdioDataProperty.toString());
-            dataPropertyNames.add(bdioDataProperty.name());
-        }
-        for (Bdio.ObjectProperty bdioObjectProperty : Bdio.ObjectProperty.values()) {
-            context.put(bdioObjectProperty.name(), bdioObjectProperty.toString());
-            objectPropertyNames.add(bdioObjectProperty.name());
-        }
-
-        frame.put(JsonLdConsts.CONTEXT, context);
-        frame.put(JsonLdConsts.TYPE, type);
-    }
-
     @Override
     public void readGraph(InputStream inputStream, Graph graphToWriteTo) throws IOException {
         RxJavaBdioDocument document = documentBuilder.build(RxJavaBdioDocument.class);
@@ -309,6 +265,7 @@ public final class BlackDuckIoReader implements GraphReader {
                             .map(vertex -> {
                                 // TODO Need to pass the StarVertex into streamVertex
                                 // graphToWriteTo.streamVertex();
+                                // org.apache.tinkerpop.gremlin.structure.util.ElementHelper ???
                                 return vertex;
                             })
                             .doOnComplete(() -> {
@@ -411,7 +368,7 @@ public final class BlackDuckIoReader implements GraphReader {
         // Object properties (BDIO only contains outgoing edges)
         if (attachEdgesOfThisDirection == Direction.BOTH || attachEdgesOfThisDirection == Direction.OUT) {
             addVertexEdges(node, starGraph.getStarVertex(),
-                    id -> starGraph.addVertex(T.id, URI.create(id.toString()), Tokens.id, id),
+                    id -> starGraph.addVertex(T.id, URI.create(id.toString())),
                     edgeAttachMethod != null ? edgeAttachMethod::apply : edge -> {
                     });
         }
@@ -549,6 +506,50 @@ public final class BlackDuckIoReader implements GraphReader {
     private static boolean isUnknown(String key) {
         // If framing did not recognize the attribute, it will still have a scheme or prefix separator
         return key.indexOf(':') >= 0;
+    }
+
+    /**
+     * Generates the frame and collections of graph property names.
+     */
+    private static void poplateContext(Map<String, Object> initialContext,
+            Map<String, Object> frame, Set<String> dataPropertyNames, Set<String> objectPropertyNames) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        List<String> type = new ArrayList<>();
+
+        // Application specific entries to the context
+        for (Map.Entry<String, Object> entry : initialContext.entrySet()) {
+            if (entry.getValue() instanceof String) {
+                context.put(entry.getKey(), entry.getValue());
+            } else if (entry.getValue() instanceof Map<?, ?>) {
+                Map<?, ?> definition = (Map<?, ?>) entry.getValue();
+                Object id = definition.get(JsonLdConsts.ID);
+                if (id != null) {
+                    context.put(entry.getKey(), id);
+                }
+                if (Objects.equals(definition.get(JsonLdConsts.TYPE), JsonLdConsts.ID)) {
+                    objectPropertyNames.add(entry.getKey());
+                } else {
+                    dataPropertyNames.add(entry.getKey());
+                }
+            }
+        }
+
+        // Standard BDIO
+        for (Bdio.Class bdioClass : Bdio.Class.values()) {
+            context.put(bdioClass.name(), bdioClass.toString());
+            type.add(bdioClass.toString());
+        }
+        for (Bdio.DataProperty bdioDataProperty : Bdio.DataProperty.values()) {
+            context.put(bdioDataProperty.name(), bdioDataProperty.toString());
+            dataPropertyNames.add(bdioDataProperty.name());
+        }
+        for (Bdio.ObjectProperty bdioObjectProperty : Bdio.ObjectProperty.values()) {
+            context.put(bdioObjectProperty.name(), bdioObjectProperty.toString());
+            objectPropertyNames.add(bdioObjectProperty.name());
+        }
+
+        frame.put(JsonLdConsts.CONTEXT, context);
+        frame.put(JsonLdConsts.TYPE, type);
     }
 
     private static Optional<Vertex> getVertex(Attachable<Vertex> attachableVertex, Graph hostGraph) {
