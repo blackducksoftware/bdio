@@ -353,7 +353,7 @@ public final class BlackDuckIoReader implements GraphReader {
 
                 // Collect all of the vertices in a map, creating the actual vertices in the graph as we go
                 .toMap(vertex -> (StarGraph.StarVertex) ((Attachable<Vertex>) vertex).get(),
-                        vertex -> ((Attachable<Vertex>) vertex).attach(Attachable.Method.create(graphToWriteTo)))
+                        vertex -> ((Attachable<Vertex>) vertex).attach(upsert(graphToWriteTo)))
 
                 // Get all of the outgoing edges from the cached vertices
                 .flatMapObservable(cache -> Observable.fromIterable(cache.keySet())
@@ -390,14 +390,8 @@ public final class BlackDuckIoReader implements GraphReader {
         final Map<String, Object> node = NodeInputStream.readNode(inputStream);
         final StarGraph starGraph = StarGraph.open();
 
-        // TODO HOW DO WE FIX THIS???
-        // It might be possible using the "attachable" method above: pass in a function which delegates to getOrCreate
-        // then copies the properties and vertex properties from the base over to the result?
-
-        // NOTE: It is still possible that we get here twice for the same JSON-LD identifier
-        // This will happen if data for the node is split over multiple JSON-LD entries in the BDIO file...
-
-        // Create the vertex using our own ID instead of the graph's
+        // Use a URI object as graph identifier keeping in mind that the graph is not obligated
+        // to use the URI (which is why we still keep the string version around)
         Vertex vertex = starGraph.addVertex(
                 T.label, node.get(JsonLdConsts.TYPE),
                 T.id, URI.create((String) node.get(JsonLdConsts.ID)),
@@ -458,6 +452,27 @@ public final class BlackDuckIoReader implements GraphReader {
                 .forEach((key, inVertex) -> {
                     edgeAttachMethod.accept((Attachable<Edge>) vertex.addEdge(key, inVertex));
                 });
+    }
+
+    /**
+     * An attachable method that automatically performs an "upsert" operation; that is it incurs the existence check and
+     * updates vertex if it exists.
+     */
+    private Function<Attachable<Vertex>, Vertex> upsert(Graph hostGraph) {
+        // `Attachable.Method.getOrCreate` doesn't update
+        return attachableVertex -> {
+            return getVertex(attachableVertex, hostGraph)
+                    .map(vertex -> {
+                        attachableVertex.get().properties().forEachRemaining(vp -> {
+                            VertexProperty<?> vertexProperty = hostGraph.features().vertex().properties().willAllowId(vp.id())
+                                    ? vertex.property(hostGraph.features().vertex().getCardinality(vp.key()), vp.key(), vp.value(), T.id, vp.id())
+                                    : vertex.property(hostGraph.features().vertex().getCardinality(vp.key()), vp.key(), vp.value());
+                            vp.properties().forEachRemaining(p -> vertexProperty.property(p.key(), p.value()));
+                        });
+                        return vertex;
+                    })
+                    .orElseGet(() -> Attachable.Method.createVertex(attachableVertex, hostGraph));
+        };
     }
 
     @Override
@@ -536,4 +551,14 @@ public final class BlackDuckIoReader implements GraphReader {
         return key.indexOf(':') >= 0;
     }
 
+    private static Optional<Vertex> getVertex(Attachable<Vertex> attachableVertex, Graph hostGraph) {
+        // Add some extra protection to `Attachable.Method.getVertex`
+        try {
+            Iterator<Vertex> vertexIterator = hostGraph.vertices(attachableVertex.get().id());
+            return vertexIterator.hasNext() ? Optional.of(vertexIterator.next()) : Optional.empty();
+        } catch (InvalidIdException e) {
+            // It is possible that we do not have a Sqlg assigned identifier yet, just return empty
+            return Optional.empty();
+        }
+    }
 }
