@@ -42,6 +42,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty.Cardinality;
 import org.apache.tinkerpop.gremlin.structure.io.GraphReader;
+import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
 import org.umlg.sqlg.structure.SqlgExceptions.InvalidIdException;
@@ -167,7 +168,7 @@ public final class BlackDuckIoReader implements GraphReader {
     /**
      * The JSON-LD value object mapper to use.
      */
-    private final ValueObjectMapper valueObjectMapper = new ValueObjectMapper();
+    private final ValueObjectMapper valueObjectMapper;
 
     /**
      * The JSON-LD frame used to convert linked data into graph nodes.
@@ -197,6 +198,7 @@ public final class BlackDuckIoReader implements GraphReader {
 
     private BlackDuckIoReader(Builder builder) {
         documentBuilder = builder.documentBuilder.orElseGet(BdioDocument.Builder::new);
+        valueObjectMapper = builder.mapper.orElseGet(() -> BlackDuckIoMapper.build().create()).createMapper();
         batchSize = builder.batchSize;
         partitionStrategy = builder.partitionStrategy.orElse(null);
 
@@ -467,6 +469,8 @@ public final class BlackDuckIoReader implements GraphReader {
 
     public final static class Builder implements ReaderBuilder<BlackDuckIoReader> {
 
+        private Optional<Mapper<ValueObjectMapper>> mapper = Optional.empty();
+
         private Optional<BdioDocument.Builder> documentBuilder = Optional.empty();
 
         private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
@@ -477,6 +481,11 @@ public final class BlackDuckIoReader implements GraphReader {
         private int batchSize = 10000;
 
         private Builder() {
+        }
+
+        public Builder mapper(@Nullable Mapper<ValueObjectMapper> mapper) {
+            this.mapper = Optional.ofNullable(mapper);
+            return this;
         }
 
         public Builder documentBuilder(@Nullable BdioDocument.Builder documentBuilder) {

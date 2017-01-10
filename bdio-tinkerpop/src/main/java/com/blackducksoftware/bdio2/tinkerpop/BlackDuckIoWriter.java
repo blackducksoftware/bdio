@@ -30,9 +30,11 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.io.GraphWriter;
+import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 
 import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.BdioMetadata;
+import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.utils.JsonUtils;
@@ -43,10 +45,13 @@ public class BlackDuckIoWriter implements GraphWriter {
 
     private final BdioDocument.Builder documentBuilder;
 
+    private final ValueObjectMapper valueObjectMapper;
+
     private TraversalStrategy<?>[] strategies;
 
     private BlackDuckIoWriter(Builder builder) {
         documentBuilder = builder.documentBuilder.orElseGet(BdioDocument.Builder::new);
+        valueObjectMapper = builder.mapper.orElseGet(() -> BlackDuckIoMapper.build().create()).createMapper();
         strategies = builder.partitionStrategy.map(s -> new TraversalStrategy<?>[] { s }).orElse(new TraversalStrategy<?>[0]);
     }
 
@@ -94,11 +99,7 @@ public class BlackDuckIoWriter implements GraphWriter {
                     break;
                 default:
                     if (!isPrivate(vp.key())) {
-                        // TODO Types?! Is this what the mapper would be for?
-                        // TODO We might want something like "{ @value : Foo, @type : Bar }"
-                        // That requires knowing the FQ name so we can get the data type from Bdio.DataProperty
-                        // ...Unless we get an actual Java object (e.g. Integer) from the graph...
-                        result.put(vp.key(), vp.value());
+                        result.put(vp.key(), valueObjectMapper.toValueObject(vp.value()));
                     }
                 }
             });
@@ -149,11 +150,18 @@ public class BlackDuckIoWriter implements GraphWriter {
 
     public final static class Builder implements WriterBuilder<BlackDuckIoWriter> {
 
+        private Optional<Mapper<ValueObjectMapper>> mapper = Optional.empty();
+
         private Optional<BdioDocument.Builder> documentBuilder = Optional.empty();
 
         private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
 
         private Builder() {
+        }
+
+        public Builder mapper(@Nullable Mapper<ValueObjectMapper> mapper) {
+            this.mapper = Optional.ofNullable(mapper);
+            return this;
         }
 
         public Builder documentBuilder(@Nullable BdioDocument.Builder documentBuilder) {

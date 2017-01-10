@@ -16,7 +16,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -33,6 +33,8 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
 
     private final Graph graph;
 
+    private final Consumer<BlackDuckIoMapper.Builder> onMapper;
+
     @Nullable
     private final BdioDocument.Builder documentBuilder;
 
@@ -40,24 +42,36 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
     private final PartitionStrategy partitionStrategy;
 
     private BlackDuckIo(Builder builder) {
-        graph = Objects.requireNonNull(builder.graph, "The graph argument was not specified");
-        documentBuilder = builder.documentBuilder;
-        partitionStrategy = builder.partitionStrategy;
+        graph = builder.graph.orElseThrow(() -> new NullPointerException("The graph argument was not specified"));
+        documentBuilder = builder.documentBuilder.orElse(null);
+        partitionStrategy = builder.partitionStrategy.orElse(null);
+        onMapper = mapperBuilder -> {
+            builder.registry.ifPresent(mapperBuilder::addRegistry);
+            builder.onMapper.ifPresent(c -> c.accept(mapperBuilder));
+        };
     }
 
     @Override
     public BlackDuckIoReader.Builder reader() {
-        return BlackDuckIoReader.build();
+        return BlackDuckIoReader.build()
+                .mapper(mapper().create())
+                .documentBuilder(documentBuilder)
+                .partitionStrategy(partitionStrategy);
     }
 
     @Override
     public BlackDuckIoWriter.Builder writer() {
-        return BlackDuckIoWriter.build();
+        return BlackDuckIoWriter.build()
+                .mapper(mapper().create())
+                .documentBuilder(documentBuilder)
+                .partitionStrategy(partitionStrategy);
     }
 
     @Override
     public BlackDuckIoMapper.Builder mapper() {
-        return BlackDuckIoMapper.build();
+        BlackDuckIoMapper.Builder builder = BlackDuckIoMapper.build();
+        onMapper.accept(builder);
+        return builder;
     }
 
     @Override
@@ -75,11 +89,11 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
     }
 
     public void writeGraph(OutputStream outputStream) throws IOException {
-        writer().documentBuilder(documentBuilder).partitionStrategy(partitionStrategy).create().writeGraph(outputStream, graph);
+        writer().create().writeGraph(outputStream, graph);
     }
 
     public void readGraph(InputStream inputStream) throws IOException {
-        reader().documentBuilder(documentBuilder).partitionStrategy(partitionStrategy).create().readGraph(inputStream, graph);
+        reader().create().readGraph(inputStream, graph);
     }
 
     public static Builder build() {
@@ -88,40 +102,47 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
 
     public final static class Builder implements Io.Builder<BlackDuckIo> {
 
-        private Graph graph;
+        private Optional<IoRegistry> registry = Optional.empty();
 
-        @Nullable
-        private BdioDocument.Builder documentBuilder;
+        private Optional<Graph> graph = Optional.empty();
 
-        @Nullable
-        private PartitionStrategy partitionStrategy;
+        @SuppressWarnings("rawtypes")
+        private Optional<Consumer<Mapper.Builder>> onMapper = Optional.empty();
+
+        private Optional<BdioDocument.Builder> documentBuilder = Optional.empty();
+
+        private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
+
+        private Builder() {
+        }
 
         @Override
         @Deprecated
-        public Builder registry(IoRegistry registry) {
-            // Ignore this, BDIO does not support custom mapping logic
+        public Builder registry(@Nullable IoRegistry registry) {
+            this.registry = Optional.ofNullable(registry);
             return this;
         }
 
         @SuppressWarnings("rawtypes")
         @Override
-        public Builder onMapper(Consumer<Mapper.Builder> onMapper) {
+        public Builder onMapper(@Nullable Consumer<Mapper.Builder> onMapper) {
+            this.onMapper = Optional.ofNullable(onMapper);
             return this;
         }
 
         @Override
         public Builder graph(Graph graph) {
-            this.graph = graph;
+            this.graph = Optional.of(graph);
             return this;
         }
 
         public Builder documentBuilder(@Nullable BdioDocument.Builder documentBuilder) {
-            this.documentBuilder = documentBuilder;
+            this.documentBuilder = Optional.ofNullable(documentBuilder);
             return this;
         }
 
         public Builder partitionStrategy(@Nullable PartitionStrategy partitionStrategy) {
-            this.partitionStrategy = partitionStrategy;
+            this.partitionStrategy = Optional.ofNullable(partitionStrategy);
             return this;
         }
 
