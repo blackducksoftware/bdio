@@ -18,11 +18,9 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import org.apache.tinkerpop.gremlin.structure.io.AbstractIoRegistry;
 import org.apache.tinkerpop.gremlin.structure.io.IoRegistry;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 
@@ -36,26 +34,9 @@ import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 public class BlackDuckIoMapper implements Mapper<ValueObjectMapper> {
 
     /**
-     * An IO Registry used to supplement the real {@link org.umlg.sqlg.structure.SqlgIoRegistry}.
+     * A special value mapper to normalize types supported by the graph.
      */
-    private static class SqlgBdioIoRegistry extends AbstractIoRegistry {
-        private static final SqlgBdioIoRegistry INSTANCE = new SqlgBdioIoRegistry();
-
-        private SqlgBdioIoRegistry() {
-            // TODO Ideally, instead of a Boolean, this would be some type of plugin to the ValueObjectMapper (or an
-            // extension of) that performs the extra mapping for Instant types. For right now, that isn't necessary.
-            register(BlackDuckIo.class, Instant.class, Boolean.TRUE);
-        }
-
-        public static SqlgBdioIoRegistry getInstance() {
-            return INSTANCE;
-        }
-    }
-
-    /**
-     * A special value mapper to use with Sqlg to make sure we only use supported types.
-     */
-    private static class SqlgValueObjectMapper extends ValueObjectMapper {
+    private static class GraphValueObjectMapper extends ValueObjectMapper {
         @Override
         public Object fromFieldValue(Object input) {
             Object modelValue = super.fromFieldValue(input);
@@ -73,6 +54,7 @@ public class BlackDuckIoMapper implements Mapper<ValueObjectMapper> {
             if (value instanceof ZonedDateTime) {
                 return super.toValueObject(((ZonedDateTime) value).toInstant());
             } else if (value instanceof LocalDateTime) {
+                // TODO Normalize on ZonedDateTime in Sqlg 1.3.3
                 ZoneOffset offset = ZoneId.systemDefault().getRules().getOffset((LocalDateTime) value);
                 return super.toValueObject(((LocalDateTime) value).toInstant(offset));
             } else {
@@ -81,22 +63,16 @@ public class BlackDuckIoMapper implements Mapper<ValueObjectMapper> {
         }
     }
 
-    /**
-     * TODO This is a flag indicating we detected Sqlg, eventually it will be replaced by type adapters...
-     */
-    private final boolean sqlg;
-
     private BlackDuckIoMapper(BlackDuckIoMapper.Builder builder) {
-        // TODO This is kind of a round-about way of detecting Sqlg, but it's more written for the generic approach
-        Map<Class<?>, Object> m = builder.registries.stream()
+        // TODO Customize the GraphValueObjectMapper
+        builder.registries.stream()
                 .flatMap(registry -> registry.find(BlackDuckIo.class).stream())
                 .collect(Collectors.toMap(p -> p.getValue0(), p -> p.getValue1()));
-        sqlg = m.get(Instant.class) != null;
     }
 
     @Override
     public ValueObjectMapper createMapper() {
-        return sqlg ? new SqlgValueObjectMapper() : new ValueObjectMapper();
+        return new GraphValueObjectMapper();
     }
 
     public static Builder build() {
@@ -113,12 +89,6 @@ public class BlackDuckIoMapper implements Mapper<ValueObjectMapper> {
         @Override
         public Builder addRegistry(IoRegistry registry) {
             registries.add(Objects.requireNonNull(registry));
-
-            // If it is a SqlgIoRegistry, add our extra Sqlg registry as well
-            if (registry.getClass().getSimpleName().equals("SqlgIoRegistry")) {
-                registries.add(SqlgBdioIoRegistry.getInstance());
-            }
-
             return this;
         }
 

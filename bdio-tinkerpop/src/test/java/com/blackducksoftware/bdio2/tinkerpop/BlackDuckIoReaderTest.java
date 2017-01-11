@@ -14,13 +14,15 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import static com.google.common.truth.Truth.assertThat;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
-import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.junit.Test;
 
 import com.blackducksoftware.bdio2.Bdio;
@@ -31,15 +33,23 @@ import com.blackducksoftware.bdio2.test.BdioTest;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.Lists;
 
-public class BlackDuckIoReaderTest {
+/**
+ * Tests for the {@link BlackDuckIoReader}.
+ *
+ * @author jgustie
+ */
+public class BlackDuckIoReaderTest extends BaseTest {
+
+    public BlackDuckIoReaderTest(Configuration configuration) {
+        super(configuration);
+    }
 
     @Test
     public void readMetadata() throws Exception {
         Instant creation = Instant.now();
         BdioMetadata metadata = new BdioMetadata().id("urn:uuid:" + UUID.randomUUID()).creation(creation);
-        TinkerGraph graph = TinkerGraph.open();
 
-        BlackDuckIoReader.build().create().readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph()), graph);
+        graph.io(BlackDuckIo.build()).readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph()));
 
         GraphTraversal<Vertex, Vertex> namedGraphs = graph.traversal().V().hasLabel(Tokens.NamedGraph);
         assertThat(namedGraphs.hasNext()).isTrue();
@@ -50,9 +60,11 @@ public class BlackDuckIoReaderTest {
         assertThat(idProperty.isPresent()).isTrue();
         assertThat(idProperty.value()).isEqualTo(metadata.id());
 
-        VertexProperty<Instant> creationProperty = namedGraph.property(Bdio.DataProperty.creation.name());
+        // NOTE: We cannot ensure that the Instant will make it through the database
+        VertexProperty<LocalDateTime> creationProperty = namedGraph.property(Bdio.DataProperty.creation.name());
         assertThat(creationProperty.isPresent()).isTrue();
-        assertThat(creationProperty.value()).isEqualTo(creation);
+        ZoneOffset offset = ZoneOffset.systemDefault().getRules().getOffset(creationProperty.value());
+        assertThat(creationProperty.value().toInstant(offset)).isEqualTo(creation);
     }
 
     @Test
@@ -60,9 +72,8 @@ public class BlackDuckIoReaderTest {
         BdioMetadata metadata = new BdioMetadata().id("urn:uuid:" + UUID.randomUUID());
         File fileModel = new File("urn:uuid:" + UUID.randomUUID());
         fileModel.byteCount(101L);
-        TinkerGraph graph = TinkerGraph.open();
 
-        BlackDuckIoReader.build().create().readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(fileModel))), graph);
+        graph.io(BlackDuckIo.build()).readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(fileModel))));
 
         GraphTraversal<Vertex, Vertex> files = graph.traversal().V().hasLabel(Bdio.Class.File.name());
         assertThat(files.hasNext()).isTrue();
@@ -83,9 +94,7 @@ public class BlackDuckIoReaderTest {
         fileModel.byteCount(103L);
         projectModel.base(fileModel);
 
-        TinkerGraph graph = TinkerGraph.open();
-
-        BlackDuckIoReader.build().create().readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(projectModel, fileModel))), graph);
+        graph.io(BlackDuckIo.build()).readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(projectModel, fileModel))));
 
         Optional<Number> byteCount = graph.traversal().V()
                 .hasLabel(Bdio.Class.Project.name())
@@ -104,11 +113,9 @@ public class BlackDuckIoReaderTest {
         fileModel1.byteCount(103L);
         fileModel2.contentType("text/plain");
 
-        TinkerGraph graph = TinkerGraph.open();
-
-        BlackDuckIoReader.build().create().readGraph(BdioTest.zipJsonBytes(
+        graph.io(BlackDuckIo.build()).readGraph(BdioTest.zipJsonBytes(
                 metadata.asNamedGraph(Lists.newArrayList(fileModel1)),
-                metadata.asNamedGraph(Lists.newArrayList(fileModel2), JsonLdConsts.ID)), graph);
+                metadata.asNamedGraph(Lists.newArrayList(fileModel2), JsonLdConsts.ID)));
 
         GraphTraversal<Vertex, Vertex> files = graph.traversal().V().hasLabel(Bdio.Class.File.name());
         assertThat(files.hasNext()).isTrue();

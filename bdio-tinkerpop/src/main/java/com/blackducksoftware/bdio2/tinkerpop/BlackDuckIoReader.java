@@ -161,7 +161,7 @@ public final class BlackDuckIoReader implements GraphReader {
     @Override
     public void readGraph(InputStream inputStream, Graph graphToWriteTo) throws IOException {
         RxJavaBdioDocument document = documentBuilder.build(RxJavaBdioDocument.class);
-        GraphTraversalSource g = partitionStrategy != null ? graphToWriteTo.traversal().withStrategies(partitionStrategy) : graphToWriteTo.traversal();
+        GraphTraversalSource g = traversal(graphToWriteTo);
 
         // Create a metadata subscription
         document.metadata(metadata -> {
@@ -366,6 +366,24 @@ public final class BlackDuckIoReader implements GraphReader {
         throw new UnsupportedOperationException();
     }
 
+    private GraphTraversalSource traversal(Graph graph) {
+        return partitionStrategy != null ? graph.traversal().withStrategies(partitionStrategy) : graph.traversal();
+    }
+
+    private Optional<Vertex> getVertex(Attachable<Vertex> attachableVertex, Graph hostGraph) {
+        // Add some extra protection to `Attachable.Method.getVertex`
+        try {
+            Iterator<Vertex> vertexIterator = hostGraph.vertices(attachableVertex.get().id());
+            return vertexIterator.hasNext() ? Optional.of(vertexIterator.next()) : Optional.empty();
+        } catch (InvalidIdException e) {
+            if (attachableVertex.get().id() instanceof URI) {
+                return traversal(hostGraph).V().has(Tokens.id, attachableVertex.get().id().toString()).tryNext();
+            } else {
+                return Optional.empty();
+            }
+        }
+    }
+
     public static Builder build() {
         return new Builder();
     }
@@ -464,14 +482,4 @@ public final class BlackDuckIoReader implements GraphReader {
         frame.put(JsonLdConsts.TYPE, type);
     }
 
-    private static Optional<Vertex> getVertex(Attachable<Vertex> attachableVertex, Graph hostGraph) {
-        // Add some extra protection to `Attachable.Method.getVertex`
-        try {
-            Iterator<Vertex> vertexIterator = hostGraph.vertices(attachableVertex.get().id());
-            return vertexIterator.hasNext() ? Optional.of(vertexIterator.next()) : Optional.empty();
-        } catch (InvalidIdException e) {
-            // It is possible that we do not have a Sqlg assigned identifier yet, just return empty
-            return Optional.empty();
-        }
-    }
 }
