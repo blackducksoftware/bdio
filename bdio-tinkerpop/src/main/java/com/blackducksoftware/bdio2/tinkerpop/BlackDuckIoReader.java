@@ -16,7 +16,6 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -30,7 +29,6 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -46,7 +44,6 @@ import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
 import org.umlg.sqlg.structure.SqlgExceptions.InvalidIdException;
-import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioDocument;
@@ -64,7 +61,6 @@ import io.reactivex.Flowable;
 import io.reactivex.Observable;
 import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
-import io.reactivex.schedulers.Schedulers;
 
 public final class BlackDuckIoReader implements GraphReader {
 
@@ -105,57 +101,6 @@ public final class BlackDuckIoReader implements GraphReader {
         public void accept(Object t) {
             if (graph != null && count.incrementAndGet() % batchSize == 0) {
                 graph.tx().commit();
-            }
-        }
-    }
-
-    /**
-     * A key used to aggregate edges by label. This is used to batch load into Sqlg backed graphs.
-     */
-    private static class EdgeLabels {
-
-        private static final Pair<String, String> ID_FIELDS = Pair.of(Tokens.id, Tokens.id);
-
-        private final String inVertexLabel;
-
-        private final String outVertexLabel;
-
-        private final String edgeLabel;
-
-        public EdgeLabels(String inVertexLabel, String outVertexLabel, String edgeLabel) {
-            this.inVertexLabel = inVertexLabel;
-            this.outVertexLabel = outVertexLabel;
-            this.edgeLabel = edgeLabel;
-        }
-
-        public static EdgeLabels fromEdge(Edge edge) {
-            return new EdgeLabels(edge.inVertex().label(), edge.outVertex().label(), edge.label());
-        }
-
-        public static Pair<String, String> vertexIdentifiers(Edge edge) {
-            return Pair.of(
-                    (String) edge.inVertex().property(ID_FIELDS.getLeft()).value(),
-                    (String) edge.outVertex().property(ID_FIELDS.getRight()).value());
-        }
-
-        public void bulkAdd(SqlgGraph graphToWriteTo, Collection<Pair<String, String>> uids) {
-            graphToWriteTo.bulkAddEdges(inVertexLabel, outVertexLabel, edgeLabel, ID_FIELDS, uids);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(inVertexLabel, outVertexLabel, edgeLabel);
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj instanceof EdgeLabels) {
-                EdgeLabels other = (EdgeLabels) obj;
-                return inVertexLabel.equals(other.inVertexLabel)
-                        && outVertexLabel.equals(other.outVertexLabel)
-                        && edgeLabel.equals(other.edgeLabel);
-            } else {
-                return false;
             }
         }
     }
@@ -235,76 +180,17 @@ public final class BlackDuckIoReader implements GraphReader {
         });
 
         // Get the sequence of BDIO graph nodes and process them according the graph type
-        Flowable<Map<String, Object>> graphNodes = document.jsonld().frame(frame).compose(document.withoutMetadata());
-        if (graphToWriteTo instanceof SqlgGraph) {
-            readSqlgGraph(graphNodes, (SqlgGraph) graphToWriteTo);
-        } else {
-            readOtherGraph(graphNodes, graphToWriteTo);
-        }
-
-        // Read the supplied input stream
-        document.read(inputStream);
-
-        // TODO Error handling? Get the throwable off the processor?
-    }
-
-    private void readSqlgGraph(Flowable<Map<String, Object>> graphNodes, SqlgGraph graphToWriteTo) {
-        graphNodes.groupBy(node -> node.get(JsonLdConsts.TYPE))
-                .flatMap(nodes -> {
-                    return nodes
-                            .doOnSubscribe(sub -> {
-                                System.err.println("STARTING STREAMING ON " + Thread.currentThread().getName());
-                                graphToWriteTo.tx().streamingBatchModeOn();
-                            })
-                            .map(NodeInputStream::wrapNode)
-                            .flatMap(in -> {
-                                try {
-                                    return Flowable.just(readVertex(in, null, null, Direction.OUT));
-                                } catch (IOException e) {
-                                    return Flowable.error(e);
-                                }
-                            })
-                            .map(vertex -> {
-                                // TODO Need to pass the StarVertex into streamVertex
-                                // graphToWriteTo.streamVertex();
-                                // org.apache.tinkerpop.gremlin.structure.util.ElementHelper ???
-                                return vertex;
-                            })
-                            .doOnComplete(() -> {
-                                System.err.println("COMMITING ON " + Thread.currentThread().getName());
-                                graphToWriteTo.tx().commit();
-                            })
-                            .subscribeOn(Schedulers.newThread());
-                })
-                .doOnSubscribe(sub -> {
-                    System.err.println("STARTING STREAMING EDGES ON " + Thread.currentThread().getName());
-                    graphToWriteTo.tx().streamingBatchModeOn();
-                })
-                .flatMapIterable(vertex -> (Iterable<Edge>) (() -> vertex.edges(Direction.OUT)))
-                .toMultimap(EdgeLabels::fromEdge, EdgeLabels::vertexIdentifiers)
-                .flatMapObservable(multimap -> Observable.fromIterable(multimap.entrySet()))
-                .doOnComplete(() -> {
-                    System.err.println("FINAL COMMIT ON " + Thread.currentThread().getName());
-                    graphToWriteTo.tx().commit();
-                })
-                // TODO Edge properties?
-                .subscribe(edge -> edge.getKey().bulkAdd(graphToWriteTo, edge.getValue()));
-    }
-
-    private void readOtherGraph(Flowable<Map<String, Object>> graphNodes, Graph graphToWriteTo) {
         MutationCountCommitter batchCommit = new MutationCountCommitter(graphToWriteTo, batchSize);
         Graph.Features.EdgeFeatures edgeFeatures = graphToWriteTo.features().edge();
+        document.jsonld()
 
-        graphNodes.map(NodeInputStream::wrapNode)
+                // Frame the JSON-LD and strip off metadata
+                .frame(frame)
+                .compose(document.withoutMetadata())
 
-                // Convert to vertices
-                .flatMap(in -> {
-                    try {
-                        return Flowable.just(readVertex(in, null, null, Direction.OUT));
-                    } catch (IOException e) {
-                        return Flowable.error(e);
-                    }
-                })
+                // Convert nodes to vertices
+                .map(NodeInputStream::wrapNode)
+                .flatMap(this::readVertex)
                 .cast(StarGraph.StarVertex.class)
 
                 // TODO This doesn't seem like the right way to do this...
@@ -336,6 +222,11 @@ public final class BlackDuckIoReader implements GraphReader {
                 .doOnComplete(batchCommit)
 
                 .subscribe();
+
+        // Read the supplied input stream
+        document.read(inputStream);
+
+        // TODO Error handling? Get the throwable off the processor?
     }
 
     @Override
@@ -376,6 +267,18 @@ public final class BlackDuckIoReader implements GraphReader {
         }
 
         return vertex;
+    }
+
+    /**
+     * Implementation of {@link #readVertex(InputStream, Function, Function, Direction)} that encapsulates result/errors
+     * in a flowable. This is useful for flat mapping. Hint. Hint.
+     */
+    private Flowable<Vertex> readVertex(InputStream in) {
+        try {
+            return Flowable.just(readVertex(in, null, null, Direction.OUT));
+        } catch (IOException e) {
+            return Flowable.error(e);
+        }
     }
 
     /**

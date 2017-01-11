@@ -22,6 +22,16 @@ allprojects {
 			defaultOutputDir = file('build-eclipse')
 		}
 	}
+
+	// There is a problem with the dependencies in Gremlin (Sqlg), this seems to solve the issue
+    configurations.all {
+        resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+            // This 'jeremyh' fellow seems to have take the jBCrypt from mindrot.org and re-packaged it
+            if (details.requested.group == 'com.github.jeremyh' && details.requested.name == 'jBCrypt' && details.requested.version == 'jbcrypt-0.4') {
+                details.useTarget 'org.mindrot:jbcrypt:0.3m' // TODO Use the '0.4-atlassian-1' version from JCenter?
+            }
+        }
+    }
 }
 
 subprojects {
