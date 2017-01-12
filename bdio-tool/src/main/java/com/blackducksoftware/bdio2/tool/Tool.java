@@ -27,9 +27,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
+import javax.annotation.Nullable;
 import javax.annotation.OverridingMethodsMustInvokeSuper;
 
+import com.blackducksoftware.bdio2.datatype.Product;
 import com.blackducksoftware.common.io.ExtraIO;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.base.Throwables;
@@ -55,6 +58,10 @@ public abstract class Tool implements Runnable {
     private static final class DoNothingTool extends Tool {
         private static final DoNothingTool INSTANCE = new DoNothingTool();
 
+        private DoNothingTool() {
+            super(null);
+        }
+
         @Override
         protected void execute() throws Exception {
             // Do nothing
@@ -73,6 +80,11 @@ public abstract class Tool implements Runnable {
     public enum Level {
         QUIET, DEFAULT, VERBOSE, DEBUG
     }
+
+    /**
+     * The name of the tool.
+     */
+    private final String name;
 
     /**
      * The print stream to use for standard output.
@@ -94,11 +106,12 @@ public abstract class Tool implements Runnable {
      */
     private boolean pretty;
 
-    protected Tool() {
-        this(System.out, System.err);
+    protected Tool(@Nullable String name) {
+        this(name, System.out, System.err);
     }
 
-    protected Tool(PrintStream sysout, PrintStream syserr) {
+    protected Tool(@Nullable String name, PrintStream sysout, PrintStream syserr) {
+        this.name = Optional.ofNullable(name).orElse(getClass().getSimpleName());
         this.stdout = Objects.requireNonNull(sysout);
         this.stderr = Objects.requireNonNull(syserr);
     }
@@ -175,6 +188,13 @@ public abstract class Tool implements Runnable {
     protected abstract void execute() throws Exception;
 
     /**
+     * Returns the name of this tool.
+     */
+    protected final String name() {
+        return name;
+    }
+
+    /**
      * Check if this tool should produce pretty output.
      */
     protected final boolean isPretty() {
@@ -198,12 +218,9 @@ public abstract class Tool implements Runnable {
      * <p>
      * When overriding this method, use {@link printOutput} to ensure help is not filtered out by
      * the current verbosity settings.
-     *
-     * @param name
-     *            the name used to invoke this tool
      */
-    protected void printHelp(String name) {
-        printOutput("No help is available for '%s'.%n", name);
+    protected void printHelp() {
+        printOutput("No help is available for '%s'.%n", name());
     }
 
     /**

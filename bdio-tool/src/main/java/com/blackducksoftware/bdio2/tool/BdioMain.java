@@ -13,8 +13,7 @@ package com.blackducksoftware.bdio2.tool;
 
 import java.util.Comparator;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import com.google.common.collect.Iterables;
@@ -39,11 +38,11 @@ public class BdioMain extends Tool {
 
         private final String description;
 
-        private final Supplier<Tool> factory;
+        private final Function<String, Tool> factory;
 
         private final boolean common;
 
-        private Command(String description, Supplier<Tool> factory, boolean common) {
+        private Command(String description, Function<String, Tool> factory, boolean common) {
             this.description = Objects.requireNonNull(description);
             this.factory = Objects.requireNonNull(factory);
             this.common = common;
@@ -56,7 +55,7 @@ public class BdioMain extends Tool {
             try {
                 return Command.valueOf(commandName);
             } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("bdio: '" + commandName + "' is not a bdio command. See 'bdio --help'.");
+                throw new IllegalArgumentException("'" + commandName + "' is not a bdio command. See 'bdio --help'.");
             }
         }
 
@@ -74,31 +73,41 @@ public class BdioMain extends Tool {
     private static final class HelpTool extends Tool {
 
         /**
+         * The name of the tool we are generating help for (e.g. "bdio").
+         */
+        private final String toolName;
+
+        /**
          * The name of the command to display help for.
          */
         private String commandName;
 
+        private HelpTool(String name) {
+            super(name.substring(name.indexOf(' ') + 1));
+            this.toolName = name.substring(0, name.indexOf(' '));
+        }
+
         @Override
         protected Tool parseArguments(String[] args) {
-            commandName = Iterables.getFirst(arguments(args), "help");
+            commandName = Iterables.getFirst(arguments(args), name());
             return super.parseArguments(args);
         }
 
         @Override
-        protected void printHelp(String name) {
-            printOutput("usage: bdio [--version] [--help] [--quiet|--verbose|--debug] [--pretty]%n");
+        protected void printHelp() {
+            printOutput("usage: %s [--version] [--help] [--quiet|--verbose|--debug] [--pretty]%n", toolName);
             printOutput("            <command> [<args>]%n%n");
-            printOutput("The most commonly used bdio commands are:%n");
+            printOutput("The most commonly used %s commands are:%n", toolName);
             Stream.of(Command.values())
                     .filter(Command::isCommon)
                     .sorted(Comparator.comparing(Command::name))
                     .forEachOrdered(command -> printOutput("   %-12s %s%n", command.name(), command.description));
-            printOutput("%nSee 'bdio help <command>' to read about a specific subcommand.%n");
+            printOutput("%nSee '%s %s <command>' to read about a specific subcommand.%n", toolName, name());
         }
 
         @Override
         protected void execute() throws Exception {
-            Command.named(commandName).factory.get().printHelp("bdio " + commandName);
+            Command.named(commandName).factory.apply(toolName + " " + commandName).printHelp();
         }
     }
 
@@ -117,6 +126,13 @@ public class BdioMain extends Tool {
     private String[] commandArgs;
 
     /**
+     * Private constructor, this tool should only be created through {@code main}.
+     */
+    private BdioMain() {
+        super("bdio");
+    }
+
+    /**
      * Sets the command to run with it's arguments.
      */
     public void setCommand(String commandName, String... commandArgs) {
@@ -126,19 +142,19 @@ public class BdioMain extends Tool {
 
     @Override
     protected Tool parseArguments(String[] args) {
-        commandName = Iterables.getFirst(arguments(args), "help");
+        commandName = Iterables.getFirst(arguments(args), Command.help.name());
         commandArgs = removeFirst(commandName, args);
 
         // Special behavior for help
         if (options(args).contains("--help")) {
             commandArgs = removeFirst("--help", ObjectArrays.concat(commandName, commandArgs));
-            commandName = "help";
+            commandName = Command.help.name();
             args = removeFirst("--help", args);
         }
 
         // Display our version number and stop (note that commands can still override '--version')
         if (options(args).contains("--version")
-                && (commandName.equals("help") || isBefore("--version", commandName, args))) {
+                && (commandName.equals(Command.help.name()) || isBefore("--version", commandName, args))) {
             printVersion();
             return doNothing();
         }
@@ -148,7 +164,7 @@ public class BdioMain extends Tool {
 
     @Override
     protected void execute() throws Exception {
-        Command.named(commandName).factory.get().parseArgs(commandArgs).run();
+        Command.named(commandName).factory.apply(name() + " " + commandName).parseArgs(commandArgs).run();
     }
 
     /**

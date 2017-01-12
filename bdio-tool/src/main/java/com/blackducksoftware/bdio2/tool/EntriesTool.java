@@ -16,6 +16,8 @@ import static com.google.common.base.Preconditions.checkState;
 import java.io.IOException;
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 import com.blackducksoftware.bdio2.BdioEmitter;
 import com.google.common.collect.Iterables;
 import com.google.common.io.ByteSource;
@@ -30,12 +32,13 @@ public class EntriesTool extends Tool {
     // TODO Configurable per-entry delimiters?
 
     public static void main(String[] args) {
-        new EntriesTool().parseArgs(args).run();
+        new EntriesTool(null).parseArgs(args).run();
     }
 
     private ByteSource input;
 
-    public EntriesTool() {
+    public EntriesTool(@Nullable String name) {
+        super(name);
     }
 
     public void setInput(ByteSource input) {

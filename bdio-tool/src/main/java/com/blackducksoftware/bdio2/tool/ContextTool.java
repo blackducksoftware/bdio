@@ -14,6 +14,8 @@ package com.blackducksoftware.bdio2.tool;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.Bdio.Container;
 import com.blackducksoftware.bdio2.Bdio.Datatype;
@@ -29,7 +31,11 @@ import com.github.jsonldjava.core.JsonLdError;
 public class ContextTool extends Tool {
 
     public static void main(String[] args) {
-        new ContextTool().parseArgs(args).run();
+        new ContextTool(null).parseArgs(args).run();
+    }
+
+    public ContextTool(@Nullable String name) {
+        super(name);
     }
 
     @Override

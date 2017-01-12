@@ -16,6 +16,8 @@ import java.io.OutputStream;
 import java.util.List;
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.legacy.ScanContainerEmitter;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
@@ -31,12 +33,16 @@ import com.google.common.io.ByteSource;
 public class ConvertTool extends Tool {
 
     public static void main(String[] args) {
-        new ConvertTool().parseArgs(args).run();
+        new ConvertTool(null).parseArgs(args).run();
     }
 
     private ByteSource input;
 
     private ByteSink output;
+
+    public ConvertTool(@Nullable String name) {
+        super(name);
+    }
 
     public void setInput(ByteSource input) {
         this.input = Objects.requireNonNull(input);
