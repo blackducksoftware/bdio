@@ -214,6 +214,18 @@ public abstract class Tool implements Runnable {
     }
 
     /**
+     * Returns a product label with the supplied name.
+     */
+    protected final Product getProduct() {
+        Optional<String> implementationVersion = Optional.ofNullable(getClass().getPackage().getImplementationVersion());
+        Optional<String> specificationVersion = Optional.ofNullable(getClass().getPackage().getSpecificationVersion());
+
+        Product product = Product.create(name().replace(' ', '-'), implementationVersion.orElse("unknown"));
+        specificationVersion.ifPresent(specVersion -> product.withComment("specification " + specVersion));
+        return product;
+    }
+
+    /**
      * Prints the help page for this tool.
      * <p>
      * When overriding this method, use {@link printOutput} to ensure help is not filtered out by

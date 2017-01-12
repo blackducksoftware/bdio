@@ -171,9 +171,7 @@ public class BdioMain extends Tool {
      * Prints the version of this tool to standard output.
      */
     protected void printVersion() {
-        String implVersion = Optional.ofNullable(getClass().getPackage().getImplementationVersion()).orElse("unknown");
-        String specVersion = Optional.ofNullable(getClass().getPackage().getSpecificationVersion()).orElse("unknown");
-        printOutput("bdio version %s (specification %s)%n", implVersion, specVersion);
+        printOutput("%s%n", getProduct().toString().replaceFirst("/", " version "));
     }
 
 }

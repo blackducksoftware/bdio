@@ -118,12 +118,12 @@ public final class Product {
         return comment;
     }
 
-    public Product withComment(String comment) {
-        return new Product(name, version, '(' + comment + ')');
+    public Product withComment(String comment, Object... args) {
+        return new Product(name, version, '(' + String.format(comment, args) + ')');
     }
 
-    public Product appendComment(String comment) {
-        return this.comment != null ? new Product(name, version, this.comment + " (" + comment + ")") : withComment(comment);
+    public Product appendComment(String comment, Object... args) {
+        return this.comment != null ? new Product(name, version, this.comment + " (" + String.format(comment, args) + ")") : withComment(comment);
     }
 
     public Product withoutComment() {
