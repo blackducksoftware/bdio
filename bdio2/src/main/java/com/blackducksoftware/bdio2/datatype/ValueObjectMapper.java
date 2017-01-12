@@ -72,6 +72,7 @@ public class ValueObjectMapper {
     /**
      * Takes a field value from a JSON-LD node and converts it over to a Java object.
      */
+    @Nullable
     public Object fromFieldValue(@Nullable Object input) {
         if (mappingOf(input, JsonLdConsts.VALUE).isPresent()) {
             // A map that contains "@value" is value object we can convert to a Java object
@@ -99,7 +100,7 @@ public class ValueObjectMapper {
         if (JSON_PRIMITIVE.test(value)) {
             return value;
         }
-        assert value != null;
+        assert value != null : "null is a primitive";
         for (Map.Entry<String, Predicate<Object>> typeCheck : TYPE_CHECKS.entrySet()) {
             if (typeCheck.getValue().test(value)) {
                 // NOTE: We cannot use ImmutableMap for this because the JSON-LD API freaks out

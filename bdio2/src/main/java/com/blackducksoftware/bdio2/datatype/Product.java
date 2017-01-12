@@ -50,7 +50,7 @@ public final class Product {
     @Nullable
     private final String comment;
 
-    private Product(String name, String version, String comment) {
+    private Product(String name, @Nullable String version, @Nullable String comment) {
         this.name = Objects.requireNonNull(name);
         this.version = version;
         this.comment = comment;
@@ -71,7 +71,7 @@ public final class Product {
 
     @JsonCreator
     public static Product valueOf(String value) {
-        String name = value;
+        String name = Objects.requireNonNull(value);
         String version = null;
         String comment = null;
 
@@ -100,7 +100,7 @@ public final class Product {
         return new Product(name, null, null);
     }
 
-    public static Product create(String name, String version) {
+    public static Product create(String name, @Nullable String version) {
         return new Product(name, version, null);
     }
 
