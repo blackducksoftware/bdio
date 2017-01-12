@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
 
@@ -56,6 +57,8 @@ import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
+import com.google.common.hash.BloomFilter;
+import com.google.common.hash.Funnels;
 
 import io.reactivex.Flowable;
 import io.reactivex.Observable;
@@ -182,6 +185,8 @@ public final class BlackDuckIoReader implements GraphReader {
         // Get the sequence of BDIO graph nodes and process them according the graph type
         MutationCountCommitter batchCommit = new MutationCountCommitter(graphToWriteTo, batchSize);
         Graph.Features.EdgeFeatures edgeFeatures = graphToWriteTo.features().edge();
+        Predicate<String> uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), 10_000_000)::put;
+
         document.jsonld()
 
                 // Frame the JSON-LD and strip off metadata
@@ -198,7 +203,7 @@ public final class BlackDuckIoReader implements GraphReader {
 
                 // Collect all of the vertices in a map, creating the actual vertices in the graph as we go
                 .toMap(vertex -> (StarGraph.StarVertex) ((Attachable<Vertex>) vertex).get(),
-                        vertex -> ((Attachable<Vertex>) vertex).attach(upsert(graphToWriteTo)))
+                        vertex -> ((Attachable<Vertex>) vertex).attach(upsert(graphToWriteTo, uniqueIdentifiers)))
 
                 // Get all of the outgoing edges from the cached vertices
                 .flatMapObservable(cache -> Observable.fromIterable(cache.keySet())
@@ -320,10 +325,10 @@ public final class BlackDuckIoReader implements GraphReader {
      * An attachable method that automatically performs an "upsert" operation; that is it incurs the existence check and
      * updates vertex if it exists.
      */
-    private Function<Attachable<Vertex>, Vertex> upsert(Graph hostGraph) {
+    private Function<Attachable<Vertex>, Vertex> upsert(Graph hostGraph, Predicate<String> uniqueIdentifiers) {
         // `Attachable.Method.getOrCreate` doesn't update
         return attachableVertex -> {
-            return getVertex(attachableVertex, hostGraph)
+            return getVertex(attachableVertex, hostGraph, uniqueIdentifiers)
                     .map(vertex -> {
                         attachableVertex.get().properties().forEachRemaining(vp -> {
                             VertexProperty<?> vertexProperty = hostGraph.features().vertex().properties().willAllowId(vp.id())
@@ -370,17 +375,18 @@ public final class BlackDuckIoReader implements GraphReader {
         return partitionStrategy != null ? graph.traversal().withStrategies(partitionStrategy) : graph.traversal();
     }
 
-    private Optional<Vertex> getVertex(Attachable<Vertex> attachableVertex, Graph hostGraph) {
-        // Add some extra protection to `Attachable.Method.getVertex`
+    private Optional<Vertex> getVertex(Attachable<Vertex> attachableVertex, Graph hostGraph, Predicate<String> uniqueIdentifier) {
+        // If this is a unique identifier, don't bother looking it up
+        String id = attachableVertex.get().id().toString();
+        if (uniqueIdentifier.test(id)) {
+            return Optional.empty();
+        }
+
         try {
             Iterator<Vertex> vertexIterator = hostGraph.vertices(attachableVertex.get().id());
             return vertexIterator.hasNext() ? Optional.of(vertexIterator.next()) : Optional.empty();
         } catch (InvalidIdException e) {
-            if (attachableVertex.get().id() instanceof URI) {
-                return traversal(hostGraph).V().has(Tokens.id, attachableVertex.get().id().toString()).tryNext();
-            } else {
-                return Optional.empty();
-            }
+            return traversal(hostGraph).V().has(Tokens.id, id).tryNext();
         }
     }
 
