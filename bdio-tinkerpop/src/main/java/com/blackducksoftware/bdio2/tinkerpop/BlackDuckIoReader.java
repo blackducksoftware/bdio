@@ -185,7 +185,12 @@ public final class BlackDuckIoReader implements GraphReader {
         // Get the sequence of BDIO graph nodes and process them according the graph type
         MutationCountCommitter batchCommit = new MutationCountCommitter(graphToWriteTo, batchSize);
         Graph.Features.EdgeFeatures edgeFeatures = graphToWriteTo.features().edge();
-        Predicate<String> uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), 10_000_000)::put;
+        Predicate<String> uniqueIdentifiers;
+        if (graphToWriteTo instanceof SqlgGraph) {
+            uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), 10_000_000)::put;
+        } else {
+            uniqueIdentifiers = x -> false;
+        }
 
         document.jsonld()
 
