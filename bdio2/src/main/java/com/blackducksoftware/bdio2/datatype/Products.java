@@ -23,9 +23,7 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.common.base.ExtraCollectors;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.google.common.base.CharMatcher;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -37,8 +35,6 @@ import com.google.common.collect.ImmutableList;
  */
 public final class Products implements Iterable<Product> {
 
-    private static final CharMatcher WS = CharMatcher.is(' ').or(CharMatcher.is('\t'));
-
     private List<Product> products;
 
     private Products(Iterable<Product> products) {
@@ -48,16 +44,36 @@ public final class Products implements Iterable<Product> {
 
     @JsonCreator
     public static Products valueOf(CharSequence input) {
-        List<String> parts = Splitter.on(WS).splitToList(input);
-        List<Product> result = new ArrayList<>(parts.size());
-        for (int i = 0; i < parts.size(); ++i) {
-            String value = parts.get(i);
-            while (i < parts.size() - 1 && parts.get(i + 1).charAt(0) == '(') {
-                value += ' ' + parts.get(++i);
+        List<Product> result = new ArrayList<>();
+        boolean inComment = false;
+        boolean hasToken = false;
+        int tokenStart = 0;
+        int tokenEnd = 0;
+        for (int i = 0; i < input.length(); ++i) {
+            char c = input.charAt(i);
+            if (inComment) {
+                if (c == ')') {
+                    inComment = false;
+                    tokenEnd = i + 1;
+                }
+            } else if (c == '(') {
+                inComment = true;
+            } else if (c == ' ' || c == '\t') {
+                hasToken = true;
+                tokenEnd = i;
+            } else if (hasToken) {
+                result.add(Product.valueOf(input.subSequence(tokenStart, tokenEnd).toString()));
+                tokenStart = tokenEnd = i;
+                hasToken = false;
             }
-            result.add(Product.valueOf(value));
         }
+        result.add(Product.valueOf(input.subSequence(tokenStart, input.length()).toString()));
         return new Products(result);
+
+    }
+
+    public static Products of(Product product) {
+        return new Products(ImmutableList.of(product));
     }
 
     public Product mostSignificant() {
