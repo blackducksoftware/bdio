@@ -24,6 +24,7 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.datatype.Products;
+import com.blackducksoftware.common.base.ExtraStrings;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableMap;
 
@@ -59,12 +60,37 @@ public final class BdioMetadata extends BdioObject {
      * Merges additional metadata into this metadata instance.
      */
     public BdioMetadata merge(Map<String, Object> other) {
-        // TODO Is this a bad idea or a good idea?
-        Object otherId = other.get(JsonLdConsts.ID);
-        checkArgument(otherId == null || id() == null || otherId.equals(id()),
-                "identifier mismatch: %s (was expecting %s)", otherId, id());
-
-        putAll(other);
+        other.forEach((key, value) -> {
+            if (key.equals(JsonLdConsts.ID)) {
+                checkArgument(value instanceof String, "identifier must be mapped to a string");
+                if (id() == null) {
+                    // Establishes a new identifier
+                    id((String) value);
+                } else if (ExtraStrings.beforeLast((String) value, '#').equals(id())) {
+                    // Discard non-matching fragments
+                    if (!value.equals(get(JsonLdConsts.ID))) {
+                        id(ExtraStrings.beforeLast((String) value, '#'));
+                    }
+                } else {
+                    // Incompatible identifiers
+                    throw new IllegalArgumentException("identifier mismatch: " + value + " (was expecting " + id() + ")");
+                }
+            } else if (key.equals(Bdio.DataProperty.producer.toString())) {
+                Object producer = get(Bdio.DataProperty.producer.toString());
+                if (producer != null) {
+                    // Merges to create new producer
+                    Products.Builder builder = new Products.Builder();
+                    ((Products) mapper().fromFieldValue(producer)).forEach(builder::addProduct);
+                    ((Products) mapper().fromFieldValue(value)).forEach(builder::addProduct);
+                    putData(Bdio.DataProperty.producer, builder.build());
+                } else {
+                    // Establishes a new producer
+                    put(key, value);
+                }
+            } else {
+                put(key, value);
+            }
+        });
         return this;
     }
 

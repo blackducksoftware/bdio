@@ -13,21 +13,13 @@ package com.blackducksoftware.bdio2;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import java.io.PrintWriter;
-import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Stream;
 
 import org.junit.Test;
 
-import com.blackducksoftware.bdio2.Bdio.Container;
-import com.blackducksoftware.bdio2.Bdio.Datatype;
-import com.github.jsonldjava.core.JsonLdConsts;
-import com.github.jsonldjava.core.JsonLdOptions;
-import com.github.jsonldjava.core.JsonLdProcessor;
-import com.github.jsonldjava.utils.JsonUtils;
+import com.blackducksoftware.bdio2.datatype.Products;
+import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
 /**
@@ -102,57 +94,65 @@ public class BdioMetadataTest {
     }
 
     /**
+     * For most keys, merging will simply overwrite the previous value.
+     */
+    @Test
+    public void mergeMetadataOverwrite() {
+        BdioMetadata metadata = new BdioMetadata();
+        metadata.put("test1", "foo");
+        metadata.merge(ImmutableMap.of("test1", "bar"));
+        assertThat(metadata).containsExactly("test1", "bar");
+    }
+
+    /**
      * You can't merge unless the identifiers match.
      */
     @Test(expected = IllegalArgumentException.class)
     public void mergeMetadataDifferentIdentifiers() {
         new BdioMetadata().id("123").merge(new BdioMetadata().id("456"));
-
     }
 
-    // TODO Explicitly test merge conflict behavior (e.g. last value wins)
-
+    /**
+     * URI fragments do not qualify as "different identifiers" when merging.
+     */
     @Test
-    public void compact() throws Exception {
-        Map<String, Object> context = new LinkedHashMap<>();
-        for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
-            Map<String, Object> definition = new LinkedHashMap<>();
-            definition.put(JsonLdConsts.ID, dataProperty.toString());
-            if (dataProperty.type() != Datatype.Default) {
-                definition.put(JsonLdConsts.TYPE, dataProperty.type().toString());
-            }
-            if (dataProperty.container() == Container.ordered) {
-                definition.put(JsonLdConsts.CONTAINER, JsonLdConsts.LIST);
-            } else if (dataProperty.container() == Container.unordered) {
-                definition.put(JsonLdConsts.CONTAINER, JsonLdConsts.SET);
-            }
-            context.put(dataProperty.name(), definition);
-            // context.put(dataProperty.toString(), definition);
-        }
+    public void mergeMetadataIgnoreIdentifierFragment() {
+        BdioMetadata metadata1 = new BdioMetadata().id("http://example.com/test#1");
 
-        BdioMetadata metadata = new BdioMetadata();
-        metadata.id("urn:uuid:" + UUID.randomUUID());
-        metadata.creation(Instant.now());
+        BdioMetadata metadata;
 
-        Map<String, Object> metadata2 = new LinkedHashMap<>();
-        metadata2.put("@id", "urn:uuid:" + UUID.randomUUID());
-        metadata2.put("http://blackducksoftware.com/rdf/terms#hasCreation", Instant.now().toString());
-        // metadata2.put("creation", Instant.now().toString());
+        metadata = new BdioMetadata().id("http://example.com/test");
+        assertThat(metadata.merge(metadata1).get("@id")).isEqualTo("http://example.com/test");
 
-        JsonLdOptions opts = new JsonLdOptions();
-        opts.setExpandContext(context);
+        metadata = new BdioMetadata().id("http://example.com/test#1");
+        assertThat(metadata.merge(metadata1).get("@id")).isEqualTo("http://example.com/test#1");
 
-        Object result = metadata;
-        // result = JsonLdProcessor.compact(metadataresult, context, opts);
-        // result = JsonLdProcessor.expand(result, opts);
-        result = JsonLdProcessor.compact(result, context, opts);
+        metadata = new BdioMetadata().id("http://example.com/test#2");
+        assertThat(metadata.merge(metadata1).get("@id")).isEqualTo("http://example.com/test");
+    }
 
-        JsonUtils.writePrettyPrint(new PrintWriter(System.out), result);
+    /**
+     * The metadata being merged into does not have an identifier yet, it gets established.
+     */
+    @Test
+    public void mergeMetadataIntoMissingIdentifier() {
+        assertThat(new BdioMetadata().merge(new BdioMetadata().id("123")).id()).isEqualTo("123");
+    }
 
-        System.out.println("\n\n====\n");
+    /**
+     * Merging producers combines the values into a single ordered product list.
+     */
+    @Test
+    public void mergeMetadataProducers() {
+        BdioMetadata metadataFoo = new BdioMetadata();
+        metadataFoo.putData(Bdio.DataProperty.producer, Products.valueOf("foo"));
 
-        JsonUtils.writePrettyPrint(new PrintWriter(System.out), metadata);
+        BdioMetadata metadataBar = new BdioMetadata();
+        metadataBar.putData(Bdio.DataProperty.producer, Products.valueOf("bar"));
 
+        assertThat(metadataFoo.merge(metadataBar))
+                .containsEntry(Bdio.DataProperty.producer.toString(),
+                        new ValueObjectMapper().toValueObject(Products.valueOf("foo bar")));
     }
 
 }

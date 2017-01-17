@@ -20,7 +20,6 @@ import java.util.UUID;
 import org.junit.Test;
 
 import com.blackducksoftware.bdio2.datatype.Fingerprint;
-import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableMap;
 
 /**
@@ -218,9 +217,9 @@ public class BdioObjectTest {
     @Test
     public void idIgnoresFragment() {
         BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        bdioObject.put(JsonLdConsts.ID, "http://example.com/test#ignored");
+        bdioObject.put("@id", "http://example.com/test#ignored");
         assertThat(bdioObject.id()).isEqualTo("http://example.com/test");
-        assertThat(bdioObject.get(JsonLdConsts.ID)).isEqualTo("http://example.com/test#ignored");
+        assertThat(bdioObject.get("@id")).isEqualTo("http://example.com/test#ignored");
     }
 
 }

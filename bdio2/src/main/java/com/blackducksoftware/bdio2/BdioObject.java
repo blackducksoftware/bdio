@@ -106,7 +106,7 @@ public class BdioObject extends AbstractMap<String, Object> {
      * previously mapped and the supplied value is {@code null}.
      */
     protected final Object putData(Bdio.DataProperty key, @Nullable Object value) {
-        return putJsonLd(key, VALUE_OBJECT_MAPPER.toValueObject(value));
+        return putJsonLd(key, mapper().toValueObject(value));
     }
 
     /**
@@ -114,7 +114,14 @@ public class BdioObject extends AbstractMap<String, Object> {
      * previously mapped and the supplied value is {@code null}.
      */
     protected final Object putObject(Bdio.ObjectProperty key, @Nullable Object value) {
-        return putJsonLd(key, VALUE_OBJECT_MAPPER.toReferenceValueObject(value));
+        return putJsonLd(key, mapper().toReferenceValueObject(value));
+    }
+
+    /**
+     * Returns the mapper to use for doing JSON-LD value object conversions.
+     */
+    protected static ValueObjectMapper mapper() {
+        return VALUE_OBJECT_MAPPER;
     }
 
     /**
