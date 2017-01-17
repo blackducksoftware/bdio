@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio.Container;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
+import com.blackducksoftware.common.base.ExtraStrings;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.Lists;
 
@@ -97,7 +98,7 @@ public class BdioObject extends AbstractMap<String, Object> {
     public final String id() {
         Object value = get(JsonLdConsts.ID);
         checkState(value == null || value instanceof String, "identifier is not mapped to a string");
-        return (String) value;
+        return ExtraStrings.beforeLast((String) value, '#');
     }
 
     /**
