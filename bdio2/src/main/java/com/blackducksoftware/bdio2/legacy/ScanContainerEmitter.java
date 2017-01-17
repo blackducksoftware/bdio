@@ -11,13 +11,10 @@
  */
 package com.blackducksoftware.bdio2.legacy;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
@@ -34,16 +31,16 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioMetadata;
-import com.blackducksoftware.bdio2.Emitter;
+import com.blackducksoftware.bdio2.datatype.Fingerprint;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.Project;
 import com.blackducksoftware.bdio2.model.Version;
 import com.blackducksoftware.common.base.ExtraStrings;
 import com.blackducksoftware.common.base.HID;
-import com.blackducksoftware.common.io.ExtraIO;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableList;
@@ -55,7 +52,7 @@ import com.google.common.collect.Maps;
  *
  * @author jgustie
  */
-public class ScanContainerEmitter implements Emitter {
+public class ScanContainerEmitter extends LegacyEmitter {
 
     /*
      * Notes on identifiers....
@@ -170,6 +167,10 @@ public class ScanContainerEmitter implements Emitter {
 
         private static final String TYPE_FILE = "FILE";
 
+        private static final String SIGNATURES_SHA1 = "FILE_SHA1";
+
+        private static final String SIGNATURES_MD5 = "FILE_MD5";
+
         private static final String SIGNATURES_CLEAN_SHA1 = "FILE_CLEAN_SHA1";
 
         @Nullable
@@ -223,10 +224,9 @@ public class ScanContainerEmitter implements Emitter {
                     || type.equals(LegacyScanNode.TYPE_ARCHIVE)) {
                 bdioFile.byteCount(size);
 
-                String cleanSha1 = signatures.get(LegacyScanNode.SIGNATURES_CLEAN_SHA1);
-                if (cleanSha1 != null) {
-                    // TODO Do we need to create multiple nodes?
-                }
+                signatures.entrySet().stream()
+                        .map(e -> Fingerprint.create(algorithmName(e.getKey()), e.getValue()))
+                        .forEach(bdioFile::fingerprint);
             } else if (!type.equals(LegacyScanNode.TYPE_DIRECTORY)) {
                 throw new IllegalArgumentException("invalid file type: " + type);
             }
@@ -235,37 +235,56 @@ public class ScanContainerEmitter implements Emitter {
     }
 
     /**
-     * The object mapper used to parse the legacy scan container objects.
+     * This module makes the configured object mapper behave like the one used to parse legacy scan container objects.
      */
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-    static {
-        // These are the relevant options used by the original parser
-        objectMapper.configure(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE, true);
-        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    public static final class LegacyScanContainerModule extends Module {
+        private static final LegacyScanContainerModule INSTANCE = new LegacyScanContainerModule();
+
+        private LegacyScanContainerModule() {
+        }
+
+        @Override
+        public String getModuleName() {
+            return getClass().getSimpleName();
+        }
+
+        @Override
+        public com.fasterxml.jackson.core.Version version() {
+            return com.fasterxml.jackson.core.Version.unknownVersion();
+        }
+
+        @Override
+        public void setupModule(SetupContext context) {
+            ((ObjectMapper) context.getOwner()).enable(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE);
+            ((ObjectMapper) context.getOwner()).disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        }
     }
 
     /**
-     * The spliterator over the BDIO nodes generated from the scan container.
+     * Returns the BDIO fingerprint algorithm name given the legacy signature type.
      */
-    private final Spliterator<Object> bdioNodes;
+    private static String algorithmName(String signatureType) {
+        switch (signatureType) {
+        case LegacyScanNode.SIGNATURES_SHA1:
+            return "sha1";
+        case LegacyScanNode.SIGNATURES_MD5:
+            return "md5";
+        case LegacyScanNode.SIGNATURES_CLEAN_SHA1:
+            return "sha1-ascii";
+        default:
+            return "unknown";
+        }
+    }
 
     public ScanContainerEmitter(InputStream scanContainerData) {
-        // Construct a stream which will lazily parse the supplied input stream
-        bdioNodes = StreamSupport.stream(() -> {
-            try {
-                LegacyScanContainer scanContainer = objectMapper.readValue(ExtraIO.buffer(scanContainerData), LegacyScanContainer.class);
-                return Collections.singleton(scanContainer).spliterator();
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        }, Spliterator.DISTINCT | Spliterator.SIZED, false)
+        super(streamLazyFromJson(scanContainerData, LegacyScanContainer.class, LegacyScanContainerModule.INSTANCE)
                 .flatMap(scanContainer -> {
                     BdioMetadata metadata = scanContainer.metadata();
                     return Stream.concat(Stream.of(metadata.asNamedGraph(ImmutableList.of())),
                             partitionNodes(Stream.concat(scanContainer.projects(), scanContainer.files()))
                                     .map(graph -> (Object) metadata.asNamedGraph(graph, JsonLdConsts.ID)));
                 })
-                .spliterator();
+                .spliterator());
     }
 
     private static Stream<List<Map<String, Object>>> partitionNodes(Stream<Map<String, Object>> nodeStream) {
@@ -349,27 +368,6 @@ public class ScanContainerEmitter implements Emitter {
                 return true;
             }
         }
-    }
-
-    @Override
-    public void emit(Consumer<Object> onNext, Consumer<Throwable> onError, Runnable onComplete) {
-        Objects.requireNonNull(onNext);
-        Objects.requireNonNull(onError);
-        Objects.requireNonNull(onComplete);
-        try {
-            if (!bdioNodes.tryAdvance(onNext)) {
-                onComplete.run();
-            }
-        } catch (UncheckedIOException e) {
-            onError.accept(e.getCause());
-        } catch (RuntimeException e) {
-            onError.accept(e);
-        }
-    }
-
-    @Override
-    public void dispose() {
-        // Right now, this does nothing because all we can do at this point is go out of scope
     }
 
     private static String toFileUri(@Nullable String hostName, @Nullable String baseDir, @Nullable String fragment) {
