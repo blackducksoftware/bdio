@@ -69,7 +69,6 @@ public final class Products implements Iterable<Product> {
         }
         result.add(Product.valueOf(input.subSequence(tokenStart, input.length()).toString()));
         return new Products(result);
-
     }
 
     public static Products of(Product product) {
@@ -116,7 +115,7 @@ public final class Products implements Iterable<Product> {
         private List<Supplier<Product>> products = new LinkedList<>();
 
         public Products build() {
-            return new Products(products.stream().map(Supplier::get).collect(ExtraCollectors.toImmutableList()));
+            return new Products(products.stream().map(Supplier::get).distinct().collect(ExtraCollectors.toImmutableList()));
         }
 
         public Builder addProduct(Product product) {
