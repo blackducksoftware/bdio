@@ -37,9 +37,4 @@ public class BdioDocumentBuilderTest {
         new BdioDocument.Builder().allowRemoteLoading(null);
     }
 
-    @Test(expected = NullPointerException.class)
-    public void builder_nullExpandAsBdio() {
-        new BdioDocument.Builder().expandAsBdio(null);
-    }
-
 }

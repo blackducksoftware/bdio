@@ -227,48 +227,12 @@ public abstract class BdioDocument {
         }
 
         /**
-         * Sets the expansion context to the default BDIO context.
-         */
-        public Builder expandAsBdio() {
-            return expandContext(Bdio.Context.DEFAULT.toString());
-        }
-
-        /**
-         * Sets the expansion context for processing BDIO 1.0 data.
-         */
-        public Builder expandAsBdio_1_0() {
-            return expandContext(Bdio.Context.VERSION_1_0.toString());
-        }
-
-        /**
-         * Sets the expansion context for processing BDIO 1.1 data.
-         */
-        public Builder expandAsBdio_1_1() {
-            return expandContext(Bdio.Context.VERSION_1_1.toString());
-        }
-
-        /**
-         * Sets the expansion context for processing BDIO 2.0 data.
-         */
-        public Builder expandAsBdio_2_0() {
-            return expandContext(Bdio.Context.VERSION_2_0.toString());
-        }
-
-        /**
-         * Sets the expansion context based on a specific version of the BDIO specification.
-         */
-        public Builder expandAsBdio(String specVersion) {
-            return expandContext(Bdio.Context.forSpecVersion(specVersion).toString());
-        }
-
-        /**
          * Use an alternate BDIO parser for reading.
          */
         public Builder usingParser(Function<InputStream, Emitter> parserFactory) {
             this.parserFactory = Objects.requireNonNull(parserFactory);
             return this;
         }
-
     }
 
     // NOTE: This is one place where we are opinionated on our JSON-LD usage, that means this code can break
