@@ -58,7 +58,7 @@ public class ValueObjectMapper {
             .put(Bdio.Datatype.DateTime.toString(), Instant.class::isInstance)
             .put(Bdio.Datatype.Fingerprint.toString(), Fingerprint.class::isInstance)
             .put(Bdio.Datatype.Products.toString(), Products.class::isInstance)
-            .put(Bdio.Datatype.Long.toString(), Long.class::isInstance)
+            .put(Bdio.Datatype.Long.toString(), Number.class::isInstance)
             .build();
 
     /**
@@ -87,7 +87,7 @@ public class ValueObjectMapper {
                 throw new IllegalArgumentException("unrecognized type: " + value.getClass().getName());
             }
         } else {
-            // It was a JSON literal, assume it is already converted
+            // It was a JSON literal or embedded object
             return input;
         }
     }
