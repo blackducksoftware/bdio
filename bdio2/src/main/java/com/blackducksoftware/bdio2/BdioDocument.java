@@ -258,17 +258,7 @@ public abstract class BdioDocument {
          * Sets the expansion context based on a specific version of the BDIO specification.
          */
         public Builder expandAsBdio(String specVersion) {
-            switch (specVersion) {
-            case "": // v0 == v1.0.0
-            case "1.0.0":
-                return expandAsBdio_1_0();
-            case "1.1.0":
-                return expandAsBdio_1_1();
-            case "2.0.0":
-                return expandAsBdio_2_0();
-            default:
-                throw new IllegalArgumentException("unknown BDIO specification version: " + specVersion);
-            }
+            return expandContext(Bdio.Context.forSpecVersion(specVersion).toString());
         }
 
         /**

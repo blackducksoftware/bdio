@@ -296,6 +296,20 @@ public class Bdio {
         public String toString() {
             return iri;
         }
+
+        public static Context forSpecVersion(String specVersion) {
+            switch (specVersion) {
+            case "": // v0 == v1.0.0
+            case "1.0.0":
+                return Context.VERSION_1_0;
+            case "1.1.0":
+                return Context.VERSION_1_1;
+            case "2.0.0":
+                return Context.VERSION_2_0;
+            default:
+                throw new IllegalArgumentException("unknown BDIO specification version: " + specVersion);
+            }
+        }
     }
 
     /**
