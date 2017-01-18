@@ -32,7 +32,6 @@ public class BdioMain extends Tool {
     private enum Command {
         help("Display help information about BDIO", HelpTool::new, false),
         context("Print the BDIO JSON-LD context", ContextTool::new, true),
-        convert("Convert legacy formats into BDIO", ConvertTool::new, true),
         entries("Dump the JSON-LD content of a BDIO file", EntriesTool::new, true),
         ;
 
