@@ -28,7 +28,6 @@ import java.util.zip.ZipOutputStream;
 
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.utils.JsonUtils;
-import com.google.common.collect.ImmutableList;
 
 /**
  * A writer for serializing BDIO nodes to a byte stream. This writer always produces the Zip form of BDIO data,
@@ -116,7 +115,7 @@ public class BdioWriter implements Closeable {
 
         // Generate a representation of the first named graph in the sequence
         Writer writer = new OutputStreamWriter(out, UTF_8);
-        JsonUtils.writePrettyPrint(writer, metadata.asNamedGraph(ImmutableList.of()));
+        JsonUtils.writePrettyPrint(writer, metadata.asNamedGraph());
         writer.flush();
     }
 

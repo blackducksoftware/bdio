@@ -43,7 +43,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.jsonldjava.core.JsonLdConsts;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
@@ -280,7 +279,7 @@ public class ScanContainerEmitter extends LegacyEmitter {
         super(streamLazyFromJson(scanContainerData, LegacyScanContainer.class, LegacyScanContainerModule.INSTANCE)
                 .flatMap(scanContainer -> {
                     BdioMetadata metadata = scanContainer.metadata();
-                    return Stream.concat(Stream.of(metadata.asNamedGraph(ImmutableList.of())),
+                    return Stream.concat(Stream.of(metadata.asNamedGraph()),
                             partitionNodes(Stream.concat(scanContainer.projects(), scanContainer.files()))
                                     .map(graph -> (Object) metadata.asNamedGraph(graph, JsonLdConsts.ID)));
                 })
