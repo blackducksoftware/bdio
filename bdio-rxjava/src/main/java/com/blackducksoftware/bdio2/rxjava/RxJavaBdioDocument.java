@@ -25,6 +25,7 @@ import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.BdioSubscriber;
 import com.blackducksoftware.bdio2.Emitter;
+import com.blackducksoftware.bdio2.EmitterFactory;
 import com.blackducksoftware.common.io.ExtraIO;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
@@ -165,13 +166,21 @@ public final class RxJavaBdioDocument extends BdioDocument {
 
     @Override
     public RxJavaBdioDocument read(InputStream in) {
-        Flowable.generate(() -> newParser(in),
+        // TODO Should this happen on the I/O scheduler?
+        fromInputStream(in).subscribe(processor());
+        return this;
+    }
+
+    /**
+     * Returns a flowable representing the BDIO entries from the supplied input stream. Generally it is preferable to
+     * use {@link #read(InputStream)}, however it may be necessary to manipulate the sequence prior to subscribing.
+     */
+    public Flowable<Object> fromInputStream(InputStream in) {
+        return Flowable.generate(() -> EmitterFactory.newEmitter(in),
                 (parser, emitter) -> {
                     // FIXME: Braces shouldn't be necessary, Eclipse thinks it is ambiguous, it isn't...
                     parser.emit(emitter::onNext, emitter::onError, emitter::onComplete);
-                }, Emitter::dispose)
-                .subscribe(processor());
-        return this;
+                }, Emitter::dispose);
     }
 
 }

@@ -15,8 +15,6 @@
  */
 package com.blackducksoftware.bdio2;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Optional;
@@ -38,7 +36,7 @@ import com.google.common.io.ByteStreams;
  *
  * @author jgustie
  */
-class EmitterFactory {
+public class EmitterFactory {
 
     /**
      * The byte count limit to use when sniffing content.
@@ -77,7 +75,7 @@ class EmitterFactory {
      * Constructs a {@link BdioDocument.Builder} by looking at the contents (presumably buffered) of what could be a
      * viable BDIO input source.
      */
-    public static Emitter newParser(InputStream in) throws IOException {
+    public static Emitter newEmitter(InputStream in) throws IOException {
         // Make sure the input stream is buffered
         InputStream bufferedIn = ExtraIO.buffer(in);
 
@@ -94,7 +92,6 @@ class EmitterFactory {
      * position. Returns the actual number of bytes read.
      */
     private static int readAndReset(InputStream in, byte[] buffer) throws IOException {
-        checkState(in.markSupported(), "input stream must support marking");
         in.mark(buffer.length);
         try {
             return ByteStreams.read(in, buffer, 0, buffer.length);

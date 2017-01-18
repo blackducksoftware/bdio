@@ -11,7 +11,6 @@
  */
 package com.blackducksoftware.bdio2;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
@@ -104,13 +103,6 @@ public abstract class BdioDocument {
      */
     protected final JsonLdOptions options() {
         return options;
-    }
-
-    /**
-     * Returns a new parser for the supplied byte stream.
-     */
-    protected final Emitter newParser(InputStream in) throws IOException {
-        return EmitterFactory.newParser(in);
     }
 
     /**

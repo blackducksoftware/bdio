@@ -25,7 +25,6 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import com.blackducksoftware.common.io.ExtraIO;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -55,7 +54,7 @@ abstract class SpliteratorEmitter implements Emitter {
                 return Spliterators.spliterator(new Object[] {
                         new ObjectMapper()
                                 .registerModules(modules)
-                                .readValue(ExtraIO.buffer(in), type) },
+                                .readValue(in, type) },
                         Spliterator.DISTINCT);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);

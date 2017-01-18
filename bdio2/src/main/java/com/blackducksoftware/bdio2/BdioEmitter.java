@@ -21,7 +21,6 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import com.blackducksoftware.common.io.ExtraIO;
 import com.google.common.collect.AbstractIterator;
 
 /**
@@ -38,7 +37,7 @@ public class BdioEmitter implements Emitter {
     private final BdioReader reader;
 
     public BdioEmitter(InputStream in) {
-        reader = new BdioReader(ExtraIO.buffer(in));
+        reader = new BdioReader(in);
     }
 
     /**
