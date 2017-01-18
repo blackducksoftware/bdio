@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.blackducksoftware.bdio2.legacy;
+package com.blackducksoftware.bdio2;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -23,8 +23,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
-import com.blackducksoftware.bdio2.BdioDocument;
-import com.blackducksoftware.bdio2.Emitter;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -35,11 +33,11 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteStreams;
 
 /**
- * Constructs {@link BdioDocument.Builder} instances by sniffing input streams.
+ * Constructs {@link Emitter} instances by sniffing input streams.
  *
  * @author jgustie
  */
-public class LegacyBdioDocumentFactory {
+class EmitterFactory {
 
     /**
      * The byte count limit to use when sniffing content.

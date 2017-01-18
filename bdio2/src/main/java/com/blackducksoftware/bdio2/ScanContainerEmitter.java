@@ -9,7 +9,7 @@
  * accordance with the terms of the license agreement you entered into
  * with Black Duck Software.
  */
-package com.blackducksoftware.bdio2.legacy;
+package com.blackducksoftware.bdio2;
 
 import java.io.InputStream;
 import java.net.URI;
@@ -29,8 +29,6 @@ import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.datatype.Fingerprint;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.Project;

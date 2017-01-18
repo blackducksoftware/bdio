@@ -9,14 +9,11 @@
  * accordance with the terms of the license agreement you entered into
  * with Black Duck Software.
  */
-package com.blackducksoftware.bdio2.legacy;
+package com.blackducksoftware.bdio2;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.io.Writer;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.Collection;
@@ -25,7 +22,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Spliterators;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -35,9 +31,6 @@ import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.Bdio.Context;
-import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.datatype.Fingerprint;
 import com.blackducksoftware.bdio2.datatype.Products;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
@@ -61,32 +54,7 @@ import com.google.common.io.Resources;
  *
  * @author jgustie
  */
-public class Bdio1xEmitter extends LegacyEmitter {
-
-    public static void main2(String[] args) throws IOException {
-        String path = "/Users/jgustie/Desktop/c_jgustietutorial_files_5074.jsonld";
-        // path = "/Users/jgustie/Desktop/c_asigra-parti_6376.jsonld";
-
-        try (InputStream bdioData = Files.newInputStream(Paths.get(path))) {
-            try (Writer out = Files.newBufferedWriter(Paths.get(path + ".dump"))) {
-                Bdio1xEmitter emitter = new Bdio1xEmitter(bdioData);
-                AtomicBoolean done = new AtomicBoolean();
-                while (!done.get()) {
-                    emitter.emit(x -> {
-                        try {
-                            JsonUtils.writePrettyPrint(out, x);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }, Throwable::printStackTrace, () -> done.set(true));
-
-                    if (!done.get()) {
-                        out.write("\n===================\n");
-                    }
-                }
-            }
-        }
-    }
+class Bdio1xEmitter extends LegacyEmitter {
 
     /**
      * The BDIO 1.x vocabulary. This is the default prefix taken away from term names.
@@ -126,7 +94,7 @@ public class Bdio1xEmitter extends LegacyEmitter {
                         JsonLdOptions options = new JsonLdOptions();
 
                         // Detect and set the expansion context
-                        String contextResourceName = Context.forSpecVersion(specVersion(jsonld)).resourceName();
+                        String contextResourceName = Bdio.Context.forSpecVersion(specVersion(jsonld)).resourceName();
                         ByteSource context = Resources.asByteSource(Resources.getResource(Bdio.class, contextResourceName));
                         try (InputStream contextInputStream = context.openBufferedStream()) {
                             options.setExpandContext(JsonUtils.fromInputStream(contextInputStream));
