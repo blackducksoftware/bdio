@@ -49,7 +49,7 @@ import com.google.common.collect.Maps;
  *
  * @author jgustie
  */
-public class ScanContainerEmitter extends LegacyEmitter {
+class LegacyScanContainerEmitter extends SpliteratorEmitter {
 
     /*
      * Notes on identifiers....
@@ -273,7 +273,7 @@ public class ScanContainerEmitter extends LegacyEmitter {
         }
     }
 
-    public ScanContainerEmitter(InputStream scanContainerData) {
+    public LegacyScanContainerEmitter(InputStream scanContainerData) {
         super(streamLazyFromJson(scanContainerData, LegacyScanContainer.class, LegacyScanContainerModule.INSTANCE)
                 .flatMap(scanContainer -> {
                     BdioMetadata metadata = scanContainer.metadata();
@@ -290,7 +290,7 @@ public class ScanContainerEmitter extends LegacyEmitter {
             @Override
             public boolean tryAdvance(Consumer<? super List<Map<String, Object>>> action) {
                 // TODO Apply a load factor to Bdio.MAX_ENTRY_SIZE
-                Partition<Map<String, Object>> partition = new Partition<>(ScanContainerEmitter::estimateSize, Bdio.MAX_ENTRY_SIZE);
+                Partition<Map<String, Object>> partition = new Partition<>(LegacyScanContainerEmitter::estimateSize, Bdio.MAX_ENTRY_SIZE);
                 while (nodes.tryAdvance(partition) && !partition.isFull()) {
                 }
                 return partition.consume(action);

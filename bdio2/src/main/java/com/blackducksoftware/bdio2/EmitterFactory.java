@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
+import com.blackducksoftware.common.io.ExtraIO;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -76,17 +77,16 @@ class EmitterFactory {
      * Constructs a {@link BdioDocument.Builder} by looking at the contents (presumably buffered) of what could be a
      * viable BDIO input source.
      */
-    public static BdioDocument.Builder newBuilder(InputStream in) throws IOException {
-        BdioDocument.Builder result = new BdioDocument.Builder();
+    public static Emitter newParser(InputStream in) throws IOException {
+        // Make sure the input stream is buffered
+        InputStream bufferedIn = ExtraIO.buffer(in);
 
         // Buffer a chunk of the input stream without advancing it
         byte[] buffer = new byte[SNIFF_LIMIT];
-        int len = readAndReset(in, buffer);
+        int len = readAndReset(bufferedIn, buffer);
 
-        // Detect if we need to use an alternate parser
-        detectParser(buffer, len).ifPresent(result::usingParser);
-
-        return result;
+        // Detect which parser to use
+        return detectParser(buffer, len).orElse(BdioEmitter::new).apply(bufferedIn);
     }
 
     /**
@@ -124,14 +124,14 @@ class EmitterFactory {
                 while (jp.nextToken() == JsonToken.START_OBJECT) {
                     while (jp.nextValue() != JsonToken.END_OBJECT) {
                         if (JsonLdConsts.TYPE.equals(jp.getCurrentName()) && BDIO_1X_TYPE_NAMES.contains(jp.getText())) {
-                            return Optional.of(Bdio1xEmitter::new);
+                            return Optional.of(LegacyBdio1xEmitter::new);
                         }
                     }
                 }
             } else if (jp.getCurrentToken() == JsonToken.START_OBJECT) {
                 // Detect scan containers using field names
                 if (SCAN_CONTAINER_FIELD_NAMES.contains(jp.nextFieldName())) {
-                    return Optional.of(ScanContainerEmitter::new);
+                    return Optional.of(LegacyScanContainerEmitter::new);
                 }
             }
 

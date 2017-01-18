@@ -11,6 +11,7 @@
  */
 package com.blackducksoftware.bdio2;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
@@ -18,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
@@ -92,20 +92,11 @@ public abstract class BdioDocument {
      */
     private final JsonLdOptions options;
 
-    /**
-     * A factory used to create new parser instances. This is configurable so we can support the loading of legacy
-     * formats, like scan containers and BDIO 1.x.
-     */
-    private final Function<InputStream, Emitter> parserFactory;
-
     protected BdioDocument(Builder builder) {
         // Construct the JSON-LD options
         options = new JsonLdOptions(Objects.requireNonNull(builder.base));
         options.setExpandContext(Objects.requireNonNull(builder.expandContext));
         options.setDocumentLoader(builder.documentLoader.build());
-
-        // Store a reference to the parser factory
-        parserFactory = Objects.requireNonNull(builder.parserFactory);
     }
 
     /**
@@ -118,8 +109,8 @@ public abstract class BdioDocument {
     /**
      * Returns a new parser for the supplied byte stream.
      */
-    protected final Emitter newParser(InputStream in) {
-        return parserFactory.apply(in);
+    protected final Emitter newParser(InputStream in) throws IOException {
+        return EmitterFactory.newParser(in);
     }
 
     /**
@@ -171,8 +162,6 @@ public abstract class BdioDocument {
 
         private final RemoteDocumentLoader.Builder documentLoader = new RemoteDocumentLoader.Builder();
 
-        private Function<InputStream, Emitter> parserFactory = BdioEmitter::new;
-
         public Builder() {
             // Always load all versions of the BDIO context for offline access
             for (Bdio.Context context : Bdio.Context.values()) {
@@ -223,14 +212,6 @@ public abstract class BdioDocument {
         // TODO Have expandContext(Map<String, Object>)/expandContext(String)/expandContext(URI) instead?
         public Builder expandContext(@Nullable Object expandContext) {
             this.expandContext = expandContext;
-            return this;
-        }
-
-        /**
-         * Use an alternate BDIO parser for reading.
-         */
-        public Builder usingParser(Function<InputStream, Emitter> parserFactory) {
-            this.parserFactory = Objects.requireNonNull(parserFactory);
             return this;
         }
     }

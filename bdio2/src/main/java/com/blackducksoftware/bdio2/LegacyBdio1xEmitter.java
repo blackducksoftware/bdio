@@ -54,7 +54,7 @@ import com.google.common.io.Resources;
  *
  * @author jgustie
  */
-class Bdio1xEmitter extends LegacyEmitter {
+class LegacyBdio1xEmitter extends SpliteratorEmitter {
 
     /**
      * The BDIO 1.x vocabulary. This is the default prefix taken away from term names.
@@ -86,7 +86,7 @@ class Bdio1xEmitter extends LegacyEmitter {
      */
     private static final ValueObjectMapper valueObjectMapper = new ValueObjectMapper();
 
-    public Bdio1xEmitter(InputStream bdioData) {
+    public LegacyBdio1xEmitter(InputStream bdioData) {
         super(streamLazyFromJson(bdioData, List.class)
                 .map(jsonld -> {
                     // THIS IS GOING TO BE SLOW AND USE A LOT OF MEMORY.
@@ -128,7 +128,7 @@ class Bdio1xEmitter extends LegacyEmitter {
 
                             // Convert each partition of BDIO 1.x nodes into a list of BDIO nodes
                             .map(nodes -> nodes.stream()
-                                    .flatMap(Bdio1xEmitter::toBdio2Node)
+                                    .flatMap(LegacyBdio1xEmitter::toBdio2Node)
                                     .collect(Collectors.toList()))
 
                             // The flat mapping in the previous step could have ignored all the nodes

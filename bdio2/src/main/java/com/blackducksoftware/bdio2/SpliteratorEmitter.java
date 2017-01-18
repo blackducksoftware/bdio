@@ -29,14 +29,19 @@ import com.blackducksoftware.common.io.ExtraIO;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-abstract class LegacyEmitter implements Emitter {
+/**
+ * An emitter that is backed by a spliterator.
+ *
+ * @author jgustie
+ */
+abstract class SpliteratorEmitter implements Emitter {
 
     /**
      * The spliterator over the BDIO nodes.
      */
     private final Spliterator<? extends Object> bdioNodes;
 
-    protected LegacyEmitter(Spliterator<? extends Object> bdioNodes) {
+    protected SpliteratorEmitter(Spliterator<? extends Object> bdioNodes) {
         this.bdioNodes = Objects.requireNonNull(bdioNodes);
     }
 
