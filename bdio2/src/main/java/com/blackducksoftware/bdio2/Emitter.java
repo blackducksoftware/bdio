@@ -11,7 +11,13 @@
  */
 package com.blackducksoftware.bdio2;
 
+import java.util.Spliterators;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+
+import com.google.common.base.Throwables;
 
 /**
  * Abstraction of what will eventually become a reactive producer.
@@ -29,5 +35,24 @@ public interface Emitter {
      * Releases any resources held by this emitter.
      */
     void dispose();
+
+    /**
+     * Stream the contents of this emitter.
+     */
+    default Stream<Object> stream() {
+        return StreamSupport.stream(new Spliterators.AbstractSpliterator<Object>(Long.MAX_VALUE, 0) {
+            private final AtomicBoolean hasNext = new AtomicBoolean(true);
+
+            @Override
+            public boolean tryAdvance(Consumer<? super Object> action) {
+                emit(action, Throwables::propagate, () -> {
+                    if (hasNext.compareAndSet(true, false)) {
+                        dispose();
+                    }
+                });
+                return hasNext.get();
+            }
+        }, false);
+    }
 
 }
