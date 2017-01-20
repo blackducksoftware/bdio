@@ -16,6 +16,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -43,6 +44,7 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty.Cardinality;
 import org.apache.tinkerpop.gremlin.structure.io.GraphReader;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
+import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
 import org.umlg.sqlg.structure.SqlgExceptions.InvalidIdException;
 
@@ -56,6 +58,7 @@ import com.github.jsonldjava.core.JsonLdProcessor;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
@@ -207,8 +210,7 @@ public final class BlackDuckIoReader implements GraphReader {
                 .doOnNext(batchCommit)
 
                 // Collect all of the vertices in a map, creating the actual vertices in the graph as we go
-                .toMap(vertex -> (StarGraph.StarVertex) ((Attachable<Vertex>) vertex).get(),
-                        vertex -> ((Attachable<Vertex>) vertex).attach(upsert(graphToWriteTo, uniqueIdentifiers)))
+                .toMap(vertex -> vertex, vertex -> vertex.attach(upsert(graphToWriteTo, uniqueIdentifiers)))
 
                 // Get all of the outgoing edges from the cached vertices
                 .flatMapObservable(cache -> Observable.fromIterable(cache.keySet())
@@ -331,11 +333,22 @@ public final class BlackDuckIoReader implements GraphReader {
      * updates vertex if it exists.
      */
     private Function<Attachable<Vertex>, Vertex> upsert(Graph hostGraph, Predicate<String> uniqueIdentifiers) {
-        // `Attachable.Method.getOrCreate` doesn't update
         return attachableVertex -> {
-            return getVertex(attachableVertex, hostGraph, uniqueIdentifiers)
+            Vertex baseVertex = attachableVertex.get();
+            return Optional.ofNullable(baseVertex.id())
+                    // If this a unique identifier, don't bother trying to look it up
+                    .filter(id -> !uniqueIdentifiers.test(id.toString()))
+                    .flatMap(id -> {
+                        try {
+                            return Optional.ofNullable(Iterators.getNext(hostGraph.vertices(id), null));
+                        } catch (InvalidIdException e) {
+                            return traversal(hostGraph).V().has(Tokens.id, id.toString()).tryNext();
+                        }
+                    })
+
+                    // If we still have a vertex, update all of the properties
                     .map(vertex -> {
-                        attachableVertex.get().properties().forEachRemaining(vp -> {
+                        baseVertex.properties().forEachRemaining(vp -> {
                             VertexProperty<?> vertexProperty = hostGraph.features().vertex().properties().willAllowId(vp.id())
                                     ? vertex.property(hostGraph.features().vertex().getCardinality(vp.key()), vp.key(), vp.value(), T.id, vp.id())
                                     : vertex.property(hostGraph.features().vertex().getCardinality(vp.key()), vp.key(), vp.value());
@@ -343,7 +356,12 @@ public final class BlackDuckIoReader implements GraphReader {
                         });
                         return vertex;
                     })
-                    .orElseGet(() -> Attachable.Method.createVertex(attachableVertex, hostGraph));
+
+                    // If we do not have a vertex, create it
+                    .orElseGet(() -> {
+                        boolean includeId = hostGraph.features().vertex().willAllowId(baseVertex.id());
+                        return hostGraph.addVertex(ElementHelper.getProperties(baseVertex, includeId, true, Collections.emptySet()));
+                    });
         };
     }
 
@@ -378,21 +396,6 @@ public final class BlackDuckIoReader implements GraphReader {
 
     private GraphTraversalSource traversal(Graph graph) {
         return partitionStrategy != null ? graph.traversal().withStrategies(partitionStrategy) : graph.traversal();
-    }
-
-    private Optional<Vertex> getVertex(Attachable<Vertex> attachableVertex, Graph hostGraph, Predicate<String> uniqueIdentifier) {
-        // If this is a unique identifier, don't bother looking it up
-        String id = attachableVertex.get().id().toString();
-        if (uniqueIdentifier.test(id)) {
-            return Optional.empty();
-        }
-
-        try {
-            Iterator<Vertex> vertexIterator = hostGraph.vertices(attachableVertex.get().id());
-            return vertexIterator.hasNext() ? Optional.of(vertexIterator.next()) : Optional.empty();
-        } catch (InvalidIdException e) {
-            return traversal(hostGraph).V().has(Tokens.id, id).tryNext();
-        }
     }
 
     public static Builder build() {
