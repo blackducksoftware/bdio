@@ -47,6 +47,7 @@ import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
 import org.umlg.sqlg.structure.SqlgExceptions.InvalidIdException;
+import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioDocument;
@@ -107,6 +108,9 @@ public final class BlackDuckIoReader implements GraphReader {
         public void accept(Object t) {
             if (graph != null && count.incrementAndGet() % batchSize == 0) {
                 graph.tx().commit();
+                if (graph instanceof SqlgGraph) {
+                    ((SqlgGraph) graph).tx().normalBatchModeOn();
+                }
             }
         }
     }
@@ -190,7 +194,12 @@ public final class BlackDuckIoReader implements GraphReader {
         Graph.Features.EdgeFeatures edgeFeatures = graphToWriteTo.features().edge();
         Predicate<String> uniqueIdentifiers;
         if (graphToWriteTo instanceof SqlgGraph) {
+            // Use a bloom filter to avoid querying the database unnecessarily (this is a quite large bloom filter)
             uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), 10_000_000)::put;
+
+            // Commit changes and enable normal batch mode
+            sqlgGraph.tx().commit();
+            sqlgGraph.tx().normalBatchModeOn();
         } else {
             uniqueIdentifiers = x -> false;
         }
