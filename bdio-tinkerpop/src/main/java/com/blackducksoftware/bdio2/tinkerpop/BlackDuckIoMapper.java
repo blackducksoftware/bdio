@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import org.apache.tinkerpop.gremlin.structure.io.IoRegistry;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 
+import com.blackducksoftware.bdio2.datatype.Fingerprint;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 
 /**
@@ -44,6 +45,8 @@ public class BlackDuckIoMapper implements Mapper<ValueObjectMapper> {
                 // TODO Switch back to ZonedDateTime in Sqlg 1.3.3
                 // return ZonedDateTime.ofInstant((Instant) modelValue, ZoneOffset.UTC);
                 return LocalDateTime.ofInstant((Instant) modelValue, ZoneId.systemDefault());
+            } else if (modelValue instanceof Fingerprint) {
+                return modelValue.toString();
             } else {
                 return modelValue;
             }
