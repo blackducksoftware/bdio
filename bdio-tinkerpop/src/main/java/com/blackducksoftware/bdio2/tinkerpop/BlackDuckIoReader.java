@@ -39,6 +39,8 @@ import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
+import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarEdge;
+import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.BdioDocument;
@@ -122,7 +124,6 @@ public final class BlackDuckIoReader implements GraphReader {
                 // Convert nodes to vertices
                 .map(NodeInputStream::wrapNode)
                 .flatMap(this::readVertex)
-                .cast(StarGraph.StarVertex.class)
 
                 // TODO This doesn't seem like the right way to do this...
                 .doOnNext(context::batchCommitTx)
@@ -150,7 +151,6 @@ public final class BlackDuckIoReader implements GraphReader {
                 // TODO This doesn't seem like the right way to do this...
                 .doOnNext(context::batchCommitTx)
                 .doOnComplete(context::commitTx)
-
                 .subscribe();
 
         // Read the supplied input stream
@@ -167,24 +167,23 @@ public final class BlackDuckIoReader implements GraphReader {
     @Override
     public Vertex readVertex(InputStream inputStream, Function<Attachable<Vertex>, Vertex> vertexAttachMethod,
             Function<Attachable<Edge>, Edge> edgeAttachMethod, Direction attachEdgesOfThisDirection) throws IOException {
-        final Map<String, Object> node = NodeInputStream.readNode(inputStream);
-        final StarGraph starGraph = StarGraph.open();
-
-        // Use a URI object as graph identifier keeping in mind that the graph is not obligated
-        // to use the URI (which is why we still keep the string version around)
-        Vertex vertex = starGraph.addVertex(getNodeProperties(node, true));
-
-        // Notify if requested
+        // Create a new StarGraph whose primary vertex is the converted node
+        Map<String, Object> node = NodeInputStream.readNode(inputStream);
+        StarGraph starGraph = StarGraph.open();
+        StarVertex vertex = (StarVertex) starGraph.addVertex(getNodeProperties(node, true));
         if (vertexAttachMethod != null) {
-            // Strange consumer cast is necessary to avoid warning about an unused return value from a function
-            ((java.util.function.Consumer<Attachable<Vertex>>) vertexAttachMethod::apply).accept(starGraph.getStarVertex());
+            vertex.attach(vertexAttachMethod);
         }
 
-        // Object properties (BDIO only contains outgoing edges)
+        // Add outgoing edges for object properties (if requested)
         if (attachEdgesOfThisDirection == Direction.BOTH || attachEdgesOfThisDirection == Direction.OUT) {
-            addVertexEdges(node, starGraph.getStarVertex(),
-                    id -> starGraph.addVertex(T.id, URI.create(id.toString())),
-                    edgeAttachMethod != null ? edgeAttachMethod::apply : edge -> {
+            Maps.transformValues(Maps.filterKeys(node, frame::isObjectPropertyKey),
+                    Functions.compose(id -> starGraph.addVertex(T.id, URI.create(id.toString())), valueObjectMapper::fromFieldValue))
+                    .forEach((label, inVertex) -> {
+                        StarEdge edge = (StarEdge) vertex.addEdge(label, inVertex);
+                        if (edgeAttachMethod != null) {
+                            edge.attach(edgeAttachMethod);
+                        }
                     });
         }
 
@@ -286,29 +285,12 @@ public final class BlackDuckIoReader implements GraphReader {
     }
 
     /**
-     * Given a map representing a framed BDIO node, this method adds the appropriate edges to the supplied vertex.
-     */
-    private void addVertexEdges(Map<String, Object> values, Vertex vertex,
-            com.google.common.base.Function<Object, Vertex> vertexFactory,
-            java.util.function.Consumer<Attachable<Edge>> edgeAttachMethod) {
-        // Create a map view of property names to the incoming vertex
-        Map<String, Vertex> objectProperties = Maps.transformValues(
-                Maps.filterKeys(values, frame::isObjectPropertyKey),
-                Functions.compose(vertexFactory, valueObjectMapper::fromFieldValue));
-
-        // Add edges for each mapping
-        objectProperties.forEach((key, inVertex) -> {
-            edgeAttachMethod.accept((Attachable<Edge>) vertex.addEdge(key, inVertex));
-        });
-    }
-
-    /**
      * Implementation of {@link #readVertex(InputStream, Function, Function, Direction)} that encapsulates result/errors
      * in a flowable. This is useful for flat mapping. Hint. Hint.
      */
-    private Flowable<Vertex> readVertex(InputStream in) {
+    private Flowable<StarVertex> readVertex(InputStream in) {
         try {
-            return Flowable.just(readVertex(in, null, null, Direction.OUT));
+            return Flowable.just((StarVertex) readVertex(in, null, null, Direction.OUT));
         } catch (IOException e) {
             return Flowable.error(e);
         }
