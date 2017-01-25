@@ -17,6 +17,7 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -28,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -40,7 +42,6 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty.Cardinality;
 import org.apache.tinkerpop.gremlin.structure.io.GraphReader;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
@@ -174,10 +175,10 @@ public final class BlackDuckIoReader implements GraphReader {
     @Override
     public void readGraph(InputStream inputStream, Graph graphToWriteTo) throws IOException {
         RxJavaBdioDocument document = documentBuilder.build(RxJavaBdioDocument.class);
-        GraphTraversalSource g = traversal(graphToWriteTo);
 
         // Create a metadata subscription
         document.metadata(metadata -> {
+            GraphTraversalSource g = traversal(graphToWriteTo);
             Vertex namedGraph = g.V().hasLabel(Tokens.NamedGraph).tryNext().orElseGet(() -> g.addV(Tokens.NamedGraph).next());
 
             namedGraph.property(Tokens.id, metadata.id());
@@ -185,7 +186,7 @@ public final class BlackDuckIoReader implements GraphReader {
                 // Compact the metadata using the context extracted from frame
                 Object context = frame.get(JsonLdConsts.CONTEXT);
                 Map<String, Object> compactMetadata = JsonLdProcessor.compact(metadata, context, document.jsonld().options());
-                addVertexProperties(compactMetadata, namedGraph);
+                ElementHelper.attachProperties(namedGraph, getNodeProperties(compactMetadata, false));
             } catch (JsonLdError e) {
                 // TODO What can we do about this?
                 e.printStackTrace();
@@ -272,19 +273,11 @@ public final class BlackDuckIoReader implements GraphReader {
 
         // Use a URI object as graph identifier keeping in mind that the graph is not obligated
         // to use the URI (which is why we still keep the string version around)
-        Vertex vertex = starGraph.addVertex(
-                T.label, node.get(JsonLdConsts.TYPE),
-                T.id, URI.create((String) node.get(JsonLdConsts.ID)),
-                Tokens.id, node.get(JsonLdConsts.ID));
+        Vertex vertex = starGraph.addVertex(getNodeProperties(node, true));
 
-        // We are not using a traversal strategy so manually add the partition value if available
-        if (partitionStrategy != null) {
-            vertex.property(Cardinality.set, partitionStrategy.getPartitionKey(), partitionStrategy.getWritePartition());
-        }
-
-        // Add the vertex properties and notify if requested
-        addVertexProperties(node, vertex);
+        // Notify if requested
         if (vertexAttachMethod != null) {
+            // Strange consumer cast is necessary to avoid warning about an unused return value from a function
             ((java.util.function.Consumer<Attachable<Vertex>>) vertexAttachMethod::apply).accept(starGraph.getStarVertex());
         }
 
@@ -299,35 +292,84 @@ public final class BlackDuckIoReader implements GraphReader {
         return vertex;
     }
 
-    /**
-     * Implementation of {@link #readVertex(InputStream, Function, Function, Direction)} that encapsulates result/errors
-     * in a flowable. This is useful for flat mapping. Hint. Hint.
-     */
-    private Flowable<Vertex> readVertex(InputStream in) {
-        try {
-            return Flowable.just(readVertex(in, null, null, Direction.OUT));
-        } catch (IOException e) {
-            return Flowable.error(e);
-        }
+    @Override
+    public Iterator<Vertex> readVertices(InputStream inputStream, Function<Attachable<Vertex>, Vertex> vertexAttachMethod,
+            Function<Attachable<Edge>, Edge> edgeAttachMethod, Direction attachEdgesOfThisDirection) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Edge readEdge(InputStream inputStream, Function<Attachable<Edge>, Edge> edgeAttachMethod) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @SuppressWarnings("rawtypes")
+    @Override
+    public VertexProperty readVertexProperty(InputStream inputStream, Function<Attachable<VertexProperty>, VertexProperty> vertexPropertyAttachMethod)
+            throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @SuppressWarnings("rawtypes")
+    @Override
+    public Property readProperty(InputStream inputStream, Function<Attachable<Property>, Property> propertyAttachMethod) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public <C> C readObject(InputStream inputStream, Class<? extends C> clazz) throws IOException {
+        throw new UnsupportedOperationException();
     }
 
     /**
-     * Given a map representing a framed BDIO node, this method adds the appropriate properties to the supplied vertex.
+     * Returns key/value pairs for the data properties of the specified BDIO node.
      */
-    private void addVertexProperties(Map<String, Object> values, Vertex vertex) {
-        // Partition the framed node
-        Map<String, Object> dataProperties = Maps.filterKeys(values, dataPropertyNames::contains);
-        Map<String, Object> unknown = Maps.filterKeys(values, BlackDuckIoReader::isUnknown);
+    private Object[] getNodeProperties(Map<String, Object> node, boolean includeSpecial) {
+        Stream.Builder<Map.Entry<?, ?>> properties = Stream.builder();
 
-        // Persist the properties
-        Maps.transformValues(dataProperties, valueObjectMapper::fromFieldValue).forEach(vertex::property);
-        if (!unknown.isEmpty()) {
-            try {
-                vertex.property(Tokens.unknown, JsonUtils.toString(unknown));
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
+        // Special properties that can be optionally included
+        if (includeSpecial) {
+            Optional.ofNullable(node.get(JsonLdConsts.ID)).map(id -> URI.create((String) id))
+                    .map(id -> Maps.immutableEntry(T.id, id))
+                    .ifPresent(properties);
+
+            Optional.ofNullable(node.get(JsonLdConsts.TYPE))
+                    .map(label -> Maps.immutableEntry(T.label, label))
+                    .ifPresent(properties);
+
+            Optional.ofNullable(partitionStrategy)
+                    .map(s -> Maps.immutableEntry(s.getPartitionKey(), s.getWritePartition()))
+                    .ifPresent(properties);
+
+            Optional.ofNullable(node.get(JsonLdConsts.ID))
+                    .map(id -> Maps.immutableEntry(Tokens.id, id))
+                    .ifPresent(properties);
         }
+
+        // Sorted data properties
+        // TODO Do we need a sort order that is stable across BDIO versions?
+        node.entrySet().stream()
+                .filter(e -> dataPropertyNames.contains(e.getKey()))
+                .sorted(Comparator.comparing(Map.Entry::getKey))
+                .forEachOrdered(properties);
+
+        // Unknown properties
+        Optional.of(Maps.filterKeys(node, BlackDuckIoReader::isUnknownKey))
+                .filter(m -> !m.isEmpty())
+                .map(m -> {
+                    try {
+                        return JsonUtils.toString(m);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                })
+                .map(json -> Maps.immutableEntry(Tokens.unknown, json))
+                .ifPresent(properties);
+
+        // Convert the whole thing into an array
+        return properties.build()
+                .flatMap(e -> Stream.of(e.getKey(), e.getValue()))
+                .toArray();
     }
 
     /**
@@ -336,14 +378,15 @@ public final class BlackDuckIoReader implements GraphReader {
     private void addVertexEdges(Map<String, Object> values, Vertex vertex,
             com.google.common.base.Function<Object, Vertex> vertexFactory,
             java.util.function.Consumer<Attachable<Edge>> edgeAttachMethod) {
-        // Partition the framed node
-        Map<String, Object> objectProperites = Maps.filterKeys(values, objectPropertyNames::contains);
+        // Create a map view of property names to the incoming vertex
+        Map<String, Vertex> objectProperties = Maps.transformValues(
+                Maps.filterKeys(values, objectPropertyNames::contains),
+                Functions.compose(vertexFactory, valueObjectMapper::fromFieldValue));
 
-        // Persist the edges
-        Maps.transformValues(objectProperites, Functions.compose(vertexFactory, valueObjectMapper::fromFieldValue))
-                .forEach((key, inVertex) -> {
-                    edgeAttachMethod.accept((Attachable<Edge>) vertex.addEdge(key, inVertex));
-                });
+        // Add edges for each mapping
+        objectProperties.forEach((key, inVertex) -> {
+            edgeAttachMethod.accept((Attachable<Edge>) vertex.addEdge(key, inVertex));
+        });
     }
 
     /**
@@ -383,35 +426,21 @@ public final class BlackDuckIoReader implements GraphReader {
         };
     }
 
-    @Override
-    public Iterator<Vertex> readVertices(InputStream inputStream, Function<Attachable<Vertex>, Vertex> vertexAttachMethod,
-            Function<Attachable<Edge>, Edge> edgeAttachMethod, Direction attachEdgesOfThisDirection) throws IOException {
-        throw new UnsupportedOperationException();
+    /**
+     * Implementation of {@link #readVertex(InputStream, Function, Function, Direction)} that encapsulates result/errors
+     * in a flowable. This is useful for flat mapping. Hint. Hint.
+     */
+    private Flowable<Vertex> readVertex(InputStream in) {
+        try {
+            return Flowable.just(readVertex(in, null, null, Direction.OUT));
+        } catch (IOException e) {
+            return Flowable.error(e);
+        }
     }
 
-    @Override
-    public Edge readEdge(InputStream inputStream, Function<Attachable<Edge>, Edge> edgeAttachMethod) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
-    @SuppressWarnings("rawtypes")
-    @Override
-    public VertexProperty readVertexProperty(InputStream inputStream, Function<Attachable<VertexProperty>, VertexProperty> vertexPropertyAttachMethod)
-            throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
-    @SuppressWarnings("rawtypes")
-    @Override
-    public Property readProperty(InputStream inputStream, Function<Attachable<Property>, Property> propertyAttachMethod) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public <C> C readObject(InputStream inputStream, Class<? extends C> clazz) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
+    /**
+     * Returns a traversal source applying the optional partitioning strategy.
+     */
     private GraphTraversalSource traversal(Graph graph) {
         return partitionStrategy != null ? graph.traversal().withStrategies(partitionStrategy) : graph.traversal();
     }
@@ -463,14 +492,6 @@ public final class BlackDuckIoReader implements GraphReader {
     }
 
     /**
-     * Check if a key represents an unknown property.
-     */
-    private static boolean isUnknown(String key) {
-        // If framing did not recognize the attribute, it will still have a scheme or prefix separator
-        return key.indexOf(':') >= 0;
-    }
-
-    /**
      * Generates the frame and collections of graph property names.
      */
     private static Map<String, Object> poplateContext(Map<String, Object> initialContext,
@@ -515,6 +536,14 @@ public final class BlackDuckIoReader implements GraphReader {
         frame.put(JsonLdConsts.CONTEXT, context);
         frame.put(JsonLdConsts.TYPE, type);
         return frame;
+    }
+
+    /**
+     * Check if a key represents an unknown property.
+     */
+    private static boolean isUnknownKey(String key) {
+        // If framing did not recognize the attribute, it will still have a scheme or prefix separator
+        return key.indexOf(':') >= 0;
     }
 
 }
