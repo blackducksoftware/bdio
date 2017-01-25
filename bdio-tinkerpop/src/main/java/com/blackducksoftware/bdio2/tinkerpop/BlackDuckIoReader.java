@@ -15,17 +15,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -50,7 +45,6 @@ import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
 import org.umlg.sqlg.structure.SqlgExceptions.InvalidIdException;
 import org.umlg.sqlg.structure.SqlgGraph;
 
-import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
@@ -59,7 +53,6 @@ import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdProcessor;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.base.Functions;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 import com.google.common.hash.BloomFilter;
@@ -117,19 +110,19 @@ public final class BlackDuckIoReader implements GraphReader {
     }
 
     /**
-     * The BDIO document builder representing the BDIO configuration.
+     * Builder for creating BDIO documents.
      */
     private final BdioDocument.Builder documentBuilder;
+
+    /**
+     * The JSON-LD frame used to convert from BDIO to vertex data.
+     */
+    private final BdioFrame frame;
 
     /**
      * The JSON-LD value object mapper to use.
      */
     private final ValueObjectMapper valueObjectMapper;
-
-    /**
-     * The JSON-LD frame used to convert linked data into graph nodes.
-     */
-    private final Map<String, Object> frame;
 
     /**
      * The number of graph mutations before a commit is attempted.
@@ -142,34 +135,12 @@ public final class BlackDuckIoReader implements GraphReader {
     @Nullable
     private final PartitionStrategy partitionStrategy;
 
-    /**
-     * The list of known class names.
-     */
-    private final Set<String> classNames;
-
-    /**
-     * The list of known data property names.
-     */
-    private final Set<String> dataPropertyNames;
-
-    /**
-     * The list of known object property names.
-     */
-    private final Set<String> objectPropertyNames;
-
     private BlackDuckIoReader(Builder builder) {
         documentBuilder = builder.documentBuilder.orElseGet(BdioDocument.Builder::new);
+        frame = BdioFrame.create(builder.applicationContext);
         valueObjectMapper = builder.mapper.orElseGet(() -> BlackDuckIoMapper.build().create()).createMapper();
         batchSize = builder.batchSize;
         partitionStrategy = builder.partitionStrategy.orElse(null);
-
-        Set<String> classNames = new LinkedHashSet<>();
-        Set<String> dataPropertyNames = new LinkedHashSet<>();
-        Set<String> objectPropertyNames = new LinkedHashSet<>();
-        this.frame = poplateContext(builder.applicationContext, classNames, dataPropertyNames, objectPropertyNames);
-        this.classNames = ImmutableSet.copyOf(classNames);
-        this.dataPropertyNames = ImmutableSet.copyOf(dataPropertyNames);
-        this.objectPropertyNames = ImmutableSet.copyOf(objectPropertyNames);
     }
 
     @Override
@@ -184,8 +155,7 @@ public final class BlackDuckIoReader implements GraphReader {
             namedGraph.property(Tokens.id, metadata.id());
             try {
                 // Compact the metadata using the context extracted from frame
-                Object context = frame.get(JsonLdConsts.CONTEXT);
-                Map<String, Object> compactMetadata = JsonLdProcessor.compact(metadata, context, document.jsonld().options());
+                Map<String, Object> compactMetadata = JsonLdProcessor.compact(metadata, frame, document.jsonld().options());
                 ElementHelper.attachProperties(namedGraph, getNodeProperties(compactMetadata, false));
             } catch (JsonLdError e) {
                 // TODO What can we do about this?
@@ -203,9 +173,9 @@ public final class BlackDuckIoReader implements GraphReader {
 
             // Pre-create and index a few import columns in the database
             SqlgGraph sqlgGraph = (SqlgGraph) graphToWriteTo;
-            for (String label : classNames) {
+            frame.forEachTypeName(label -> {
                 sqlgGraph.createVertexLabeledIndex(label, Tokens.id, "http://example.com/1");
-            }
+            });
 
             // Commit changes and enable normal batch mode
             sqlgGraph.tx().commit();
@@ -380,7 +350,7 @@ public final class BlackDuckIoReader implements GraphReader {
             java.util.function.Consumer<Attachable<Edge>> edgeAttachMethod) {
         // Create a map view of property names to the incoming vertex
         Map<String, Vertex> objectProperties = Maps.transformValues(
-                Maps.filterKeys(values, objectPropertyNames::contains),
+                Maps.filterKeys(values, frame::isObjectPropertyKey),
                 Functions.compose(vertexFactory, valueObjectMapper::fromFieldValue));
 
         // Add edges for each mapping
@@ -489,53 +459,6 @@ public final class BlackDuckIoReader implements GraphReader {
         public BlackDuckIoReader create() {
             return new BlackDuckIoReader(this);
         }
-    }
-
-    /**
-     * Generates the frame and collections of graph property names.
-     */
-    private static Map<String, Object> poplateContext(Map<String, Object> initialContext,
-            Set<String> classNames, Set<String> dataPropertyNames, Set<String> objectPropertyNames) {
-        Map<String, Object> context = new LinkedHashMap<>();
-        List<String> type = new ArrayList<>();
-
-        // Application specific entries to the context
-        for (Map.Entry<String, Object> entry : initialContext.entrySet()) {
-            if (entry.getValue() instanceof String) {
-                context.put(entry.getKey(), entry.getValue());
-            } else if (entry.getValue() instanceof Map<?, ?>) {
-                Map<?, ?> definition = (Map<?, ?>) entry.getValue();
-                Object id = definition.get(JsonLdConsts.ID);
-                if (id != null) {
-                    context.put(entry.getKey(), id);
-                }
-                if (Objects.equals(definition.get(JsonLdConsts.TYPE), JsonLdConsts.ID)) {
-                    objectPropertyNames.add(entry.getKey());
-                } else {
-                    dataPropertyNames.add(entry.getKey());
-                }
-            }
-        }
-
-        // Standard BDIO
-        for (Bdio.Class bdioClass : Bdio.Class.values()) {
-            context.put(bdioClass.name(), bdioClass.toString());
-            type.add(bdioClass.toString());
-            classNames.add(bdioClass.name());
-        }
-        for (Bdio.DataProperty bdioDataProperty : Bdio.DataProperty.values()) {
-            context.put(bdioDataProperty.name(), bdioDataProperty.toString());
-            dataPropertyNames.add(bdioDataProperty.name());
-        }
-        for (Bdio.ObjectProperty bdioObjectProperty : Bdio.ObjectProperty.values()) {
-            context.put(bdioObjectProperty.name(), bdioObjectProperty.toString());
-            objectPropertyNames.add(bdioObjectProperty.name());
-        }
-
-        Map<String, Object> frame = new LinkedHashMap<>();
-        frame.put(JsonLdConsts.CONTEXT, context);
-        frame.put(JsonLdConsts.TYPE, type);
-        return frame;
     }
 
     /**
