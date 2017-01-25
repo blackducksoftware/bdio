@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.bdio2.datatype.Fingerprint;
 
 public class File extends BdioObject {
 
@@ -34,6 +35,11 @@ public class File extends BdioObject {
 
     public File contentType(@Nullable String contentType) {
         putData(Bdio.DataProperty.contentType, contentType);
+        return this;
+    }
+
+    public File fingerprint(@Nullable Fingerprint fingerprint) {
+        putData(Bdio.DataProperty.fingerprint, fingerprint);
         return this;
     }
 
