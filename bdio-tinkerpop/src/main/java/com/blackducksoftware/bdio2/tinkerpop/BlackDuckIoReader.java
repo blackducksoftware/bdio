@@ -142,6 +142,11 @@ public final class BlackDuckIoReader implements GraphReader {
     private final PartitionStrategy partitionStrategy;
 
     /**
+     * The list of known class names.
+     */
+    private final Set<String> classNames;
+
+    /**
      * The list of known data property names.
      */
     private final Set<String> dataPropertyNames;
@@ -157,13 +162,11 @@ public final class BlackDuckIoReader implements GraphReader {
         batchSize = builder.batchSize;
         partitionStrategy = builder.partitionStrategy.orElse(null);
 
-        Map<String, Object> frame = new LinkedHashMap<>();
+        Set<String> classNames = new LinkedHashSet<>();
         Set<String> dataPropertyNames = new LinkedHashSet<>();
         Set<String> objectPropertyNames = new LinkedHashSet<>();
-
-        poplateContext(builder.applicationContext, frame, dataPropertyNames, objectPropertyNames);
-
-        this.frame = frame;
+        this.frame = poplateContext(builder.applicationContext, classNames, dataPropertyNames, objectPropertyNames);
+        this.classNames = ImmutableSet.copyOf(classNames);
         this.dataPropertyNames = ImmutableSet.copyOf(dataPropertyNames);
         this.objectPropertyNames = ImmutableSet.copyOf(objectPropertyNames);
     }
@@ -196,6 +199,12 @@ public final class BlackDuckIoReader implements GraphReader {
         if (graphToWriteTo instanceof SqlgGraph) {
             // Use a bloom filter to avoid querying the database unnecessarily (this is a quite large bloom filter)
             uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), 10_000_000)::put;
+
+            // Pre-create and index a few import columns in the database
+            SqlgGraph sqlgGraph = (SqlgGraph) graphToWriteTo;
+            for (String label : classNames) {
+                sqlgGraph.createVertexLabeledIndex(label, Tokens.id, "http://example.com/1");
+            }
 
             // Commit changes and enable normal batch mode
             sqlgGraph.tx().commit();
@@ -464,8 +473,8 @@ public final class BlackDuckIoReader implements GraphReader {
     /**
      * Generates the frame and collections of graph property names.
      */
-    private static void poplateContext(Map<String, Object> initialContext,
-            Map<String, Object> frame, Set<String> dataPropertyNames, Set<String> objectPropertyNames) {
+    private static Map<String, Object> poplateContext(Map<String, Object> initialContext,
+            Set<String> classNames, Set<String> dataPropertyNames, Set<String> objectPropertyNames) {
         Map<String, Object> context = new LinkedHashMap<>();
         List<String> type = new ArrayList<>();
 
@@ -491,6 +500,7 @@ public final class BlackDuckIoReader implements GraphReader {
         for (Bdio.Class bdioClass : Bdio.Class.values()) {
             context.put(bdioClass.name(), bdioClass.toString());
             type.add(bdioClass.toString());
+            classNames.add(bdioClass.name());
         }
         for (Bdio.DataProperty bdioDataProperty : Bdio.DataProperty.values()) {
             context.put(bdioDataProperty.name(), bdioDataProperty.toString());
@@ -501,8 +511,10 @@ public final class BlackDuckIoReader implements GraphReader {
             objectPropertyNames.add(bdioObjectProperty.name());
         }
 
+        Map<String, Object> frame = new LinkedHashMap<>();
         frame.put(JsonLdConsts.CONTEXT, context);
         frame.put(JsonLdConsts.TYPE, type);
+        return frame;
     }
 
 }
