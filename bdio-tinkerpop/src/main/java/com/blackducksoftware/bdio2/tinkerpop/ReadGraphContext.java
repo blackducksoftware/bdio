@@ -16,6 +16,7 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
@@ -24,15 +25,25 @@ import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
+import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
+import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 import org.umlg.sqlg.structure.SqlgExceptions.InvalidIdException;
 
+import com.blackducksoftware.bdio2.BdioMetadata;
+import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
+import com.github.jsonldjava.core.JsonLdError;
+import com.github.jsonldjava.core.JsonLdOptions;
+import com.github.jsonldjava.core.JsonLdProcessor;
 import com.google.common.collect.Iterators;
+
+import io.reactivex.Observable;
 
 /**
  * Context used when performing a
@@ -145,6 +156,46 @@ class ReadGraphContext {
                 .orElseGet(() -> {
                     boolean includeId = graph.features().vertex().willAllowId(baseVertex.id());
                     return graph.addVertex(ElementHelper.getProperties(baseVertex, includeId, true, Collections.emptySet()));
+                });
+    }
+
+    public final void createMetadata(BdioMetadata metadata, BdioFrame frame, JsonLdOptions options, ValueObjectMapper valueObjectMapper) {
+        GraphTraversalSource g = traversal();
+        Vertex namedGraph = g.V().hasLabel(Tokens.NamedGraph).tryNext().orElseGet(() -> g.addV(Tokens.NamedGraph).next());
+
+        namedGraph.property(Tokens.id, metadata.id());
+        try {
+            // Compact the metadata using the context extracted from frame
+            Map<String, Object> compactMetadata = JsonLdProcessor.compact(metadata, frame, options);
+            ElementHelper.attachProperties(namedGraph, BdioHelper.getNodeProperties(compactMetadata, false, frame, valueObjectMapper, null));
+        } catch (JsonLdError e) {
+            // TODO What can we do about this?
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Given a map of in-memory vertices to their persisted counterparts, create the edges from the in-memory vertices
+     * using the persisted identifiers.
+     */
+    public final Observable<Edge> createEdges(Map<StarVertex, Vertex> persistedVertices) {
+        Graph.Features.EdgeFeatures edgeFeatures = graph.features().edge();
+        return Observable.fromIterable(persistedVertices.keySet())
+
+                // Gets all the outbound edges from in-memory (StarVertex) vertices
+                .flatMapIterable(kv -> (Iterable<Edge>) (() -> kv.edges(Direction.OUT)))
+
+                // Connect the edges and store their properties
+                .map(e -> {
+                    final Vertex cachedOutV = persistedVertices.get(e.outVertex());
+                    final Vertex cachedInV = persistedVertices.get(e.inVertex());
+                    final Edge newEdge = edgeFeatures.willAllowId(e.id())
+                            ? cachedOutV.addEdge(e.label(), cachedInV, T.id, e.id())
+                            : cachedOutV.addEdge(e.label(), cachedInV);
+
+                    e.properties().forEachRemaining(p -> newEdge.property(p.key(), p.value()));
+
+                    return newEdge;
                 });
     }
 

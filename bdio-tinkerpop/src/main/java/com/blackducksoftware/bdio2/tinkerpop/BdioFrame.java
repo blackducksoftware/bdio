@@ -36,6 +36,8 @@ import com.google.common.collect.ImmutableSet;
  */
 public final class BdioFrame extends AbstractMap<String, Object> implements Cloneable {
 
+    // TODO It seems like there is connection here with JsonLdOptions.
+
     /**
      * The actual JSON-LD frame. This value is used to back the map implementation.
      */
@@ -66,7 +68,7 @@ public final class BdioFrame extends AbstractMap<String, Object> implements Clon
     /**
      * Creates a new JSON-LD frame for converting BDIO data into graph data.
      */
-    public static BdioFrame create(Map<String, Object> initialContext) {
+    static BdioFrame create(Map<String, Object> initialContext) {
         // This seems like it should be a builder...
         Map<String, Object> context = new LinkedHashMap<>();
         List<String> type = new ArrayList<>();
@@ -116,21 +118,21 @@ public final class BdioFrame extends AbstractMap<String, Object> implements Clon
     /**
      * Checks to see if the specified key represents a data property.
      */
-    public boolean isDataPropertyKey(String key) {
+    boolean isDataPropertyKey(String key) {
         return dataPropertyNames.contains(key);
     }
 
     /**
      * Checks to see if the specified key represents an object property.
      */
-    public boolean isObjectPropertyKey(String key) {
+    boolean isObjectPropertyKey(String key) {
         return objectPropertyNames.contains(key);
     }
 
     /**
      * Iterates over the known type names.
      */
-    public void forEachTypeName(Consumer<String> typeNameConsumer) {
+    void forEachTypeName(Consumer<String> typeNameConsumer) {
         typeNames.forEach(typeNameConsumer);
     }
 
