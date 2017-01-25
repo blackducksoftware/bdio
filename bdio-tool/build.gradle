@@ -2,6 +2,7 @@ description = 'Black Duck I/O Tooling'
 
 apply plugin: 'application'
 
+applicationName = 'bdio'
 mainClassName = 'com.blackducksoftware.bdio2.tool.BdioMain'
 
 dependencies {

@@ -42,6 +42,8 @@ import com.google.common.io.ByteSink;
 import com.google.common.io.ByteSource;
 import com.google.common.io.Files;
 
+import io.reactivex.plugins.RxJavaPlugins;
+
 /**
  * Base class for a simple command line tool.
  * <p>
@@ -114,6 +116,9 @@ public abstract class Tool implements Runnable {
         this.name = Optional.ofNullable(name).orElse(getClass().getSimpleName());
         this.stdout = Objects.requireNonNull(sysout);
         this.stderr = Objects.requireNonNull(syserr);
+
+        // Make sure exceptions going through RxJava are handled correctly
+        RxJavaPlugins.setErrorHandler(this::handleException);
     }
 
     @Override
@@ -141,7 +146,7 @@ public abstract class Tool implements Runnable {
     /**
      * Internal method for handling an exception based on the current verbosity level.
      */
-    private void handleException(Exception e) {
+    private void handleException(Throwable e) {
         stderr.print("bdio: "); // TODO Should this be configurable?
         if (Level.DEBUG.compareTo(verbosity) <= 0) {
             e.printStackTrace(stderr);
