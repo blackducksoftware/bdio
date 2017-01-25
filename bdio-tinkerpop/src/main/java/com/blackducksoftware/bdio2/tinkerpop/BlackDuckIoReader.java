@@ -318,8 +318,8 @@ public final class BlackDuckIoReader implements GraphReader {
 
         // Sorted data properties
         // TODO Do we need a sort order that is stable across BDIO versions?
-        node.entrySet().stream()
-                .filter(e -> dataPropertyNames.contains(e.getKey()))
+        Maps.transformValues(node, valueObjectMapper::fromFieldValue).entrySet().stream()
+                .filter(e -> frame.isDataPropertyKey(e.getKey()))
                 .sorted(Comparator.comparing(Map.Entry::getKey))
                 .forEachOrdered(properties);
 
