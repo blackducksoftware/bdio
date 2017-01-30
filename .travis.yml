@@ -23,7 +23,9 @@ env:
 
 before_install:
   - docker build -t blackducksoftware/bdio-tinkerpop-db docker/bdio-tinkerpop-db/
-  - docker run -d -p 5432:5432 blackducksoftware/bdio-tinkerpop-db
+  - docker images
+  - docker run -d -p 127.0.0.1:5432:5432 blackducksoftware/bdio-tinkerpop-db
+  - docker ps -a
 install: ./gradlew -I gradle/travis.gradle assemble
 script: ./gradlew -I gradle/travis.gradle check
 after_success: ./gradlew -I gradle/travis.gradle publish
