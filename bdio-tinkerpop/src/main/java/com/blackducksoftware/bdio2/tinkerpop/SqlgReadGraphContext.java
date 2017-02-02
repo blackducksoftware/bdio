@@ -15,6 +15,8 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
@@ -62,9 +64,8 @@ class SqlgReadGraphContext extends ReadGraphContext {
         super.initialize(frame);
 
         // Pre-create and index a few import columns in the database
-        frame.forEachTypeName(label -> {
-            sqlgGraph.createVertexLabeledIndex(label, Tokens.id, "http://example.com/1");
-        });
+        Object[] dummyKeyValues = indexedDummyKeyValues();
+        frame.forEachTypeName(label -> sqlgGraph.createVertexLabeledIndex(label, dummyKeyValues));
 
         // Commit schema changes
         commitTx();
@@ -83,6 +84,27 @@ class SqlgReadGraphContext extends ReadGraphContext {
     @Override
     protected boolean isIdentifierUnique(String identifier) {
         return uniqueIdentifiers.put(identifier);
+    }
+
+    /**
+     * Returns a key/value array of indexed property keys and dummy values. The dummy values are used by the database to
+     * determine what type to assign the newly created column so they must be representative of what will actually be
+     * stored in that property.
+     */
+    private Object[] indexedDummyKeyValues() {
+        List<Object> dummyKeyValues = new ArrayList<>();
+
+        // If there is a partitioning strategy, index it as the first column
+        partitionStrategy().filter(p -> !p.getReadPartitions().isEmpty()).ifPresent(p -> {
+            dummyKeyValues.add(p.getPartitionKey());
+            dummyKeyValues.add(p.getReadPartitions().iterator().next());
+        });
+
+        // The BDIO identifier is present on every vertex
+        dummyKeyValues.add(Tokens.id);
+        dummyKeyValues.add("http://example.com/1");
+
+        return dummyKeyValues.toArray();
     }
 
 }

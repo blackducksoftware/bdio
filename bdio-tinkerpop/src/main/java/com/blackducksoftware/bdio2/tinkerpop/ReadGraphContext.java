@@ -77,26 +77,29 @@ class ReadGraphContext {
     /**
      * The optional partitioning strategy.
      */
-    @Nullable
-    private final PartitionStrategy partitionStrategy;
+    private final Optional<PartitionStrategy> partitionStrategy;
 
     protected ReadGraphContext(Graph graph, int batchSize, @Nullable PartitionStrategy partitionStrategy) {
         this.graph = Objects.requireNonNull(graph);
         this.supportsTransactions = graph.features().graph().supportsTransactions();
         this.batchSize = batchSize;
         this.count = new AtomicLong();
-        this.partitionStrategy = partitionStrategy;
+        this.partitionStrategy = Optional.ofNullable(partitionStrategy);
+    }
+
+    /**
+     * Returns the current partitioning strategy, if any.
+     */
+    protected final Optional<PartitionStrategy> partitionStrategy() {
+        return partitionStrategy;
     }
 
     /**
      * Returns a traversal source for the graph.
      */
     public GraphTraversalSource traversal() {
-        if (partitionStrategy != null) {
-            return graph.traversal().withStrategies(partitionStrategy);
-        } else {
-            return graph.traversal();
-        }
+        GraphTraversalSource traversal = graph.traversal();
+        return partitionStrategy().map(traversal::withStrategies).orElse(traversal);
     }
 
     /**
