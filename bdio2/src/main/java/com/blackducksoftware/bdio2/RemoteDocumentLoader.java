@@ -13,7 +13,6 @@ package com.blackducksoftware.bdio2;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -51,7 +50,7 @@ class RemoteDocumentLoader extends DocumentLoader {
         @Nullable
         private CloseableHttpClient httpClient;
 
-        private final Map<URL, ByteSource> offlineDocuments = new HashMap<>();
+        private final Map<String, ByteSource> offlineDocuments = new HashMap<>();
 
         public RemoteDocumentLoader build() {
             return new RemoteDocumentLoader(this);
@@ -85,11 +84,7 @@ class RemoteDocumentLoader extends DocumentLoader {
          * Adds an offline document to this builder.
          */
         private Builder putOfflineDocument(String url, ByteSource byteSource) {
-            try {
-                offlineDocuments.put(new URL(url), byteSource);
-            } catch (MalformedURLException e) {
-                throw new IllegalArgumentException("invalid document URL", e);
-            }
+            offlineDocuments.put(url, byteSource);
             return this;
         }
     }
@@ -97,7 +92,7 @@ class RemoteDocumentLoader extends DocumentLoader {
     /**
      * A mapping of offline document URLs to their input stream supplier.
      */
-    private final Map<URL, ByteSource> offlineDocuments;
+    private final Map<String, ByteSource> offlineDocuments;
 
     /**
      * A filter which determines what documents may be loaded remotely.
@@ -116,7 +111,7 @@ class RemoteDocumentLoader extends DocumentLoader {
 
     @Override
     public InputStream openStreamFromURL(URL url) throws IOException {
-        ByteSource offlineDocument = offlineDocuments.get(url);
+        ByteSource offlineDocument = offlineDocuments.get(url.toString());
         if (offlineDocument != null) {
             // Delegate to the byte source
             return offlineDocument.openBufferedStream();
