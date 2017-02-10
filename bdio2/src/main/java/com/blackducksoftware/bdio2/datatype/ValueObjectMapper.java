@@ -17,12 +17,15 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.common.base.ExtraCollectors;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableMap;
 
@@ -34,7 +37,7 @@ import com.google.common.collect.ImmutableMap;
 public class ValueObjectMapper {
 
     /**
-     * Check to see if a Java object can be representented as a JSON primitive.
+     * Check to see if a Java object can be represented as a JSON primitive.
      */
     private static final Predicate<Object> JSON_PRIMITIVE = x -> x == null
             || x instanceof String
@@ -70,6 +73,14 @@ public class ValueObjectMapper {
             .build();
 
     /**
+     * Types which can be embedded instead of referenced.
+     */
+    private static final Set<String> EMBEDDED_TYPES = Stream.of(Bdio.Class.values())
+            .filter(Bdio.Class::embed)
+            .map(Object::toString)
+            .collect(ExtraCollectors.toImmutableSet());
+
+    /**
      * Takes a field value from a JSON-LD node and converts it over to a Java object.
      */
     @Nullable
@@ -87,8 +98,14 @@ public class ValueObjectMapper {
                 throw new IllegalArgumentException("unrecognized type: " + value.getClass().getName());
             }
         } else {
-            // It was a JSON literal or embedded object
-            return input;
+            Optional<Object> id = mappingOf(input, JsonLdConsts.ID);
+            if (id.isPresent() && ((Map<?, ?>) input).size() == 1) {
+                // It was simple reference
+                return id.get();
+            } else {
+                // It was a JSON literal or embedded object
+                return input;
+            }
         }
     }
 
@@ -110,24 +127,29 @@ public class ValueObjectMapper {
                 return result;
             }
         }
+        // TODO What about maps representing complex objects?
         throw new IllegalArgumentException("unrecognized type: " + value.getClass().getName());
     }
 
     /**
      * Creates a JSON-LD value object for a reference to a Java object. Accepts {@link String}, {@link URI} or a
-     * {@link Map} that contains an {@value JsonLdConsts#ID} mapping.
+     * {@link Map} that either represents an embedded object or contains an {@value JsonLdConsts#ID} mapping.
      */
     @Nullable
     public Object toReferenceValueObject(@Nullable Object ref) {
-        return ref != null ? Optional.of(ref)
-                .flatMap(r -> r instanceof String || r instanceof URI ? Optional.of(r) : mappingOf(r, JsonLdConsts.ID))
-                .map(Objects::toString)
-                .map(value -> {
-                    Map<String, Object> result = new LinkedHashMap<>(2);
-                    // result.put(JsonLdConsts.TYPE, JsonLdConsts.ID);
-                    result.put(JsonLdConsts.VALUE, value);
-                    return result;
-                }).orElseThrow(() -> new IllegalArgumentException("unrecognized reference: " + ref)) : null;
+        if (ref == null) {
+            return null;
+        } else if (mappingOf(ref, JsonLdConsts.TYPE).filter(EMBEDDED_TYPES::contains).isPresent()) {
+            return ref;
+        } else {
+            return Optional.of(ref)
+                    .flatMap(r -> r instanceof String || r instanceof URI ? Optional.of(r) : mappingOf(r, JsonLdConsts.ID))
+                    .map(value -> {
+                        Map<String, Object> result = new LinkedHashMap<>(1);
+                        result.put(JsonLdConsts.VALUE, value.toString());
+                        return result;
+                    }).orElseThrow(() -> new IllegalArgumentException("unrecognized reference: " + ref));
+        }
     }
 
     /**

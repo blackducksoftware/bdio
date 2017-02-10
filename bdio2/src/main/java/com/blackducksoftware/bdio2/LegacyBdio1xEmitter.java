@@ -16,13 +16,14 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Spliterators;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -165,7 +166,7 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
     public static File toBdio2File(Object node) {
         File file = new File(getString(node, "@id").get())
                 .byteCount(getNumber(node, "size").map(Number::longValue).orElse(null));
-        checksums(get(node, "spdx:checksum"), (algorithm, checksumValue) -> file.fingerprint(Fingerprint.create(algorithm, checksumValue)));
+        checksums(get(node, "spdx:checksum"), file::fingerprint);
         return file;
     }
 
@@ -223,15 +224,19 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
     }
 
     /**
-     * Copies a checksums list into a bi-consumer of algorithm and checksum value.
+     * Copies a checksums list into a fingerprint consumer.
      */
-    private static void checksums(Optional<Object> obj, BiConsumer<String, String> consumer) {
+    private static void checksums(Optional<Object> obj, Consumer<Fingerprint> consumer) {
         Object checksums = obj.orElse(null);
+        if (checksums instanceof Map<?, ?>) {
+            checksums = Arrays.asList(checksums);
+        }
         if (checksums instanceof List<?>) {
             for (Object checksum : (List<?>) checksums) {
-                get(checksum, "spdx:algorithm").map(alg -> getString(alg, "@id").orElse(null))
+                getString(checksum, "spdx:algorithm")
+                        .map(x -> FINGERPRINT_ALGORITHMS.getOrDefault(x, x))
                         .ifPresent(algorithm -> getString(checksum, "spdx:checksumValue")
-                                .ifPresent(checksumValue -> consumer.accept(algorithm, checksumValue)));
+                                .ifPresent(checksumValue -> consumer.accept(Fingerprint.create(algorithm, checksumValue))));
             }
         }
     }
