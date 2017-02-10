@@ -40,38 +40,18 @@ import com.google.common.collect.Maps;
  */
 final class BdioHelper {
 
+    // TODO Do we need a sort order that is stable across BDIO versions?
+    // TODO Do we need to promote the File's HID column?
+    private static Comparator<Map.Entry<String, Object>> DATA_PROPERTY_ORDER = Comparator.<Map.Entry<String, Object>, String> comparing(Map.Entry::getKey)
+            .reversed();
+
     /**
      * Returns key/value pairs for the data properties of the specified BDIO node.
      */
     public static Object[] getNodeProperties(Map<String, Object> node, boolean includeSpecial,
             BdioFrame frame, ValueObjectMapper valueObjectMapper, @Nullable PartitionStrategy partitionStrategy) {
+        // IMPORTANT: Add elements in reverse order of importance (e.g. T.id should be last!)
         Stream.Builder<Map.Entry<?, ?>> properties = Stream.builder();
-
-        // Special properties that can be optionally included
-        if (includeSpecial) {
-            Optional.ofNullable(node.get(JsonLdConsts.ID)).map(id -> URI.create((String) id))
-                    .map(id -> Maps.immutableEntry(T.id, id))
-                    .ifPresent(properties);
-
-            Optional.ofNullable(node.get(JsonLdConsts.TYPE))
-                    .map(label -> Maps.immutableEntry(T.label, label))
-                    .ifPresent(properties);
-
-            Optional.ofNullable(partitionStrategy)
-                    .map(s -> Maps.immutableEntry(s.getPartitionKey(), s.getWritePartition()))
-                    .ifPresent(properties);
-
-            Optional.ofNullable(node.get(JsonLdConsts.ID))
-                    .map(id -> Maps.immutableEntry(Tokens.id, id))
-                    .ifPresent(properties);
-        }
-
-        // Sorted data properties
-        // TODO Do we need a sort order that is stable across BDIO versions?
-        Maps.transformValues(node, valueObjectMapper::fromFieldValue).entrySet().stream()
-                .filter(e -> frame.isDataPropertyKey(e.getKey()))
-                .sorted(Comparator.comparing(Map.Entry::getKey))
-                .forEachOrdered(properties);
 
         // Unknown properties
         Optional.of(Maps.filterKeys(node, BdioHelper::isUnknownKey))
@@ -85,6 +65,31 @@ final class BdioHelper {
                 })
                 .map(json -> Maps.immutableEntry(Tokens.unknown, json))
                 .ifPresent(properties);
+
+        // Sorted data properties
+        Maps.transformValues(node, valueObjectMapper::fromFieldValue).entrySet().stream()
+                .filter(e -> frame.isDataPropertyKey(e.getKey()))
+                .sorted(DATA_PROPERTY_ORDER)
+                .forEachOrdered(properties);
+
+        // Special properties that can be optionally included
+        if (includeSpecial) {
+            Optional.ofNullable(node.get(JsonLdConsts.ID))
+                    .map(id -> Maps.immutableEntry(Tokens.id, id))
+                    .ifPresent(properties);
+
+            Optional.ofNullable(partitionStrategy)
+                    .map(s -> Maps.immutableEntry(s.getPartitionKey(), s.getWritePartition()))
+                    .ifPresent(properties);
+
+            Optional.ofNullable(node.get(JsonLdConsts.TYPE))
+                    .map(label -> Maps.immutableEntry(T.label, label))
+                    .ifPresent(properties);
+
+            Optional.ofNullable(node.get(JsonLdConsts.ID)).map(id -> URI.create((String) id))
+                    .map(id -> Maps.immutableEntry(T.id, id))
+                    .ifPresent(properties);
+        }
 
         // Convert the whole thing into an array
         return properties.build()
