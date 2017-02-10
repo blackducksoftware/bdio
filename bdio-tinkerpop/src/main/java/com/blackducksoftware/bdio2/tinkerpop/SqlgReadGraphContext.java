@@ -22,6 +22,7 @@ import java.util.Objects;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.umlg.sqlg.structure.SqlgGraph;
 
+import com.google.common.collect.Iterables;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
 
@@ -97,7 +98,11 @@ class SqlgReadGraphContext extends ReadGraphContext {
         // If there is a partitioning strategy, index it as the first column
         partitionStrategy().filter(p -> !p.getReadPartitions().isEmpty()).ifPresent(p -> {
             dummyKeyValues.add(p.getPartitionKey());
-            dummyKeyValues.add(p.getReadPartitions().iterator().next());
+            if (p.getReadPartitions().size() == 1) {
+                dummyKeyValues.add(Iterables.getOnlyElement(p.getReadPartitions()));
+            } else {
+                dummyKeyValues.add(new ArrayList<>(p.getReadPartitions()));
+            }
         });
 
         // The BDIO identifier is present on every vertex
