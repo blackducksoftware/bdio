@@ -36,6 +36,8 @@ import com.google.common.collect.ImmutableMap;
  */
 public class ValueObjectMapper {
 
+    // TODO We need a builder to make these constants per instance and configurable/extendable...
+
     /**
      * Check to see if a Java object can be represented as a JSON primitive.
      */
@@ -50,8 +52,8 @@ public class ValueObjectMapper {
     private static final Map<String, Function<String, Object>> PARSERS = ImmutableMap.<String, Function<String, Object>> builder()
             .put(Bdio.Datatype.DateTime.toString(), Instant::parse)
             .put(Bdio.Datatype.Fingerprint.toString(), Fingerprint::valueOf)
-            .put(Bdio.Datatype.Products.toString(), Products::valueOf)
             .put(Bdio.Datatype.Long.toString(), Long::valueOf)
+            .put(Bdio.Datatype.Products.toString(), Products::valueOf)
             .build();
 
     /**
@@ -60,8 +62,8 @@ public class ValueObjectMapper {
     private static final Map<String, Predicate<Object>> TYPE_CHECKS = ImmutableMap.<String, Predicate<Object>> builder()
             .put(Bdio.Datatype.DateTime.toString(), Instant.class::isInstance)
             .put(Bdio.Datatype.Fingerprint.toString(), Fingerprint.class::isInstance)
-            .put(Bdio.Datatype.Products.toString(), Products.class::isInstance)
             .put(Bdio.Datatype.Long.toString(), Number.class::isInstance)
+            .put(Bdio.Datatype.Products.toString(), Products.class::isInstance)
             .build();
 
     /**
@@ -70,6 +72,7 @@ public class ValueObjectMapper {
     private static final Map<Class<?>, Function<Object, Object>> CONVERTERS = ImmutableMap.<Class<?>, Function<Object, Object>> builder()
             .put(Instant.class, Objects::toString)
             .put(URI.class, Objects::toString)
+            // TODO Do we need to toString other objects as well?
             .build();
 
     /**
