@@ -18,10 +18,13 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
+import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
 
+import com.blackducksoftware.bdio2.tinkerpop.BdioGraph.B;
 import com.google.common.collect.Iterables;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
@@ -53,8 +56,8 @@ class SqlgReadGraphContext extends ReadGraphContext {
      */
     private final BloomFilter<String> uniqueIdentifiers;
 
-    protected SqlgReadGraphContext(SqlgGraph sqlgGraph, int batchSize, PartitionStrategy partitionStrategy) {
-        super(sqlgGraph, batchSize, partitionStrategy);
+    protected SqlgReadGraphContext(SqlgGraph sqlgGraph, int batchSize, String metadataLabel, PartitionStrategy partitionStrategy) {
+        super(sqlgGraph, batchSize, metadataLabel, partitionStrategy);
         this.sqlgGraph = Objects.requireNonNull(sqlgGraph);
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
         uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), EXPECTED_INSERTIONS);
@@ -64,9 +67,15 @@ class SqlgReadGraphContext extends ReadGraphContext {
     public void initialize(BdioFrame frame) {
         super.initialize(frame);
 
-        // Pre-create and index a few import columns in the database
-        Object[] dummyKeyValues = indexedDummyKeyValues();
-        frame.forEachTypeName(label -> sqlgGraph.createVertexLabeledIndex(label, dummyKeyValues));
+        // Pre-populate label tables
+        Consumer<String> populateLabel = label -> {
+            sqlgGraph.createVertexLabeledIndex(label, indexedDummyKeyValues(label));
+
+            SchemaTable schemaTablePair = SchemaTable.from(sqlgGraph, label, sqlgGraph.getSqlDialect().getPublicSchema());
+            sqlgGraph.getSchemaManager().ensureVertexTableExist(schemaTablePair.getSchema(), schemaTablePair.getTable(), dummyKeyValues(label));
+        };
+        metadataLabel().ifPresent(populateLabel);
+        frame.forEachTypeName(populateLabel);
 
         // Commit schema changes
         commitTx();
@@ -92,7 +101,7 @@ class SqlgReadGraphContext extends ReadGraphContext {
      * determine what type to assign the newly created column so they must be representative of what will actually be
      * stored in that property.
      */
-    private Object[] indexedDummyKeyValues() {
+    private Object[] indexedDummyKeyValues(String label) {
         List<Object> dummyKeyValues = new ArrayList<>();
 
         // If there is a partitioning strategy, index it as the first column
@@ -106,10 +115,19 @@ class SqlgReadGraphContext extends ReadGraphContext {
         });
 
         // The BDIO identifier is present on every vertex
-        dummyKeyValues.add(Tokens.id);
+        dummyKeyValues.add(B.id);
         dummyKeyValues.add("http://example.com/1");
 
+        // TODO File HID needs to be indexed
+
         return dummyKeyValues.toArray();
+    }
+
+    /**
+     * Returns a key/value array of non-indexed keys and dummy values.
+     */
+    private Object[] dummyKeyValues(String label) {
+        return new Object[] { B.unknown, "{}" };
     }
 
 }

@@ -15,8 +15,6 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.Comparator;
 import java.util.Map;
@@ -29,8 +27,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.Partit
 import org.apache.tinkerpop.gremlin.structure.T;
 
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
+import com.blackducksoftware.bdio2.tinkerpop.BdioGraph.B;
 import com.github.jsonldjava.core.JsonLdConsts;
-import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.collect.Maps;
 
 /**
@@ -51,19 +49,12 @@ final class BdioHelper {
     public static Object[] getNodeProperties(Map<String, Object> node, boolean includeSpecial,
             BdioFrame frame, ValueObjectMapper valueObjectMapper, @Nullable PartitionStrategy partitionStrategy) {
         // IMPORTANT: Add elements in reverse order of importance (e.g. T.id should be last!)
+        // TODO Or does it matter because Sqlg pushes them through a ConcurrentHashMap?
         Stream.Builder<Map.Entry<?, ?>> properties = Stream.builder();
 
         // Unknown properties
-        Optional.of(Maps.filterKeys(node, BdioHelper::isUnknownKey))
-                .filter(m -> !m.isEmpty())
-                .map(m -> {
-                    try {
-                        return JsonUtils.toString(m);
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                })
-                .map(json -> Maps.immutableEntry(Tokens.unknown, json))
+        BdioGraph.Unknown.preserveUnknownProperties(node)
+                .map(json -> Maps.immutableEntry(B.unknown, json))
                 .ifPresent(properties);
 
         // Sorted data properties
@@ -75,7 +66,7 @@ final class BdioHelper {
         // Special properties that can be optionally included
         if (includeSpecial) {
             Optional.ofNullable(node.get(JsonLdConsts.ID))
-                    .map(id -> Maps.immutableEntry(Tokens.id, id))
+                    .map(id -> Maps.immutableEntry(B.id, id))
                     .ifPresent(properties);
 
             Optional.ofNullable(partitionStrategy)
@@ -95,14 +86,6 @@ final class BdioHelper {
         return properties.build()
                 .flatMap(e -> Stream.of(e.getKey(), e.getValue()))
                 .toArray();
-    }
-
-    /**
-     * Check if a key represents an unknown property.
-     */
-    private static boolean isUnknownKey(String key) {
-        // If framing did not recognize the attribute, it will still have a scheme or prefix separator
-        return key.indexOf(':') >= 0;
     }
 
     private BdioHelper() {

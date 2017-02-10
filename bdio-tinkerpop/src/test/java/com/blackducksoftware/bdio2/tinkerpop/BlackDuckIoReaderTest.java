@@ -30,6 +30,7 @@ import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.Project;
 import com.blackducksoftware.bdio2.test.BdioTest;
+import com.blackducksoftware.bdio2.tinkerpop.BdioGraph.B;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.Lists;
 
@@ -49,14 +50,14 @@ public class BlackDuckIoReaderTest extends BaseTest {
         Instant creation = Instant.now();
         BdioMetadata metadata = new BdioMetadata().id("urn:uuid:" + UUID.randomUUID()).creation(creation);
 
-        graph.io(BlackDuckIo.build()).readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph()));
+        graph.io(BlackDuckIo.build().metadataLabel("metadata")).readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph()));
 
-        GraphTraversal<Vertex, Vertex> namedGraphs = graph.traversal().V().hasLabel(Tokens.NamedGraph);
+        GraphTraversal<Vertex, Vertex> namedGraphs = graph.traversal().V().hasLabel("metadata");
         assertThat(namedGraphs.hasNext()).isTrue();
         Vertex namedGraph = namedGraphs.next();
         assertThat(namedGraphs.hasNext()).isFalse();
 
-        VertexProperty<String> idProperty = namedGraph.property(Tokens.id);
+        VertexProperty<String> idProperty = namedGraph.property(B.id);
         assertThat(idProperty.isPresent()).isTrue();
         assertThat(idProperty.value()).isEqualTo(metadata.id());
 

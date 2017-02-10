@@ -36,8 +36,8 @@ import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
+import com.blackducksoftware.bdio2.tinkerpop.BdioGraph.B;
 import com.github.jsonldjava.core.JsonLdConsts;
-import com.github.jsonldjava.utils.JsonUtils;
 
 import io.reactivex.Flowable;
 
@@ -47,11 +47,15 @@ public class BlackDuckIoWriter implements GraphWriter {
 
     private final ValueObjectMapper valueObjectMapper;
 
-    private TraversalStrategy<?>[] strategies;
+    @Nullable
+    private final String metadataLabel;
+
+    private final TraversalStrategy<?>[] strategies;
 
     private BlackDuckIoWriter(Builder builder) {
         documentBuilder = builder.documentBuilder.orElseGet(BdioDocument.Builder::new);
         valueObjectMapper = builder.mapper.orElseGet(() -> BlackDuckIoMapper.build().create()).createMapper();
+        metadataLabel = builder.metadataLabel.orElse(null);
         strategies = builder.partitionStrategy.map(s -> new TraversalStrategy<?>[] { s }).orElse(new TraversalStrategy<?>[0]);
     }
 
@@ -83,24 +87,12 @@ public class BlackDuckIoWriter implements GraphWriter {
             Map<String, Object> result = new LinkedHashMap<>();
             result.put(JsonLdConsts.TYPE, vertex.label());
             vertex.properties().forEachRemaining(vp -> {
-                switch (vp.key()) {
-                case Tokens.id:
+                if (vp.key().equals(B.id)) {
                     result.put(JsonLdConsts.ID, vp.value());
-                    break;
-                case Tokens.unknown:
-                    try {
-                        Object unknown = JsonUtils.fromString((String) vp.value());
-                        if (unknown instanceof Map<?, ?>) {
-                            result.putAll((Map<String, ?>) unknown);
-                        }
-                    } catch (IOException e) {
-                        // Ignore this...
-                    }
-                    break;
-                default:
-                    if (!isPrivate(vp.key())) {
-                        result.put(vp.key(), valueObjectMapper.toValueObject(vp.value()));
-                    }
+                } else if (vp.key().equals(B.unknown)) {
+                    BdioGraph.Unknown.restoreUnknownProperties(vp.value(), result::put);
+                } else if (!BdioGraph.Hidden.isHidden(vp.key())) {
+                    result.put(vp.key(), valueObjectMapper.toValueObject(vp.value()));
                 }
             });
 
@@ -108,10 +100,6 @@ public class BlackDuckIoWriter implements GraphWriter {
 
             return result;
         }).subscribe(document.asNodeSubscriber(metadata)); // TODO Technically metadata is ignored here...
-    }
-
-    private static boolean isPrivate(String key) {
-        return key.startsWith("_");
     }
 
     @Override
@@ -154,6 +142,8 @@ public class BlackDuckIoWriter implements GraphWriter {
 
         private Optional<BdioDocument.Builder> documentBuilder = Optional.empty();
 
+        private Optional<String> metadataLabel = Optional.empty();
+
         private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
 
         private Builder() {
@@ -166,6 +156,11 @@ public class BlackDuckIoWriter implements GraphWriter {
 
         public Builder documentBuilder(@Nullable BdioDocument.Builder documentBuilder) {
             this.documentBuilder = Optional.ofNullable(documentBuilder);
+            return this;
+        }
+
+        public Builder metadataLabel(@Nullable String metadataLabel) {
+            this.metadataLabel = Optional.ofNullable(metadataLabel);
             return this;
         }
 

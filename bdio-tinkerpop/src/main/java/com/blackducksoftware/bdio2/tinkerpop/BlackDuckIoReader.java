@@ -69,6 +69,12 @@ public final class BlackDuckIoReader implements GraphReader {
     private final int batchSize;
 
     /**
+     * The optional metadata label, if present named graph metadata will be stored.
+     */
+    @Nullable
+    private final String metadataLabel;
+
+    /**
      * The optional partitioning strategy, if present all imported vertices will have the appropriate partition data.
      */
     @Nullable
@@ -79,6 +85,7 @@ public final class BlackDuckIoReader implements GraphReader {
         frame = BdioFrame.create(builder.applicationContext);
         valueObjectMapper = builder.mapper.orElseGet(() -> BlackDuckIoMapper.build().create()).createMapper();
         batchSize = builder.batchSize;
+        metadataLabel = builder.metadataLabel.orElse(null);
         partitionStrategy = builder.partitionStrategy.orElse(null);
     }
 
@@ -180,9 +187,9 @@ public final class BlackDuckIoReader implements GraphReader {
     private ReadGraphContext createReadGraphContext(Graph graphToWriteTo) {
         ReadGraphContext context;
         if (graphToWriteTo instanceof SqlgGraph) {
-            context = new SqlgReadGraphContext((SqlgGraph) graphToWriteTo, batchSize, partitionStrategy);
+            context = new SqlgReadGraphContext((SqlgGraph) graphToWriteTo, batchSize, metadataLabel, partitionStrategy);
         } else {
-            context = new ReadGraphContext(graphToWriteTo, batchSize, partitionStrategy);
+            context = new ReadGraphContext(graphToWriteTo, batchSize, metadataLabel, partitionStrategy);
         }
         context.initialize(frame);
         return context;
@@ -210,6 +217,8 @@ public final class BlackDuckIoReader implements GraphReader {
 
         private Optional<BdioDocument.Builder> documentBuilder = Optional.empty();
 
+        private Optional<String> metadataLabel = Optional.empty();
+
         private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
 
         // TODO Do we take the expansion context from the BdioDocument? How does this relate to the BdioFrame?
@@ -227,6 +236,11 @@ public final class BlackDuckIoReader implements GraphReader {
 
         public Builder documentBuilder(@Nullable BdioDocument.Builder documentBuilder) {
             this.documentBuilder = Optional.ofNullable(documentBuilder);
+            return this;
+        }
+
+        public Builder metadataLabel(@Nullable String metadataLabel) {
+            this.metadataLabel = Optional.ofNullable(metadataLabel);
             return this;
         }
 

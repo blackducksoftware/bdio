@@ -39,11 +39,15 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
     private final BdioDocument.Builder documentBuilder;
 
     @Nullable
+    private final String metadataLabel;
+
+    @Nullable
     private final PartitionStrategy partitionStrategy;
 
     private BlackDuckIo(Builder builder) {
         graph = builder.graph.orElseThrow(() -> new NullPointerException("The graph argument was not specified"));
         documentBuilder = builder.documentBuilder.orElse(null);
+        metadataLabel = builder.metadataLabel.orElse(null);
         partitionStrategy = builder.partitionStrategy.orElse(null);
         onMapper = mapperBuilder -> {
             builder.registry.ifPresent(mapperBuilder::addRegistry);
@@ -56,6 +60,7 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
         return BlackDuckIoReader.build()
                 .mapper(mapper().create())
                 .documentBuilder(documentBuilder)
+                .metadataLabel(metadataLabel)
                 .partitionStrategy(partitionStrategy);
     }
 
@@ -64,6 +69,7 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
         return BlackDuckIoWriter.build()
                 .mapper(mapper().create())
                 .documentBuilder(documentBuilder)
+                .metadataLabel(metadataLabel)
                 .partitionStrategy(partitionStrategy);
     }
 
@@ -111,6 +117,8 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
 
         private Optional<BdioDocument.Builder> documentBuilder = Optional.empty();
 
+        private Optional<String> metadataLabel = Optional.empty();
+
         private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
 
         private Builder() {
@@ -138,6 +146,11 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
 
         public Builder documentBuilder(@Nullable BdioDocument.Builder documentBuilder) {
             this.documentBuilder = Optional.ofNullable(documentBuilder);
+            return this;
+        }
+
+        public Builder metadataLabel(@Nullable String metadataLabel) {
+            this.metadataLabel = Optional.ofNullable(metadataLabel);
             return this;
         }
 

@@ -38,6 +38,7 @@ import org.umlg.sqlg.structure.SqlgExceptions.InvalidIdException;
 
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
+import com.blackducksoftware.bdio2.tinkerpop.BdioGraph.B;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
@@ -75,16 +76,29 @@ class ReadGraphContext {
     private final AtomicLong count;
 
     /**
+     * The optional metadata label;
+     */
+    private final Optional<String> metadataLabel;
+
+    /**
      * The optional partitioning strategy.
      */
     private final Optional<PartitionStrategy> partitionStrategy;
 
-    protected ReadGraphContext(Graph graph, int batchSize, @Nullable PartitionStrategy partitionStrategy) {
+    protected ReadGraphContext(Graph graph, int batchSize, @Nullable String metadataLabel, @Nullable PartitionStrategy partitionStrategy) {
         this.graph = Objects.requireNonNull(graph);
         this.supportsTransactions = graph.features().graph().supportsTransactions();
         this.batchSize = batchSize;
         this.count = new AtomicLong();
+        this.metadataLabel = Optional.ofNullable(metadataLabel);
         this.partitionStrategy = Optional.ofNullable(partitionStrategy);
+    }
+
+    /**
+     * Returns the current metadata label, if any.
+     */
+    protected final Optional<String> metadataLabel() {
+        return metadataLabel;
     }
 
     /**
@@ -140,7 +154,7 @@ class ReadGraphContext {
                     try {
                         return Optional.ofNullable(Iterators.getNext(graph.vertices(id), null));
                     } catch (InvalidIdException e) {
-                        return traversal().V().has(Tokens.id, id.toString()).tryNext();
+                        return traversal().V().has(B.id, id.toString()).tryNext();
                     }
                 })
 
@@ -162,18 +176,24 @@ class ReadGraphContext {
                 });
     }
 
+    /**
+     * If a metadata label is configured, store the supplied BDIO metadata on a vertex in the graph.
+     */
     public final void createMetadata(BdioMetadata metadata, BdioFrame frame, JsonLdOptions options, ValueObjectMapper valueObjectMapper) {
-        GraphTraversalSource g = traversal();
-        Vertex namedGraph = g.V().hasLabel(Tokens.NamedGraph).tryNext().orElseGet(() -> g.addV(Tokens.NamedGraph).next());
+        if (metadataLabel.isPresent()) {
+            GraphTraversalSource g = traversal();
+            Vertex metadataVertex = g.V().hasLabel(metadataLabel.get()).tryNext().orElseGet(() -> g.addV(metadataLabel.get()).next());
 
-        namedGraph.property(Tokens.id, metadata.id());
-        try {
-            // Compact the metadata using the context extracted from frame
-            Map<String, Object> compactMetadata = JsonLdProcessor.compact(metadata, frame, options);
-            ElementHelper.attachProperties(namedGraph, BdioHelper.getNodeProperties(compactMetadata, false, frame, valueObjectMapper, null));
-        } catch (JsonLdError e) {
-            // TODO What can we do about this?
-            e.printStackTrace();
+            // TODO Don't use B.id here because this metadata is exposed
+            metadataVertex.property(B.id, metadata.id());
+            try {
+                // Compact the metadata using the context extracted from frame
+                Map<String, Object> compactMetadata = JsonLdProcessor.compact(metadata, frame, options);
+                ElementHelper.attachProperties(metadataVertex, BdioHelper.getNodeProperties(compactMetadata, false, frame, valueObjectMapper, null));
+            } catch (JsonLdError e) {
+                // TODO What can we do about this?
+                e.printStackTrace();
+            }
         }
     }
 
