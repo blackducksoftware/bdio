@@ -74,6 +74,15 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
             .build();
 
     /**
+     * The mapping of BDIO 1.x checksum algorithms to fingerprint algorithms. Only the qualified input is necessary as
+     * the values are otherwise identical.
+     */
+    private static final Map<String, String> FINGERPRINT_ALGORITHMS = ImmutableMap.<String, String> builder()
+            .put("http://spdx.org/rdf/terms#checksumAlgorithm_md5", "md5")
+            .put("http://spdx.org/rdf/terms#checksumAlgorithm_sha1", "sha1")
+            .build();
+
+    /**
      * Regular expression for parsing SPDX creators.
      *
      * @see <a href="https://spdx.org/spdx-specification-21-web-version#h.i0jy297kwqcm">SPDX Creator</a>
