@@ -14,6 +14,7 @@ package com.blackducksoftware.bdio2.datatype;
 import java.net.URI;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -88,7 +89,11 @@ public class ValueObjectMapper {
      */
     @Nullable
     public Object fromFieldValue(@Nullable Object input) {
-        if (mappingOf(input, JsonLdConsts.VALUE).isPresent()) {
+        if (input instanceof List<?> && ((List<?>) input).size() == 1) {
+            // Unwrap expansion of single element lists
+            // TODO Should this handle multi-valued lists as well?
+            return fromFieldValue(((List<?>) input).get(0));
+        } else if (mappingOf(input, JsonLdConsts.VALUE).isPresent()) {
             // A map that contains "@value" is value object we can convert to a Java object
             Map<?, ?> valueObject = (Map<?, ?>) input;
             Object type = valueObject.get(JsonLdConsts.TYPE);

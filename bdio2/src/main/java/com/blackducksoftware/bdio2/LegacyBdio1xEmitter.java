@@ -276,11 +276,6 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
                 value = ((Map<?, ?>) obj).get(termOrKeyword);
             }
 
-            // Unwrap expansion of single element lists
-            if (value instanceof List<?> && ((List<?>) value).size() == 1) {
-                value = ((List<?>) value).get(0);
-            }
-
             // Convert '@value' objects
             return Optional.ofNullable(valueObjectMapper.fromFieldValue(value));
         } else {

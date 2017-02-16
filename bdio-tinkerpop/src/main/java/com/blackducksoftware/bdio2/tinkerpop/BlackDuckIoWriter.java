@@ -20,7 +20,6 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -50,28 +49,27 @@ public class BlackDuckIoWriter implements GraphWriter {
     @Nullable
     private final String metadataLabel;
 
-    private final TraversalStrategy<?>[] strategies;
+    @Nullable
+    private final PartitionStrategy partitionStrategy;
 
     private BlackDuckIoWriter(Builder builder) {
         documentBuilder = builder.documentBuilder.orElseGet(BdioDocument.Builder::new);
         valueObjectMapper = builder.mapper.orElseGet(() -> BlackDuckIoMapper.build().create()).createMapper();
         metadataLabel = builder.metadataLabel.orElse(null);
-        strategies = builder.partitionStrategy.map(s -> new TraversalStrategy<?>[] { s }).orElse(new TraversalStrategy<?>[0]);
+        partitionStrategy = builder.partitionStrategy.orElse(null);
     }
 
     @Override
     public void writeGraph(OutputStream outputStream, Graph graph) throws IOException {
-        GraphTraversalSource g = graph.traversal().withStrategies(strategies);
+        RxJavaBdioDocument document = documentBuilder.build(RxJavaBdioDocument.class);
+        ReadGraphContext context = new ReadGraphContext(graph, 10000, metadataLabel, partitionStrategy);
 
-        BdioMetadata metadata = new BdioMetadata();
-        // TODO Merge the metadata in from the NamedGraph vertex
+        // Create the writer with the parsed metadata
+        document.writeToFile(context.readMetadata(document.jsonld().options()), outputStream);
 
-        // TODO Do we need to generate a context like we do in reader (basically the inverse of the frame)?
-        RxJavaBdioDocument document = documentBuilder
-                .expandContext(null)
-                .build(RxJavaBdioDocument.class)
-                .writeToFile(metadata, outputStream);
+        GraphTraversalSource g = context.traversal();
 
+        // TODO Stay in the traversal longer to feed the node subscriber
         // TODO limit what g.V() traverses (since we don't want stuff like NamedGraph vertices)
         Flowable.<Vertex, Traversal<Vertex, Vertex>> generate(() -> g.V(), (traversal, emitter) -> {
             try {
@@ -99,7 +97,7 @@ public class BlackDuckIoWriter implements GraphWriter {
             // TODO Iterate the vertex outgoing edges
 
             return result;
-        }).subscribe(document.asNodeSubscriber(metadata)); // TODO Technically metadata is ignored here...
+        }).subscribe(document.asNodeSubscriber(BdioMetadata.createRandomUUID()));
     }
 
     @Override

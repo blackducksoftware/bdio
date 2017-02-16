@@ -48,7 +48,7 @@ public class BlackDuckIoReaderTest extends BaseTest {
     @Test
     public void readMetadata() throws Exception {
         Instant creation = Instant.now();
-        BdioMetadata metadata = new BdioMetadata().id("urn:uuid:" + UUID.randomUUID()).creation(creation);
+        BdioMetadata metadata = BdioMetadata.createRandomUUID().creation(creation);
 
         graph.io(BlackDuckIo.build().metadataLabel("metadata")).readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph()));
 

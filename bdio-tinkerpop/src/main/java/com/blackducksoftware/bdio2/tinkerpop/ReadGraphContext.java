@@ -42,6 +42,7 @@ import com.blackducksoftware.bdio2.tinkerpop.BdioGraph.B;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 
 import io.reactivex.Observable;
@@ -195,6 +196,32 @@ class ReadGraphContext {
                 e.printStackTrace();
             }
         }
+    }
+
+    /**
+     * If a metadata label is configured, read the vertex from the graph into a new BDIO metadata instance.
+     */
+    public final BdioMetadata readMetadata(JsonLdOptions options) {
+        return metadataLabel
+                .flatMap(label -> traversal().V().hasLabel(label).tryNext())
+                .map(vertex -> {
+                    BdioMetadata metadata = new BdioMetadata();
+                    metadata.id(vertex.value(B.id));
+                    try {
+                        Object expandedMetadata = Iterables.getOnlyElement(JsonLdProcessor.expand(ElementHelper.propertyValueMap(vertex), options));
+                        if (expandedMetadata instanceof Map<?, ?>) {
+                            ((Map<?, ?>) expandedMetadata).forEach((key, value) -> {
+                                if (key instanceof String) {
+                                    metadata.put((String) key, value);
+                                }
+                            });
+                        }
+                    } catch (JsonLdError e) {
+
+                    }
+                    return metadata;
+                })
+                .orElse(BdioMetadata.createRandomUUID());
     }
 
     /**
