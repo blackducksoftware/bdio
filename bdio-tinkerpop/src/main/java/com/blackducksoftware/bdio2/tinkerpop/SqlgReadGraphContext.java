@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
 
@@ -56,8 +55,8 @@ class SqlgReadGraphContext extends ReadGraphContext {
      */
     private final BloomFilter<String> uniqueIdentifiers;
 
-    protected SqlgReadGraphContext(SqlgGraph sqlgGraph, int batchSize, String metadataLabel, PartitionStrategy partitionStrategy) {
-        super(sqlgGraph, batchSize, metadataLabel, partitionStrategy);
+    protected SqlgReadGraphContext(BlackDuckIoConfig config, SqlgGraph sqlgGraph, int batchSize) {
+        super(config, sqlgGraph, batchSize);
         this.sqlgGraph = Objects.requireNonNull(sqlgGraph);
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
         uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), EXPECTED_INSERTIONS);

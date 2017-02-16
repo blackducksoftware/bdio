@@ -35,48 +35,54 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
 
     private final Consumer<BlackDuckIoMapper.Builder> onMapper;
 
-    @Nullable
-    private final BdioDocument.Builder documentBuilder;
-
-    @Nullable
-    private final String metadataLabel;
-
-    @Nullable
-    private final PartitionStrategy partitionStrategy;
+    private final Consumer<BlackDuckIoConfig.Builder> onConfig;
 
     private BlackDuckIo(Builder builder) {
         graph = builder.graph.orElseThrow(() -> new NullPointerException("The graph argument was not specified"));
-        documentBuilder = builder.documentBuilder.orElse(null);
-        metadataLabel = builder.metadataLabel.orElse(null);
-        partitionStrategy = builder.partitionStrategy.orElse(null);
         onMapper = mapperBuilder -> {
+            // Deprecated support
             builder.registry.ifPresent(mapperBuilder::addRegistry);
+
+            // Eventually just save `builder.onMapper.orElse(b -> {})`
             builder.onMapper.ifPresent(c -> c.accept(mapperBuilder));
+        };
+        onConfig = configBuilder -> {
+            // Deprecated support
+            builder.identifierKey.ifPresent(configBuilder::identifierKey);
+            builder.metadataLabel.ifPresent(configBuilder::metadataLabel);
+            builder.partitionStrategy.ifPresent(configBuilder::partitionStrategy);
+            builder.documentBuilder.ifPresent(configBuilder::documentBuilder);
+
+            // Eventually just save `builder.onConfig.orElse(b -> {})`
+            builder.onConfig.ifPresent(c -> c.accept(configBuilder));
         };
     }
 
     @Override
     public BlackDuckIoReader.Builder reader() {
-        return BlackDuckIoReader.build()
-                .mapper(mapper().create())
-                .documentBuilder(documentBuilder)
-                .metadataLabel(metadataLabel)
-                .partitionStrategy(partitionStrategy);
+        BlackDuckIoReader.Builder builder = BlackDuckIoReader.build();
+        builder.config(config().create());
+        return builder;
     }
 
     @Override
     public BlackDuckIoWriter.Builder writer() {
-        return BlackDuckIoWriter.build()
-                .mapper(mapper().create())
-                .documentBuilder(documentBuilder)
-                .metadataLabel(metadataLabel)
-                .partitionStrategy(partitionStrategy);
+        BlackDuckIoWriter.Builder builder = BlackDuckIoWriter.build();
+        builder.config(config().create());
+        return builder;
     }
 
     @Override
     public BlackDuckIoMapper.Builder mapper() {
         BlackDuckIoMapper.Builder builder = BlackDuckIoMapper.build();
         onMapper.accept(builder);
+        return builder;
+    }
+
+    public BlackDuckIoConfig.Builder config() {
+        BlackDuckIoConfig.Builder builder = BlackDuckIoConfig.build()
+                .withDefaultValueObjectMapper(mapper().create()::createMapper);
+        onConfig.accept(builder);
         return builder;
     }
 
@@ -108,26 +114,31 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
 
     public final static class Builder implements Io.Builder<BlackDuckIo> {
 
-        private Optional<IoRegistry> registry = Optional.empty();
-
         private Optional<Graph> graph = Optional.empty();
 
         @SuppressWarnings("rawtypes")
         private Optional<Consumer<Mapper.Builder>> onMapper = Optional.empty();
 
-        private Optional<BdioDocument.Builder> documentBuilder = Optional.empty();
+        private Optional<Consumer<BlackDuckIoConfig.Builder>> onConfig = Optional.empty();
+
+        // All the rest of these fields are deprecated
+
+        private Optional<IoRegistry> registry = Optional.empty();
+
+        private Optional<String> identifierKey = Optional.empty();
 
         private Optional<String> metadataLabel = Optional.empty();
 
         private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
 
+        private Optional<BdioDocument.Builder> documentBuilder = Optional.empty();
+
         private Builder() {
         }
 
         @Override
-        @Deprecated
-        public Builder registry(@Nullable IoRegistry registry) {
-            this.registry = Optional.ofNullable(registry);
+        public Builder graph(Graph graph) {
+            this.graph = Optional.of(graph);
             return this;
         }
 
@@ -138,30 +149,45 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
             return this;
         }
 
-        @Override
-        public Builder graph(Graph graph) {
-            this.graph = Optional.of(graph);
-            return this;
-        }
-
-        public Builder documentBuilder(@Nullable BdioDocument.Builder documentBuilder) {
-            this.documentBuilder = Optional.ofNullable(documentBuilder);
-            return this;
-        }
-
-        public Builder metadataLabel(@Nullable String metadataLabel) {
-            this.metadataLabel = Optional.ofNullable(metadataLabel);
-            return this;
-        }
-
-        public Builder partitionStrategy(@Nullable PartitionStrategy partitionStrategy) {
-            this.partitionStrategy = Optional.ofNullable(partitionStrategy);
+        public Builder onConfig(@Nullable Consumer<BlackDuckIoConfig.Builder> onConfig) {
+            this.onConfig = Optional.ofNullable(onConfig);
             return this;
         }
 
         @Override
         public BlackDuckIo create() {
             return new BlackDuckIo(this);
+        }
+
+        @Override
+        @Deprecated
+        public Builder registry(@Nullable IoRegistry registry) {
+            this.registry = Optional.ofNullable(registry);
+            return this;
+        }
+
+        @Deprecated
+        public Builder identifierKey(@Nullable String identifierKey) {
+            this.identifierKey = Optional.ofNullable(identifierKey);
+            return this;
+        }
+
+        @Deprecated
+        public Builder metadataLabel(@Nullable String metadataLabel) {
+            this.metadataLabel = Optional.ofNullable(metadataLabel);
+            return this;
+        }
+
+        @Deprecated
+        public Builder partitionStrategy(@Nullable PartitionStrategy partitionStrategy) {
+            this.partitionStrategy = Optional.ofNullable(partitionStrategy);
+            return this;
+        }
+
+        @Deprecated
+        public Builder documentBuilder(@Nullable BdioDocument.Builder documentBuilder) {
+            this.documentBuilder = Optional.ofNullable(documentBuilder);
+            return this;
         }
     }
 

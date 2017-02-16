@@ -21,7 +21,6 @@ import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -29,11 +28,8 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.io.GraphWriter;
-import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 
-import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.BdioMetadata;
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.blackducksoftware.bdio2.tinkerpop.BdioGraph.B;
 import com.github.jsonldjava.core.JsonLdConsts;
@@ -42,27 +38,16 @@ import io.reactivex.Flowable;
 
 public class BlackDuckIoWriter implements GraphWriter {
 
-    private final BdioDocument.Builder documentBuilder;
-
-    private final ValueObjectMapper valueObjectMapper;
-
-    @Nullable
-    private final String metadataLabel;
-
-    @Nullable
-    private final PartitionStrategy partitionStrategy;
+    private final BlackDuckIoConfig config;
 
     private BlackDuckIoWriter(Builder builder) {
-        documentBuilder = builder.documentBuilder.orElseGet(BdioDocument.Builder::new);
-        valueObjectMapper = builder.mapper.orElseGet(() -> BlackDuckIoMapper.build().create()).createMapper();
-        metadataLabel = builder.metadataLabel.orElse(null);
-        partitionStrategy = builder.partitionStrategy.orElse(null);
+        config = builder.config.orElseGet(() -> BlackDuckIoConfig.build().create());
     }
 
     @Override
     public void writeGraph(OutputStream outputStream, Graph graph) throws IOException {
-        RxJavaBdioDocument document = documentBuilder.build(RxJavaBdioDocument.class);
-        ReadGraphContext context = new ReadGraphContext(graph, 10000, metadataLabel, partitionStrategy);
+        RxJavaBdioDocument document = config.newBdioDocument(RxJavaBdioDocument.class);
+        ReadGraphContext context = new ReadGraphContext(config, graph, 10000);
 
         // Create the writer with the parsed metadata
         document.writeToFile(context.readMetadata(document.jsonld().options()), outputStream);
@@ -90,7 +75,7 @@ public class BlackDuckIoWriter implements GraphWriter {
                 } else if (vp.key().equals(B.unknown)) {
                     BdioGraph.Unknown.restoreUnknownProperties(vp.value(), result::put);
                 } else if (!BdioGraph.Hidden.isHidden(vp.key())) {
-                    result.put(vp.key(), valueObjectMapper.toValueObject(vp.value()));
+                    result.put(vp.key(), config.valueObjectMapper().toValueObject(vp.value()));
                 }
             });
 
@@ -136,34 +121,13 @@ public class BlackDuckIoWriter implements GraphWriter {
 
     public final static class Builder implements WriterBuilder<BlackDuckIoWriter> {
 
-        private Optional<Mapper<ValueObjectMapper>> mapper = Optional.empty();
-
-        private Optional<BdioDocument.Builder> documentBuilder = Optional.empty();
-
-        private Optional<String> metadataLabel = Optional.empty();
-
-        private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
+        private Optional<BlackDuckIoConfig> config = Optional.empty();
 
         private Builder() {
         }
 
-        public Builder mapper(@Nullable Mapper<ValueObjectMapper> mapper) {
-            this.mapper = Optional.ofNullable(mapper);
-            return this;
-        }
-
-        public Builder documentBuilder(@Nullable BdioDocument.Builder documentBuilder) {
-            this.documentBuilder = Optional.ofNullable(documentBuilder);
-            return this;
-        }
-
-        public Builder metadataLabel(@Nullable String metadataLabel) {
-            this.metadataLabel = Optional.ofNullable(metadataLabel);
-            return this;
-        }
-
-        public Builder partitionStrategy(@Nullable PartitionStrategy partitionStrategy) {
-            this.partitionStrategy = Optional.ofNullable(partitionStrategy);
+        public Builder config(@Nullable BlackDuckIoConfig config) {
+            this.config = Optional.ofNullable(config);
             return this;
         }
 

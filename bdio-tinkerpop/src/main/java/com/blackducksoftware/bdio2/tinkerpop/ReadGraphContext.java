@@ -21,8 +21,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
-import javax.annotation.Nullable;
-
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -37,7 +35,6 @@ import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 import org.umlg.sqlg.structure.SqlgExceptions.InvalidIdException;
 
 import com.blackducksoftware.bdio2.BdioMetadata;
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.tinkerpop.BdioGraph.B;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
@@ -55,6 +52,11 @@ import io.reactivex.Observable;
  * @author jgustie
  */
 class ReadGraphContext {
+
+    /**
+     * The configuration being used.
+     */
+    private final BlackDuckIoConfig config;
 
     /**
      * The graph being imported to.
@@ -76,37 +78,26 @@ class ReadGraphContext {
      */
     private final AtomicLong count;
 
-    /**
-     * The optional metadata label;
-     */
-    private final Optional<String> metadataLabel;
-
-    /**
-     * The optional partitioning strategy.
-     */
-    private final Optional<PartitionStrategy> partitionStrategy;
-
-    protected ReadGraphContext(Graph graph, int batchSize, @Nullable String metadataLabel, @Nullable PartitionStrategy partitionStrategy) {
+    protected ReadGraphContext(BlackDuckIoConfig config, Graph graph, int batchSize) {
+        this.config = Objects.requireNonNull(config);
         this.graph = Objects.requireNonNull(graph);
         this.supportsTransactions = graph.features().graph().supportsTransactions();
         this.batchSize = batchSize;
         this.count = new AtomicLong();
-        this.metadataLabel = Optional.ofNullable(metadataLabel);
-        this.partitionStrategy = Optional.ofNullable(partitionStrategy);
     }
 
     /**
      * Returns the current metadata label, if any.
      */
     protected final Optional<String> metadataLabel() {
-        return metadataLabel;
+        return config.metadataLabel();
     }
 
     /**
      * Returns the current partitioning strategy, if any.
      */
     protected final Optional<PartitionStrategy> partitionStrategy() {
-        return partitionStrategy;
+        return config.partitionStrategy();
     }
 
     /**
@@ -180,17 +171,17 @@ class ReadGraphContext {
     /**
      * If a metadata label is configured, store the supplied BDIO metadata on a vertex in the graph.
      */
-    public final void createMetadata(BdioMetadata metadata, BdioFrame frame, JsonLdOptions options, ValueObjectMapper valueObjectMapper) {
-        if (metadataLabel.isPresent()) {
+    public final void createMetadata(BdioMetadata metadata, BdioFrame frame, JsonLdOptions options) {
+        if (metadataLabel().isPresent()) {
             GraphTraversalSource g = traversal();
-            Vertex metadataVertex = g.V().hasLabel(metadataLabel.get()).tryNext().orElseGet(() -> g.addV(metadataLabel.get()).next());
+            Vertex metadataVertex = g.V().hasLabel(metadataLabel().get()).tryNext().orElseGet(() -> g.addV(metadataLabel().get()).next());
 
             // TODO Don't use B.id here because this metadata is exposed
             metadataVertex.property(B.id, metadata.id());
             try {
                 // Compact the metadata using the context extracted from frame
                 Map<String, Object> compactMetadata = JsonLdProcessor.compact(metadata, frame, options);
-                ElementHelper.attachProperties(metadataVertex, BdioHelper.getNodeProperties(compactMetadata, false, frame, valueObjectMapper, null));
+                ElementHelper.attachProperties(metadataVertex, BdioHelper.getNodeProperties(compactMetadata, false, frame, config.valueObjectMapper(), null));
             } catch (JsonLdError e) {
                 // TODO What can we do about this?
                 e.printStackTrace();
@@ -202,7 +193,7 @@ class ReadGraphContext {
      * If a metadata label is configured, read the vertex from the graph into a new BDIO metadata instance.
      */
     public final BdioMetadata readMetadata(JsonLdOptions options) {
-        return metadataLabel
+        return metadataLabel()
                 .flatMap(label -> traversal().V().hasLabel(label).tryNext())
                 .map(vertex -> {
                     BdioMetadata metadata = new BdioMetadata();

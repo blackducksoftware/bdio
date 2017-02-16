@@ -22,7 +22,6 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -31,15 +30,12 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.io.GraphReader;
-import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarEdge;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 import org.umlg.sqlg.structure.SqlgGraph;
 
-import com.blackducksoftware.bdio2.BdioDocument;
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.google.common.base.Functions;
 import com.google.common.collect.Maps;
@@ -49,9 +45,9 @@ import io.reactivex.Flowable;
 public final class BlackDuckIoReader implements GraphReader {
 
     /**
-     * Builder for creating BDIO documents.
+     * The configuration used for this reader.
      */
-    private final BdioDocument.Builder documentBuilder;
+    private final BlackDuckIoConfig config;
 
     /**
      * The JSON-LD frame used to convert from BDIO to vertex data.
@@ -59,43 +55,23 @@ public final class BlackDuckIoReader implements GraphReader {
     private final BdioFrame frame;
 
     /**
-     * The JSON-LD value object mapper to use.
-     */
-    private final ValueObjectMapper valueObjectMapper;
-
-    /**
      * The number of graph mutations before a commit is attempted.
      */
     private final int batchSize;
 
-    /**
-     * The optional metadata label, if present named graph metadata will be stored.
-     */
-    @Nullable
-    private final String metadataLabel;
-
-    /**
-     * The optional partitioning strategy, if present all imported vertices will have the appropriate partition data.
-     */
-    @Nullable
-    private final PartitionStrategy partitionStrategy;
-
     private BlackDuckIoReader(Builder builder) {
-        documentBuilder = builder.documentBuilder.orElseGet(BdioDocument.Builder::new);
+        config = builder.config.orElseGet(() -> BlackDuckIoConfig.build().create());
         frame = BdioFrame.create(builder.applicationContext);
-        valueObjectMapper = builder.mapper.orElseGet(() -> BlackDuckIoMapper.build().create()).createMapper();
         batchSize = builder.batchSize;
-        metadataLabel = builder.metadataLabel.orElse(null);
-        partitionStrategy = builder.partitionStrategy.orElse(null);
     }
 
     @Override
     public void readGraph(InputStream inputStream, Graph graphToWriteTo) throws IOException {
-        RxJavaBdioDocument document = documentBuilder.build(RxJavaBdioDocument.class);
+        RxJavaBdioDocument document = config.newBdioDocument(RxJavaBdioDocument.class);
         ReadGraphContext context = createReadGraphContext(graphToWriteTo);
 
         // Create a metadata subscription
-        document.metadata(metadata -> context.createMetadata(metadata, frame, document.jsonld().options(), valueObjectMapper));
+        document.metadata(metadata -> context.createMetadata(metadata, frame, document.jsonld().options()));
 
         // Get the sequence of BDIO graph nodes and transform them in vertices and edges
         document.jsonld().frame(frame).compose(document.withoutMetadata())
@@ -132,7 +108,8 @@ public final class BlackDuckIoReader implements GraphReader {
         // Create a new StarGraph whose primary vertex is the converted node
         Map<String, Object> node = NodeInputStream.readNode(inputStream);
         StarGraph starGraph = StarGraph.open();
-        StarVertex vertex = (StarVertex) starGraph.addVertex(BdioHelper.getNodeProperties(node, true, frame, valueObjectMapper, partitionStrategy));
+        StarVertex vertex = (StarVertex) starGraph
+                .addVertex(BdioHelper.getNodeProperties(node, true, frame, config.valueObjectMapper(), config.partitionStrategy().orElse(null)));
         if (vertexAttachMethod != null) {
             vertex.attach(vertexAttachMethod);
         }
@@ -140,7 +117,7 @@ public final class BlackDuckIoReader implements GraphReader {
         // Add outgoing edges for object properties (if requested)
         if (attachEdgesOfThisDirection == Direction.BOTH || attachEdgesOfThisDirection == Direction.OUT) {
             Maps.transformValues(Maps.filterKeys(node, frame::isObjectPropertyKey),
-                    Functions.compose(id -> starGraph.addVertex(T.id, URI.create(id.toString())), valueObjectMapper::fromFieldValue))
+                    Functions.compose(id -> starGraph.addVertex(T.id, URI.create(id.toString())), config.valueObjectMapper()::fromFieldValue))
                     .forEach((label, inVertex) -> {
                         StarEdge edge = (StarEdge) vertex.addEdge(label, inVertex);
                         if (edgeAttachMethod != null) {
@@ -187,9 +164,9 @@ public final class BlackDuckIoReader implements GraphReader {
     private ReadGraphContext createReadGraphContext(Graph graphToWriteTo) {
         ReadGraphContext context;
         if (graphToWriteTo instanceof SqlgGraph) {
-            context = new SqlgReadGraphContext((SqlgGraph) graphToWriteTo, batchSize, metadataLabel, partitionStrategy);
+            context = new SqlgReadGraphContext(config, (SqlgGraph) graphToWriteTo, batchSize);
         } else {
-            context = new ReadGraphContext(graphToWriteTo, batchSize, metadataLabel, partitionStrategy);
+            context = new ReadGraphContext(config, graphToWriteTo, batchSize);
         }
         context.initialize(frame);
         return context;
@@ -213,13 +190,7 @@ public final class BlackDuckIoReader implements GraphReader {
 
     public final static class Builder implements ReaderBuilder<BlackDuckIoReader> {
 
-        private Optional<Mapper<ValueObjectMapper>> mapper = Optional.empty();
-
-        private Optional<BdioDocument.Builder> documentBuilder = Optional.empty();
-
-        private Optional<String> metadataLabel = Optional.empty();
-
-        private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
+        private Optional<BlackDuckIoConfig> config = Optional.empty();
 
         // TODO Do we take the expansion context from the BdioDocument? How does this relate to the BdioFrame?
         private Map<String, Object> applicationContext = new LinkedHashMap<>();
@@ -229,23 +200,8 @@ public final class BlackDuckIoReader implements GraphReader {
         private Builder() {
         }
 
-        public Builder mapper(@Nullable Mapper<ValueObjectMapper> mapper) {
-            this.mapper = Optional.ofNullable(mapper);
-            return this;
-        }
-
-        public Builder documentBuilder(@Nullable BdioDocument.Builder documentBuilder) {
-            this.documentBuilder = Optional.ofNullable(documentBuilder);
-            return this;
-        }
-
-        public Builder metadataLabel(@Nullable String metadataLabel) {
-            this.metadataLabel = Optional.ofNullable(metadataLabel);
-            return this;
-        }
-
-        public Builder partitionStrategy(@Nullable PartitionStrategy partitionStrategy) {
-            this.partitionStrategy = Optional.ofNullable(partitionStrategy);
+        public Builder config(@Nullable BlackDuckIoConfig config) {
+            this.config = Optional.ofNullable(config);
             return this;
         }
 
