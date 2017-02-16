@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.util.LinkedHashMap;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.function.Consumer;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
@@ -41,6 +42,15 @@ import com.google.common.io.Resources;
 
 @RunWith(Parameterized.class)
 public abstract class BaseTest {
+
+    /**
+     * (T)est (T)okens.
+     */
+    public static final class TT {
+        public static final String id = "_id";
+
+        public static final String Metadata = "Metadata";
+    }
 
     /**
      * Returns the graph configurations to test.
@@ -75,6 +85,17 @@ public abstract class BaseTest {
 
     public BaseTest(Configuration configuration) {
         this.configuration = Objects.requireNonNull(configuration);
+    }
+
+    /**
+     * Common configuration.
+     *
+     * @see TT
+     */
+    public Consumer<BlackDuckIoConfig.Builder> storeMetadataAndIds() {
+        return builder -> {
+            builder.metadataLabel(TT.Metadata).identifierKey(TT.id);
+        };
     }
 
     @Before

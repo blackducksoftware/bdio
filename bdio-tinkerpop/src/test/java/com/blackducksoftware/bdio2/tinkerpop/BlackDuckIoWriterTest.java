@@ -28,7 +28,6 @@ import org.junit.Test;
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioEmitter;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
-import com.blackducksoftware.bdio2.tinkerpop.BdioGraph.B;
 import com.blackducksoftware.common.io.HeapOutputStream;
 import com.github.jsonldjava.core.JsonLdConsts;
 
@@ -45,12 +44,13 @@ public class BlackDuckIoWriterTest extends BaseTest {
         String id = "urn:uuid:" + UUID.randomUUID();
         Instant creation = Instant.now();
         graph.addVertex(
-                T.label, "metadata",
-                B.id, id,
+                T.label, TT.Metadata,
+                TT.id, id,
                 Bdio.DataProperty.creation.name(), creation.toString());
 
         HeapOutputStream buffer = new HeapOutputStream();
-        graph.io(BlackDuckIo.build().metadataLabel("metadata")).writeGraph(buffer);
+        graph.io(BlackDuckIo.build().onConfig(storeMetadataAndIds()))
+                .writeGraph(buffer);
 
         Object obj = new BdioEmitter(buffer.getInputStream()).stream().findFirst().get();
         assertThat(obj).isInstanceOf(Map.class);

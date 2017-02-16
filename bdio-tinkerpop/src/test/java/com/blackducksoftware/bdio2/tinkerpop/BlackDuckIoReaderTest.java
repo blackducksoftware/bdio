@@ -30,7 +30,6 @@ import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.Project;
 import com.blackducksoftware.bdio2.test.BdioTest;
-import com.blackducksoftware.bdio2.tinkerpop.BdioGraph.B;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.Lists;
 
@@ -50,14 +49,15 @@ public class BlackDuckIoReaderTest extends BaseTest {
         Instant creation = Instant.now();
         BdioMetadata metadata = BdioMetadata.createRandomUUID().creation(creation);
 
-        graph.io(BlackDuckIo.build().metadataLabel("metadata")).readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph()));
+        graph.io(BlackDuckIo.build().onConfig(storeMetadataAndIds()))
+                .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph()));
 
-        GraphTraversal<Vertex, Vertex> namedGraphs = graph.traversal().V().hasLabel("metadata");
+        GraphTraversal<Vertex, Vertex> namedGraphs = graph.traversal().V().hasLabel(TT.Metadata);
         assertThat(namedGraphs.hasNext()).isTrue();
         Vertex namedGraph = namedGraphs.next();
         assertThat(namedGraphs.hasNext()).isFalse();
 
-        VertexProperty<String> idProperty = namedGraph.property(B.id);
+        VertexProperty<String> idProperty = namedGraph.property(TT.id);
         assertThat(idProperty.isPresent()).isTrue();
         assertThat(idProperty.value()).isEqualTo(metadata.id());
 
@@ -74,7 +74,8 @@ public class BlackDuckIoReaderTest extends BaseTest {
         File fileModel = new File("urn:uuid:" + UUID.randomUUID());
         fileModel.byteCount(101L);
 
-        graph.io(BlackDuckIo.build()).readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(fileModel))));
+        graph.io(BlackDuckIo.build())
+                .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(fileModel))));
 
         GraphTraversal<Vertex, Vertex> files = graph.traversal().V().hasLabel(Bdio.Class.File.name());
         assertThat(files.hasNext()).isTrue();
@@ -95,7 +96,8 @@ public class BlackDuckIoReaderTest extends BaseTest {
         fileModel.byteCount(103L);
         projectModel.base(fileModel);
 
-        graph.io(BlackDuckIo.build()).readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(projectModel, fileModel))));
+        graph.io(BlackDuckIo.build())
+                .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(projectModel, fileModel))));
 
         Optional<Number> byteCount = graph.traversal().V()
                 .hasLabel(Bdio.Class.Project.name())
@@ -114,9 +116,10 @@ public class BlackDuckIoReaderTest extends BaseTest {
         fileModel1.byteCount(103L);
         fileModel2.contentType("text/plain");
 
-        graph.io(BlackDuckIo.build()).readGraph(BdioTest.zipJsonBytes(
-                metadata.asNamedGraph(Lists.newArrayList(fileModel1)),
-                metadata.asNamedGraph(Lists.newArrayList(fileModel2), JsonLdConsts.ID)));
+        graph.io(BlackDuckIo.build().onConfig(storeMetadataAndIds()))
+                .readGraph(BdioTest.zipJsonBytes(
+                        metadata.asNamedGraph(Lists.newArrayList(fileModel1)),
+                        metadata.asNamedGraph(Lists.newArrayList(fileModel2), JsonLdConsts.ID)));
 
         GraphTraversal<Vertex, Vertex> files = graph.traversal().V().hasLabel(Bdio.Class.File.name());
         assertThat(files.hasNext()).isTrue();

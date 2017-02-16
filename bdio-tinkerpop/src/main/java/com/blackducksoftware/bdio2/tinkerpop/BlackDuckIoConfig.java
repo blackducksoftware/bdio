@@ -22,6 +22,8 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
+import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
@@ -36,8 +38,12 @@ public class BlackDuckIoConfig {
     /**
      * The property key used to persist JSON-LD node identifiers.
      */
-    @Nullable
-    private final String identifierKey;
+    private final Optional<String> identifierKey;
+
+    /**
+     * The property key used to persist "unknown" JSON-LD node properties.
+     */
+    private final Optional<String> unknownKey;
 
     /**
      * The vertex label used to persist JSON-LD named graph metadata.
@@ -62,11 +68,20 @@ public class BlackDuckIoConfig {
     private final BdioDocument.Builder documentBuilder;
 
     private BlackDuckIoConfig(Builder builder) {
-        identifierKey = builder.identifierKey.orElse(null);
+        identifierKey = Objects.requireNonNull(builder.identifierKey);
+        unknownKey = Objects.requireNonNull(builder.unknownKey);
         metadataLabel = Objects.requireNonNull(builder.metadataLabel);
         partitionStrategy = Objects.requireNonNull(builder.partitionStrategy);
         valueObjectMapper = builder.valueObjectMapper.orElseGet(builder.defaultValueObjectMapper);
         documentBuilder = builder.documentBuilder.orElseGet(BdioDocument.Builder::new);
+    }
+
+    public Optional<String> identifierKey() {
+        return identifierKey;
+    }
+
+    public Optional<String> unknownKey() {
+        return unknownKey;
     }
 
     public Optional<String> metadataLabel() {
@@ -85,9 +100,33 @@ public class BlackDuckIoConfig {
         return valueObjectMapper;
     }
 
+    /**
+     * Creates and initializes a new context for reading BDIO data into the supplied graph.
+     */
+    public ReadGraphContext newReadContext(Graph graph, BdioFrame frame, int batchSize) {
+        ReadGraphContext context;
+        if (graph instanceof SqlgGraph) {
+            context = new SqlgReadGraphContext(this, (SqlgGraph) graph, batchSize);
+        } else {
+            context = new ReadGraphContext(this, graph, batchSize);
+        }
+        context.initialize(frame);
+        return context;
+    }
+
+    /**
+     * Creates and initializes a new context for writing BDIO data from the supplied graph.
+     */
+    public WriteGraphContext newWriteContext(Graph graph, BdioFrame frame) {
+        WriteGraphContext context = new WriteGraphContext(this, graph);
+        context.initialize(frame);
+        return context;
+    }
+
     public Builder newBuilder() {
         return new Builder()
-                .identifierKey(identifierKey)
+                .identifierKey(identifierKey.orElse(null))
+                .unknownKey(unknownKey.orElse(null))
                 .metadataLabel(metadataLabel.orElse(null))
                 .partitionStrategy(partitionStrategy.orElse(null))
                 .valueObjectMapper(valueObjectMapper)
@@ -101,6 +140,8 @@ public class BlackDuckIoConfig {
     public static final class Builder {
 
         private Optional<String> identifierKey = Optional.empty();
+
+        private Optional<String> unknownKey = Optional.empty();
 
         private Optional<String> metadataLabel = Optional.empty();
 
@@ -117,6 +158,11 @@ public class BlackDuckIoConfig {
 
         public Builder identifierKey(@Nullable String identifierKey) {
             this.identifierKey = Optional.ofNullable(identifierKey);
+            return this;
+        }
+
+        public Builder unknownKey(@Nullable String unknownKey) {
+            this.unknownKey = Optional.ofNullable(unknownKey);
             return this;
         }
 

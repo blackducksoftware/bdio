@@ -15,6 +15,8 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.Comparator;
 import java.util.Map;
@@ -23,13 +25,12 @@ import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.T;
 
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
-import com.blackducksoftware.bdio2.tinkerpop.BdioGraph.B;
 import com.github.jsonldjava.core.JsonLdConsts;
+import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.collect.Maps;
+import com.hazelcast.util.function.BiConsumer;
 
 /**
  * Helper methods for w
@@ -46,30 +47,33 @@ final class BdioHelper {
     /**
      * Returns key/value pairs for the data properties of the specified BDIO node.
      */
-    public static Object[] getNodeProperties(Map<String, Object> node, boolean includeSpecial,
-            BdioFrame frame, ValueObjectMapper valueObjectMapper, @Nullable PartitionStrategy partitionStrategy) {
+    public static Object[] getNodeProperties(Map<String, Object> node, boolean includeSpecial, BlackDuckIoConfig config, BdioFrame frame) {
         // IMPORTANT: Add elements in reverse order of importance (e.g. T.id should be last!)
         // TODO Or does it matter because Sqlg pushes them through a ConcurrentHashMap?
         Stream.Builder<Map.Entry<?, ?>> properties = Stream.builder();
 
         // Unknown properties
-        BdioGraph.Unknown.preserveUnknownProperties(node)
-                .map(json -> Maps.immutableEntry(B.unknown, json))
-                .ifPresent(properties);
+        config.unknownKey().ifPresent(key -> {
+            preserveUnknownProperties(node)
+                    .map(json -> Maps.immutableEntry(key, json))
+                    .ifPresent(properties);
+        });
 
         // Sorted data properties
-        Maps.transformValues(node, valueObjectMapper::fromFieldValue).entrySet().stream()
+        Maps.transformValues(node, config.valueObjectMapper()::fromFieldValue).entrySet().stream()
                 .filter(e -> frame.isDataPropertyKey(e.getKey()))
                 .sorted(DATA_PROPERTY_ORDER)
                 .forEachOrdered(properties);
 
         // Special properties that can be optionally included
         if (includeSpecial) {
-            Optional.ofNullable(node.get(JsonLdConsts.ID))
-                    .map(id -> Maps.immutableEntry(B.id, id))
-                    .ifPresent(properties);
+            config.identifierKey().ifPresent(key -> {
+                Optional.ofNullable(node.get(JsonLdConsts.ID))
+                        .map(id -> Maps.immutableEntry(key, id))
+                        .ifPresent(properties);
+            });
 
-            Optional.ofNullable(partitionStrategy)
+            config.partitionStrategy()
                     .map(s -> Maps.immutableEntry(s.getPartitionKey(), s.getWritePartition()))
                     .ifPresent(properties);
 
@@ -77,6 +81,7 @@ final class BdioHelper {
                     .map(label -> Maps.immutableEntry(T.label, label))
                     .ifPresent(properties);
 
+            // TODO We should be testing for graph support of user identifiers
             Optional.ofNullable(node.get(JsonLdConsts.ID)).map(id -> URI.create((String) id))
                     .map(id -> Maps.immutableEntry(T.id, id))
                     .ifPresent(properties);
@@ -86,6 +91,48 @@ final class BdioHelper {
         return properties.build()
                 .flatMap(e -> Stream.of(e.getKey(), e.getValue()))
                 .toArray();
+    }
+
+    /**
+     * Returns all of the unknown properties, serialized as a single string. If there are no unknown properties in
+     * the supplied node map, then the optional will be empty.
+     */
+    public static Optional<String> preserveUnknownProperties(Map<String, Object> node) {
+        return Optional.of(Maps.filterKeys(node, BdioHelper::isUnknownKey))
+                .filter(m -> !m.isEmpty())
+                .map(m -> {
+                    try {
+                        return JsonUtils.toString(m);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
+    }
+
+    /**
+     * Given a preserved serialization of unknown properties, replay them back to the supplied consumer.
+     */
+    public static void restoreUnknownProperties(@Nullable Object value, BiConsumer<String, Object> unknownPropertyConsumer) {
+        if (value != null) {
+            try {
+                Object unknown = JsonUtils.fromString(value.toString());
+                if (unknown instanceof Map<?, ?>) {
+                    for (Map.Entry<?, ?> unknownProperty : ((Map<?, ?>) unknown).entrySet()) {
+                        unknownPropertyConsumer.accept((String) unknownProperty.getKey(), unknownProperty.getValue());
+                    }
+                }
+            } catch (IOException e) {
+                // Ignore this...
+            }
+        }
+    }
+
+    /**
+     * Check if a key represents an unknown property.
+     */
+    private static boolean isUnknownKey(String key) {
+        // If framing did not recognize the attribute, it will still have a scheme or prefix separator
+        return key.indexOf(':') >= 0;
     }
 
     private BdioHelper() {

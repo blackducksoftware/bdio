@@ -28,11 +28,15 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.io.GraphWriter;
+import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
-import com.blackducksoftware.bdio2.tinkerpop.BdioGraph.B;
 import com.github.jsonldjava.core.JsonLdConsts;
+import com.github.jsonldjava.core.JsonLdError;
+import com.github.jsonldjava.core.JsonLdOptions;
+import com.github.jsonldjava.core.JsonLdProcessor;
+import com.google.common.collect.Iterables;
 
 import io.reactivex.Flowable;
 
@@ -47,10 +51,10 @@ public class BlackDuckIoWriter implements GraphWriter {
     @Override
     public void writeGraph(OutputStream outputStream, Graph graph) throws IOException {
         RxJavaBdioDocument document = config.newBdioDocument(RxJavaBdioDocument.class);
-        ReadGraphContext context = new ReadGraphContext(config, graph, 10000);
+        WriteGraphContext context = config.newWriteContext(graph, null);
 
         // Create the writer with the parsed metadata
-        document.writeToFile(context.readMetadata(document.jsonld().options()), outputStream);
+        document.writeToFile(readMetadata(context, document.jsonld().options()), outputStream);
 
         GraphTraversalSource g = context.traversal();
 
@@ -70,11 +74,11 @@ public class BlackDuckIoWriter implements GraphWriter {
             Map<String, Object> result = new LinkedHashMap<>();
             result.put(JsonLdConsts.TYPE, vertex.label());
             vertex.properties().forEachRemaining(vp -> {
-                if (vp.key().equals(B.id)) {
+                if (vp.key().equals(config.identifierKey().orElse(null))) {
                     result.put(JsonLdConsts.ID, vp.value());
-                } else if (vp.key().equals(B.unknown)) {
-                    BdioGraph.Unknown.restoreUnknownProperties(vp.value(), result::put);
-                } else if (!BdioGraph.Hidden.isHidden(vp.key())) {
+                } else if (vp.key().equals(config.unknownKey().orElse(null))) {
+                    BdioHelper.restoreUnknownProperties(vp.value(), result::put);
+                } else {
                     result.put(vp.key(), config.valueObjectMapper().toValueObject(vp.value()));
                 }
             });
@@ -113,6 +117,34 @@ public class BlackDuckIoWriter implements GraphWriter {
     @Override
     public void writeObject(OutputStream outputStream, Object object) throws IOException {
         throw new UnsupportedOperationException();
+    }
+
+    /**
+     * If a metadata label is configured, read the vertex from the graph into a new BDIO metadata instance.
+     */
+    private BdioMetadata readMetadata(WriteGraphContext context, JsonLdOptions options) {
+        return config.metadataLabel()
+                .flatMap(label -> context.traversal().V().hasLabel(label).tryNext())
+                .map(vertex -> {
+                    BdioMetadata metadata = new BdioMetadata();
+                    config.identifierKey().ifPresent(key -> {
+                        metadata.id(vertex.value(key));
+                    });
+                    try {
+                        Object expandedMetadata = Iterables.getOnlyElement(JsonLdProcessor.expand(ElementHelper.propertyValueMap(vertex), options));
+                        if (expandedMetadata instanceof Map<?, ?>) {
+                            ((Map<?, ?>) expandedMetadata).forEach((key, value) -> {
+                                if (key instanceof String) {
+                                    metadata.put((String) key, value);
+                                }
+                            });
+                        }
+                    } catch (JsonLdError e) {
+
+                    }
+                    return metadata;
+                })
+                .orElse(BdioMetadata.createRandomUUID());
     }
 
     public static Builder build() {

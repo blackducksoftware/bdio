@@ -23,7 +23,6 @@ import java.util.function.Consumer;
 import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
 
-import com.blackducksoftware.bdio2.tinkerpop.BdioGraph.B;
 import com.google.common.collect.Iterables;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
@@ -68,12 +67,12 @@ class SqlgReadGraphContext extends ReadGraphContext {
 
         // Pre-populate label tables
         Consumer<String> populateLabel = label -> {
-            sqlgGraph.createVertexLabeledIndex(label, indexedDummyKeyValues(label));
-
             SchemaTable schemaTablePair = SchemaTable.from(sqlgGraph, label, sqlgGraph.getSqlDialect().getPublicSchema());
+
+            sqlgGraph.createVertexLabeledIndex(label, indexedDummyKeyValues(label));
             sqlgGraph.getSchemaManager().ensureVertexTableExist(schemaTablePair.getSchema(), schemaTablePair.getTable(), dummyKeyValues(label));
         };
-        metadataLabel().ifPresent(populateLabel);
+        config().metadataLabel().ifPresent(populateLabel);
         frame.forEachTypeName(populateLabel);
 
         // Commit schema changes
@@ -103,8 +102,14 @@ class SqlgReadGraphContext extends ReadGraphContext {
     private Object[] indexedDummyKeyValues(String label) {
         List<Object> dummyKeyValues = new ArrayList<>();
 
-        // If there is a partitioning strategy, index it as the first column
-        partitionStrategy().filter(p -> !p.getReadPartitions().isEmpty()).ifPresent(p -> {
+        // TODO File HID needs to be indexed
+
+        config().identifierKey().ifPresent(key -> {
+            dummyKeyValues.add(key);
+            dummyKeyValues.add("http://example.com/1");
+        });
+
+        config().partitionStrategy().filter(p -> !p.getReadPartitions().isEmpty()).ifPresent(p -> {
             dummyKeyValues.add(p.getPartitionKey());
             if (p.getReadPartitions().size() == 1) {
                 dummyKeyValues.add(Iterables.getOnlyElement(p.getReadPartitions()));
@@ -113,12 +118,6 @@ class SqlgReadGraphContext extends ReadGraphContext {
             }
         });
 
-        // The BDIO identifier is present on every vertex
-        dummyKeyValues.add(B.id);
-        dummyKeyValues.add("http://example.com/1");
-
-        // TODO File HID needs to be indexed
-
         return dummyKeyValues.toArray();
     }
 
@@ -126,7 +125,14 @@ class SqlgReadGraphContext extends ReadGraphContext {
      * Returns a key/value array of non-indexed keys and dummy values.
      */
     private Object[] dummyKeyValues(String label) {
-        return new Object[] { B.unknown, "{}" };
+        List<Object> dummyKeyValues = new ArrayList<>();
+
+        config().unknownKey().ifPresent(key -> {
+            dummyKeyValues.add(key);
+            dummyKeyValues.add("{}");
+        });
+
+        return dummyKeyValues.toArray();
     }
 
 }

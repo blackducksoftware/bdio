@@ -22,6 +22,7 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -31,12 +32,16 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.io.GraphReader;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
+import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarEdge;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
-import org.umlg.sqlg.structure.SqlgGraph;
 
+import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
+import com.github.jsonldjava.core.JsonLdError;
+import com.github.jsonldjava.core.JsonLdOptions;
+import com.github.jsonldjava.core.JsonLdProcessor;
 import com.google.common.base.Functions;
 import com.google.common.collect.Maps;
 
@@ -68,10 +73,10 @@ public final class BlackDuckIoReader implements GraphReader {
     @Override
     public void readGraph(InputStream inputStream, Graph graphToWriteTo) throws IOException {
         RxJavaBdioDocument document = config.newBdioDocument(RxJavaBdioDocument.class);
-        ReadGraphContext context = createReadGraphContext(graphToWriteTo);
+        ReadGraphContext context = config.newReadContext(graphToWriteTo, frame, batchSize);
 
         // Create a metadata subscription
-        document.metadata(metadata -> context.createMetadata(metadata, frame, document.jsonld().options()));
+        document.metadata(metadata -> createMetadata(metadata, context, frame, document.jsonld().options()));
 
         // Get the sequence of BDIO graph nodes and transform them in vertices and edges
         document.jsonld().frame(frame).compose(document.withoutMetadata())
@@ -108,8 +113,7 @@ public final class BlackDuckIoReader implements GraphReader {
         // Create a new StarGraph whose primary vertex is the converted node
         Map<String, Object> node = NodeInputStream.readNode(inputStream);
         StarGraph starGraph = StarGraph.open();
-        StarVertex vertex = (StarVertex) starGraph
-                .addVertex(BdioHelper.getNodeProperties(node, true, frame, config.valueObjectMapper(), config.partitionStrategy().orElse(null)));
+        StarVertex vertex = (StarVertex) starGraph.addVertex(BdioHelper.getNodeProperties(node, true, config, frame));
         if (vertexAttachMethod != null) {
             vertex.attach(vertexAttachMethod);
         }
@@ -159,20 +163,6 @@ public final class BlackDuckIoReader implements GraphReader {
     }
 
     /**
-     * Creates and initializes a new context for reading BDIO data into the supplied graph.
-     */
-    private ReadGraphContext createReadGraphContext(Graph graphToWriteTo) {
-        ReadGraphContext context;
-        if (graphToWriteTo instanceof SqlgGraph) {
-            context = new SqlgReadGraphContext(config, (SqlgGraph) graphToWriteTo, batchSize);
-        } else {
-            context = new ReadGraphContext(config, graphToWriteTo, batchSize);
-        }
-        context.initialize(frame);
-        return context;
-    }
-
-    /**
      * Implementation of {@link #readVertex(InputStream, Function, Function, Direction)} that encapsulates result/errors
      * in a flowable. This is useful for flat mapping. Hint. Hint.
      */
@@ -181,6 +171,28 @@ public final class BlackDuckIoReader implements GraphReader {
             return Flowable.just((StarVertex) readVertex(NodeInputStream.wrapNode(node), null, null, Direction.OUT));
         } catch (IOException e) {
             return Flowable.error(e);
+        }
+    }
+
+    /**
+     * If a metadata label is configured, store the supplied BDIO metadata on a vertex in the graph.
+     */
+    private void createMetadata(BdioMetadata metadata, ReadGraphContext context, BdioFrame frame, JsonLdOptions options) {
+        if (config.metadataLabel().isPresent()) {
+            GraphTraversalSource g = context.traversal();
+            Vertex metadataVertex = g.V().hasLabel(config.metadataLabel().get()).tryNext().orElseGet(() -> g.addV(config.metadataLabel().get()).next());
+
+            config.identifierKey().ifPresent(key -> {
+                metadataVertex.property(key, metadata.id());
+            });
+            try {
+                // Compact the metadata using the context extracted from frame
+                Map<String, Object> compactMetadata = JsonLdProcessor.compact(metadata, frame, options);
+                ElementHelper.attachProperties(metadataVertex, BdioHelper.getNodeProperties(compactMetadata, false, config, frame));
+            } catch (JsonLdError e) {
+                // TODO What can we do about this?
+                e.printStackTrace();
+            }
         }
     }
 
