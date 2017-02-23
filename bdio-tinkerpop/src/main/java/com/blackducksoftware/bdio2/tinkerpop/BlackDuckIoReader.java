@@ -13,7 +13,6 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -44,8 +43,6 @@ import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
 import com.google.common.base.Functions;
 import com.google.common.collect.Maps;
-
-import io.reactivex.Flowable;
 
 public final class BlackDuckIoReader implements GraphReader {
 
@@ -82,7 +79,7 @@ public final class BlackDuckIoReader implements GraphReader {
         document.jsonld().frame(frame).compose(document.withoutMetadata())
 
                 // Convert nodes to vertices and commit
-                .flatMap(this::readVertex)
+                .map(node -> createVertex(node, null, null, Direction.OUT))
                 .doOnNext(context::batchCommitTx)
 
                 // Collect all of the vertices in a map, creating the actual vertices in the graph as we go
@@ -110,27 +107,7 @@ public final class BlackDuckIoReader implements GraphReader {
     @Override
     public Vertex readVertex(InputStream inputStream, Function<Attachable<Vertex>, Vertex> vertexAttachMethod,
             Function<Attachable<Edge>, Edge> edgeAttachMethod, Direction attachEdgesOfThisDirection) throws IOException {
-        // Create a new StarGraph whose primary vertex is the converted node
-        Map<String, Object> node = NodeInputStream.readNode(inputStream);
-        StarGraph starGraph = StarGraph.open();
-        StarVertex vertex = (StarVertex) starGraph.addVertex(BdioHelper.getNodeProperties(node, true, config, frame));
-        if (vertexAttachMethod != null) {
-            vertex.attach(vertexAttachMethod);
-        }
-
-        // Add outgoing edges for object properties (if requested)
-        if (attachEdgesOfThisDirection == Direction.BOTH || attachEdgesOfThisDirection == Direction.OUT) {
-            Maps.transformValues(Maps.filterKeys(node, frame::isObjectPropertyKey),
-                    Functions.compose(id -> starGraph.addVertex(T.id, URI.create(id.toString())), config.valueObjectMapper()::fromFieldValue))
-                    .forEach((label, inVertex) -> {
-                        StarEdge edge = (StarEdge) vertex.addEdge(label, inVertex);
-                        if (edgeAttachMethod != null) {
-                            edge.attach(edgeAttachMethod);
-                        }
-                    });
-        }
-
-        return vertex;
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -163,15 +140,31 @@ public final class BlackDuckIoReader implements GraphReader {
     }
 
     /**
-     * Implementation of {@link #readVertex(InputStream, Function, Function, Direction)} that encapsulates result/errors
-     * in a flowable. This is useful for flat mapping. Hint. Hint.
+     * Creates an in-memory vertex from the supplied node data.
      */
-    private Flowable<StarVertex> readVertex(Map<String, Object> node) {
-        try {
-            return Flowable.just((StarVertex) readVertex(NodeInputStream.wrapNode(node), null, null, Direction.OUT));
-        } catch (IOException e) {
-            return Flowable.error(e);
+    private StarVertex createVertex(Map<String, Object> node, Function<Attachable<Vertex>, Vertex> vertexAttachMethod,
+            Function<Attachable<Edge>, Edge> edgeAttachMethod, Direction attachEdgesOfThisDirection) {
+        // Create a new StarGraph whose primary vertex is the converted node
+        StarGraph starGraph = StarGraph.open();
+        StarVertex vertex = (StarVertex) starGraph.addVertex(BdioHelper.getNodeProperties(node, true, config, frame));
+        if (vertexAttachMethod != null) {
+            vertex.attach(vertexAttachMethod);
         }
+
+        // Add outgoing edges for object properties (if requested)
+        if (attachEdgesOfThisDirection == Direction.BOTH || attachEdgesOfThisDirection == Direction.OUT) {
+            Maps.transformValues(Maps.filterKeys(node, frame::isObjectPropertyKey),
+                    // TODO Does the ID mapping here need to have the partition ID applied to it for TinkerGraph?
+                    Functions.compose(id -> starGraph.addVertex(T.id, id), config.valueObjectMapper()::fromFieldValue))
+                    .forEach((label, inVertex) -> {
+                        StarEdge edge = (StarEdge) vertex.addEdge(label, inVertex);
+                        if (edgeAttachMethod != null) {
+                            edge.attach(edgeAttachMethod);
+                        }
+                    });
+        }
+
+        return vertex;
     }
 
     /**
@@ -205,6 +198,7 @@ public final class BlackDuckIoReader implements GraphReader {
         private Optional<BlackDuckIoConfig> config = Optional.empty();
 
         // TODO Do we take the expansion context from the BdioDocument? How does this relate to the BdioFrame?
+        // TODO This is part of the frame right now...
         private Map<String, Object> applicationContext = new LinkedHashMap<>();
 
         private int batchSize = 10000;

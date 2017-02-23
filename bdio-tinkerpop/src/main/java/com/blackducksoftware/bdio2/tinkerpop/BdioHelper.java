@@ -17,7 +17,6 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.URI;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
@@ -25,6 +24,7 @@ import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.T;
 
 import com.github.jsonldjava.core.JsonLdConsts;
@@ -50,6 +50,7 @@ final class BdioHelper {
     public static Object[] getNodeProperties(Map<String, Object> node, boolean includeSpecial, BlackDuckIoConfig config, BdioFrame frame) {
         // IMPORTANT: Add elements in reverse order of importance (e.g. T.id should be last!)
         // TODO Or does it matter because Sqlg pushes them through a ConcurrentHashMap?
+        // TODO Should this just use a LinkedHashMap?
         Stream.Builder<Map.Entry<?, ?>> properties = Stream.builder();
 
         // Unknown properties
@@ -67,6 +68,7 @@ final class BdioHelper {
 
         // Special properties that can be optionally included
         if (includeSpecial) {
+            // TODO Can we use ElementIdStrategy instead?
             config.identifierKey().ifPresent(key -> {
                 Optional.ofNullable(node.get(JsonLdConsts.ID))
                         .map(id -> Maps.immutableEntry(key, id))
@@ -81,8 +83,17 @@ final class BdioHelper {
                     .map(label -> Maps.immutableEntry(T.label, label))
                     .ifPresent(properties);
 
-            // TODO We should be testing for graph support of user identifiers
-            Optional.ofNullable(node.get(JsonLdConsts.ID)).map(id -> URI.create((String) id))
+            // NOTE: If the graph does not support user identifiers, this value gets ignored
+            // TODO If user identifiers aren't support, skip the computation...
+            // NOTE: If the graph supports user identifiers, we need both the JSON-LD identifier
+            // and the write partition (since the same identifier can exist in multiple partitions)
+            // TODO Can we use a list here instead of strings?
+            Optional.ofNullable(node.get(JsonLdConsts.ID))
+                    .map(id -> config.partitionStrategy()
+                            .map(PartitionStrategy::getWritePartition)
+                            // TODO Use a query parameter instead of the fragment
+                            .map(writePartition -> (Object) (id + "#" + writePartition))
+                            .orElse(id))
                     .map(id -> Maps.immutableEntry(T.id, id))
                     .ifPresent(properties);
         }
