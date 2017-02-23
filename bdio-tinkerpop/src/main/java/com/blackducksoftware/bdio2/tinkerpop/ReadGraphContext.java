@@ -148,6 +148,10 @@ class ReadGraphContext extends GraphContext {
 
                     e.properties().forEachRemaining(p -> newEdge.property(p.key(), p.value()));
 
+                    config().partitionStrategy().ifPresent(p -> {
+                        newEdge.property(p.getPartitionKey(), p.getWritePartition());
+                    });
+
                     return newEdge;
                 });
     }

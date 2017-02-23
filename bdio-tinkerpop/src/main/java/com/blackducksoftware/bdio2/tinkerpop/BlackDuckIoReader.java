@@ -155,7 +155,9 @@ public final class BlackDuckIoReader implements GraphReader {
         if (attachEdgesOfThisDirection == Direction.BOTH || attachEdgesOfThisDirection == Direction.OUT) {
             Maps.transformValues(Maps.filterKeys(node, frame::isObjectPropertyKey),
                     // TODO Does the ID mapping here need to have the partition ID applied to it for TinkerGraph?
-                    Functions.compose(id -> starGraph.addVertex(T.id, id), config.valueObjectMapper()::fromFieldValue))
+                    Functions.compose(
+                            id -> starGraph.addVertex(T.id, BdioHelper.generateId(config.partitionStrategy(), id)),
+                            config.valueObjectMapper()::fromFieldValue))
                     .forEach((label, inVertex) -> {
                         StarEdge edge = (StarEdge) vertex.addEdge(label, inVertex);
                         if (edgeAttachMethod != null) {

@@ -87,13 +87,9 @@ final class BdioHelper {
             // TODO If user identifiers aren't support, skip the computation...
             // NOTE: If the graph supports user identifiers, we need both the JSON-LD identifier
             // and the write partition (since the same identifier can exist in multiple partitions)
-            // TODO Can we use a list here instead of strings?
+
             Optional.ofNullable(node.get(JsonLdConsts.ID))
-                    .map(id -> config.partitionStrategy()
-                            .map(PartitionStrategy::getWritePartition)
-                            // TODO Use a query parameter instead of the fragment
-                            .map(writePartition -> (Object) (id + "#" + writePartition))
-                            .orElse(id))
+                    .map(id -> generateId(config.partitionStrategy(), id))
                     .map(id -> Maps.immutableEntry(T.id, id))
                     .ifPresent(properties);
         }
@@ -102,6 +98,15 @@ final class BdioHelper {
         return properties.build()
                 .flatMap(e -> Stream.of(e.getKey(), e.getValue()))
                 .toArray();
+    }
+
+    public static Object generateId(Optional<PartitionStrategy> partitionStrategy, Object id) {
+        // TODO Can we use a list here instead of strings?
+        return partitionStrategy
+                .map(PartitionStrategy::getWritePartition)
+                // TODO Use a query parameter instead of the fragment
+                .map(writePartition -> (Object) (id + "#" + writePartition))
+                .orElse(id);
     }
 
     /**
