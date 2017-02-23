@@ -125,7 +125,7 @@ class Specification {
             // gap to address the fact we released the initial version before formally defining a mechanism to record
             // changes in the specification.
         }
-    }, new ImportResolver(), new ImportFrame(v0));
+    }, new ImportResolver(v0), new ImportFrame(v0));
 
     /**
      * Version 1.1.0 of the specification.
@@ -165,7 +165,7 @@ class Specification {
             remove("licence");
             addTerm("license", DoapTerm.LICENSE, JsonLdType.ID);
         }
-    }, new ImportResolver() {
+    }, new ImportResolver(v1_0_0) {
         @Override
         public TermDefinition removed(String alias, TermDefinition oldDefinition) {
             switch (alias) {
@@ -176,7 +176,7 @@ class Specification {
             case "licence":
                 return new TermDefinition(DoapTerm.LICENSE, ImmutableSet.<Type> of(JsonLdType.ID), null);
             default:
-                return v1_0_0.importResolver().removed(alias, oldDefinition);
+                return super.removed(alias, oldDefinition);
             }
         }
     }, new ImportFrame(v1_0_0) {
@@ -185,6 +185,21 @@ class Specification {
             addReferenceTerm(SpdxTerm.RELATED_SPDX_ELEMENT);
         }
     });
+
+    /**
+     * Version 1.1.1 of the specification.
+     * <p>
+     * <b>Change log</b>
+     * <ul>
+     * <li>Added external identifier system type aliases</li>
+     * </ul>
+     */
+    private static final Specification v1_1_1 = new Specification("1.1.1", new TermDefinitionMap(v1_1_0) {
+        {
+            // Added external identifiers
+            addValue("cocoapods", BlackDuckValue.EXTERNAL_IDENTIFIER_COCOAPODS);
+        }
+    }, new ImportResolver(v1_1_0), new ImportFrame(v1_1_0));
 
     /**
      * Possible container types for term values.
@@ -415,6 +430,17 @@ class Specification {
      */
     public static class ImportResolver {
 
+        @Nullable
+        private final ImportResolver delegate;
+
+        protected ImportResolver() {
+            this.delegate = null;
+        }
+
+        protected ImportResolver(Specification specification) {
+            this.delegate = specification.importResolver();
+        }
+
         /**
          * When the IRI mapped to an alias is changed, this method is used to determine which term definition should be
          * used during import. Typically you want the new definition to be used because the IRI from the latest
@@ -428,7 +454,7 @@ class Specification {
          * The default behavior is to always return the new definition.
          */
         public TermDefinition changed(String alias, TermDefinition oldDefinition, TermDefinition newDefinition) {
-            return newDefinition;
+            return delegate != null ? delegate.changed(alias, oldDefinition, newDefinition) : newDefinition;
         }
 
         /**
@@ -439,7 +465,7 @@ class Specification {
          * the new IRI (hopefully with the same type information).
          */
         public TermDefinition removed(String alias, TermDefinition oldDefinition) {
-            return oldDefinition;
+            return delegate != null ? delegate.removed(alias, oldDefinition) : oldDefinition;
         }
     }
 
@@ -448,7 +474,7 @@ class Specification {
      */
     private static Map<String, Specification> VERSIONS = Maps.uniqueIndex(
             // The ordering here is important for the latest() call to work
-            ImmutableList.of(v0, v1_0_0, v1_1_0),
+            ImmutableList.of(v0, v1_0_0, v1_1_0, v1_1_1),
 
             // Gee, it sure would be nice to have a lambda here
             new Function<Specification, String>() {
