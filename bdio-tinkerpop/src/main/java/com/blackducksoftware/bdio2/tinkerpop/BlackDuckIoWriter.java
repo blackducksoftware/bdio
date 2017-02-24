@@ -20,7 +20,8 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -37,6 +38,7 @@ import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 
 import io.reactivex.Flowable;
 
@@ -56,11 +58,8 @@ public class BlackDuckIoWriter implements GraphWriter {
         // Create the writer with the parsed metadata
         document.writeToFile(readMetadata(context, document.jsonld().options()), outputStream);
 
-        GraphTraversalSource g = context.traversal();
-
         // TODO Stay in the traversal longer to feed the node subscriber
-        // TODO limit what g.V() traverses (since we don't want stuff like NamedGraph vertices)
-        Flowable.<Vertex, Traversal<Vertex, Vertex>> generate(() -> g.V(), (traversal, emitter) -> {
+        Flowable.<Vertex, Traversal<Vertex, Vertex>> generate(() -> x(context), (traversal, emitter) -> {
             try {
                 if (traversal.hasNext()) {
                     emitter.onNext(traversal.next());
@@ -83,10 +82,26 @@ public class BlackDuckIoWriter implements GraphWriter {
                 }
             });
 
-            // TODO Iterate the vertex outgoing edges
+            vertex.edges(Direction.OUT).forEachRemaining(e -> {
+                // We cannot regenerate the JSON-LD without having consistent identifiers...
+                if (config.identifierKey().isPresent()) {
+                    Object id = Iterators.getOnlyElement(e.inVertex().properties(config.identifierKey().get()), null).value();
+                    result.put(e.label(), config.valueObjectMapper().toReferenceValueObject(id));
+                }
+            });
 
             return result;
         }).subscribe(document.asNodeSubscriber(BdioMetadata.createRandomUUID()));
+    }
+
+    private GraphTraversal<Vertex, Vertex> x(WriteGraphContext context) {
+        GraphTraversal<Vertex, Vertex> x = context.traversal().V();
+
+        if (config.metadataLabel().isPresent()) {
+            x = x.where(__.not(__.hasLabel(config.metadataLabel().get())));
+        }
+
+        return x;
     }
 
     @Override
@@ -140,7 +155,7 @@ public class BlackDuckIoWriter implements GraphWriter {
                             });
                         }
                     } catch (JsonLdError e) {
-
+                        // TODO How should we handle this?
                     }
                     return metadata;
                 })

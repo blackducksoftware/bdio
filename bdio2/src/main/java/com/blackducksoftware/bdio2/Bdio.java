@@ -204,6 +204,11 @@ public class Bdio {
         fingerprint("http://blackducksoftware.com/rdf/terms#hasFingerprint", Datatype.Fingerprint, Container.unordered),
         contentType("http://blackducksoftware.com/rdf/terms#hasContentType", Datatype.Default, Container.single),
 
+        /**
+         * The hierarchical path of a file.
+         */
+        path("http://blackducksoftware.com/rdf/terms#hasPath", Datatype.Default, Container.single),
+
         // TODO license (SPDX expression)
         // TODO copyrightYear
         // TODO rightsHolder
