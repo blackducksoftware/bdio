@@ -131,7 +131,7 @@ public class BlackDuckIoWriter implements GraphWriter {
                         metadata.id(vertex.value(key));
                     });
                     try {
-                        Object expandedMetadata = Iterables.getOnlyElement(JsonLdProcessor.expand(ElementHelper.propertyValueMap(vertex), options));
+                        Object expandedMetadata = Iterables.getOnlyElement(JsonLdProcessor.expand(ElementHelper.propertyValueMap(vertex), options), null);
                         if (expandedMetadata instanceof Map<?, ?>) {
                             ((Map<?, ?>) expandedMetadata).forEach((key, value) -> {
                                 if (key instanceof String) {
