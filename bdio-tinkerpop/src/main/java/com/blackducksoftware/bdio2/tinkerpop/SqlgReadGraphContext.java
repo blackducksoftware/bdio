@@ -23,7 +23,7 @@ import java.util.function.Consumer;
 import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
 
-import com.google.common.collect.Iterables;
+import com.blackducksoftware.bdio2.Bdio;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
 
@@ -102,20 +102,22 @@ class SqlgReadGraphContext extends ReadGraphContext {
     private Object[] indexedDummyKeyValues(String label) {
         List<Object> dummyKeyValues = new ArrayList<>();
 
-        // TODO File HID needs to be indexed
+        // File paths must be indexed to support efficient HID lookups
+        if (label.equals(Bdio.Class.File.name())) {
+            dummyKeyValues.add(Bdio.DataProperty.path.name());
+            dummyKeyValues.add("file:///");
+        }
 
+        // Index the JSON-LD identifier
         config().identifierKey().ifPresent(key -> {
             dummyKeyValues.add(key);
             dummyKeyValues.add("http://example.com/1");
         });
 
-        config().partitionStrategy().filter(p -> !p.getReadPartitions().isEmpty()).ifPresent(p -> {
-            dummyKeyValues.add(p.getPartitionKey());
-            if (p.getReadPartitions().size() == 1) {
-                dummyKeyValues.add(Iterables.getOnlyElement(p.getReadPartitions()));
-            } else {
-                dummyKeyValues.add(new ArrayList<>(p.getReadPartitions()));
-            }
+        // Index the partition key
+        config().partitionStrategy().ifPresent(strategy -> {
+            dummyKeyValues.add(strategy.getPartitionKey());
+            dummyKeyValues.add(strategy.getWritePartition());
         });
 
         return dummyKeyValues.toArray();
