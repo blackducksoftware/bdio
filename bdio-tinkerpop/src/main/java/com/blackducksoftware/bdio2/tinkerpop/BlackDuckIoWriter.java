@@ -38,7 +38,6 @@ import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
 
 import io.reactivex.Flowable;
 
@@ -84,9 +83,11 @@ public class BlackDuckIoWriter implements GraphWriter {
 
             vertex.edges(Direction.OUT).forEachRemaining(e -> {
                 // We cannot regenerate the JSON-LD without having consistent identifiers...
+                // TODO This deadlocks on Sqlg
                 if (config.identifierKey().isPresent()) {
-                    Object id = Iterators.getOnlyElement(e.inVertex().properties(config.identifierKey().get()), null).value();
-                    result.put(e.label(), config.valueObjectMapper().toReferenceValueObject(id));
+                    // Object id = Iterators.getOnlyElement(e.inVertex().properties(config.identifierKey().get()),
+                    // null).value();
+                    // result.put(e.label(), config.valueObjectMapper().toReferenceValueObject(id));
                 }
             });
 
