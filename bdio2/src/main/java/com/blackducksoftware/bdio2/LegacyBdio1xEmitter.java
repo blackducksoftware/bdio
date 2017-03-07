@@ -69,7 +69,7 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
     /**
      * The prefixes supported in BDIO 1.x.
      */
-    private static final Map<String, String> PREFIXES = ImmutableMap.<String, String> builder()
+    private static final ImmutableMap<String, String> PREFIXES = ImmutableMap.<String, String> builder()
             .put("", VOCAB)
             .put("spdx", "http://spdx.org/rdf/terms#")
             .put("doap", "http://usefulinc.com/ns/doap#")
@@ -81,7 +81,7 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
      * The mapping of BDIO 1.x checksum algorithms to fingerprint algorithms. Only the qualified input is necessary as
      * the values are otherwise identical.
      */
-    private static final Map<String, String> FINGERPRINT_ALGORITHMS = ImmutableMap.<String, String> builder()
+    private static final ImmutableMap<String, String> FINGERPRINT_ALGORITHMS = ImmutableMap.<String, String> builder()
             .put("http://spdx.org/rdf/terms#checksumAlgorithm_md5", "md5")
             .put("http://spdx.org/rdf/terms#checksumAlgorithm_sha1", "sha1")
             .build();
@@ -90,7 +90,7 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
      * The mapping of BDIO 1.x external identifier systems to identifier namespaces. Both the qualified and alias forms
      * must be present because JSON-LD expansion does not seem to reliably restore the fully qualified form.
      */
-    private static final Map<String, String> IDENTIFIER_NAMESPACES = ImmutableMap.<String, String> builder()
+    private static final ImmutableMap<String, String> IDENTIFIER_NAMESPACES = ImmutableMap.<String, String> builder()
             .put("maven", "http://maven.apache.org")
             .put("http://blackducksoftware.com/rdf/terms#externalIdentifier_maven", "http://maven.apache.org")
             .build();

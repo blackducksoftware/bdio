@@ -18,7 +18,6 @@ package com.blackducksoftware.bdio2;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 
 import com.blackducksoftware.common.io.ExtraIO;
@@ -48,7 +47,7 @@ public class EmitterFactory {
      * names which will appear first; included are first three field names, both in declaration order and
      * lexicographical order.
      */
-    private static final Set<String> SCAN_CONTAINER_FIELD_NAMES = ImmutableSet.<String> builder()
+    private static final ImmutableSet<String> SCAN_CONTAINER_FIELD_NAMES = ImmutableSet.<String> builder()
             // These are the first three fields declared in the `ScanContainerView`
             .add("scanProblem")
             .add("scanProblemList")
@@ -66,7 +65,7 @@ public class EmitterFactory {
      * names <em>should</em> be unqualified. That said, there is overlap between versions so we cannot consider
      * something that is in multiple versions of the specification.
      */
-    private static final Set<String> BDIO_1X_TYPE_NAMES = ImmutableSet.<String> builder()
+    private static final ImmutableSet<String> BDIO_1X_TYPE_NAMES = ImmutableSet.<String> builder()
             .add("BillOfMaterials")
             .add("http://blackducksoftware.com/rdf/terms#BillOfMaterials")
             .build();

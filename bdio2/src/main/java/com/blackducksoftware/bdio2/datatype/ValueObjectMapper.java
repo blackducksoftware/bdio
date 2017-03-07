@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -29,6 +28,7 @@ import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.common.base.ExtraCollectors;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * A mapper for converting between JSON-LD value objects and Java objects.
@@ -50,7 +50,7 @@ public class ValueObjectMapper {
     /**
      * Parsers (string to object) for non-identity data types.
      */
-    private static final Map<String, Function<String, Object>> PARSERS = ImmutableMap.<String, Function<String, Object>> builder()
+    private static final ImmutableMap<String, Function<String, Object>> PARSERS = ImmutableMap.<String, Function<String, Object>> builder()
             .put(Bdio.Datatype.DateTime.toString(), Instant::parse)
             .put(Bdio.Datatype.Fingerprint.toString(), Fingerprint::valueOf)
             .put(Bdio.Datatype.Long.toString(), Long::valueOf)
@@ -60,7 +60,7 @@ public class ValueObjectMapper {
     /**
      * Type checks for non-default data types.
      */
-    private static final Map<String, Predicate<Object>> TYPE_CHECKS = ImmutableMap.<String, Predicate<Object>> builder()
+    private static final ImmutableMap<String, Predicate<Object>> TYPE_CHECKS = ImmutableMap.<String, Predicate<Object>> builder()
             .put(Bdio.Datatype.DateTime.toString(), Instant.class::isInstance)
             .put(Bdio.Datatype.Fingerprint.toString(), Fingerprint.class::isInstance)
             .put(Bdio.Datatype.Long.toString(), Number.class::isInstance)
@@ -70,7 +70,7 @@ public class ValueObjectMapper {
     /**
      * Converters for Java types that cannot be serialized properly by the JSON-LD APIs.
      */
-    private static final Map<Class<?>, Function<Object, Object>> CONVERTERS = ImmutableMap.<Class<?>, Function<Object, Object>> builder()
+    private static final ImmutableMap<Class<?>, Function<Object, Object>> CONVERTERS = ImmutableMap.<Class<?>, Function<Object, Object>> builder()
             .put(Instant.class, Objects::toString)
             .put(URI.class, Objects::toString)
             // TODO Do we need to toString other objects as well?
@@ -79,7 +79,7 @@ public class ValueObjectMapper {
     /**
      * Types which can be embedded instead of referenced.
      */
-    private static final Set<String> EMBEDDED_TYPES = Stream.of(Bdio.Class.values())
+    private static final ImmutableSet<String> EMBEDDED_TYPES = Stream.of(Bdio.Class.values())
             .filter(Bdio.Class::embed)
             .map(Object::toString)
             .collect(ExtraCollectors.toImmutableSet());
