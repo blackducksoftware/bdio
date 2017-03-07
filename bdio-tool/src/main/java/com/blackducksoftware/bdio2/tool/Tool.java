@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 import javax.annotation.OverridingMethodsMustInvokeSuper;
@@ -35,7 +36,10 @@ import javax.annotation.OverridingMethodsMustInvokeSuper;
 import com.blackducksoftware.bdio2.datatype.Product;
 import com.blackducksoftware.common.io.ExtraIO;
 import com.github.jsonldjava.utils.JsonUtils;
+import com.google.common.base.CharMatcher;
+import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteSink;
@@ -131,12 +135,26 @@ public abstract class Tool implements Runnable {
     }
 
     /**
-     * Parses the command line input, handling any errors cleanly. This is the method that should be invoked from you
+     * Parses the command line input, handling any errors cleanly. This is the method that should be invoked from your
      * {@code main} method.
      */
     public final Tool parseArgs(String[] args) {
         try {
-            return parseArguments(args);
+            // Normalize the options with arguments (e.g. ['-foo', 'bar'] becomes ['-foo=bar'])
+            Set<String> optionsWithArgs = optionsWithArgs();
+            List<String> normalizedArgs = new ArrayList<>(args.length);
+            for (int i = 0; i < args.length; ++i) {
+                String arg = args[i];
+                if (optionsWithArgs.contains(arg)) {
+                    if (i < args.length - 1 && !args[i + 1].startsWith("-")) {
+                        arg += '=' + args[++i];
+                    } else {
+                        return optionRequiresArgument(arg);
+                    }
+                }
+                normalizedArgs.add(arg);
+            }
+            return parseArguments(Iterables.toArray(normalizedArgs, String.class));
         } catch (Exception e) {
             handleException(e);
             return doNothing();
@@ -155,6 +173,41 @@ public abstract class Tool implements Runnable {
         } else if (Level.DEFAULT.compareTo(verbosity) <= 0) {
             stderr.println(formatException(e));
         }
+    }
+
+    /**
+     * Internal method for reporting a missing argument to an option.
+     */
+    private Tool optionRequiresArgument(String option) {
+        stderr.format("option requires an argument -- %s%n", CharMatcher.is('-').trimLeadingFrom(option));
+        return doNothing();
+    }
+
+    /**
+     * Internal method for reporting an unknown option.
+     */
+    private Tool unknownOption(String option) {
+        stderr.format("unknown option: '%s'%n", option);
+        return doNothing();
+    }
+
+    /**
+     * Method for reporting a missing required option.
+     */
+    // TODO Have a "missingOptionGroup(String...options)" method?
+    protected final Tool missingRequiredOption(String option) {
+        stderr.format("missing required option: '%s'%n", option);
+        return doNothing();
+    }
+
+    /**
+     * Returns the set of options that have arguments. This should be overridden by subclasses, each option should
+     * include any expected "-" or "--". Note that any argument found in this set will automatically be concatenated
+     * with the following argument (delimited by '=') when passed into {@link #parseArguments(String[])}. This also
+     * means that users can choose between `--foo bar` or `--foo=bar` from the shell.
+     */
+    protected Set<String> optionsWithArgs() {
+        return ImmutableSet.of();
     }
 
     /**
@@ -180,8 +233,7 @@ public abstract class Tool implements Runnable {
             } else if (arg.equals("--pretty")) {
                 pretty = true;
             } else {
-                stderr.format("unknown option: '%s'", arg);
-                return doNothing();
+                return unknownOption(arg);
             }
         }
         return this;
@@ -297,6 +349,16 @@ public abstract class Tool implements Runnable {
     protected static boolean isBefore(String first, String second, String... values) {
         List<String> valueList = Arrays.asList(values);
         return valueList.indexOf(first) < valueList.indexOf(second);
+    }
+
+    /**
+     * Extracts the value from the supplied option argument. Options start with "-" and the value starts after the first
+     * "="; for example given the string "--foo=bar" this method returns a non-empty optional with the value "bar".
+     */
+    protected static Optional<String> optionValue(String arg) {
+        checkArgument(arg.startsWith("-"), "expected option string: %s", arg);
+        List<String> option = Splitter.on('=').limit(2).splitToList(arg);
+        return option.size() > 1 ? Optional.of(option.get(1)) : Optional.empty();
     }
 
     /**
