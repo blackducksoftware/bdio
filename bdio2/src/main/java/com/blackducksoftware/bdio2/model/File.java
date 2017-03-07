@@ -33,13 +33,18 @@ public class File extends BdioObject {
         return this;
     }
 
+    public File fingerprint(@Nullable Fingerprint fingerprint) {
+        putData(Bdio.DataProperty.fingerprint, fingerprint);
+        return this;
+    }
+
     public File contentType(@Nullable String contentType) {
         putData(Bdio.DataProperty.contentType, contentType);
         return this;
     }
 
-    public File fingerprint(@Nullable Fingerprint fingerprint) {
-        putData(Bdio.DataProperty.fingerprint, fingerprint);
+    public File path(@Nullable String path) {
+        putData(Bdio.DataProperty.path, path);
         return this;
     }
 
