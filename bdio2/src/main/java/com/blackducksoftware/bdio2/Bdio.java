@@ -12,6 +12,7 @@
 package com.blackducksoftware.bdio2;
 
 import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * A collection of constants and helpers pertaining to the BDIO specification.
@@ -43,6 +44,11 @@ public class Bdio {
          * dataset, it is assumed the project defines the current version.
          */
         // TODO Just get rid of this in favor of properties?
+        // TODO Or rename this ProjectVersion; it is a subclass so it can be used interchangeably with a Project (i.e.
+        // every ProjectVersion IS A Project)
+        // TODO You can't have multiple vertex labels in a graph, just eliminate this?
+        // TODO Or have a step during import that automatically changes the type to the base type, RDF reasoners can
+        // still extrapolate the type back if needed
         Version("http://blackducksoftware.com/rdf/terms#Version"),
 
         /**
@@ -82,15 +88,6 @@ public class Bdio {
         // TODO Should we have classes for Directory, RegularFile, etc?
 
         /**
-         * While every object will have a unique identifier in the current BDIO context, those identifiers (the value of
-         * the JSON-LD @id field) are opaque and cannot be considered for anything other then equality tests when
-         * resolving link references. It then becomes necessary to include identifiers from other "external" contexts.
-         * These identifiers are specific to the context in which they are used and may have their own formatting
-         * constraints or additional references that are necessary for resolution.
-         */
-        Identifier("http://blackducksoftware.com/rdf/terms#Identifier"),
-
-        /**
          * A vulnerability represents a specific weakness in a project. It is often convenient to reference
          * vulnerabilities from specific project versions or the components linked to those versions. Vulnerabilities
          * may be found through simple look ups based on well know project metadata (e.g.
@@ -118,7 +115,7 @@ public class Bdio {
          * In a JSON-LD framing context, should this class be embedded.
          */
         public boolean embed() {
-            return this == Class.Identifier;
+            return false;
         }
     }
 
@@ -127,16 +124,33 @@ public class Bdio {
         /**
          * Establishes that a project has a subproject or module relationship to another project.
          */
-        // Domain = Project; Range = Project
         subproject("http://blackducksoftware.com/rdf/terms#hasSubproject", Container.unordered),
 
-        currentVersion("http://blackducksoftware.com/rdf/terms#hasCurrentVersion", Container.single),
+        /**
+         * Links a project to the most recent, or version currently under consideration.
+         */
+        // TODO This assumes we keep the 'Version' class
+        currentVersion("httpsa://blackducksoftware.com/rdf/terms#hasCurrentVersion", Container.single),
+
+        /**
+         * Links a project version to it's previous version.
+         */
+        // TODO This should only be on 'Version' unless we get rid of it, then it can be on Project
         previousVersion("http://blackducksoftware.com/rdf/terms#hasPreviousVersion", Container.single),
+
+        /**
+         * Points to a project's base directory.
+         */
         base("http://blackducksoftware.com/rdf/terms#hasBase", Container.unordered),
 
-        // TODO hasIdentifier
-        // TODO hasDependency
+        /**
+         * Points to a file's parent. Typically this relationship is implicit; producers do not need to supply it.
+         */
+        parent("http://blackducksoftware.com/rdf/terms#hasParent", Container.single),
 
+        // TODO hasDependency
+        // TODO hasDependency is "special"? It creates an edge with properties in the graph?
+        // OR are any "embedded" objects in the frame treated that way? How do we know the outgoing vertex?
         ;
 
         private final String iri;
@@ -191,17 +205,48 @@ public class Bdio {
         /**
          * The display version of the entity.
          */
-        // Domain = Version || Component?
         version("http://blackducksoftware.com/rdf/terms#hasVersion", Datatype.Default, Container.single),
+
+        /**
+         * The version or version range that resulted in a component being included.
+         */
+        requestedVersion("http://blackducksoftware.com/rdf/terms#hasRequestedVersion", Datatype.Default, Container.single),
+
+        /**
+         * The namespace specific locator for a component. Also known as an "external identifier".
+         */
+        locator("http://blackducksoftware.com/rdf/terms#hasLocator", Datatype.Default, Container.single),
+
+        /**
+         * The namespace a component exists in. Also known as a "forge" or "system type".
+         */
+        namespace("http://blackducksoftware.com/rdf/terms#hasNamespace", Datatype.Default, Container.single),
+
+        /**
+         * The namespace specific context used to resolve a locator.
+         */
+        context("http://blackducksoftware.com/rdf/terms#hasContext", Datatype.Default, Container.single),
+
+        /**
+         * The homepage associated with the entity.
+         */
+        homepage("http://blackducksoftware.com/rdf/terms#hasHomepage", Datatype.Default, Container.unordered),
 
         /**
          * The size (in bytes) of a file.
          */
         // The name "byte count" does not conflict with "size" or "length" and is less ambiguous
-        // Domain = File
         byteCount("http://blackducksoftware.com/rdf/terms#hasByteCount", Datatype.Long, Container.single),
 
+        /**
+         * The fingerprints of a file.
+         */
         fingerprint("http://blackducksoftware.com/rdf/terms#hasFingerprint", Datatype.Fingerprint, Container.unordered),
+
+        /**
+         * The content type of a file.
+         */
+        // TODO Change type to a "media type"?
         contentType("http://blackducksoftware.com/rdf/terms#hasContentType", Datatype.Default, Container.single),
 
         /**
@@ -213,13 +258,10 @@ public class Bdio {
         // TODO copyrightYear
         // TODO rightsHolder
         // TODO hid/path?
-        // TODO Links: issue manager, source control, home page, wiki, documentation, etc.
+        // TODO URLs, issues, source, wiki, etc.
         // TODO dependency scope
         // TODO dependency value
         // TODO requestedVersion
-        // TODO identifier namespace
-        // TODO identifier context
-        // TODO identifier value
 
         ;
 
@@ -260,12 +302,40 @@ public class Bdio {
         // TODO MimeType
         // TODO Dependency scope
         // TODO SPDX license expression? Do they have one already?
+        // TODO URL? "@id"?
         ;
 
         private final String iri;
 
         private Datatype(String iri) {
             this.iri = Objects.requireNonNull(iri);
+        }
+
+        @Override
+        public String toString() {
+            return iri;
+        }
+    }
+
+    public enum IdentifierNamespace {
+
+        maven("http://maven.apache.org", "http://repo1.maven.org/maven2"),
+        npm("https://www.npmjs.com", "https://registry.npmjs.org/"),
+        rubygems("https://rubygems.org", "https://rubygems.org"),
+
+        ;
+
+        private final String iri;
+
+        private final String defaultContext;
+
+        private IdentifierNamespace(String iri, String defaultContext) {
+            this.iri = Objects.requireNonNull(iri);
+            this.defaultContext = Objects.requireNonNull(defaultContext);
+        }
+
+        public String defaultContext() {
+            return defaultContext;
         }
 
         @Override
@@ -314,6 +384,28 @@ public class Bdio {
             default:
                 throw new IllegalArgumentException("unknown BDIO specification version: " + specVersion);
             }
+        }
+    }
+
+    public enum ContentType {
+        BDIO_ZIP("application/vnd.blackducksoftware.bdio.v2+zip"),
+        BDIO_JSON("application/vnd.blackducksoftware.bdio.v2+json"),
+        // TODO Generic JSON, JSON-LD?
+        ;
+
+        private final String mediaType;
+
+        private ContentType(String mediaType) {
+            this.mediaType = mediaType;
+        }
+
+        @Override
+        public String toString() {
+            return mediaType;
+        }
+
+        public <R> R map(Function<String, R> f) {
+            return f.apply(mediaType);
         }
     }
 

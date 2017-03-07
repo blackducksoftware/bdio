@@ -37,4 +37,34 @@ public class Component extends BdioObject {
         return this;
     }
 
+    public Component version(@Nullable String version) {
+        putData(Bdio.DataProperty.version, version);
+        return this;
+    }
+
+    public Component requestedVersion(@Nullable String requestedVersion) {
+        putData(Bdio.DataProperty.requestedVersion, requestedVersion);
+        return this;
+    }
+
+    public Component locator(@Nullable String locator) {
+        putData(Bdio.DataProperty.locator, locator);
+        return this;
+    }
+
+    public Component namespace(@Nullable String namespace) {
+        putData(Bdio.DataProperty.namespace, namespace);
+        return this;
+    }
+
+    public Component context(@Nullable String context) {
+        putData(Bdio.DataProperty.context, context);
+        return this;
+    }
+
+    public Component homepage(@Nullable String homepage) {
+        putData(Bdio.DataProperty.homepage, homepage);
+        return this;
+    }
+
 }

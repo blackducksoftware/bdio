@@ -16,6 +16,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -24,6 +25,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Spliterators;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -35,7 +37,9 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bdio2.datatype.Fingerprint;
 import com.blackducksoftware.bdio2.datatype.Products;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
+import com.blackducksoftware.bdio2.model.Component;
 import com.blackducksoftware.bdio2.model.File;
+import com.blackducksoftware.bdio2.model.License;
 import com.blackducksoftware.bdio2.model.Project;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
@@ -80,6 +84,15 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
     private static final Map<String, String> FINGERPRINT_ALGORITHMS = ImmutableMap.<String, String> builder()
             .put("http://spdx.org/rdf/terms#checksumAlgorithm_md5", "md5")
             .put("http://spdx.org/rdf/terms#checksumAlgorithm_sha1", "sha1")
+            .build();
+
+    /**
+     * The mapping of BDIO 1.x external identifier systems to identifier namespaces. Both the qualified and alias forms
+     * must be present because JSON-LD expansion does not seem to reliably restore the fully qualified form.
+     */
+    private static final Map<String, String> IDENTIFIER_NAMESPACES = ImmutableMap.<String, String> builder()
+            .put("maven", "http://maven.apache.org")
+            .put("http://blackducksoftware.com/rdf/terms#externalIdentifier_maven", "http://maven.apache.org")
             .build();
 
     /**
@@ -153,17 +166,15 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
                 .spliterator());
     }
 
-    public static Stream<Object> toBdio2Node(Object node) {
+    public static Stream<?> toBdio2Node(Object node) {
         Objects.requireNonNull(node);
         if (checkType(node, "File")) {
             File file = toBdio2File(node);
             return file.size() > 2 ? Stream.of(file) : Stream.empty();
         } else if (checkType(node, "Component")) {
-            // TODO Convert components
-            return Stream.empty();
+            return toBdio2Component(node);
         } else if (checkType(node, "License")) {
-            // TODO Convert licenses
-            return Stream.empty();
+            return Stream.of(toBdio2License(node));
         } else if (checkType(node, "Project")) {
             // TODO Handle current version, returns two nodes...
             return Stream.of(toBdio2Project(node));
@@ -182,6 +193,20 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
     public static Project toBdio2Project(Object node) {
         return new Project(getString(node, "@id").get())
                 .name(getString(node, "doap:name").orElse(null));
+    }
+
+    public static Stream<Component> toBdio2Component(Object node) {
+        return externalIdentifiers(get(node, "externalIdentifier"),
+                () -> new Component(getString(node, "@id").get())
+                        .name(getString(node, "doap:name").orElse(null))
+                        .homepage(getString(node, "doap:homepage").orElse(null)));
+    }
+
+    public static License toBdio2License(Object node) {
+        License license = new License(getString(node, "@id").get())
+                .name(getString(node, "spdx:name").orElse(null));
+
+        return license;
     }
 
     /**
@@ -248,6 +273,37 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
                                 .ifPresent(checksumValue -> consumer.accept(Fingerprint.create(algorithm, checksumValue))));
             }
         }
+    }
+
+    /**
+     * Generates a stream of components from the supplied list of external identifiers.
+     */
+    private static Stream<Component> externalIdentifiers(Optional<Object> obj, Supplier<Component> componentSupplier) {
+        List<Component> result = new ArrayList<>();
+
+        // Iterate over external identifiers
+        Object externalIdentifiers = obj.orElse(null);
+        if (externalIdentifiers instanceof Map<?, ?>) {
+            externalIdentifiers = Arrays.asList(externalIdentifiers);
+        }
+        if (externalIdentifiers instanceof List<?>) {
+            for (Object externalIdentifier : (List<?>) externalIdentifiers) {
+                result.add(componentSupplier.get()
+                        .locator(getString(externalIdentifier, "externalId").orElse(null))
+                        .namespace(getString(externalIdentifier, "externalSystemTypeId")
+                                .map(x -> IDENTIFIER_NAMESPACES.getOrDefault(x, x)).orElse(null))
+                        .context(getString(externalIdentifier, "externalRepositoryLocation").orElse(null)));
+
+            }
+        }
+
+        // Make sure we add at least one
+        if (result.isEmpty()) {
+            result.add(componentSupplier.get());
+        }
+        // TODO We need to link all the result objects together
+
+        return result.stream();
     }
 
     /**
