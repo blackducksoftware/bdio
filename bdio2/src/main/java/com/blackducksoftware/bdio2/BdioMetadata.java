@@ -19,7 +19,6 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -53,7 +52,7 @@ public final class BdioMetadata extends BdioObject {
      * Creates a new metadata instance with a random identifier.
      */
     public static BdioMetadata createRandomUUID() {
-        return new BdioMetadata().id("urn:uuid:" + UUID.randomUUID());
+        return new BdioMetadata().id(randomId());
     }
 
     /**

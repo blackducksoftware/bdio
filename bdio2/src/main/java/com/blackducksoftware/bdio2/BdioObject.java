@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -73,6 +74,13 @@ public class BdioObject extends AbstractMap<String, Object> {
      */
     BdioObject(Map<String, Object> initialValues) {
         data = new LinkedHashMap<>(initialValues);
+    }
+
+    /**
+     * Returns a new random identifier.
+     */
+    public static String randomId() {
+        return "urn:uuid:" + UUID.randomUUID();
     }
 
     @Override
