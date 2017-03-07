@@ -20,11 +20,13 @@ import java.io.InputStream;
 import java.util.LinkedHashMap;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.MapConfiguration;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Transaction;
 import org.apache.tinkerpop.gremlin.structure.util.GraphFactory;
@@ -48,6 +50,8 @@ public abstract class BaseTest {
      */
     public static final class TT {
         public static final String id = "_id";
+
+        public static final String partition = "_partition";
 
         public static final String Metadata = "Metadata";
     }
@@ -96,6 +100,18 @@ public abstract class BaseTest {
         return builder -> {
             builder.metadataLabel(TT.Metadata).identifierKey(TT.id);
         };
+    }
+
+    /**
+     * Creates a partition identified by a new random value.
+     */
+    public PartitionStrategy createRandomPartition() {
+        String id = UUID.randomUUID().toString();
+        return PartitionStrategy.build()
+                .partitionKey(TT.partition)
+                .writePartition(id)
+                .readPartitions(id)
+                .create();
     }
 
     @Before

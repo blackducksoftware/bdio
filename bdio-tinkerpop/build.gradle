@@ -12,4 +12,5 @@ dependencies {
 	testCompile 'org.apache.tinkerpop:tinkergraph-gremlin'
     testCompile 'junit:junit'
     testCompile 'com.google.truth:truth'
+    testCompile 'com.google.truth.extensions:truth-java8-extension'
 }
