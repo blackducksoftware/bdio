@@ -29,8 +29,10 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.Objects;
 
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.common.base.HID;
@@ -45,14 +47,23 @@ public final class BdioOperations {
 
     // !!! THESE OPERATIONS MUST BE IDEMPOTENT !!!
 
+    /**
+     * The source of graph traversals.
+     */
     private final GraphTraversalSource g;
 
-    private BdioOperations(GraphTraversalSource g) {
+    /**
+     * The key of the property used to mark vertices and edges as implicitly created.
+     */
+    private final String implicitKey;
+
+    private BdioOperations(GraphTraversalSource g, String implicitKey) {
         this.g = Objects.requireNonNull(g);
+        this.implicitKey = Objects.requireNonNull(implicitKey);
     }
 
-    public static BdioOperations create(GraphTraversalSource g) {
-        return new BdioOperations(g);
+    public static BdioOperations create(GraphTraversalSource g, String implicitKey) {
+        return new BdioOperations(g, implicitKey);
     }
 
     /**
@@ -90,15 +101,26 @@ public final class BdioOperations {
                     // Find the parent vertex by path, creating it if it does not exist
                     .coalesce(
                             V().hasLabel(File.name()).as("f").values(path.name()).where(eq("parentPath")).select("f"),
-                            // TODO We need a BDIO compatible identifier for export
-                            addV(File.name()).property(path.name(), select("parentPath")))
+                            addMissingParentVertex(select("parentPath")))
 
                     // Create the parent edge
-                    .addE(Bdio.ObjectProperty.parent.name()).from("orphanFiles")
+                    .addE(Bdio.ObjectProperty.parent.name())
+                    .from("orphanFiles")
+                    .property(implicitKey, Boolean.TRUE)
 
                     // If we created any edges, we might need to continue looping
                     .hasNext();
         } while (hasNewEdges);
+    }
+
+    /**
+     * An anonymous traversal that adds a missing parent vertex.
+     */
+    private Traversal<?, Vertex> addMissingParentVertex(Object parentPath) {
+        // TODO We need a BDIO compatible identifier for export
+        return addV(File.name())
+                .property(path.name(), parentPath)
+                .property(implicitKey, Boolean.TRUE);
     }
 
     /**

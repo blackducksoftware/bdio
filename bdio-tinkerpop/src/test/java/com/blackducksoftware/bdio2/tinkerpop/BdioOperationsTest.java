@@ -48,13 +48,13 @@ public class BdioOperationsTest extends BaseTest {
         graph.io(BlackDuckIo.build()).readGraph(bdio);
 
         GraphTraversalSource g = graph.traversal();
-        BdioOperations.create(g).addImplicitEdges();
+        BdioOperations.create(g, TT.implicit).addImplicitEdges();
 
         List<Object> leafPaths = g.V()
                 .hasLabel(Bdio.Class.Project.name())
                 .out(Bdio.ObjectProperty.base.name())
-                .repeat(in("parent"))
-                .until(not(in("parent")))
+                .repeat(in(Bdio.ObjectProperty.parent.name()))
+                .until(not(in(Bdio.ObjectProperty.parent.name())))
                 .values(Bdio.DataProperty.path.name())
                 .toList();
 
