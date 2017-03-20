@@ -47,9 +47,9 @@ public class BdioOperationsTest extends BaseTest {
 
         graph.io(BlackDuckIo.build()).readGraph(bdio);
 
-        GraphTraversalSource g = graph.traversal();
-        BdioOperations.create(g, TT.implicit).addImplicitEdges();
+        BdioOperations.create(graph, builder -> builder.implicitKey(TT.implicit)).addImplicitEdges();
 
+        GraphTraversalSource g = graph.traversal();
         List<Object> leafPaths = g.V()
                 .hasLabel(Bdio.Class.Project.name())
                 .out(Bdio.ObjectProperty.base.name())

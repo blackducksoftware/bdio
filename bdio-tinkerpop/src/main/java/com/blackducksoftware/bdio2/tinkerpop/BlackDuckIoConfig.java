@@ -46,6 +46,11 @@ public class BlackDuckIoConfig {
     private final Optional<String> unknownKey;
 
     /**
+     * The property key used to persist a flag indicating implicit creation of missing BDIO data.
+     */
+    private final Optional<String> implicitKey;
+
+    /**
      * The vertex label used to persist JSON-LD named graph metadata.
      */
     private final Optional<String> metadataLabel;
@@ -70,6 +75,7 @@ public class BlackDuckIoConfig {
     private BlackDuckIoConfig(Builder builder) {
         identifierKey = Objects.requireNonNull(builder.identifierKey);
         unknownKey = Objects.requireNonNull(builder.unknownKey);
+        implicitKey = Objects.requireNonNull(builder.implicitKey);
         metadataLabel = Objects.requireNonNull(builder.metadataLabel);
         partitionStrategy = Objects.requireNonNull(builder.partitionStrategy);
         valueObjectMapper = builder.valueObjectMapper.orElseGet(builder.defaultValueObjectMapper);
@@ -82,6 +88,10 @@ public class BlackDuckIoConfig {
 
     public Optional<String> unknownKey() {
         return unknownKey;
+    }
+
+    public Optional<String> implicitKey() {
+        return implicitKey;
     }
 
     public Optional<String> metadataLabel() {
@@ -143,6 +153,8 @@ public class BlackDuckIoConfig {
 
         private Optional<String> unknownKey = Optional.empty();
 
+        private Optional<String> implicitKey = Optional.empty();
+
         private Optional<String> metadataLabel = Optional.empty();
 
         private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
@@ -163,6 +175,11 @@ public class BlackDuckIoConfig {
 
         public Builder unknownKey(@Nullable String unknownKey) {
             this.unknownKey = Optional.ofNullable(unknownKey);
+            return this;
+        }
+
+        public Builder implicitKey(@Nullable String implicitKey) {
+            this.implicitKey = Optional.ofNullable(implicitKey);
             return this;
         }
 

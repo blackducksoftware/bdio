@@ -45,11 +45,6 @@ import io.reactivex.Observable;
 class ReadGraphContext extends GraphContext {
 
     /**
-     * Flag indicating if the graph supports transactions or not.
-     */
-    private final boolean supportsTransactions;
-
-    /**
      * The number of mutations between commits.
      */
     private final int batchSize;
@@ -61,18 +56,8 @@ class ReadGraphContext extends GraphContext {
 
     protected ReadGraphContext(BlackDuckIoConfig config, Graph graph, int batchSize) {
         super(config, graph);
-        this.supportsTransactions = graph.features().graph().supportsTransactions();
         this.batchSize = batchSize;
         this.count = new AtomicLong();
-    }
-
-    /**
-     * Commits the current transaction if the underlying graph supports it.
-     */
-    public void commitTx() {
-        if (supportsTransactions) {
-            graph().tx().commit();
-        }
     }
 
     /**
@@ -80,7 +65,7 @@ class ReadGraphContext extends GraphContext {
      * batch boundaries.
      */
     public void batchCommitTx(Object obj) {
-        if (supportsTransactions && count.incrementAndGet() % batchSize == 0) {
+        if (count.incrementAndGet() % batchSize == 0) {
             commitTx();
         }
     }

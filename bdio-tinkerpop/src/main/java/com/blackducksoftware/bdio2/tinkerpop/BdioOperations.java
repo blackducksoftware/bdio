@@ -28,10 +28,12 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import com.blackducksoftware.bdio2.Bdio;
@@ -45,25 +47,27 @@ import com.google.common.collect.Iterators;
  */
 public final class BdioOperations {
 
-    // !!! THESE OPERATIONS MUST BE IDEMPOTENT !!!
-
     /**
-     * The source of graph traversals.
+     * Internal graph context class.
      */
-    private final GraphTraversalSource g;
-
-    /**
-     * The key of the property used to mark vertices and edges as implicitly created.
-     */
-    private final String implicitKey;
-
-    private BdioOperations(GraphTraversalSource g, String implicitKey) {
-        this.g = Objects.requireNonNull(g);
-        this.implicitKey = Objects.requireNonNull(implicitKey);
+    private static class OperationsContext extends GraphContext {
+        private OperationsContext(BlackDuckIoConfig config, Graph graph) {
+            super(config, graph);
+        }
     }
 
-    public static BdioOperations create(GraphTraversalSource g, String implicitKey) {
-        return new BdioOperations(g, implicitKey);
+    // !!! THESE OPERATIONS MUST BE IDEMPOTENT !!!
+
+    private final OperationsContext context;
+
+    private BdioOperations(OperationsContext context) {
+        this.context = Objects.requireNonNull(context);
+    }
+
+    public static BdioOperations create(Graph graph, Consumer<BlackDuckIoConfig.Builder> onConfig) {
+        BlackDuckIoConfig.Builder builder = BlackDuckIoConfig.build();
+        onConfig.accept(builder);
+        return new BdioOperations(new OperationsContext(builder.create(), graph));
     }
 
     /**
@@ -76,7 +80,10 @@ public final class BdioOperations {
      * </ul>
      */
     public void addImplicitEdges() {
-        addMissingFileParents();
+        if (context.config().implicitKey().isPresent()) {
+            addMissingFileParents();
+            context.commitTx();
+        }
     }
 
     /**
@@ -84,6 +91,8 @@ public final class BdioOperations {
      */
     @SuppressWarnings("unchecked") // `coalesce` uses generic varargs
     private void addMissingFileParents() {
+        GraphTraversalSource g = context.traversal();
+
         // TODO Never did figure out how make this recurse properly in the traversal
         boolean hasNewEdges;
         do {
@@ -106,7 +115,7 @@ public final class BdioOperations {
                     // Create the parent edge
                     .addE(Bdio.ObjectProperty.parent.name())
                     .from("orphanFiles")
-                    .property(implicitKey, Boolean.TRUE)
+                    .property(context.config().implicitKey().get(), Boolean.TRUE)
 
                     // If we created any edges, we might need to continue looping
                     .hasNext();
@@ -120,7 +129,7 @@ public final class BdioOperations {
         // TODO We need a BDIO compatible identifier for export
         return addV(File.name())
                 .property(path.name(), parentPath)
-                .property(implicitKey, Boolean.TRUE);
+                .property(context.config().implicitKey().get(), Boolean.TRUE);
     }
 
     /**

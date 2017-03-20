@@ -31,9 +31,12 @@ abstract class GraphContext {
 
     private final Graph graph;
 
+    private final boolean supportsTransactions;
+
     protected GraphContext(BlackDuckIoConfig config, Graph graph) {
         this.config = Objects.requireNonNull(config);
         this.graph = Objects.requireNonNull(graph);
+        this.supportsTransactions = graph.features().graph().supportsTransactions();
     }
 
     /**
@@ -63,6 +66,24 @@ abstract class GraphContext {
     public GraphTraversalSource traversal() {
         GraphTraversalSource traversal = graph().traversal();
         return config.partitionStrategy().map(traversal::withStrategies).orElse(traversal);
+    }
+
+    /**
+     * Commits the current transaction if the underlying graph supports it.
+     */
+    public void commitTx() {
+        if (supportsTransactions) {
+            graph().tx().commit();
+        }
+    }
+
+    /**
+     * Rolls back the current transaction if the underlying graph supports it.
+     */
+    public void rollbackTx() {
+        if (supportsTransactions) {
+            graph.tx().rollback();
+        }
     }
 
 }
