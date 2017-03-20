@@ -18,6 +18,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -68,10 +69,12 @@ public class BlackDuckIoMapper implements Mapper<ValueObjectMapper> {
     }
 
     private BlackDuckIoMapper(BlackDuckIoMapper.Builder builder) {
-        // TODO Customize the GraphValueObjectMapper
-        builder.registries.stream()
+        Map<Class<?>, Object> serializers = builder.registries.stream()
                 .flatMap(registry -> registry.find(BlackDuckIo.class).stream())
                 .collect(Collectors.toMap(p -> p.getValue0(), p -> p.getValue1()));
+        serializers.forEach((k, v) -> {
+            // TODO Customize the GraphValueObjectMapper
+        });
     }
 
     @Override
