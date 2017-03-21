@@ -11,10 +11,13 @@
  */
 package com.blackducksoftware.bdio2.datatype;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -23,7 +26,7 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.common.base.ExtraCollectors;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.google.common.base.Preconditions;
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -35,11 +38,11 @@ import com.google.common.collect.ImmutableList;
  */
 public final class Products implements Iterable<Product> {
 
-    private List<Product> products;
+    private ImmutableList<Product> products;
 
     private Products(Iterable<Product> products) {
         this.products = ImmutableList.copyOf(products);
-        Preconditions.checkArgument(!this.products.isEmpty(), "must specify at least one product");
+        checkArgument(!this.products.isEmpty(), "must specify at least one product");
     }
 
     @JsonCreator
@@ -135,6 +138,33 @@ public final class Products implements Iterable<Product> {
 
         public Builder addProduct(String name, String version, String comment) {
             products.add(() -> Product.create(name, version).withComment(comment));
+            return this;
+        }
+
+        /**
+         * Adds a product using the current package metadata.
+         */
+        public Builder addClass(Class<?> type) {
+            // TODO Build aggressively so the caller fails?
+            Product classProduct = Optional.ofNullable(type.getPackage())
+                    .filter(pkg -> pkg.getImplementationTitle() != null)
+                    .map(pkg -> {
+                        // Create a product from the implementation title and version
+                        // TODO Eliminate illegal characters?
+                        String implTitle = pkg.getImplementationTitle();
+                        String implVersion = pkg.getImplementationVersion();
+                        Product product = Product.create(implTitle, implVersion);
+
+                        // Add the specification as a comment
+                        String specTitle = pkg.getSpecificationTitle();
+                        String specVersion = pkg.getSpecificationVersion();
+                        if (specTitle != null) {
+                            return product.withComment(Joiner.on(' ').skipNulls().join(specTitle, specVersion));
+                        } else {
+                            return product;
+                        }
+                    }).orElseThrow(() -> new IllegalArgumentException("insufficient package metadata: " + type.getName()));
+            products.add(() -> classProduct);
             return this;
         }
 

@@ -15,7 +15,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.Test;
 
@@ -193,10 +192,10 @@ public class BdioObjectTest {
      */
     @Test
     public void putSingleObjectProperty() {
-        String currentVersionId = "urn:uuid:" + UUID.randomUUID();
+        String currentVersionId = BdioObject.randomId();
         BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        bdioObject.putObject(Bdio.ObjectProperty.currentVersion, currentVersionId);
-        assertThat(bdioObject).containsEntry(Bdio.ObjectProperty.currentVersion.toString(),
+        bdioObject.putObject(Bdio.ObjectProperty.parent, currentVersionId);
+        assertThat(bdioObject).containsEntry(Bdio.ObjectProperty.parent.toString(),
                 ImmutableMap.of("@value", currentVersionId));
     }
 
@@ -206,9 +205,9 @@ public class BdioObjectTest {
     @Test
     public void putSingleObjectPropertyNullValue() {
         BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        bdioObject.putObject(Bdio.ObjectProperty.currentVersion, "urn:uuid:" + UUID.randomUUID());
-        assertThat(bdioObject.putObject(Bdio.ObjectProperty.currentVersion, null)).isNull();
-        assertThat(bdioObject).doesNotContainKey(Bdio.ObjectProperty.currentVersion.toString());
+        bdioObject.putObject(Bdio.ObjectProperty.parent, BdioObject.randomId());
+        assertThat(bdioObject.putObject(Bdio.ObjectProperty.parent, null)).isNull();
+        assertThat(bdioObject).doesNotContainKey(Bdio.ObjectProperty.parent.toString());
     }
 
     /**

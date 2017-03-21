@@ -78,8 +78,7 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
             .build();
 
     /**
-     * The mapping of BDIO 1.x checksum algorithms to fingerprint algorithms. Only the qualified input is necessary as
-     * the values are otherwise identical.
+     * The mapping of BDIO 1.x checksum algorithms to fingerprint algorithms.
      */
     private static final ImmutableMap<String, String> FINGERPRINT_ALGORITHMS = ImmutableMap.<String, String> builder()
             .put("http://spdx.org/rdf/terms#checksumAlgorithm_md5", "md5")
@@ -87,12 +86,10 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
             .build();
 
     /**
-     * The mapping of BDIO 1.x external identifier systems to identifier namespaces. Both the qualified and alias forms
-     * must be present because JSON-LD expansion does not seem to reliably restore the fully qualified form.
+     * The mapping of BDIO 1.x external identifier systems to identifier namespaces.
      */
     private static final ImmutableMap<String, String> IDENTIFIER_NAMESPACES = ImmutableMap.<String, String> builder()
-            .put("maven", "http://maven.apache.org")
-            .put("http://blackducksoftware.com/rdf/terms#externalIdentifier_maven", "http://maven.apache.org")
+            .put("http://blackducksoftware.com/rdf/terms#externalIdentifier_maven", "maven")
             .build();
 
     /**
@@ -176,7 +173,6 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
         } else if (checkType(node, "License")) {
             return Stream.of(toBdio2License(node));
         } else if (checkType(node, "Project")) {
-            // TODO Handle current version, returns two nodes...
             return Stream.of(toBdio2Project(node));
         } else {
             return Stream.empty();

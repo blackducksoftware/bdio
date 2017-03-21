@@ -1,49 +1,56 @@
 {
   "@context" : {
     "xsd" : "http://www.w3.org/2001/XMLSchema#",
-    "Project" : "http://blackducksoftware.com/rdf/terms#Project",
-    "Version" : "http://blackducksoftware.com/rdf/terms#Version",
-    "Component" : "http://blackducksoftware.com/rdf/terms#Component",
-    "License" : "http://blackducksoftware.com/rdf/terms#License",
-    "File" : "http://blackducksoftware.com/rdf/terms#File",
-    "Identifier" : "http://blackducksoftware.com/rdf/terms#Identifier",
-    "Vulnerability" : "http://blackducksoftware.com/rdf/terms#Vulnerability",
+    "Project" : "http://blackducksoftware.com/bdio#Project",
+    "Component" : "http://blackducksoftware.com/bdio#Component",
+    "License" : "http://blackducksoftware.com/bdio#License",
+    "File" : "http://blackducksoftware.com/bdio#File",
+    "Vulnerability" : "http://blackducksoftware.com/bdio#Vulnerability",
     "subproject" : {
-      "@id" : "http://blackducksoftware.com/rdf/terms#hasSubproject",
-      "@type" : "@id"
-    },
-    "currentVersion" : {
-      "@id" : "http://blackducksoftware.com/rdf/terms#hasCurrentVersion",
+      "@id" : "http://blackducksoftware.com/bdio#hasSubproject",
       "@type" : "@id"
     },
     "previousVersion" : {
-      "@id" : "http://blackducksoftware.com/rdf/terms#hasPreviousVersion",
+      "@id" : "http://blackducksoftware.com/bdio#hasPreviousVersion",
       "@type" : "@id"
     },
     "base" : {
-      "@id" : "http://blackducksoftware.com/rdf/terms#hasBase",
+      "@id" : "http://blackducksoftware.com/bdio#hasBase",
+      "@type" : "@id"
+    },
+    "parent" : {
+      "@id" : "http://blackducksoftware.com/bdio#hasParent",
       "@type" : "@id"
     },
     "creation" : {
-      "@id" : "http://blackducksoftware.com/rdf/terms#hasCreation",
+      "@id" : "http://blackducksoftware.com/bdio#hasCreation",
       "@type" : "xsd:dateTime"
     },
-    "creator" : "http://blackducksoftware.com/rdf/terms#hasCreator",
+    "creator" : "http://blackducksoftware.com/bdio#hasCreator",
     "producer" : {
-      "@id" : "http://blackducksoftware.com/rdf/terms#hasProducer",
-      "@type" : "http://blackducksoftware.com/rdf/terms#Products"
+      "@id" : "http://blackducksoftware.com/bdio#hasProducer",
+      "@type" : "http://blackducksoftware.com/bdio#Products"
     },
-    "name" : "http://blackducksoftware.com/rdf/terms#hasName",
-    "version" : "http://blackducksoftware.com/rdf/terms#hasVersion",
+    "name" : "http://blackducksoftware.com/bdio#hasName",
+    "version" : "http://blackducksoftware.com/bdio#hasVersion",
+    "requestedVersion" : "http://blackducksoftware.com/bdio#hasRequestedVersion",
+    "locator" : "http://blackducksoftware.com/bdio#hasLocator",
+    "namespace" : "name:space",
+    "context" : "http://blackducksoftware.com/bdio#hasContext",
+    "homepage" : {
+      "@id" : "http://blackducksoftware.com/bdio#hasHomepage",
+      "@container" : "@set"
+    },
     "byteCount" : {
-      "@id" : "http://blackducksoftware.com/rdf/terms#hasByteCount",
+      "@id" : "http://blackducksoftware.com/bdio#hasByteCount",
       "@type" : "xsd:long"
     },
     "fingerprint" : {
-      "@id" : "http://blackducksoftware.com/rdf/terms#hasFingerprint",
-      "@type" : "http://blackducksoftware.com/rdf/terms#Fingerprint",
+      "@id" : "http://blackducksoftware.com/bdio#hasFingerprint",
+      "@type" : "http://blackducksoftware.com/bdio#Fingerprint",
       "@container" : "@set"
     },
-    "contentType" : "http://blackducksoftware.com/rdf/terms#hasContentType"
+    "contentType" : "http://blackducksoftware.com/bdio#hasContentType",
+    "path" : "http://blackducksoftware.com/bdio#hasPath"
   }
 }

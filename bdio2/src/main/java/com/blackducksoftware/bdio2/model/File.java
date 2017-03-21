@@ -17,15 +17,10 @@ import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.bdio2.datatype.Fingerprint;
 
-public class File extends BdioObject {
+public final class File extends BdioObject {
 
     public File(String id) {
-        this(id, Bdio.Class.File);
-    }
-
-    // Pass through constructor for subclasses
-    protected File(String id, Bdio.Class bdioClass) {
-        super(id, bdioClass);
+        super(id, Bdio.Class.File);
     }
 
     public File byteCount(@Nullable Long size) {

@@ -16,24 +16,19 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 
-public class Project extends BdioObject {
+public final class Project extends BdioObject {
 
     public Project(String id) {
-        this(id, Bdio.Class.Project);
+        super(id, Bdio.Class.Project);
     }
 
-    // Pass through constructor for subclasses
-    protected Project(String id, Bdio.Class bdioClass) {
-        super(id, bdioClass);
-    }
-
-    public Project name(@Nullable String name) {
-        putData(Bdio.DataProperty.name, name);
+    public Project subproject(@Nullable Object subproject) {
+        putObject(Bdio.ObjectProperty.subproject, subproject);
         return this;
     }
 
-    public Project currentVersion(@Nullable Object currentVersion) {
-        putObject(Bdio.ObjectProperty.currentVersion, currentVersion);
+    public Project previousVersion(@Nullable Object previousVersion) {
+        putObject(Bdio.ObjectProperty.previousVersion, previousVersion);
         return this;
     }
 
@@ -41,4 +36,20 @@ public class Project extends BdioObject {
         putObject(Bdio.ObjectProperty.base, base);
         return this;
     }
+
+    public Project name(@Nullable String name) {
+        putData(Bdio.DataProperty.name, name);
+        return this;
+    }
+
+    public Project version(@Nullable String version) {
+        putData(Bdio.DataProperty.version, version);
+        return this;
+    }
+
+    public Project homepage(@Nullable String homepage) {
+        putData(Bdio.DataProperty.homepage, homepage);
+        return this;
+    }
+
 }

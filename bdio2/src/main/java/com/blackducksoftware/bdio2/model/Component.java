@@ -18,18 +18,12 @@ package com.blackducksoftware.bdio2.model;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.Bdio.Class;
 import com.blackducksoftware.bdio2.BdioObject;
 
-public class Component extends BdioObject {
+public final class Component extends BdioObject {
 
     public Component(String id) {
-        this(id, Bdio.Class.Component);
-    }
-
-    // Pass through constructor for subclasses
-    protected Component(String id, Class bdioClass) {
-        super(id, bdioClass);
+        super(id, Bdio.Class.Component);
     }
 
     public Component name(@Nullable String name) {

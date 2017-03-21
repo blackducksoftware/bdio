@@ -56,10 +56,40 @@ public final class BdioMetadata extends BdioObject {
     }
 
     /**
+     * Returns a named graph using the specified keys from this metadata.
+     *
+     * @param graph
+     *            the JSON-LD data to associate with the {@value JsonLdConsts#GRAPH} value.
+     * @param keys
+     *            the metadata keys to include in the named graph (all metadata is included by default).
+     */
+    public Map<String, Object> asNamedGraph(Object graph, String... keys) {
+        Objects.requireNonNull(graph);
+        Map<String, Object> namedGraph = new LinkedHashMap<>(this);
+        if (keys.length > 0) {
+            namedGraph.keySet().retainAll(Arrays.asList(keys));
+        }
+        namedGraph.put(JsonLdConsts.GRAPH, graph);
+        return namedGraph;
+    }
+
+    /**
+     * Returns a named graph that only contains metadata.
+     *
+     * @see #asNamedGraph(Object, String...)
+     */
+    public Map<String, Object> asNamedGraph() {
+        // Use ArrayList to avoid problems with the JsonLdApi
+        return asNamedGraph(new ArrayList<>(0));
+    }
+
+    /**
      * Merges additional metadata into this metadata instance.
      */
     public BdioMetadata merge(Map<String, Object> other) {
         other.forEach((key, value) -> {
+            // TODO Keep the first occurrence of the creation time instead of the last?
+            // TODO Allow creator (username) to be multi-valued instead of overwriting?
             if (key.equals(JsonLdConsts.ID)) {
                 checkArgument(value instanceof String, "identifier must be mapped to a string");
                 if (id() == null) {
@@ -131,33 +161,6 @@ public final class BdioMetadata extends BdioObject {
     public BdioMetadata producer(@Nullable Products producer) {
         putData(Bdio.DataProperty.producer, producer);
         return this;
-    }
-
-    /**
-     * Returns a named graph using the specified keys from this metadata.
-     *
-     * @param graph
-     *            the JSON-LD data to associate with the {@value JsonLdConsts#GRAPH} value.
-     * @param keys
-     *            the metadata keys to include in the named graph (all metadata is included by default).
-     */
-    public Map<String, Object> asNamedGraph(Object graph, String... keys) {
-        Objects.requireNonNull(graph);
-        Map<String, Object> namedGraph = new LinkedHashMap<>(this);
-        if (keys.length > 0) {
-            namedGraph.keySet().retainAll(Arrays.asList(keys));
-        }
-        namedGraph.put(JsonLdConsts.GRAPH, graph);
-        return namedGraph;
-    }
-
-    /**
-     * Returns a named graph that only contains metadata.
-     *
-     * @see #asNamedGraph(Object, String...)
-     */
-    public Map<String, Object> asNamedGraph() {
-        return asNamedGraph(new ArrayList<>(0));
     }
 
 }

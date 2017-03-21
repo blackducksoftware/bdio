@@ -33,23 +33,7 @@ public class Bdio {
          * true that a project and component can coexist for the same entity: for example there can be only one "log4j"
          * project while there can be many components describing the usage of "log4j" for other projects.
          */
-        Project("http://blackducksoftware.com/rdf/terms#Project"),
-
-        /**
-         * A version is specific to a project, it defines the metadata for a project at a specific instant in time. Any
-         * aspect of a project can re-defined in terms of a specific version as any aspect of the project can change
-         * over time (including websites, source control locations, even names). Versions should also be navigable as a
-         * tree: at some point (project inception) there is a single version. Note that components do not have versions,
-         * instead they reference a specific version. If no versions are present for a project in a BDIO
-         * dataset, it is assumed the project defines the current version.
-         */
-        // TODO Just get rid of this in favor of properties?
-        // TODO Or rename this ProjectVersion; it is a subclass so it can be used interchangeably with a Project (i.e.
-        // every ProjectVersion IS A Project)
-        // TODO You can't have multiple vertex labels in a graph, just eliminate this?
-        // TODO Or have a step during import that automatically changes the type to the base type, RDF reasoners can
-        // still extrapolate the type back if needed
-        Version("http://blackducksoftware.com/rdf/terms#Version"),
+        Project("http://blackducksoftware.com/bdio#Project"),
 
         /**
          * A component may also known as a "dependency" or "artifact". Essentially it is a single BOM entry. A component
@@ -64,7 +48,7 @@ public class Bdio {
          * every GAV encountered during processing, those components may be used for linking vulnerabilities even if the
          * full project for that GAV does not exist in the current context.
          */
-        Component("http://blackducksoftware.com/rdf/terms#Component"),
+        Component("http://blackducksoftware.com/bdio#Component"),
 
         /**
          * A license represents the specific terms under which the use of a particular project (or component) is
@@ -74,7 +58,7 @@ public class Bdio {
          * reference licenses are assumed to accept the default (and unambiguous) licensing terms of the version of the
          * project they reference.
          */
-        License("http://blackducksoftware.com/rdf/terms#License"),
+        License("http://blackducksoftware.com/bdio#License"),
 
         /**
          * A file is used to represent the metadata pertaining to an entry in a (possibly virtual) file system. Files
@@ -84,8 +68,7 @@ public class Bdio {
          * in bytes (not blocks). For file systems with efficient calculation of directory sizes, those sizes can be
          * included for directory entries.
          */
-        File("http://blackducksoftware.com/rdf/terms#File"),
-        // TODO Should we have classes for Directory, RegularFile, etc?
+        File("http://blackducksoftware.com/bdio#File"),
 
         /**
          * A vulnerability represents a specific weakness in a project. It is often convenient to reference
@@ -94,7 +77,7 @@ public class Bdio {
          * "this version of this project is known to have this vulnerability"); however they may also be discovered
          * through means such as static analysis of source or object code.
          */
-        Vulnerability("http://blackducksoftware.com/rdf/terms#Vulnerability"),
+        Vulnerability("http://blackducksoftware.com/bdio#Vulnerability"),
 
         // TODO ContinuousIntegrationEnvironment
 
@@ -124,29 +107,22 @@ public class Bdio {
         /**
          * Establishes that a project has a subproject or module relationship to another project.
          */
-        subproject("http://blackducksoftware.com/rdf/terms#hasSubproject", Container.unordered),
-
-        /**
-         * Links a project to the most recent, or version currently under consideration.
-         */
-        // TODO This assumes we keep the 'Version' class
-        currentVersion("httpsa://blackducksoftware.com/rdf/terms#hasCurrentVersion", Container.single),
+        subproject("http://blackducksoftware.com/bdio#hasSubproject", Container.unordered),
 
         /**
          * Links a project version to it's previous version.
          */
-        // TODO This should only be on 'Version' unless we get rid of it, then it can be on Project
-        previousVersion("http://blackducksoftware.com/rdf/terms#hasPreviousVersion", Container.single),
+        previousVersion("http://blackducksoftware.com/bdio#hasPreviousVersion", Container.single),
 
         /**
          * Points to a project's base directory.
          */
-        base("http://blackducksoftware.com/rdf/terms#hasBase", Container.unordered),
+        base("http://blackducksoftware.com/bdio#hasBase", Container.unordered),
 
         /**
          * Points to a file's parent. Typically this relationship is implicit; producers do not need to supply it.
          */
-        parent("http://blackducksoftware.com/rdf/terms#hasParent", Container.single),
+        parent("http://blackducksoftware.com/bdio#hasParent", Container.single),
 
         // TODO hasDependency
         // TODO hasDependency is "special"? It creates an edge with properties in the graph?
@@ -178,81 +154,81 @@ public class Bdio {
          * The time at which the BDIO document was created. This property should be specified for the named graph.
          */
         // TODO Incorporate "time" or "datetime" or "timestamp" or "instant" into the name?
-        creation("http://blackducksoftware.com/rdf/terms#hasCreation", Datatype.DateTime, Container.single),
+        creation("http://blackducksoftware.com/bdio#hasCreation", Datatype.DateTime, Container.single),
 
         /**
          * The user who created the BDIO document. This property should be specified for the named graph.
          */
         // TODO Is this too confusing with "creation"?
         // TODO Should this be an ObjectProperty?
-        creator("http://blackducksoftware.com/rdf/terms#hasCreator", Datatype.Default, Container.single),
+        creator("http://blackducksoftware.com/bdio#hasCreator", Datatype.Default, Container.single),
 
         /**
          * The tool which produced the BDIO document. This should be specified using the same format as an HTTP user
          * agent. This property should be specified for the named graph.
          */
-        producer("http://blackducksoftware.com/rdf/terms#hasProducer", Datatype.Products, Container.single),
-
-        // TODO Continuous Integration environment
-        // repository, branch, buildNumber, build[Url], etc.
-        // buildName (like Jenkins "BUILD_TAG")
+        producer("http://blackducksoftware.com/bdio#hasProducer", Datatype.Products, Container.single),
 
         /**
          * The display name of the entity.
          */
-        name("http://blackducksoftware.com/rdf/terms#hasName", Datatype.Default, Container.single),
+        name("http://blackducksoftware.com/bdio#hasName", Datatype.Default, Container.single),
 
         /**
          * The display version of the entity.
          */
-        version("http://blackducksoftware.com/rdf/terms#hasVersion", Datatype.Default, Container.single),
+        version("http://blackducksoftware.com/bdio#hasVersion", Datatype.Default, Container.single),
 
         /**
          * The version or version range that resulted in a component being included.
          */
-        requestedVersion("http://blackducksoftware.com/rdf/terms#hasRequestedVersion", Datatype.Default, Container.single),
+        requestedVersion("http://blackducksoftware.com/bdio#hasRequestedVersion", Datatype.Default, Container.single),
 
         /**
          * The namespace specific locator for a component. Also known as an "external identifier".
          */
-        locator("http://blackducksoftware.com/rdf/terms#hasLocator", Datatype.Default, Container.single),
+        locator("http://blackducksoftware.com/bdio#hasLocator", Datatype.Default, Container.single),
 
         /**
          * The namespace a component exists in. Also known as a "forge" or "system type".
          */
-        namespace("http://blackducksoftware.com/rdf/terms#hasNamespace", Datatype.Default, Container.single),
+        namespace("http://blackducksoftware.com/bdio#hasNamespace", Datatype.Default, Container.single),
 
         /**
          * The namespace specific context used to resolve a locator.
          */
-        context("http://blackducksoftware.com/rdf/terms#hasContext", Datatype.Default, Container.single),
+        context("http://blackducksoftware.com/bdio#hasContext", Datatype.Default, Container.single),
 
         /**
          * The homepage associated with the entity.
          */
-        homepage("http://blackducksoftware.com/rdf/terms#hasHomepage", Datatype.Default, Container.unordered),
+        homepage("http://blackducksoftware.com/bdio#hasHomepage", Datatype.Default, Container.unordered),
 
         /**
          * The size (in bytes) of a file.
          */
         // The name "byte count" does not conflict with "size" or "length" and is less ambiguous
-        byteCount("http://blackducksoftware.com/rdf/terms#hasByteCount", Datatype.Long, Container.single),
+        byteCount("http://blackducksoftware.com/bdio#hasByteCount", Datatype.Long, Container.single),
 
         /**
          * The fingerprints of a file.
          */
-        fingerprint("http://blackducksoftware.com/rdf/terms#hasFingerprint", Datatype.Fingerprint, Container.unordered),
+        fingerprint("http://blackducksoftware.com/bdio#hasFingerprint", Datatype.Fingerprint, Container.unordered),
 
         /**
          * The content type of a file.
          */
         // TODO Change type to a "media type"?
-        contentType("http://blackducksoftware.com/rdf/terms#hasContentType", Datatype.Default, Container.single),
+        contentType("http://blackducksoftware.com/bdio#hasContentType", Datatype.Default, Container.single),
 
         /**
          * The hierarchical path of a file.
          */
-        path("http://blackducksoftware.com/rdf/terms#hasPath", Datatype.Default, Container.single),
+        path("http://blackducksoftware.com/bdio#hasPath", Datatype.Default, Container.single),
+
+        // TODO Continuous Integration environment
+        // repository, branch, buildNumber, build[Url], etc.
+        // buildName (like Jenkins "BUILD_TAG")
 
         // TODO license (SPDX expression)
         // TODO copyrightYear
@@ -261,7 +237,6 @@ public class Bdio {
         // TODO URLs, issues, source, wiki, etc.
         // TODO dependency scope
         // TODO dependency value
-        // TODO requestedVersion
 
         ;
 
@@ -296,8 +271,8 @@ public class Bdio {
         Default(""),
         DateTime("http://www.w3.org/2001/XMLSchema#dateTime"),
         Long("http://www.w3.org/2001/XMLSchema#long"),
-        Fingerprint("http://blackducksoftware.com/rdf/terms#Fingerprint"),
-        Products("http://blackducksoftware.com/rdf/terms#Products"),
+        Fingerprint("http://blackducksoftware.com/bdio#Fingerprint"),
+        Products("http://blackducksoftware.com/bdio#Products"),
 
         // TODO MimeType
         // TODO Dependency scope
@@ -317,6 +292,7 @@ public class Bdio {
         }
     }
 
+    // TODO We should make these match the KB by default
     public enum IdentifierNamespace {
 
         maven("http://maven.apache.org", "http://repo1.maven.org/maven2"),
@@ -349,8 +325,8 @@ public class Bdio {
     }
 
     public enum Context {
-        DEFAULT("http://blackducksoftware.com/rdf/terms", "bdio-context-2.0.jsonld"),
-        VERSION_2_0("http://blackducksoftware.com/rdf/terms/2.0.0", "bdio-context-2.0.jsonld"),
+        DEFAULT("http://blackducksoftware.com/bdio", "bdio-context-2.0.jsonld"),
+        VERSION_2_0("http://blackducksoftware.com/bdio/2.0.0", "bdio-context-2.0.jsonld"),
         VERSION_1_1("http://blackducksoftware.com/rdf/terms/1.1.0", "bdio-context-1.1.jsonld"),
         VERSION_1_0("http://blackducksoftware.com/rdf/terms/1.0.0", "bdio-context-1.0.jsonld");
 

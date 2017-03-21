@@ -30,9 +30,9 @@ import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.datatype.Fingerprint;
+import com.blackducksoftware.bdio2.datatype.Products;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.Project;
-import com.blackducksoftware.bdio2.model.Version;
 import com.blackducksoftware.common.base.ExtraStrings;
 import com.blackducksoftware.common.base.HID;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -122,34 +122,23 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
         }
 
         private BdioMetadata metadata() {
-            // TODO Ids are messed up because this is the same as the root file
-            // TODO Generate producer product string
-            // TODO Get user name?
-            return new BdioMetadata()
-                    .id(toFileUri(hostName, baseDir, null))
+            return new BdioMetadata().id(toFileUri(hostName, baseDir, "bdio"))
                     .name(name)
-                    .creation(createdOn != null ? createdOn.toInstant() : null);
+                    .creation(createdOn != null ? createdOn.toInstant() : null)
+                    .producer(new Products.Builder()
+                            // TODO Add a product for us?
+                            .addProduct("HubScanClient", scannerVersion, "Signature " + signatureVersion)
+                            .build());
 
         }
 
-        private Stream<Project> projects() {
-            // TODO Use the project name as the fragment?
-            Project bdioProject = new Project(toFileUri(hostName, baseDir, "PROJECT"));
-            bdioProject.name(project);
-            bdioProject.base(toFileUri(hostName, baseDir, null));
-
-            if (project != null && release != null) {
-                Version bdioVersion = new Version(toFileUri(hostName, baseDir, "PROJECT-" + release));
-                bdioVersion.version(release);
-                bdioProject.currentVersion(bdioVersion);
-                return Stream.of(bdioProject, bdioVersion);
-            } else {
-                return Stream.of(bdioProject);
-            }
-        }
-
-        private Stream<File> files() {
-            return scanNodeList.values().stream().map(scanNode -> scanNode.file(this));
+        private Stream<Map<String, Object>> nodes() {
+            return Stream.concat(
+                    Stream.of(new Project(toFileUri(hostName, baseDir, "PROJECT"))
+                            .name(project)
+                            .version(release)
+                            .base(toFileUri(hostName, baseDir, null))),
+                    scanNodeList.values().stream().map(scanNode -> scanNode.file(this)));
         }
     }
 
@@ -277,8 +266,9 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
         super(streamLazyFromJson(scanContainerData, LegacyScanContainer.class, LegacyScanContainerModule.INSTANCE)
                 .flatMap(scanContainer -> {
                     BdioMetadata metadata = scanContainer.metadata();
-                    return Stream.concat(Stream.of(metadata.asNamedGraph()),
-                            partitionNodes(Stream.concat(scanContainer.projects(), scanContainer.files()))
+                    return Stream.concat(
+                            Stream.of(metadata.asNamedGraph()),
+                            partitionNodes(scanContainer.nodes())
                                     .map(graph -> (Object) metadata.asNamedGraph(graph, JsonLdConsts.ID)));
                 })
                 .spliterator());
