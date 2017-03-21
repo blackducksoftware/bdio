@@ -11,17 +11,22 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasLabel;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasNot;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.not;
+
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
-import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -57,52 +62,10 @@ public class BlackDuckIoWriter implements GraphWriter {
         // Create the writer with the parsed metadata
         document.writeToFile(readMetadata(context, document.jsonld().options()), outputStream);
 
-        // TODO Stay in the traversal longer to feed the node subscriber
-        Flowable.<Vertex, Traversal<Vertex, Vertex>> generate(() -> x(context), (traversal, emitter) -> {
-            try {
-                if (traversal.hasNext()) {
-                    emitter.onNext(traversal.next());
-                } else {
-                    emitter.onComplete();
-                }
-            } catch (Exception e) {
-                emitter.onError(e);
-            }
-        }).map(vertex -> {
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put(JsonLdConsts.TYPE, vertex.label());
-            vertex.properties().forEachRemaining(vp -> {
-                if (vp.key().equals(config.identifierKey().orElse(null))) {
-                    result.put(JsonLdConsts.ID, vp.value());
-                } else if (vp.key().equals(config.unknownKey().orElse(null))) {
-                    BdioHelper.restoreUnknownProperties(vp.value(), result::put);
-                } else {
-                    result.put(vp.key(), config.valueObjectMapper().toValueObject(vp.value()));
-                }
-            });
-
-            vertex.edges(Direction.OUT).forEachRemaining(e -> {
-                // We cannot regenerate the JSON-LD without having consistent identifiers...
-                // TODO This deadlocks on Sqlg
-                if (config.identifierKey().isPresent()) {
-                    // Object id = Iterators.getOnlyElement(e.inVertex().properties(config.identifierKey().get()),
-                    // null).value();
-                    // result.put(e.label(), config.valueObjectMapper().toReferenceValueObject(id));
-                }
-            });
-
-            return result;
-        }).subscribe(document.asNodeSubscriber(BdioMetadata.createRandomUUID()));
-    }
-
-    private GraphTraversal<Vertex, Vertex> x(WriteGraphContext context) {
-        GraphTraversal<Vertex, Vertex> x = context.traversal().V();
-
-        if (config.metadataLabel().isPresent()) {
-            x = x.where(__.not(__.hasLabel(config.metadataLabel().get())));
-        }
-
-        return x;
+        // Construct a flowable using the vertex traversal as the iterator
+        Flowable.fromIterable(() -> nodes(context.traversal()))
+                .doOnTerminate(context::rollbackTx)
+                .subscribe(document.asNodeSubscriber(BdioMetadata.createRandomUUID()));
     }
 
     @Override
@@ -161,6 +124,62 @@ public class BlackDuckIoWriter implements GraphWriter {
                     return metadata;
                 })
                 .orElse(BdioMetadata.createRandomUUID());
+    }
+
+    private Object nodeType(Vertex vertex) {
+        return vertex.label();
+    }
+
+    private Object nodeId(Vertex vertex) {
+        return config.valueObjectMapper().toValueObject(config.identifierKey()
+                .map(key -> vertex.<Object> property(key))
+                .orElse(VertexProperty.empty())
+                .orElseGet(() -> vertex.id()))
+                .toString();
+    }
+
+    /**
+     * Returns an iterator (really a graph traversal) over the BDIO nodes to emit.
+     */
+    private Iterator<Map<String, Object>> nodes(GraphTraversalSource g) {
+        return g.V()
+                // Strip out the metadata vertex
+                .where(config.metadataLabel().map(label -> not(hasLabel(label)))
+                        .orElse(identity()))
+
+                // Strip out the implicit vertices
+                .where(config.implicitKey().map(propertyKey -> hasNot(propertyKey))
+                        .orElse(identity()))
+
+                // TODO This is a big ass lambda step, can we do more with the traversal?
+                .map(t -> {
+                    Vertex vertex = t.get();
+
+                    Map<String, Object> result = new LinkedHashMap<>();
+                    result.put(JsonLdConsts.TYPE, nodeType(vertex));
+                    result.put(JsonLdConsts.ID, nodeId(vertex));
+
+                    vertex.properties().forEachRemaining(vp -> {
+                        if (vp.key().equals(config.unknownKey().orElse(null))) {
+                            BdioHelper.restoreUnknownProperties(vp.value(), result::put);
+                        } else {
+                            result.put(vp.key(), config.valueObjectMapper().toValueObject(vp.value()));
+                        }
+                    });
+
+                    vertex.edges(Direction.OUT).forEachRemaining(e -> {
+                        Set<String> keys = e.keys();
+                        if (keys.contains(config.implicitKey().orElse(null))) {
+                            return;
+                        } else if (keys.isEmpty()) {
+                            // TODO Edge properties? Is this just the behavior when there are no properties?
+                            result.put(e.label(), config.valueObjectMapper().toReferenceValueObject(nodeId(e.inVertex())));
+                        }
+                    });
+
+                    config.identifierKey().ifPresent(result::remove);
+                    return result;
+                });
     }
 
     public static Builder build() {

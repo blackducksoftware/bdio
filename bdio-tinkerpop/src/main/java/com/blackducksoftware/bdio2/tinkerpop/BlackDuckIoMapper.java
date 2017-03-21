@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 
 import org.apache.tinkerpop.gremlin.structure.io.IoRegistry;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
+import org.umlg.sqlg.structure.RecordId;
 
 import com.blackducksoftware.bdio2.datatype.Fingerprint;
 import com.blackducksoftware.bdio2.datatype.Products;
@@ -40,8 +41,11 @@ public class BlackDuckIoMapper implements Mapper<ValueObjectMapper> {
      * A special value mapper to normalize types supported by the graph.
      */
     private static class GraphValueObjectMapper extends ValueObjectMapper {
+
         @Override
         public Object fromFieldValue(Object input) {
+            // TODO Really this is sqlg specific because TinkerGraph lets any object in
+
             Object modelValue = super.fromFieldValue(input);
             if (modelValue instanceof Instant) {
                 // TODO Switch back to ZonedDateTime in Sqlg 1.3.3
@@ -62,6 +66,9 @@ public class BlackDuckIoMapper implements Mapper<ValueObjectMapper> {
                 // TODO Normalize on ZonedDateTime in Sqlg 1.3.3
                 ZoneOffset offset = ZoneId.systemDefault().getRules().getOffset((LocalDateTime) value);
                 return super.toValueObject(((LocalDateTime) value).toInstant(offset));
+            } else if (value instanceof RecordId) {
+                // TODO This needs to be valid URI
+                return value.toString();
             } else {
                 return super.toValueObject(value);
             }

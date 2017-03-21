@@ -15,49 +15,134 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.blackducksoftware.common.test.JsonSubject.assertThatJson;
 import static com.google.common.truth.Truth.assertThat;
 
 import java.time.Instant;
-import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.BdioEmitter;
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
+import com.blackducksoftware.bdio2.test.BdioTest;
 import com.blackducksoftware.common.io.HeapOutputStream;
-import com.github.jsonldjava.core.JsonLdConsts;
 
 public class BlackDuckIoWriterTest extends BaseTest {
-
-    private static final ValueObjectMapper valueObjectMapper = new ValueObjectMapper();
 
     public BlackDuckIoWriterTest(Configuration configuration) {
         super(configuration);
     }
 
+    /**
+     * Create a graph that only contains a metadata vertex and verify it writes out correctly.
+     */
     @Test
     public void writeMetadata() throws Exception {
-        String id = "urn:uuid:" + UUID.randomUUID();
+        String metadataId = "urn:uuid:" + UUID.randomUUID();
         Instant creation = Instant.now();
         graph.addVertex(
                 T.label, TT.Metadata,
-                TT.id, id,
+                TT.id, metadataId,
                 Bdio.DataProperty.creation.name(), creation.toString());
 
         HeapOutputStream buffer = new HeapOutputStream();
         graph.io(BlackDuckIo.build().onConfig(storeMetadataAndIds()))
                 .writeGraph(buffer);
 
-        Object obj = new BdioEmitter(buffer.getInputStream()).stream().findFirst().get();
-        assertThat(obj).isInstanceOf(Map.class);
-        assertThat((Map<?, ?>) obj).containsEntry(JsonLdConsts.ID, id);
+        List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
+        assertThat(entries).hasSize(1);
 
-        Object creationValue = ((Map<?, ?>) obj).get(Bdio.DataProperty.creation.toString());
-        assertThat(valueObjectMapper.fromFieldValue(creationValue)).isEqualTo(creation);
+        assertThatJson(entries.get(0)).at("/@id").isEqualTo(metadataId);
+        assertThatJson(entries.get(0)).at(Bdio.DataProperty.creation, 0, "@value").isEqualTo(creation.toString());
+        assertThatJson(entries.get(0)).arrayAt("/@graph").hasSize(0);
+    }
+
+    /**
+     * Configure the writer to not include metadata and verify metadata just ends up as a normal node.
+     */
+    @Test
+    public void writeNoMetadata() throws Exception {
+        graph.addVertex(T.label, TT.Metadata);
+
+        HeapOutputStream buffer = new HeapOutputStream();
+        graph.io(BlackDuckIo.build()).writeGraph(buffer);
+
+        List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
+        assertThat(entries).hasSize(2);
+
+        assertThatJson(entries.get(0)).hasLength(2);
+        assertThatJson(entries.get(0)).containsName("@id");
+        assertThatJson(entries.get(0)).arrayAt("/@graph").hasSize(0);
+        assertThatJson(entries.get(1)).arrayAt("/@graph").hasSize(1);
+        assertThatJson(entries.get(1)).at("/@graph/0").hasLength(2);
+        assertThatJson(entries.get(1)).arrayAt("/@graph/0/@type").containsExactly(TT.Metadata);
+    }
+
+    /**
+     * Create a graph without metadata and still configure the writer to include it.
+     */
+    @Test
+    public void writeMissingMetadata() throws Exception {
+        graph.addVertex(
+                T.label, Bdio.Class.Project.name(),
+                TT.id, "urn:uuid:" + UUID.randomUUID());
+
+        HeapOutputStream buffer = new HeapOutputStream();
+        graph.io(BlackDuckIo.build().onConfig(storeMetadataAndIds()))
+                .writeGraph(buffer);
+
+        List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
+        assertThat(entries).hasSize(2);
+
+        assertThatJson(entries.get(0)).arrayAt("/@graph").hasSize(0);
+        assertThatJson(entries.get(1)).arrayAt("/@graph").hasSize(1);
+        assertThatJson(entries.get(1)).arrayAt("/@graph/0/@type").containsExactly(Bdio.Class.Project.toString());
+    }
+
+    /**
+     * Create a graph with two connected vertices and verify they serialize correctly.
+     */
+    @Test
+    public void writeRelationship() throws Exception {
+        String metadataId = "urn:uuid:" + UUID.randomUUID();
+        Instant creation = Instant.now();
+        graph.addVertex(
+                T.label, TT.Metadata,
+                TT.id, metadataId,
+                Bdio.DataProperty.creation.name(), creation.toString());
+
+        String fileId = "urn:uuid:" + UUID.randomUUID();
+        Vertex file = graph.addVertex(
+                T.label, "File",
+                TT.id, fileId);
+
+        String projectId = "urn:uuid:" + UUID.randomUUID();
+        graph.addVertex(
+                T.label, "Project",
+                TT.id, projectId)
+                .addEdge("base", file);
+
+        HeapOutputStream buffer = new HeapOutputStream();
+        graph.io(BlackDuckIo.build().onConfig(storeMetadataAndIds()))
+                .writeGraph(buffer);
+
+        List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
+        assertThat(entries).hasSize(2);
+
+        assertThatJson(entries.get(0)).at("/@id").isEqualTo(metadataId);
+        assertThatJson(entries.get(0)).at(Bdio.DataProperty.creation, 0, "@value").isEqualTo(creation.toString());
+        assertThatJson(entries.get(0)).arrayAt("/@graph").hasSize(0);
+
+        assertThatJson(entries.get(1)).at("/@id").isEqualTo(metadataId);
+        assertThatJson(entries.get(1)).arrayAt("/@graph").hasSize(2);
+
+        int projectIndex = BdioTest.nodeIdentifiers(entries.get(1)).indexOf(projectId);
+        assertThat(projectIndex).isAtLeast(0);
+        assertThatJson(entries.get(1)).at("@graph", projectIndex, Bdio.ObjectProperty.base, 0, "@value").isEqualTo(fileId);
     }
 
 }
