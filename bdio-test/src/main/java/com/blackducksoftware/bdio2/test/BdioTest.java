@@ -15,6 +15,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +28,7 @@ import com.blackducksoftware.common.io.HeapInputStream;
 import com.blackducksoftware.common.io.HeapOutputStream;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.ByteStreams;
 
@@ -104,6 +107,31 @@ public final class BdioTest {
             throw new AssertionError("I/O to heap should not fail", e);
         }
         return result;
+    }
+
+    /**
+     * Given an entry, returns an ordered list of the node identifiers. This is useful if you know the node's identifier
+     * and need to find it's index in the JSON structure.
+     */
+    public static List<String> nodeIdentifiers(String entry) {
+        try {
+            JsonNode json = new ObjectMapper().readTree(entry);
+            JsonNode graph = json.get("@graph");
+            if (graph != null && graph.isArray()) {
+                List<String> result = new ArrayList<>(graph.size());
+                for (int i = 0; i < graph.size(); ++i) {
+                    JsonNode node = graph.get(i);
+                    if (node != null && node.has("@id")) {
+                        result.add(node.get("@id").asText());
+                    }
+                }
+                return Collections.unmodifiableList(result);
+            } else {
+                return Collections.emptyList();
+            }
+        } catch (IOException e) {
+            throw new AssertionError("JSON entry was not valid", e);
+        }
     }
 
     private BdioTest() {
