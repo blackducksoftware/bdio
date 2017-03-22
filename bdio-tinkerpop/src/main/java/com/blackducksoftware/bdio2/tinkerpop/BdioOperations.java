@@ -32,11 +32,13 @@ import java.util.function.Consumer;
 
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.common.base.HID;
 import com.google.common.collect.Iterators;
 
@@ -126,10 +128,15 @@ public final class BdioOperations {
      * An anonymous traversal that adds a missing parent vertex.
      */
     private Traversal<?, Vertex> addMissingParentVertex(Object parentPath) {
-        // TODO We need a BDIO compatible identifier for export
-        return addV(File.name())
+        GraphTraversal<Object, Vertex> t = addV(File.name())
                 .property(path.name(), parentPath)
                 .property(context.config().implicitKey().get(), Boolean.TRUE);
+
+        if (context.config().identifierKey().isPresent()) {
+            t = t.property(context.config().identifierKey().get(), BdioObject.randomId());
+        }
+
+        return t;
     }
 
     /**
