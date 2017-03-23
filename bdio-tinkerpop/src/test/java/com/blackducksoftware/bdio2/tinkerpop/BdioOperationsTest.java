@@ -22,6 +22,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.not;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.function.Consumer;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -59,6 +60,25 @@ public class BdioOperationsTest extends BaseTest {
                 .toList();
 
         assertThat(leafPaths).containsExactly("file:///foo/bar/gus/one/more", "file:///foo/bar/gus/two/more");
+    }
+
+    @Test
+    public void identifyRootProject() throws IOException {
+        InputStream bdio = new NamedGraphBuilder().build();
+
+        Consumer<BlackDuckIoConfig.Builder> config = b -> b.metadataLabel(TT.Metadata).implicitKey(TT.implicit);
+
+        graph.io(BlackDuckIo.build().onConfig(config)).readGraph(bdio);
+
+        BdioOperations.create(graph, config).addImplicitEdges();
+
+        GraphTraversalSource g = graph.traversal();
+        List<Object> rootProjectFlags = g.V().hasLabel(TT.Metadata)
+                .out(BdioOperations.ROOT_PROJECT)
+                .values(BdioOperations.ROOT_PROJECT)
+                .toList();
+
+        assertThat(rootProjectFlags).containsExactly(true);
     }
 
 }

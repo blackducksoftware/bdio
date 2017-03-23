@@ -21,6 +21,7 @@ import static com.blackducksoftware.bdio2.Bdio.ObjectProperty.base;
 import static org.apache.tinkerpop.gremlin.process.traversal.P.eq;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.V;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.addV;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.outE;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
 
@@ -56,9 +57,15 @@ public final class BdioOperations {
         private OperationsContext(BlackDuckIoConfig config, Graph graph) {
             super(config, graph);
         }
+
+        // TODO Do we need to incorporate things from SqlgReadGraphContext? Like batch mode...
+
     }
 
-    // !!! THESE OPERATIONS MUST BE IDEMPOTENT !!!
+    /**
+     * Property key and edge label used to identify the root project.
+     */
+    public static final String ROOT_PROJECT = "_rootProject";
 
     private final OperationsContext context;
 
@@ -84,6 +91,7 @@ public final class BdioOperations {
     public void addImplicitEdges() {
         if (context.config().implicitKey().isPresent()) {
             addMissingFileParents();
+            addMissingProjectDependencies();
             context.commitTx();
         }
     }
@@ -137,6 +145,41 @@ public final class BdioOperations {
         }
 
         return t;
+    }
+
+    /**
+     * This method adds the missing dependency edges between components and the top level project.
+     */
+    private void addMissingProjectDependencies() {
+        GraphTraversalSource g = context.traversal();
+
+        // First we need to find the root project
+        Vertex rootProject = g.V()
+                .hasLabel(Bdio.Class.Project.name())
+                .not(inE(Bdio.ObjectProperty.subproject.name()))
+                .limit(1L)
+                .as("rootProject")
+                // WARNING: This is an arbitrary selection!
+                // TODO Can we have a side effect that logs a warning?
+                // TODO Should we just bail and not have a root project?
+
+                // Always mark the root project with a property
+                .property(ROOT_PROJECT, Boolean.TRUE)
+                .next();
+
+        // Create an edge for the root project as well
+        context.config().metadataLabel().ifPresent(label -> {
+            g.V(rootProject).as("rootProject")
+                    .V().hasLabel(label)
+                    .addE(ROOT_PROJECT).to("rootProject")
+                    .property(context.config().implicitKey().get(), Boolean.TRUE)
+                    .iterate();
+        });
+
+        // TODO "dependsOn" isn't a real edge yet...
+        // g.V(rootProject).as("rootProject")
+        // .V().hasLabel(Bdio.Class.Component).not(inE("dependsOn"))
+        // .addE("dependsOn").from("rootProject");
     }
 
     /**
