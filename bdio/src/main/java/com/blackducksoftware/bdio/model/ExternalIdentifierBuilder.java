@@ -199,6 +199,10 @@ public class ExternalIdentifierBuilder {
         return formatId("%s@%s", packageName, version).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_NPM).withoutRepo();
     }
 
+    public ExternalIdentifierBuilder npm(@Nullable String scope, @Nullable String packageName, @Nullable String version) {
+        return formatId("@%s/%s@%s", scope, packageName, version).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_NPM).withoutRepo();
+    }
+
     public ExternalIdentifierBuilder nuget(@Nullable String packageName, @Nullable String version) {
         return formatId("%s/%s", packageName, version).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_NUGET).withoutRepo();
     }
