@@ -127,7 +127,7 @@ public class BdioWriter implements Closeable {
 
         // TODO Have a reusable pool of ByteArrayOutputStream wrapped writers?
         byte[] serializedNode = JsonUtils.toPrettyString(node).replace("\n", "\n  ").getBytes(UTF_8);
-        if (remaining.addAndGet((delimiter.length + serializedNode.length) * -1) >= 0L) {
+        if (remaining.addAndGet((delimiter.length + serializedNode.length) * -1) > 0L) {
             // It fits, write it out
             out.write(delimiter);
             out.write(serializedNode);
