@@ -370,15 +370,38 @@ public class Bdio {
     }
 
     public enum ContentType {
-        BDIO_ZIP("application/vnd.blackducksoftware.bdio.v2+zip"),
-        BDIO_JSON("application/vnd.blackducksoftware.bdio.v2+json"),
-        // TODO Generic JSON, JSON-LD?
+
+        /**
+         * The content type used when BDIO data is represented using JSON-LD.
+         */
+        JSONLD("application/ld+json", "jsonld"),
+
+        /**
+         * The content type used when BDIO data is represented using plain JSON and the context is specified externally
+         * (e.g. using the {@code Link} header).
+         */
+        JSON("application/json", "json"),
+
+        /**
+         * The content type used when BDIO data is represented using plain JSON that should be interpreted using the
+         * {@linkplain Bdio.Context#VERSION_2_0 BDIO v2} context.
+         */
+        BDIO_V2_JSON("application/vnd.blackducksoftware.bdio.v2+json", "json"),
+
+        /**
+         * The content type used when BDIO data is represented as self-contained JSON-LD stored in a ZIP archive.
+         */
+        BDIO_V2_ZIP("application/vnd.blackducksoftware.bdio.v2+zip", "bdio"),
+
         ;
 
         private final String mediaType;
 
-        private ContentType(String mediaType) {
+        private final String extension;
+
+        private ContentType(String mediaType, String extension) {
             this.mediaType = mediaType;
+            this.extension = extension;
         }
 
         @Override
@@ -386,7 +409,21 @@ public class Bdio {
             return mediaType;
         }
 
-        public <R> R map(Function<String, R> f) {
+        /**
+         * Returns the (non-unique) file name extension associated with this content type.
+         */
+        public String extension() {
+            return extension;
+        }
+
+        // TODO String addExtension(String value) // Adds the ".ext" to `value`
+
+        /**
+         * Helper method so that media types can be easily transformed to library specific representations. For example,
+         * if a {@code MediaType} class has a constructor that accepts a {@code String}, then you can use
+         * {@code BDIO_ZIP.as(MediaType::new)}.
+         */
+        public <R> R as(Function<String, R> f) {
             return f.apply(mediaType);
         }
     }
