@@ -19,6 +19,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.bdio2.datatype.Products;
 
 public final class Component extends BdioObject {
 
@@ -53,6 +54,11 @@ public final class Component extends BdioObject {
 
     public Component context(@Nullable String context) {
         putData(Bdio.DataProperty.context, context);
+        return this;
+    }
+
+    public Component resolver(@Nullable Products resolver) {
+        putData(Bdio.DataProperty.resolver, resolver);
         return this;
     }
 

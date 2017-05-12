@@ -200,6 +200,12 @@ public class Bdio {
         context("http://blackducksoftware.com/bdio#hasContext", Datatype.Default, Container.single),
 
         /**
+         * The tool which resolved the namespace specific locator. This should be specified using the same format as an
+         * HTTP user agent.
+         */
+        resolver("http://blackducksoftware.com/bdio#hasResolver", Datatype.Products, Container.single),
+
+        /**
          * The homepage associated with the entity.
          */
         homepage("http://blackducksoftware.com/bdio#hasHomepage", Datatype.Default, Container.unordered),
