@@ -147,6 +147,7 @@ public abstract class Tool implements Runnable {
                 String arg = args[i];
                 if (optionsWithArgs.contains(arg)) {
                     if (i < args.length - 1 && !args[i + 1].startsWith("-")) {
+                        // There is another arg available and it doesn't look like an option...
                         arg += '=' + args[++i];
                     } else {
                         return optionRequiresArgument(arg);

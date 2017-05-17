@@ -23,7 +23,6 @@ import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.common.base.ExtraCollectors;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Joiner;
@@ -83,7 +82,7 @@ public final class Products implements Iterable<Product> {
     }
 
     public Products withoutComments() {
-        return new Products(products.stream().map(Product::withoutComment).collect(ExtraCollectors.toImmutableList()));
+        return new Products(products.stream().map(Product::withoutComment).collect(Collectors.toList()));
     }
 
     @Override
@@ -118,7 +117,7 @@ public final class Products implements Iterable<Product> {
         private List<Supplier<Product>> products = new LinkedList<>();
 
         public Products build() {
-            return new Products(products.stream().map(Supplier::get).distinct().collect(ExtraCollectors.toImmutableList()));
+            return new Products(products.stream().map(Supplier::get).distinct().collect(Collectors.toList()));
         }
 
         public Builder addProduct(Product product) {

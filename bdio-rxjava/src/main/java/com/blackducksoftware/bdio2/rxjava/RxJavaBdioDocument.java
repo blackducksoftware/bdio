@@ -103,13 +103,13 @@ public final class RxJavaBdioDocument extends BdioDocument {
 
     @Override
     public RxJavaBdioDocument metadata(Consumer<BdioMetadata> metadataConsumer) {
-        metadata.subscribe(md -> metadataConsumer.accept(md));
+        metadata.subscribe(metadataConsumer::accept);
         return this;
     }
 
     @Override
     public RxJavaBdioDocument takeFirstMetadata(Consumer<BdioMetadata> metadataConsumer) {
-        data.take(1).map(this::extractMetadata).map(BdioMetadata::new).subscribe(md -> metadataConsumer.accept(md));
+        data.take(1).map(this::extractMetadata).map(BdioMetadata::new).subscribe(metadataConsumer::accept);
         return this;
     }
 
