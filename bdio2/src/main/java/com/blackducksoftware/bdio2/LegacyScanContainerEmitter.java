@@ -41,7 +41,9 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.jsonldjava.core.JsonLdConsts;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 /**
@@ -67,6 +69,36 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
      * identifier. To make them unique we append a fragment to the project identifier (assuming fragments are
      * stripped off in the {@code ScanGroupApi}.
      */
+
+    /**
+     * File name extension to URI scheme mapping. This handles most of the legacy cases that we support, there are other
+     * file extensions that would normally be valid (we can't get them all), so this only covers the 80-90% case.
+     */
+    private static final Map<String, String> EXTENSION_TO_SCHEME = ImmutableMap.<String, String> builder()
+            .put("zip", "zip")
+            .put("bz", "zip")
+            .put("z", "zip")
+            .put("nupg", "zip")
+            .put("xpi", "zip")
+            .put("egg", "zip")
+            .put("jar", "zip")
+            .put("war", "zip")
+            .put("rar", "zip")
+            .put("apk", "zip")
+            .put("ear", "zip")
+            .put("car", "zip")
+            .put("nbm", "zip")
+            .put("rpm", "rpm")
+            .put("tar", "tar")
+            .put("tgz", "tar")
+            .put("txz", "tar")
+            .put("tbz", "tar")
+            .put("tbz2", "tar")
+            .put("ar", "ar")
+            .put("lib", "ar")
+            .put("arj", "arj")
+            .put("7z", "sevenZ")
+            .build();
 
     /**
      * Internal representation of a legacy scan node used for conversion to BDIO.
@@ -202,8 +234,8 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
         }
 
         private File file(LegacyScanContainer scanContainer) {
-            final HID fileHid = fileHid(scanContainer, this);
-            final File bdioFile = new File(fileHid.toUri().toString());
+            HID fileHid = fileHid(scanContainer, this);
+            File bdioFile = new File(fileHid.toUri().toString());
             // TODO Best we can do for media type is extension match
             if (type == null
                     || type.equals(LegacyScanNode.TYPE_FILE)
@@ -383,7 +415,7 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
                     // Nest the scheme specific part
                     ssp = new URI(scheme, ssp, fragment).toString();
                     fragment = ExtraStrings.ensurePrefix("/", node.path);
-                    scheme = "unknown"; // TODO Reconstruct using extension matching on the SSP?
+                    scheme = guessScheme(ssp);
                 }
             }
             return HID.from(new URI(scheme, ssp, fragment));
@@ -396,7 +428,7 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
      * Returns a sequence of nesting archive nodes leading up to (and including) the supplied scan node.
      */
     private static Iterable<LegacyScanNode> listArchives(LegacyScanContainer scanContainer, LegacyScanNode scanNode) {
-        final LinkedList<LegacyScanNode> result = new LinkedList<>();
+        LinkedList<LegacyScanNode> result = new LinkedList<>();
         result.add(scanNode);
 
         // Follow the scan nodes up to root
@@ -411,6 +443,25 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
             parent = scanContainer.scanNodeList.get(parent.parentId);
         }
         return result;
+    }
+
+    /**
+     * Guesses a scheme based on a file name. We need to attempt this mapping because the original scheme is lost in the
+     * legacy encoding, our only chance of reconstructing it is through extension matching.
+     */
+    private static String guessScheme(String filename) {
+        // Get the cleaned up list of extensions
+        String name = filename.substring(filename.lastIndexOf('/') + 1, filename.length());
+        List<String> extensions = Splitter.on('.').splitToList(name.substring(name.indexOf('.') + 1, name.length()).toLowerCase());
+
+        // Reverse iteration looking for single extension values (note that "foobar.tar.gz" is matched by "tar")
+        for (String part : Lists.reverse(extensions)) {
+            String scheme = EXTENSION_TO_SCHEME.get(part);
+            if (scheme != null) {
+                return scheme;
+            }
+        }
+        return "unknown";
     }
 
 }
