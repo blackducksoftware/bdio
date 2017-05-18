@@ -29,6 +29,7 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -37,6 +38,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
@@ -54,12 +56,44 @@ public final class BdioOperations {
      * Internal graph context class.
      */
     private static class OperationsContext extends GraphContext {
+
+        /**
+         * Current number of operations performed.
+         */
+        private final AtomicLong count = new AtomicLong();
+
+        /**
+         * The number of operations to perform between commits.
+         */
+        private final int batchSize = 5000;
+
+        /**
+         * Flag indicating that the current graph supports batch mode. Currently implies the graph is an instance of
+         * {@code SqlgGraph}.
+         */
+        private final boolean supportsBatchMode;
+
         private OperationsContext(BlackDuckIoConfig config, Graph graph) {
             super(config, graph);
+            supportsBatchMode = graph instanceof SqlgGraph && ((SqlgGraph) graph).features().supportsBatchMode();
         }
 
-        // TODO Do we need to incorporate things from SqlgReadGraphContext? Like batch mode...
+        public void batchModeOn() {
+            if (supportsBatchMode) {
+                ((SqlgGraph) graph()).tx().normalBatchModeOn();
+            }
+        }
 
+        public void batchCommitTx() {
+            if (supportsBatchMode) {
+                if (count.incrementAndGet() % batchSize == 0) {
+                    commitTx();
+                    batchModeOn();
+                }
+            } else {
+                commitTx();
+            }
+        }
     }
 
     /**
@@ -90,8 +124,14 @@ public final class BdioOperations {
      */
     public void addImplicitEdges() {
         if (context.config().implicitKey().isPresent()) {
+            // Turn on batch mode so we don't try to do everything directly
+            context.batchModeOn();
+
+            // Add the implicit edges
             addMissingFileParents();
             addMissingProjectDependencies();
+
+            // Use the normal commit, this ensures everything gets flushed and we don't re-enable batch mode
             context.commitTx();
         }
     }
@@ -122,10 +162,16 @@ public final class BdioOperations {
                             V().hasLabel(File.name()).as("f").values(path.name()).where(eq("parentPath")).select("f"),
                             addMissingParentVertex(select("parentPath")))
 
+                    // Periodically commit
+                    .sideEffect(t -> context.batchCommitTx())
+
                     // Create the parent edge
                     .addE(Bdio.ObjectProperty.parent.name())
                     .from("orphanFiles")
                     .property(context.config().implicitKey().get(), Boolean.TRUE)
+
+                    // Periodically commit
+                    .sideEffect(t -> context.batchCommitTx())
 
                     // If we created any edges, we might need to continue looping
                     .hasNext();
