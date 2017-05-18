@@ -20,6 +20,7 @@ import java.io.UncheckedIOException;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
@@ -30,7 +31,6 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.collect.Maps;
-import com.hazelcast.util.function.BiConsumer;
 
 /**
  * Helper methods for w

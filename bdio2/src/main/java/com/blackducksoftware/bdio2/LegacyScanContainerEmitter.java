@@ -74,7 +74,7 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
      * File name extension to URI scheme mapping. This handles most of the legacy cases that we support, there are other
      * file extensions that would normally be valid (we can't get them all), so this only covers the 80-90% case.
      */
-    private static final Map<String, String> EXTENSION_TO_SCHEME = ImmutableMap.<String, String> builder()
+    private static final ImmutableMap<String, String> EXTENSION_TO_SCHEME = ImmutableMap.<String, String> builder()
             .put("zip", "zip")
             .put("bz", "zip")
             .put("z", "zip")
