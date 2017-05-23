@@ -31,6 +31,7 @@ public class BdioMain extends Tool {
      */
     private enum Command {
         help("Display help information about BDIO", HelpTool::new, false),
+        cat("Concatenate and convert BDIO files", ConcatenateTool::new, false),
         context("Print the BDIO JSON-LD context", ContextTool::new, true),
         entries("Dump the JSON-LD content of a BDIO file", EntriesTool::new, true),
         ;
@@ -158,7 +159,8 @@ public class BdioMain extends Tool {
             return doNothing();
         }
 
-        return super.parseArguments(args);
+        // Do not delegate to the super, allow the commands to do the parsing
+        return this;
     }
 
     @Override
