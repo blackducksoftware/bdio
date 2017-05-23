@@ -195,6 +195,7 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
         return externalIdentifiers(get(node, "externalIdentifier"),
                 () -> new Component(getString(node, "@id").get())
                         .name(getString(node, "doap:name").orElse(null))
+                        .version(getString(node, "doap:revision").orElse(null))
                         .homepage(getString(node, "doap:homepage").orElse(null)));
     }
 
