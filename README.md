@@ -1,5 +1,8 @@
 # Black Duck I/O
 
+[![Build Status](https://travis-ci.org/blackducksoftware/bdio.svg?branch=master)](https://travis-ci.org/blackducksoftware/bdio)
+[![Download](https://api.bintray.com/packages/bds/oss/bdio/images/download.svg)](https://bintray.com/bds/oss/bdio/_latestVersion)
+
 Black Duck I/O is a specification for how to transfer data between Black Duck products, specifically Bill of Material (BOM) and scan related data. It is also an API for producing and consuming data conforming to the specification. The specification leverages [JSON-LD][json-ld] to represent data. You can find some simple examples of using the API to generate data on the [wiki][wiki].
 
 ## Requirements

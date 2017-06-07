@@ -160,6 +160,10 @@ public class ExternalIdentifierBuilder {
         return formatId("%s#%s", packageName, version).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_BOWER).withoutRepo();
     }
 
+    public ExternalIdentifierBuilder cocoapods(@Nullable String podName, @Nullable String version) {
+        return formatId("%s:%s", podName, version).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_COCOAPODS).withoutRepo();
+    }
+
     public ExternalIdentifierBuilder cpan(String... moduleNames) {
         // TODO Eliminate varargs and null ambiguity
         return formatId("%s", Joiner.on("::").join(moduleNames)).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_CPAN).withoutRepo();
@@ -193,6 +197,10 @@ public class ExternalIdentifierBuilder {
 
     public ExternalIdentifierBuilder npm(@Nullable String packageName, @Nullable String version) {
         return formatId("%s@%s", packageName, version).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_NPM).withoutRepo();
+    }
+
+    public ExternalIdentifierBuilder npm(@Nullable String scope, @Nullable String packageName, @Nullable String version) {
+        return formatId("@%s/%s@%s", scope, packageName, version).systemTypeId(BlackDuckValue.EXTERNAL_IDENTIFIER_NPM).withoutRepo();
     }
 
     public ExternalIdentifierBuilder nuget(@Nullable String packageName, @Nullable String version) {
