@@ -113,7 +113,7 @@ public class BdioReader implements Closeable {
         // Start by finding the list of nodes
         JsonToken startingToken = jp.nextToken();
         if (startingToken != JsonToken.START_ARRAY) {
-            throw new IOException("expected input to start with an array (found JsonToken." + startingToken + ")");
+            throw new IOException("expected input to start with an array (found " + startingToken + ")");
         }
     }
 
