@@ -16,16 +16,14 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.LinkedHashMap;
 import java.util.Objects;
-import java.util.Properties;
 import java.util.UUID;
 import java.util.function.Consumer;
 
+import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.MapConfiguration;
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Transaction;
@@ -59,24 +57,36 @@ public abstract class BaseTest {
     }
 
     /**
-     * Returns the graph configurations to test.
+     * Helper to simplify graph configuration.
      */
-    @Parameters
-    public static Iterable<Configuration> configurations() throws ConfigurationException, IOException {
-        // Default in-memory graph for testing
-        MapConfiguration tinkerGraphConfiguration = new MapConfiguration(new LinkedHashMap<>());
-        tinkerGraphConfiguration.getMap().put(Graph.GRAPH, TinkerGraph.class.getName());
-
-        // Sqlg backed graph for testing (load database connection parameters from a properties file)
-        MapConfiguration sqlgGraphConfiguration = new MapConfiguration(new LinkedHashMap<>());
-        sqlgGraphConfiguration.getMap().put(Graph.GRAPH, SqlgGraph.class.getName());
-        try (InputStream in = Resources.asByteSource(Resources.getResource("sqlg.properties")).openBufferedStream()) {
-            Properties sqlgProperties = new Properties();
-            sqlgProperties.load(in);
-            sqlgProperties.forEach((key, value) -> sqlgGraphConfiguration.getMap().put((String) key, value));
+    private static class GraphConfiguration extends CompositeConfiguration {
+        private GraphConfiguration(Class<? extends Graph> graphType) {
+            addPropertyDirect(Graph.GRAPH, graphType.getName());
         }
 
-        return ImmutableList.of(tinkerGraphConfiguration, sqlgGraphConfiguration);
+        @Override
+        public String toString() {
+            String graph = getString(Graph.GRAPH);
+            return graph.substring(graph.lastIndexOf('.') + 1);
+        }
+    }
+
+    /**
+     * Returns the graph configurations to test.
+     */
+    @Parameters(name = "{0}")
+    public static Iterable<Configuration> configurations() throws ConfigurationException, IOException {
+        // Default in-memory graph for testing
+        GraphConfiguration tinkerGraphConfiguration = new GraphConfiguration(TinkerGraph.class);
+
+        // Sqlg backed graph for testing (load database connection parameters from a properties file)
+        GraphConfiguration sqlgGraphConfiguration = new GraphConfiguration(SqlgGraph.class);
+        sqlgGraphConfiguration.addConfiguration(new PropertiesConfiguration(Resources.getResource("sqlg.properties")));
+
+        return ImmutableList.<Configuration> builder()
+                .add(tinkerGraphConfiguration)
+                .add(sqlgGraphConfiguration)
+                .build();
     }
 
     /**
