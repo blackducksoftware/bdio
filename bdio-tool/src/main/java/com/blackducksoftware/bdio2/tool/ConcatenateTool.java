@@ -97,7 +97,7 @@ public class ConcatenateTool extends Tool {
         BdioMetadata metadata = BdioMetadata.createRandomUUID();
         // TODO Allow the ID to customized
         metadata.producer(Products.of(getProduct()));
-        metadata.creation(Instant.now());
+        metadata.creationDateTime(ZonedDateTime.now());
         metadata.creator(StandardSystemProperty.USER_NAME.value());
 
         Flowable.fromIterable(inputs)
