@@ -13,7 +13,7 @@ package com.blackducksoftware.bdio2;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.junit.Test;
@@ -142,9 +142,9 @@ public class BdioObjectTest {
         bdioObject.putData(Bdio.DataProperty.fingerprint, Fingerprint.create("test", "789"));
         assertThat(bdioObject.get(Bdio.DataProperty.fingerprint.toString())).isInstanceOf(List.class);
         assertThat((List<?>) bdioObject.get(Bdio.DataProperty.fingerprint.toString())).containsExactly(
-                ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", Fingerprint.create("test", "123")),
-                ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", Fingerprint.create("test", "456")),
-                ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", Fingerprint.create("test", "789")));
+                ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", "test:123"),
+                ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", "test:456"),
+                ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", "test:789"));
     }
 
     /**
@@ -156,14 +156,14 @@ public class BdioObjectTest {
         bdioObject.putData(Bdio.DataProperty.fingerprint, Fingerprint.create("test", "123"));
         bdioObject.putData(Bdio.DataProperty.fingerprint, null);
         assertThat(bdioObject.get(Bdio.DataProperty.fingerprint.toString()))
-                .isEqualTo(ImmutableMap.of("@value", Fingerprint.create("test", "123"), "@type", Bdio.Datatype.Fingerprint.toString()));
+                .isEqualTo(ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", "test:123"));
 
         bdioObject.putData(Bdio.DataProperty.fingerprint, Fingerprint.create("test", "456"));
         bdioObject.putData(Bdio.DataProperty.fingerprint, null);
         assertThat(bdioObject.get(Bdio.DataProperty.fingerprint.toString())).isInstanceOf(List.class);
         assertThat((List<?>) bdioObject.get(Bdio.DataProperty.fingerprint.toString())).containsExactly(
-                ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", Fingerprint.create("test", "123")),
-                ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", Fingerprint.create("test", "456")));
+                ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", "test:123"),
+                ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", "test:456"));
     }
 
     /**
@@ -172,9 +172,10 @@ public class BdioObjectTest {
     @Test
     public void putDateTimeTypeDataProperty() {
         BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        bdioObject.putData(Bdio.DataProperty.creationDateTime, Instant.EPOCH);
+        ZonedDateTime now = ZonedDateTime.now();
+        bdioObject.putData(Bdio.DataProperty.creationDateTime, now);
         assertThat(bdioObject).containsEntry(Bdio.DataProperty.creationDateTime.toString(),
-                ImmutableMap.of("@value", Instant.EPOCH.toString(), "@type", Bdio.Datatype.DateTime.toString()));
+                ImmutableMap.of("@type", Bdio.Datatype.DateTime.toString(), "@value", now.toString()));
     }
 
     /**
