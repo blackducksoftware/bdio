@@ -71,13 +71,19 @@ public class BdioSubscriber implements Subscriber<Map<String, Object>> {
         try {
             writer.close();
         } catch (IOException e) {
-            onError(e);
+            // TODO What do we do? Anything?
         }
     }
 
     @Override
     public void onError(Throwable e) {
-        // TODO What do we do?
-        e.printStackTrace();
+        // Make sure we try to close the writer so the Zip isn't corrupted
+        try {
+            writer.close();
+        } catch (IOException suppressed) {
+            e.addSuppressed(suppressed);
+        }
+
+        // TODO What else do we do? Anything?
     }
 }
