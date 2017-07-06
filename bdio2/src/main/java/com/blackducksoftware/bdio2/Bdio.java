@@ -61,6 +61,15 @@ public class Bdio {
         License("http://blackducksoftware.com/bdio#License"),
 
         /**
+         * A vulnerability represents a specific weakness in a project. It is often convenient to reference
+         * vulnerabilities from specific project versions or the components linked to those versions. Vulnerabilities
+         * may be found through simple look ups based on well know project metadata (e.g.
+         * "this version of this project is known to have this vulnerability"); however they may also be discovered
+         * through means such as static analysis of source or object code.
+         */
+        Vulnerability("http://blackducksoftware.com/bdio#Vulnerability"),
+
+        /**
          * A file is used to represent the metadata pertaining to an entry in a (possibly virtual) file system. Files
          * can used to represent any type of file system entry, including regular files, symlinks and directories. The
          * inclusion of directories is optional, i.e. you do not need to include a full directory structure, if no
@@ -71,15 +80,14 @@ public class Bdio {
         File("http://blackducksoftware.com/bdio#File"),
 
         /**
-         * A vulnerability represents a specific weakness in a project. It is often convenient to reference
-         * vulnerabilities from specific project versions or the components linked to those versions. Vulnerabilities
-         * may be found through simple look ups based on well know project metadata (e.g.
-         * "this version of this project is known to have this vulnerability"); however they may also be discovered
-         * through means such as static analysis of source or object code.
+         * A note represents data from part of a file.
          */
-        Vulnerability("http://blackducksoftware.com/bdio#Vulnerability"),
+        Note("http://blackducksoftware.com/bdio#Note"),
 
-        // TODO ContinuousIntegrationEnvironment
+        /**
+         * A dependency can be added to a project or a component to indicate that it depends on another component.
+         */
+        Dependency("http://blackducksoftware.com/bdio#Dependency"),
 
         ;
 
@@ -93,13 +101,6 @@ public class Bdio {
         public String toString() {
             return iri;
         }
-
-        /**
-         * In a JSON-LD framing context, should this class be embedded.
-         */
-        public boolean embed() {
-            return false;
-        }
     }
 
     public enum ObjectProperty {
@@ -107,26 +108,51 @@ public class Bdio {
         /**
          * Establishes that a project has a subproject or module relationship to another project.
          */
+        // AllowedOn: Project
         subproject("http://blackducksoftware.com/bdio#hasSubproject", Container.unordered),
 
         /**
          * Links a project version to it's previous version.
          */
+        // AllowedOn: Project
         previousVersion("http://blackducksoftware.com/bdio#hasPreviousVersion", Container.single),
 
         /**
          * Points to a project's base directory.
          */
+        // AllowedOn: Project
         base("http://blackducksoftware.com/bdio#hasBase", Container.unordered),
 
         /**
          * Points to a file's parent. Typically this relationship is implicit; producers do not need to supply it.
          */
+        // AllowedOn: File
         parent("http://blackducksoftware.com/bdio#hasParent", Container.single),
 
-        // TODO hasDependency
-        // TODO hasDependency is "special"? It creates an edge with properties in the graph?
-        // OR are any "embedded" objects in the frame treated that way? How do we know the outgoing vertex?
+        /**
+         * The list of dependencies.
+         */
+        // AllowedOn: Project, Component
+        dependencies("http://blackducksoftware.com/bdio#dependsOn", Container.unordered),
+
+        /**
+         * Indicates the dependent component.
+         */
+        // AllowedOn: Dependency
+        dependsOn("http://blackducksoftware.com/bdio#dependsOn", Container.unordered),
+
+        /**
+         * Indicates a component was declared by a specific file.
+         */
+        // AllowedOn: Dependency
+        declaredBy("http://blackducksoftware.com/bdio#declaredBy", Container.unordered),
+
+        /**
+         * Lists the notes applicable to a file.
+         */
+        // AllowedOn: File
+        notes("http://blackducksoftware.com/bdio#hasNotes", Container.ordered),
+
         ;
 
         private final String iri;
@@ -153,101 +179,153 @@ public class Bdio {
         /**
          * The time at which the BDIO document was created. This property should be specified for the named graph.
          */
-        // TODO Incorporate "time" or "datetime" or "timestamp" or "instant" into the name?
-        creation("http://blackducksoftware.com/bdio#hasCreation", Datatype.DateTime, Container.single),
+        // AllowedOn: @Graph
+        creationDateTime("http://blackducksoftware.com/bdio#hasCreationDateTime", Datatype.DateTime, Container.single),
 
         /**
          * The user who created the BDIO document. This property should be specified for the named graph.
          */
-        // TODO Is this too confusing with "creation"?
-        // TODO Should this be an ObjectProperty?
+        // AllowedOn: @Graph
+        // TODO Should this be an ObjectProperty to some kind of DOAP class?
         creator("http://blackducksoftware.com/bdio#hasCreator", Datatype.Default, Container.single),
 
         /**
-         * The tool which produced the BDIO document. This should be specified using the same format as an HTTP user
-         * agent. This property should be specified for the named graph.
+         * The tool which produced the BDIO document. This property should be specified for the named graph.
          */
+        // AllowedOn: @Graph
         producer("http://blackducksoftware.com/bdio#hasProducer", Datatype.Products, Container.single),
 
         /**
          * The display name of the entity.
          */
+        // TODO Container.language?
+        // AllowedOn: @Graph, Project, Component, License, Vulnerability
         name("http://blackducksoftware.com/bdio#hasName", Datatype.Default, Container.single),
 
         /**
          * The display version of the entity.
          */
+        // AllowedOn: Project, Component
         version("http://blackducksoftware.com/bdio#hasVersion", Datatype.Default, Container.single),
 
         /**
          * The version or version range that resulted in a component being included.
          */
+        // AllowedOn: Component
         requestedVersion("http://blackducksoftware.com/bdio#hasRequestedVersion", Datatype.Default, Container.single),
 
         /**
-         * The namespace specific locator for a component. Also known as an "external identifier".
+         * The license expression describing either the allowed or effective license(s).
          */
-        locator("http://blackducksoftware.com/bdio#hasLocator", Datatype.Default, Container.single),
+        // AllowedOn: Project, Component
+        // TODO Is there an SPDX type for the license expression?
+        license("http://blackducksoftware.com/bdio#hasLicense", Datatype.Default, Container.single),
 
         /**
          * The namespace a component exists in. Also known as a "forge" or "system type".
          */
+        // AllowedOn: Project, Component, License, Vulnerability
         namespace("http://blackducksoftware.com/bdio#hasNamespace", Datatype.Default, Container.single),
 
         /**
-         * The namespace specific context used to resolve a locator.
+         * The namespace specific locator for a component. Also known as an "external identifier".
          */
-        context("http://blackducksoftware.com/bdio#hasContext", Datatype.Default, Container.single),
+        // AllowedOn: Project, Component, License, Vulnerability
+        identifier("http://blackducksoftware.com/bdio#hasIdentifier", Datatype.Default, Container.single),
 
         /**
-         * The tool which resolved the namespace specific locator. This should be specified using the same format as an
-         * HTTP user agent.
+         * The namespace specific context used to resolve a locator. Typically this is just a URL, however any
+         * specification understood by the namespace specific resolver is acceptable.
          */
+        // AllowedOn: Project, Component, License, Vulnerability
+        repository("http://blackducksoftware.com/bdio#hasRepository", Datatype.Default, Container.single),
+
+        /**
+         * The tool which resolved the namespace specific locator.
+         */
+        // AllowedOn: Project, Component, License, Vulnerability
         resolver("http://blackducksoftware.com/bdio#hasResolver", Datatype.Products, Container.single),
 
         /**
          * The homepage associated with the entity.
          */
+        // AllowedOn: Project, Component, License, Vulnerability
+        // TODO Change type to "URL"?
+        // TODO Other URLs: issues, source, wiki, etc.?
         homepage("http://blackducksoftware.com/bdio#hasHomepage", Datatype.Default, Container.unordered),
 
         /**
          * The size (in bytes) of a file.
          */
+        // AllowedOn: File
         // The name "byte count" does not conflict with "size" or "length" and is less ambiguous
         byteCount("http://blackducksoftware.com/bdio#hasByteCount", Datatype.Long, Container.single),
 
         /**
          * The fingerprints of a file.
          */
+        // AllowedOn: File
         fingerprint("http://blackducksoftware.com/bdio#hasFingerprint", Datatype.Fingerprint, Container.unordered),
 
         /**
          * The content type of a file.
          */
+        // AllowedOn: File
         // TODO Change type to a "media type"?
         contentType("http://blackducksoftware.com/bdio#hasContentType", Datatype.Default, Container.single),
 
         /**
-         * The hierarchical path of a file.
+         * The character encoding of a file.
          */
+        // AllowedOn: File
+        encoding("http://blackducksoftware.com/bdio#hasEncoding", Datatype.Default, Container.single),
+
+        /**
+         * The hierarchical path of a file relative to the base directory.
+         */
+        // AllowedOn: File
         path("http://blackducksoftware.com/bdio#hasPath", Datatype.Default, Container.single),
 
-        // TODO Continuous Integration environment
-        // repository, branch, buildNumber, build[Url], etc.
-        // buildName (like Jenkins "BUILD_TAG")
+        /**
+         * The ranges of file content a note applies to.
+         */
+        // AllowedOn: Note
+        // TODO Change type to a "range"?
+        range("http://blackducksoftware.com/bdio#hasRange", Datatype.Default, Container.unordered),
 
-        // TODO license (SPDX expression)
-        // TODO copyrightYear
-        // TODO rightsHolder
-        // TODO hid/path?
-        // TODO URLs, issues, source, wiki, etc.
-        // TODO dependency scope
-        // TODO dependency value
+        /**
+         * The free-form scope of a dependency as determined by the resolution tool used to define the dependency. For
+         * example, if a dependency came from an npm package's {@code devDependencies} field, then the scope should be
+         * "devDependencies".
+         */
+        // AllowedOn: Dependency
+        scope("http://blackducksoftware.com/bdio#hasScope", Datatype.Default, Container.single),
+
+        // TODO Continuous Integration environment
+        // repository, branch, buildNumber, build[Url], ref, etc.
+        // buildName (like Jenkins "BUILD_TAG")
+        // TODO Container information: repo, tag, id, etc.
+        // TODO Removed/updated files? Removed entities in general? Whiteout?
+
+        /**
+         * The year or range of years of the applicable copyright for a specific file.
+         */
+        // TODO Allow this on Project as well?
+        // AllowedOn: Note
+        copyrightYear("http://blackducksoftware.com/bdio#hasCopyrightYear", Datatype.Default, Container.single),
+
+        /**
+         * The entity or entities claiming rights over a specific file.
+         */
+        // TODO Allow this on Project as well?
+        // AllowedOn: Note
+        rightsHolder("http://blackducksoftware.com/bdio#hasRightsHolder", Datatype.Default, Container.ordered),
 
         ;
 
         private final String iri;
 
+        // TODO Should this be replaced by `@Range(iri)`?
         private final Datatype type;
 
         private final Container container;
@@ -280,44 +358,20 @@ public class Bdio {
         Fingerprint("http://blackducksoftware.com/bdio#Fingerprint"),
         Products("http://blackducksoftware.com/bdio#Products"),
 
+        // TODO Range
         // TODO MimeType
-        // TODO Dependency scope
+        // TODO Dependency scope?
         // TODO SPDX license expression? Do they have one already?
         // TODO URL? "@id"?
+        // TODO UUID?
+        // TODO Boolean?
+        // TODO Token?
         ;
 
         private final String iri;
 
         private Datatype(String iri) {
             this.iri = Objects.requireNonNull(iri);
-        }
-
-        @Override
-        public String toString() {
-            return iri;
-        }
-    }
-
-    // TODO We should make these match the KB by default
-    public enum IdentifierNamespace {
-
-        maven("http://maven.apache.org", "http://repo1.maven.org/maven2"),
-        npm("https://www.npmjs.com", "https://registry.npmjs.org/"),
-        rubygems("https://rubygems.org", "https://rubygems.org"),
-
-        ;
-
-        private final String iri;
-
-        private final String defaultContext;
-
-        private IdentifierNamespace(String iri, String defaultContext) {
-            this.iri = Objects.requireNonNull(iri);
-            this.defaultContext = Objects.requireNonNull(defaultContext);
-        }
-
-        public String defaultContext() {
-            return defaultContext;
         }
 
         @Override
@@ -372,7 +426,8 @@ public class Bdio {
     public enum ContentType {
 
         /**
-         * The content type used when BDIO data is represented using JSON-LD.
+         * The content type used when BDIO data is represented using JSON-LD. The context will either be referenced as a
+         * remote document or will be explicitly included in the content body.
          */
         JSONLD("application/ld+json", "jsonld"),
 
@@ -400,8 +455,8 @@ public class Bdio {
         private final String extension;
 
         private ContentType(String mediaType, String extension) {
-            this.mediaType = mediaType;
-            this.extension = extension;
+            this.mediaType = Objects.requireNonNull(mediaType);
+            this.extension = Objects.requireNonNull(extension);
         }
 
         @Override
@@ -416,12 +471,10 @@ public class Bdio {
             return extension;
         }
 
-        // TODO String addExtension(String value) // Adds the ".ext" to `value`
-
         /**
          * Helper method so that media types can be easily transformed to library specific representations. For example,
          * if a {@code MediaType} class has a constructor that accepts a {@code String}, then you can use
-         * {@code BDIO_ZIP.as(MediaType::new)}.
+         * {@code BDIO_V2_ZIP.as(MediaType::new)}.
          */
         public <R> R as(Function<String, R> f) {
             return f.apply(mediaType);
@@ -432,8 +485,6 @@ public class Bdio {
      * The maximum size in bytes for an expanded BDIO JSON-LD entry.
      */
     public static final int MAX_ENTRY_SIZE = 16 * 1024 * 1024;
-
-    // TODO We should expose an "average node size" so we can decide how many nodes to buffer
 
     /**
      * Returns an entry name to use for a file inside the BDIO Zip file. Each data entry consists of an equivalently

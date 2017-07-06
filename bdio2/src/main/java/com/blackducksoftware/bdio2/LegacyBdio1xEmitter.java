@@ -14,7 +14,7 @@ package com.blackducksoftware.bdio2;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -104,7 +104,7 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
     /**
      * The value object mapper to use for converting expanded JSON-LD values back to Java objects.
      */
-    private static final ValueObjectMapper valueObjectMapper = new ValueObjectMapper();
+    private static final ValueObjectMapper valueObjectMapper = new ValueObjectMapper.Builder().build();
 
     public LegacyBdio1xEmitter(InputStream bdioData) {
         super(streamLazyFromJson(bdioData, List.class)
@@ -247,11 +247,12 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
         // Map the created time
         obj.flatMap(o -> getString(o, "spdx:created")).flatMap(created -> {
             try {
-                return Optional.of(Instant.parse(created));
+
+                return Optional.of(OffsetDateTime.parse(created).toZonedDateTime());
             } catch (DateTimeParseException e) {
                 return Optional.empty();
             }
-        }).ifPresent(metadata::creation);
+        }).ifPresent(metadata::creationDateTime);
     }
 
     /**
@@ -286,10 +287,10 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
         if (externalIdentifiers instanceof List<?>) {
             for (Object externalIdentifier : (List<?>) externalIdentifiers) {
                 result.add(componentSupplier.get()
-                        .locator(getString(externalIdentifier, "externalId").orElse(null))
+                        .identifier(getString(externalIdentifier, "externalId").orElse(null))
                         .namespace(getString(externalIdentifier, "externalSystemTypeId")
                                 .map(x -> IDENTIFIER_NAMESPACES.getOrDefault(x, x)).orElse(null))
-                        .context(getString(externalIdentifier, "externalRepositoryLocation").orElse(null)));
+                        .repository(getString(externalIdentifier, "externalRepositoryLocation").orElse(null)));
 
             }
         }

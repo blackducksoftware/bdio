@@ -11,24 +11,23 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.tinkerpop.gremlin.structure.io.IoRegistry;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.umlg.sqlg.structure.RecordId;
 
-import com.blackducksoftware.bdio2.datatype.Fingerprint;
-import com.blackducksoftware.bdio2.datatype.Products;
+import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.datatype.DatatypeSupport;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
+import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
 
 /**
  * Creates a JSON-LD value object mapper.
@@ -37,56 +36,68 @@ import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
  */
 public class BlackDuckIoMapper implements Mapper<ValueObjectMapper> {
 
-    /**
-     * A special value mapper to normalize types supported by the graph.
-     */
-    private static class GraphValueObjectMapper extends ValueObjectMapper {
-
-        @Override
-        public Object fromFieldValue(Object input) {
-            // TODO Really this is sqlg specific because TinkerGraph lets any object in
-
-            Object modelValue = super.fromFieldValue(input);
-            if (modelValue instanceof Instant) {
-                // TODO Switch back to ZonedDateTime in Sqlg 1.3.3
-                // return ZonedDateTime.ofInstant((Instant) modelValue, ZoneOffset.UTC);
-                return LocalDateTime.ofInstant((Instant) modelValue, ZoneId.systemDefault());
-            } else if (modelValue instanceof Fingerprint || modelValue instanceof Products) {
-                return modelValue.toString();
-            } else {
-                return modelValue;
-            }
-        }
-
-        @Override
-        public Object toValueObject(Object value) {
-            if (value instanceof ZonedDateTime) {
-                return super.toValueObject(((ZonedDateTime) value).toInstant());
-            } else if (value instanceof LocalDateTime) {
-                // TODO Normalize on ZonedDateTime in Sqlg 1.3.3
-                ZoneOffset offset = ZoneId.systemDefault().getRules().getOffset((LocalDateTime) value);
-                return super.toValueObject(((LocalDateTime) value).toInstant(offset));
-            } else if (value instanceof RecordId) {
-                // TODO This needs to be valid URI
-                return value.toString();
-            } else {
-                return super.toValueObject(value);
-            }
-        }
-    }
-
     private BlackDuckIoMapper(BlackDuckIoMapper.Builder builder) {
         Map<Class<?>, Object> serializers = builder.registries.stream()
                 .flatMap(registry -> registry.find(BlackDuckIo.class).stream())
                 .collect(Collectors.toMap(p -> p.getValue0(), p -> p.getValue1()));
         serializers.forEach((k, v) -> {
-            // TODO Customize the GraphValueObjectMapper
+            // TODO Customize the based on what the registry said
         });
     }
 
     @Override
     public ValueObjectMapper createMapper() {
-        return new GraphValueObjectMapper();
+        // TODO Should the builder be state on the instance?
+        ValueObjectMapper.Builder builder = new ValueObjectMapper.Builder();
+
+        // TODO This is sqlg specific because record identifiers do not serialize to JSON
+        builder.useDatatypeHandler(Bdio.Datatype.Default.toString(), DatatypeHandler.from(
+                x -> DatatypeSupport.Default().isInstance(x) || x instanceof RecordId,
+                DatatypeSupport.Default()::serialize,
+                DatatypeSupport.Default()::deserialize));
+
+        // TODO Really this is sqlg specific because TinkerGraph lets any object in
+        builder.useDatatypeHandler(Bdio.Datatype.Fingerprint.toString(), DatatypeHandler.from(
+                DatatypeSupport.Fingerprint()::isInstance,
+                DatatypeSupport.Fingerprint()::serialize,
+                nullSafe(DatatypeSupport.Fingerprint()::deserialize).andThen(Object::toString)));
+        builder.useDatatypeHandler(Bdio.Datatype.Products.toString(), DatatypeHandler.from(
+                DatatypeSupport.Products()::isInstance,
+                DatatypeSupport.Products()::serialize,
+                nullSafe(DatatypeSupport.Products()::deserialize).andThen(Object::toString)));
+
+        // TODO Switch back to ZonedDateTime in Sqlg 1.3.3
+        builder.useDatatypeHandler(Bdio.Datatype.DateTime.toString(), DatatypeHandler.from(
+                LocalDateTime.class::isInstance,
+                DatatypeSupport.DateTime()::serialize,
+                nullSafe(DatatypeSupport.DateTime()::deserialize).andThen(LocalDateTime::from)));
+
+        return builder.build();
+    }
+
+    /**
+     * Wraps the supplied function such that it is not invoked with {@code null} values.
+     */
+    private static <T, R> Function<T, R> nullSafe(Function<T, R> f) {
+        Objects.requireNonNull(f);
+        return new Function<T, R>() {
+            @Override
+            public R apply(T t) {
+                return Optional.ofNullable(t).map(f).orElse(null);
+            }
+
+            @Override
+            public <V> Function<V, R> compose(Function<? super V, ? extends T> before) {
+                Objects.requireNonNull(before);
+                return (V v) -> Optional.ofNullable(v).map(before).map(f).orElse(null);
+            }
+
+            @Override
+            public <V> Function<T, V> andThen(Function<? super R, ? extends V> after) {
+                Objects.requireNonNull(after);
+                return (T t) -> Optional.ofNullable(t).map(f).map(after).orElse(null);
+            }
+        };
     }
 
     public static Builder build() {

@@ -13,9 +13,9 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.temporal.Temporal;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -46,8 +46,8 @@ public class BlackDuckIoReaderTest extends BaseTest {
 
     @Test
     public void readMetadata() throws Exception {
-        Instant creation = Instant.now();
-        BdioMetadata metadata = BdioMetadata.createRandomUUID().creation(creation);
+        ZonedDateTime creationDateTime = ZonedDateTime.now();
+        BdioMetadata metadata = BdioMetadata.createRandomUUID().creationDateTime(creationDateTime);
 
         graph.io(BlackDuckIo.build().onConfig(storeMetadataAndIds()))
                 .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph()));
@@ -61,11 +61,9 @@ public class BlackDuckIoReaderTest extends BaseTest {
         assertThat(idProperty.isPresent()).isTrue();
         assertThat(idProperty.value()).isEqualTo(metadata.id());
 
-        // NOTE: We cannot ensure that the Instant will make it through the database
-        VertexProperty<LocalDateTime> creationProperty = namedGraph.property(Bdio.DataProperty.creation.name());
+        VertexProperty<Temporal> creationProperty = namedGraph.property(Bdio.DataProperty.creationDateTime.name());
         assertThat(creationProperty.isPresent()).isTrue();
-        ZoneOffset offset = ZoneOffset.systemDefault().getRules().getOffset(creationProperty.value());
-        assertThat(creationProperty.value().toInstant(offset)).isEqualTo(creation);
+        assertThat(LocalDateTime.from(creationProperty.value())).isEqualTo(creationDateTime.toLocalDateTime());
     }
 
     @Test

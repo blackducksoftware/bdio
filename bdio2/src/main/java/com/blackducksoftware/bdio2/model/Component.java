@@ -42,8 +42,8 @@ public final class Component extends BdioObject {
         return this;
     }
 
-    public Component locator(@Nullable String locator) {
-        putData(Bdio.DataProperty.locator, locator);
+    public Component identifier(@Nullable String locator) {
+        putData(Bdio.DataProperty.identifier, locator);
         return this;
     }
 
@@ -52,8 +52,8 @@ public final class Component extends BdioObject {
         return this;
     }
 
-    public Component context(@Nullable String context) {
-        putData(Bdio.DataProperty.context, context);
+    public Component repository(@Nullable String context) {
+        putData(Bdio.DataProperty.repository, context);
         return this;
     }
 

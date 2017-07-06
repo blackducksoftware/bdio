@@ -4,8 +4,10 @@
     "Project" : "http://blackducksoftware.com/bdio#Project",
     "Component" : "http://blackducksoftware.com/bdio#Component",
     "License" : "http://blackducksoftware.com/bdio#License",
-    "File" : "http://blackducksoftware.com/bdio#File",
     "Vulnerability" : "http://blackducksoftware.com/bdio#Vulnerability",
+    "File" : "http://blackducksoftware.com/bdio#File",
+    "Note" : "http://blackducksoftware.com/bdio#Note",
+    "Dependency" : "http://blackducksoftware.com/bdio#Dependency",
     "subproject" : {
       "@id" : "http://blackducksoftware.com/bdio#hasSubproject",
       "@type" : "@id"
@@ -22,8 +24,24 @@
       "@id" : "http://blackducksoftware.com/bdio#hasParent",
       "@type" : "@id"
     },
-    "creation" : {
-      "@id" : "http://blackducksoftware.com/bdio#hasCreation",
+    "dependencies" : {
+      "@id" : "http://blackducksoftware.com/bdio#dependsOn",
+      "@type" : "@id"
+    },
+    "dependsOn" : {
+      "@id" : "http://blackducksoftware.com/bdio#dependsOn",
+      "@type" : "@id"
+    },
+    "declaredBy" : {
+      "@id" : "http://blackducksoftware.com/bdio#declaredBy",
+      "@type" : "@id"
+    },
+    "notes" : {
+      "@id" : "http://blackducksoftware.com/bdio#hasNotes",
+      "@type" : "@id"
+    },
+    "creationDateTime" : {
+      "@id" : "http://blackducksoftware.com/bdio#hasCreationDateTime",
       "@type" : "xsd:dateTime"
     },
     "creator" : "http://blackducksoftware.com/bdio#hasCreator",
@@ -34,9 +52,14 @@
     "name" : "http://blackducksoftware.com/bdio#hasName",
     "version" : "http://blackducksoftware.com/bdio#hasVersion",
     "requestedVersion" : "http://blackducksoftware.com/bdio#hasRequestedVersion",
-    "locator" : "http://blackducksoftware.com/bdio#hasLocator",
+    "license" : "http://blackducksoftware.com/bdio#hasLicense",
     "namespace" : "name:space",
-    "context" : "http://blackducksoftware.com/bdio#hasContext",
+    "identifier" : "http://blackducksoftware.com/bdio#hasIdentifier",
+    "repository" : "http://blackducksoftware.com/bdio#hasRepository",
+    "resolver" : {
+      "@id" : "http://blackducksoftware.com/bdio#hasResolver",
+      "@type" : "http://blackducksoftware.com/bdio#Products"
+    },
     "homepage" : {
       "@id" : "http://blackducksoftware.com/bdio#hasHomepage",
       "@container" : "@set"
@@ -51,6 +74,17 @@
       "@container" : "@set"
     },
     "contentType" : "http://blackducksoftware.com/bdio#hasContentType",
-    "path" : "http://blackducksoftware.com/bdio#hasPath"
+    "encoding" : "http://blackducksoftware.com/bdio#hasEncoding",
+    "path" : "http://blackducksoftware.com/bdio#hasPath",
+    "range" : {
+      "@id" : "http://blackducksoftware.com/bdio#hasRange",
+      "@container" : "@set"
+    },
+    "scope" : "http://blackducksoftware.com/bdio#hasScope",
+    "copyrightYear" : "http://blackducksoftware.com/bdio#hasCopyrightYear",
+    "rightsHolder" : {
+      "@id" : "http://blackducksoftware.com/bdio#hasRightsHolder",
+      "@container" : "@list"
+    }
   }
 }

@@ -18,7 +18,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import static com.blackducksoftware.common.test.JsonSubject.assertThatJson;
 import static com.google.common.truth.Truth.assertThat;
 
-import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,11 +43,11 @@ public class BlackDuckIoWriterTest extends BaseTest {
     @Test
     public void writeMetadata() throws Exception {
         String metadataId = "urn:uuid:" + UUID.randomUUID();
-        Instant creation = Instant.now();
+        ZonedDateTime creationDateTime = ZonedDateTime.now();
         graph.addVertex(
                 T.label, TT.Metadata,
                 TT.id, metadataId,
-                Bdio.DataProperty.creation.name(), creation.toString());
+                Bdio.DataProperty.creationDateTime.name(), creationDateTime.toString());
 
         HeapOutputStream buffer = new HeapOutputStream();
         graph.io(BlackDuckIo.build().onConfig(storeMetadataAndIds()))
@@ -57,7 +57,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
         assertThat(entries).hasSize(1);
 
         assertThatJson(entries.get(0)).at("/@id").isEqualTo(metadataId);
-        assertThatJson(entries.get(0)).at(Bdio.DataProperty.creation, 0, "@value").isEqualTo(creation.toString());
+        assertThatJson(entries.get(0)).at(Bdio.DataProperty.creationDateTime, 0, "@value").isEqualTo(creationDateTime.toString());
         assertThatJson(entries.get(0)).arrayAt("/@graph").hasSize(0);
     }
 
@@ -109,11 +109,11 @@ public class BlackDuckIoWriterTest extends BaseTest {
     @Test
     public void writeRelationship() throws Exception {
         String metadataId = "urn:uuid:" + UUID.randomUUID();
-        Instant creation = Instant.now();
+        ZonedDateTime creationDateTime = ZonedDateTime.now();
         graph.addVertex(
                 T.label, TT.Metadata,
                 TT.id, metadataId,
-                Bdio.DataProperty.creation.name(), creation.toString());
+                Bdio.DataProperty.creationDateTime.name(), creationDateTime.toString());
 
         String fileId = "urn:uuid:" + UUID.randomUUID();
         Vertex file = graph.addVertex(
@@ -134,7 +134,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
         assertThat(entries).hasSize(2);
 
         assertThatJson(entries.get(0)).at("/@id").isEqualTo(metadataId);
-        assertThatJson(entries.get(0)).at(Bdio.DataProperty.creation, 0, "@value").isEqualTo(creation.toString());
+        assertThatJson(entries.get(0)).at(Bdio.DataProperty.creationDateTime, 0, "@value").isEqualTo(creationDateTime.toString());
         assertThatJson(entries.get(0)).arrayAt("/@graph").hasSize(0);
 
         assertThatJson(entries.get(1)).at("/@id").isEqualTo(metadataId);

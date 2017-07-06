@@ -126,16 +126,15 @@ public class BlackDuckIoWriter implements GraphWriter {
                 .orElse(BdioMetadata.createRandomUUID());
     }
 
-    private Object nodeType(Vertex vertex) {
-        return vertex.label();
-    }
-
-    private Object nodeId(Vertex vertex) {
-        return config.valueObjectMapper().toValueObject(config.identifierKey()
-                .map(key -> vertex.<Object> property(key))
+    /**
+     * Produces the identifier (the "@id" value) for a vertex based on the current configuration.
+     */
+    private String nodeId(Vertex vertex) {
+        Object identifier = config.identifierKey()
+                .map(key -> vertex.property(key))
                 .orElse(VertexProperty.empty())
-                .orElseGet(() -> vertex.id()))
-                .toString();
+                .orElseGet(() -> vertex.id());
+        return config.valueObjectMapper().toValueObject(identifier).toString();
     }
 
     /**
@@ -155,10 +154,12 @@ public class BlackDuckIoWriter implements GraphWriter {
                 .map(t -> {
                     Vertex vertex = t.get();
 
+                    // Construct a map to represent the BDIO version of the vertex
                     Map<String, Object> result = new LinkedHashMap<>();
-                    result.put(JsonLdConsts.TYPE, nodeType(vertex));
+                    result.put(JsonLdConsts.TYPE, vertex.label());
                     result.put(JsonLdConsts.ID, nodeId(vertex));
 
+                    // Handle vertex properties
                     vertex.properties().forEachRemaining(vp -> {
                         if (vp.key().equals(config.unknownKey().orElse(null))) {
                             BdioHelper.restoreUnknownProperties(vp.value(), result::put);
@@ -167,17 +168,20 @@ public class BlackDuckIoWriter implements GraphWriter {
                         }
                     });
 
+                    // Handle vertex edges
                     vertex.edges(Direction.OUT).forEachRemaining(e -> {
                         Set<String> keys = e.keys();
                         if (keys.contains(config.implicitKey().orElse(null))) {
                             return;
-                        } else if (keys.isEmpty()) {
-                            // TODO Edge properties? Is this just the behavior when there are no properties?
+                        } else {
+                            // TODO Edge properties?
                             result.put(e.label(), config.valueObjectMapper().toReferenceValueObject(nodeId(e.inVertex())));
                         }
                     });
 
+                    // If the identifier key was used, we already stored it as the "@id" value
                     config.identifierKey().ifPresent(result::remove);
+
                     return result;
                 });
     }

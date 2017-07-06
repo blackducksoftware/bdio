@@ -17,8 +17,6 @@ import java.util.Objects;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.CharMatcher;
 
 /**
@@ -47,6 +45,7 @@ public final class Product {
     @Nullable
     private final String version;
 
+    // TODO Technically the comment belongs to the list...
     @Nullable
     private final String comment;
 
@@ -69,7 +68,6 @@ public final class Product {
         }
     }
 
-    @JsonCreator
     public static Product valueOf(String value) {
         String name = Objects.requireNonNull(value);
         String version = null;
@@ -145,7 +143,6 @@ public final class Product {
         }
     }
 
-    @JsonValue
     @Override
     public String toString() {
         StringBuilder result = new StringBuilder().append(name);

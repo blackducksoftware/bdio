@@ -14,6 +14,7 @@ package com.blackducksoftware.bdio2;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedList;
@@ -156,7 +157,7 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
         private BdioMetadata metadata() {
             return new BdioMetadata().id(toFileUri(hostName, baseDir, "bdio"))
                     .name(name)
-                    .creation(createdOn != null ? createdOn.toInstant() : null)
+                    .creationDateTime(createdOn != null ? createdOn.toInstant().atZone(ZoneOffset.UTC) : null)
                     .producer(new Products.Builder()
                             // TODO Add a product for us?
                             .addProduct("HubScanClient", scannerVersion, "Signature " + signatureVersion)

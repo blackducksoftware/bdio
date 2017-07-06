@@ -13,7 +13,7 @@ package com.blackducksoftware.bdio2;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -142,8 +142,8 @@ public final class BdioMetadata extends BdioObject {
     /**
      * Sets the time at which the named graph was created.
      */
-    public BdioMetadata creation(@Nullable Instant creation) {
-        putData(Bdio.DataProperty.creation, creation);
+    public BdioMetadata creationDateTime(@Nullable ZonedDateTime creation) {
+        putData(Bdio.DataProperty.creationDateTime, creation);
         return this;
     }
 

@@ -39,7 +39,7 @@ import com.google.common.collect.Lists;
  */
 public class BdioObject extends AbstractMap<String, Object> {
 
-    private static ValueObjectMapper VALUE_OBJECT_MAPPER = new ValueObjectMapper();
+    private static ValueObjectMapper VALUE_OBJECT_MAPPER = new ValueObjectMapper.Builder().build();
 
     /**
      * The backing node data for this BDIO object.

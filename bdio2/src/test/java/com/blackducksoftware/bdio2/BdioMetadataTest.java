@@ -152,7 +152,7 @@ public class BdioMetadataTest {
 
         assertThat(metadataFoo.merge(metadataBar))
                 .containsEntry(Bdio.DataProperty.producer.toString(),
-                        new ValueObjectMapper().toValueObject(Products.valueOf("foo bar")));
+                        new ValueObjectMapper.Builder().build().toValueObject(Products.valueOf("foo bar")));
     }
 
 }

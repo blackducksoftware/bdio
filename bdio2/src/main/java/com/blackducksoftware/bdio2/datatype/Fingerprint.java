@@ -18,8 +18,6 @@ import java.util.Objects;
 
 import javax.annotation.Nullable;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
 
@@ -32,6 +30,8 @@ import com.google.common.base.Splitter;
  * @author jgustie
  */
 public final class Fingerprint {
+
+    // TODO Make this more like HashCode; or have the value stored as a HashCode internally?
 
     private static final CharMatcher ALPHA = CharMatcher.inRange('A', 'Z').or(CharMatcher.inRange('a', 'z'));
 
@@ -53,7 +53,6 @@ public final class Fingerprint {
         // TODO Limitations on value characters?
     }
 
-    @JsonCreator
     public static Fingerprint valueOf(String str) {
         List<String> parts = Splitter.on(':').limit(2).splitToList(str);
         checkArgument(parts.size() == 2, "invalid fingerprint, missing algorithm: %s", str);
@@ -79,7 +78,6 @@ public final class Fingerprint {
         }
     }
 
-    @JsonValue
     @Override
     public String toString() {
         return algorithm + ':' + value;

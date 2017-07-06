@@ -172,8 +172,8 @@ public class BdioObjectTest {
     @Test
     public void putDateTimeTypeDataProperty() {
         BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        bdioObject.putData(Bdio.DataProperty.creation, Instant.EPOCH);
-        assertThat(bdioObject).containsEntry(Bdio.DataProperty.creation.toString(),
+        bdioObject.putData(Bdio.DataProperty.creationDateTime, Instant.EPOCH);
+        assertThat(bdioObject).containsEntry(Bdio.DataProperty.creationDateTime.toString(),
                 ImmutableMap.of("@value", Instant.EPOCH.toString(), "@type", Bdio.Datatype.DateTime.toString()));
     }
 
