@@ -40,6 +40,8 @@ import com.google.common.io.Resources;
  */
 class RemoteDocumentLoader extends DocumentLoader {
 
+    // TODO Does this get replaced by "jarcache.json"?
+
     /**
      * A builder to construct a remote document loader. Callers can add "offline" documents stored as class loader
      * resources by assigning them a URL. Additionally, loading of remote URLs can be enabled by suppling a configured
@@ -69,15 +71,15 @@ class RemoteDocumentLoader extends DocumentLoader {
         /**
          * Loads a resource from the class path and exposes it using the specified document URL.
          */
-        public Builder withResource(String url, String resourceName) {
-            return putOfflineDocument(url, Resources.asByteSource(Resources.getResource(resourceName)));
+        public Builder withResource(String url, URL resourceUrl) {
+            return putOfflineDocument(url, Resources.asByteSource(resourceUrl));
         }
 
         /**
          * Loads a resource from the class path and exposes it using the specified document URL.
          */
         public Builder withResource(String url, Class<?> contextClass, String resourceName) {
-            return putOfflineDocument(url, Resources.asByteSource(Resources.getResource(contextClass, resourceName)));
+            return withResource(url, Resources.getResource(contextClass, resourceName));
         }
 
         /**

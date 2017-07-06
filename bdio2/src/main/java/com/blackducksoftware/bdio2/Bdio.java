@@ -11,8 +11,11 @@
  */
 package com.blackducksoftware.bdio2;
 
+import java.net.URL;
 import java.util.Objects;
 import java.util.function.Function;
+
+import com.google.common.io.Resources;
 
 /**
  * A collection of constants and helpers pertaining to the BDIO specification.
@@ -385,13 +388,15 @@ public class Bdio {
     }
 
     public enum Context {
-        DEFAULT("http://blackducksoftware.com/bdio", "bdio-context-2.0.jsonld"),
+
         VERSION_2_0("http://blackducksoftware.com/bdio/2.0.0", "bdio-context-2.0.jsonld"),
         VERSION_1_1("http://blackducksoftware.com/rdf/terms/1.1.0", "bdio-context-1.1.jsonld"),
-        VERSION_1_0("http://blackducksoftware.com/rdf/terms/1.0.0", "bdio-context-1.0.jsonld");
+        VERSION_1_0("http://blackducksoftware.com/rdf/terms/1.0.0", "bdio-context-1.0.jsonld"),
+        DEFAULT("http://blackducksoftware.com/bdio", VERSION_2_0.resourceName);
 
         private final String iri;
 
+        // TODO Does this get replaced by "jarcache.json"?
         private final String resourceName;
 
         private Context(String iri, String resourceName) {
@@ -399,15 +404,21 @@ public class Bdio {
             this.resourceName = Objects.requireNonNull(resourceName);
         }
 
-        public String resourceName() {
-            return resourceName;
-        }
-
         @Override
         public String toString() {
             return iri;
         }
 
+        /**
+         * Returns the class loader resource used to access the context definition.
+         */
+        URL resourceUrl() {
+            return Resources.getResource(Bdio.class, resourceName);
+        }
+
+        /**
+         * Returns the context for a given specification version.
+         */
         public static Context forSpecVersion(String specVersion) {
             switch (specVersion) {
             case "": // v0 == v1.0.0

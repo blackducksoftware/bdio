@@ -14,6 +14,7 @@ package com.blackducksoftware.bdio2;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.net.URL;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -114,8 +115,8 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
                         JsonLdOptions options = new JsonLdOptions();
 
                         // Detect and set the expansion context
-                        String contextResourceName = Bdio.Context.forSpecVersion(specVersion(jsonld)).resourceName();
-                        ByteSource context = Resources.asByteSource(Resources.getResource(Bdio.class, contextResourceName));
+                        URL contextResourceUrl = Bdio.Context.forSpecVersion(specVersion(jsonld)).resourceUrl();
+                        ByteSource context = Resources.asByteSource(contextResourceUrl);
                         try (InputStream contextInputStream = context.openBufferedStream()) {
                             options.setExpandContext(JsonUtils.fromInputStream(contextInputStream));
                         }
