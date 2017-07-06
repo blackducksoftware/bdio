@@ -1,4 +1,4 @@
-FROM postgres:9.4-alpine
+FROM postgres:9.6-alpine
 
 ENV POSTGRES_DB="bdio" \
     POSTGRES_USER="bdio" \
