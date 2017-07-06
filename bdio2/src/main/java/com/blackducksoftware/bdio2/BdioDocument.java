@@ -157,7 +157,7 @@ public abstract class BdioDocument {
         public Builder() {
             // Always load all versions of the BDIO context for offline access
             for (Bdio.Context context : Bdio.Context.values()) {
-                documentLoader.withResource(context.toString(), BdioDocument.class, context.resourceName());
+                documentLoader.withResource(context.toString(), context.resourceUrl());
             }
         }
 
