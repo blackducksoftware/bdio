@@ -17,17 +17,19 @@ package com.blackducksoftware.bdio2.tool;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.BdioMetadata;
+import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.bdio2.datatype.Products;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.google.common.base.StandardSystemProperty;
@@ -52,6 +54,9 @@ public class ConcatenateTool extends Tool {
 
     private List<ByteSource> inputs = new LinkedList<>();
 
+    // TODO Allow the ID to customized
+    private Optional<String> id = Optional.empty();
+
     public ConcatenateTool(@Nullable String name) {
         super(name);
     }
@@ -67,6 +72,10 @@ public class ConcatenateTool extends Tool {
 
     public void addInput(ByteSource input) {
         inputs.add(Objects.requireNonNull(input));
+    }
+
+    public void setId(@Nullable String id) {
+        this.id = Optional.ofNullable(id);
     }
 
     @Override
@@ -94,8 +103,9 @@ public class ConcatenateTool extends Tool {
     @Override
     protected void execute() throws Exception {
         checkState(!inputs.isEmpty(), "input is not set");
-        BdioMetadata metadata = BdioMetadata.createRandomUUID();
-        // TODO Allow the ID to customized
+
+        BdioMetadata metadata = new BdioMetadata();
+        metadata.id(id.orElseGet(BdioObject::randomId));
         metadata.producer(Products.of(getProduct()));
         metadata.creationDateTime(ZonedDateTime.now());
         metadata.creator(StandardSystemProperty.USER_NAME.value());
