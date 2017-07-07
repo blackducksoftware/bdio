@@ -13,7 +13,6 @@ package com.blackducksoftware.bdio2;
 
 import static com.blackducksoftware.bdio2.test.BdioTest.zipBytes;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
@@ -45,12 +44,10 @@ public class BdioEmitterTest {
     public void readOne() {
         BdioEmitter emitter = new BdioEmitter(zipBytes("[ \"test\" ]"));
         try {
-            reset(subscriber);
             emitter.emit(subscriber::onNext, subscriber::onError, subscriber::onComplete);
             verify(subscriber).onNext(Lists.newArrayList("test"));
             verifyNoMoreInteractions(subscriber);
 
-            reset(subscriber);
             emitter.emit(subscriber::onNext, subscriber::onError, subscriber::onComplete);
             verify(subscriber).onComplete();
             verifyNoMoreInteractions(subscriber);
@@ -63,7 +60,6 @@ public class BdioEmitterTest {
     public void readSyntaxError() {
         BdioEmitter emitter = new BdioEmitter(zipBytes("I'm not JSON"));
         try {
-            reset(subscriber);
             emitter.emit(subscriber::onNext, subscriber::onError, subscriber::onComplete);
             verify(subscriber).onError(any(JsonParseException.class));
             verifyNoMoreInteractions(subscriber);

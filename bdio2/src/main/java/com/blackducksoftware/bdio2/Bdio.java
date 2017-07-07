@@ -24,6 +24,7 @@ import com.google.common.io.Resources;
  */
 public class Bdio {
 
+    @SuppressWarnings("JavaLangClash")
     public enum Class {
 
         /**

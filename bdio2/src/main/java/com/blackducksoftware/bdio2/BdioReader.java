@@ -111,7 +111,8 @@ public class BdioReader implements Closeable {
 
         @Override
         public long skip(long n) throws IOException {
-            long result = in.skip(Math.min(n, remaining));
+            // Since `remaining` is an int, we can cast back down safely
+            int result = (int) in.skip(Math.min(n, remaining));
             remaining -= result;
             return result;
         }
