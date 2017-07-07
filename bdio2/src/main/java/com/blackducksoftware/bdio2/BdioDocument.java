@@ -11,9 +11,12 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -30,6 +33,7 @@ import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
@@ -117,6 +121,8 @@ public abstract class BdioDocument {
 
     /**
      * Allows you to consume the aggregate BDIO metadata across all entries.
+     *
+     * @return this BDIO document for call chaining
      */
     public abstract BdioDocument metadata(Consumer<BdioMetadata> metadataSubscriber);
 
@@ -124,6 +130,8 @@ public abstract class BdioDocument {
      * Allows you to consume just the metadata from the first entry. This is always enough to obtain the identifier,
      * however, depending on how the data was structured there is no guarantee that other metadata will be available (in
      * general, if a BDIO file has a header entry, this will give you complete metadata).
+     *
+     * @return this BDIO document for call chaining
      */
     public abstract BdioDocument takeFirstMetadata(Consumer<BdioMetadata> metadataSubscriber);
 
@@ -134,12 +142,19 @@ public abstract class BdioDocument {
 
     /**
      * Writes the BDIO data coming into this document out to the supplied byte stream.
+     *
+     * @return this BDIO document for call chaining
      */
     // TODO Also take a Consumer<Throwable> for error handling?
     public abstract BdioDocument writeToFile(BdioMetadata metadata, OutputStream out);
 
+    // TODO Should we have more generic writing facilities for streaming?
+    // public abstract Subscriber<Map<String, Object>> write(Supplier<OutputStream> streamFactory);
+
     /**
      * Reads BDIO data into this document from the supplied byte stream.
+     *
+     * @return this BDIO document for call chaining
      */
     public abstract BdioDocument read(InputStream in);
 
@@ -148,13 +163,16 @@ public abstract class BdioDocument {
      */
     public static class Builder {
 
-        private String base = "";
+        private String base;
 
-        private Object expandContext = Bdio.Context.DEFAULT.toString();
+        private Object expandContext;
 
         private final RemoteDocumentLoader.Builder documentLoader = new RemoteDocumentLoader.Builder();
 
         public Builder() {
+            base = "";
+            expandContext = Bdio.Context.DEFAULT.toString();
+
             // Always load all versions of the BDIO context for offline access
             for (Bdio.Context context : Bdio.Context.values()) {
                 documentLoader.withResource(context.toString(), context.resourceUrl());
@@ -173,21 +191,61 @@ public abstract class BdioDocument {
         }
 
         /**
+         * Specifies the base URI as a string. The base URI is used to relavitize identifiers.
+         */
+        public Builder base(@Nullable String base) {
+            if (Strings.isNullOrEmpty(base)) {
+                this.base = base;
+                return this;
+            } else {
+                try {
+                    return base(new URI(base));
+                } catch (URISyntaxException e) {
+                    throw new IllegalArgumentException("base URI must be well formed", e);
+                }
+            }
+        }
+
+        /**
          * Specifies the base URI. The base URI is used to relavitize identifiers.
          */
-        public Builder base(String base) {
-            this.base = Objects.requireNonNull(base);
-            // TODO Verify empty or absolute URI?
+        public Builder base(@Nullable URI base) {
+            checkArgument(base == null || base.isAbsolute(), "base URI must be absolute");
+            checkArgument(base == null || !base.isOpaque(), "base URI must be hierarchical");
+            this.base = Objects.toString(base, null);
             return this;
         }
 
         /**
-         * Specifies the base URI.
-         *
-         * @see #base(String)
+         * Prepares the document for processing BDIO loaded from plain JSON. The {@code expandContext} is typically a
+         * {@code String} representation of the {@code http://www.w3.org/ns/json-ld#context} link relationship (a URI
+         * identifying the context), however it can also be a {@code Map<String, Object>} representing an already parsed
+         * JSON-LD context.
          */
-        public Builder base(URI base) {
-            return base(base.toString());
+        public Builder forJson(@Nullable Object expandContext) {
+            checkArgument(expandContext == null || expandContext instanceof String
+                    || expandContext instanceof Map<?, ?> || expandContext instanceof List<?>,
+                    "expandContext must be a String, Map<String, Object> or a List<Object>");
+            this.expandContext = expandContext;
+            return this;
+        }
+
+        /**
+         * Prepares this document for processing BDIO loaded from JSON-LD. The JSON-LD contexts must be explicitly
+         * defined within the document itself.
+         */
+        public Builder forJsonLd() {
+            expandContext = null;
+            return this;
+        }
+
+        /**
+         * Prepares this document for processing BDIO documents. This assumes the default BDIO context will be used for
+         * processing plain JSON or JSON-LD input (Zip forms should already be fully expanded internally).
+         */
+        public Builder forBdio() {
+            expandContext = Bdio.Context.DEFAULT.toString();
+            return this;
         }
 
         /**
@@ -198,14 +256,7 @@ public abstract class BdioDocument {
             return this;
         }
 
-        /**
-         * Sets the expansion context.
-         */
-        // TODO Have expandContext(Map<String, Object>)/expandContext(String)/expandContext(URI) instead?
-        public Builder expandContext(@Nullable Object expandContext) {
-            this.expandContext = expandContext;
-            return this;
-        }
+        // TODO Allow offline documents by URL
     }
 
     // NOTE: This is one place where we are opinionated on our JSON-LD usage, that means this code can break

@@ -11,8 +11,6 @@
  */
 package com.blackducksoftware.bdio2;
 
-import java.net.URI;
-
 import org.junit.Test;
 
 /**
@@ -21,16 +19,6 @@ import org.junit.Test;
  * @author jgustie
  */
 public class BdioDocumentBuilderTest {
-
-    @Test(expected = NullPointerException.class)
-    public void builder_nullBaseString() {
-        new BdioDocument.Builder().base((String) null);
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void builder_nullBaseUri() {
-        new BdioDocument.Builder().base((URI) null);
-    }
 
     @Test(expected = NullPointerException.class)
     public void builder_nullAllowRemoteLoading() {
