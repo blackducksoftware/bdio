@@ -38,6 +38,9 @@ public final class BdioFrame extends AbstractMap<String, Object> implements Clon
 
     // TODO It seems like there is connection here with JsonLdOptions.
 
+    // TODO Maybe this merges with BlackDuckIoConfig? Or becomes a member of it?
+    // TODO Or it ties into the BlackDuckIoMapper?
+
     /**
      * The actual JSON-LD frame. This value is used to back the map implementation.
      */

@@ -14,7 +14,6 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -42,6 +41,7 @@ import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
 import com.google.common.base.Functions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 public final class BlackDuckIoReader implements GraphReader {
@@ -63,7 +63,7 @@ public final class BlackDuckIoReader implements GraphReader {
 
     private BlackDuckIoReader(Builder builder) {
         config = builder.config.orElseGet(() -> BlackDuckIoConfig.build().create());
-        frame = BdioFrame.create(builder.applicationContext);
+        frame = BdioFrame.create(ImmutableMap.of());
         batchSize = builder.batchSize;
     }
 
@@ -198,10 +198,6 @@ public final class BlackDuckIoReader implements GraphReader {
     public final static class Builder implements ReaderBuilder<BlackDuckIoReader> {
 
         private Optional<BlackDuckIoConfig> config = Optional.empty();
-
-        // TODO Do we take the expansion context from the BdioDocument? How does this relate to the BdioFrame?
-        // TODO This is part of the frame right now...
-        private Map<String, Object> applicationContext = new LinkedHashMap<>();
 
         private int batchSize = 10000;
 

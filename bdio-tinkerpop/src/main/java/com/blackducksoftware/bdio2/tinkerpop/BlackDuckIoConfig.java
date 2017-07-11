@@ -17,7 +17,6 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
@@ -61,16 +60,16 @@ public class BlackDuckIoConfig {
     private final Optional<PartitionStrategy> partitionStrategy;
 
     /**
+     * Builder for creating BDIO documents.
+     */
+    private final BdioDocument.Builder documentBuilder;
+
+    /**
      * The JSON-LD value object mapper to use.
      */
     private final ValueObjectMapper valueObjectMapper;
 
     // TODO BdioFrame?
-
-    /**
-     * Builder for creating BDIO documents.
-     */
-    private final BdioDocument.Builder documentBuilder;
 
     private BlackDuckIoConfig(Builder builder) {
         identifierKey = Objects.requireNonNull(builder.identifierKey);
@@ -78,8 +77,8 @@ public class BlackDuckIoConfig {
         implicitKey = Objects.requireNonNull(builder.implicitKey);
         metadataLabel = Objects.requireNonNull(builder.metadataLabel);
         partitionStrategy = Objects.requireNonNull(builder.partitionStrategy);
-        valueObjectMapper = builder.valueObjectMapper.orElseGet(builder.defaultValueObjectMapper);
         documentBuilder = builder.documentBuilder.orElseGet(BdioDocument.Builder::new);
+        valueObjectMapper = builder.valueObjectMapper.orElseGet(BlackDuckIoMapper.build().create()::createMapper);
     }
 
     public Optional<String> identifierKey() {
@@ -103,6 +102,7 @@ public class BlackDuckIoConfig {
     }
 
     public <D extends BdioDocument> D newBdioDocument(Class<D> type) {
+        // Do not expose the whole builder as it is mutable
         return documentBuilder.build(type);
     }
 
@@ -133,16 +133,6 @@ public class BlackDuckIoConfig {
         return context;
     }
 
-    public Builder newBuilder() {
-        return new Builder()
-                .identifierKey(identifierKey.orElse(null))
-                .unknownKey(unknownKey.orElse(null))
-                .metadataLabel(metadataLabel.orElse(null))
-                .partitionStrategy(partitionStrategy.orElse(null))
-                .valueObjectMapper(valueObjectMapper)
-                .documentBuilder(documentBuilder);
-    }
-
     public static Builder build() {
         return new Builder();
     }
@@ -159,11 +149,9 @@ public class BlackDuckIoConfig {
 
         private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
 
-        private Optional<ValueObjectMapper> valueObjectMapper = Optional.empty();
-
         private Optional<BdioDocument.Builder> documentBuilder = Optional.empty();
 
-        private Supplier<ValueObjectMapper> defaultValueObjectMapper = BlackDuckIoMapper.build().create()::createMapper;
+        private Optional<ValueObjectMapper> valueObjectMapper = Optional.empty();
 
         private Builder() {
         }
@@ -193,19 +181,13 @@ public class BlackDuckIoConfig {
             return this;
         }
 
-        public Builder valueObjectMapper(@Nullable ValueObjectMapper valueObjectMapper) {
-            this.valueObjectMapper = Optional.ofNullable(valueObjectMapper);
-            return this;
-        }
-
         public Builder documentBuilder(@Nullable BdioDocument.Builder documentBuilder) {
             this.documentBuilder = Optional.ofNullable(documentBuilder);
             return this;
         }
 
-        // ValueObjectMapper is kind of special because TinkerPop has configuration for it already
-        Builder withDefaultValueObjectMapper(Supplier<ValueObjectMapper> defaultValueObjectMapper) {
-            this.defaultValueObjectMapper = Objects.requireNonNull(defaultValueObjectMapper);
+        public Builder valueObjectMapper(@Nullable ValueObjectMapper valueObjectMapper) {
+            this.valueObjectMapper = Optional.ofNullable(valueObjectMapper);
             return this;
         }
 
