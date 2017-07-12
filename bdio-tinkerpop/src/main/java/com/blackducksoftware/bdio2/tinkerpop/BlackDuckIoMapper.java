@@ -11,106 +11,56 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
-import java.util.function.Function;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
+
+import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.structure.io.IoRegistry;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
-import org.umlg.sqlg.structure.RecordId;
+import org.javatuples.Pair;
 
-import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.datatype.DatatypeSupport;
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
-import com.google.common.collect.ImmutableSet;
 
 /**
- * Creates a JSON-LD value object mapper.
+ * Creates a JSON-LD to graph mapper.
  *
  * @author jgustie
  */
-public class BlackDuckIoMapper implements Mapper<ValueObjectMapper> {
-
-    private final ImmutableSet<String> embeddedTypes;
+public class BlackDuckIoMapper implements Mapper<GraphMapper> {
 
     private final Map<String, DatatypeHandler<?>> datatypeHandlers;
 
+    private final Consumer<GraphMapper.Builder> onGraphMapper;
+
     private BlackDuckIoMapper(BlackDuckIoMapper.Builder builder) {
-        embeddedTypes = ImmutableSet.copyOf(builder.embeddedTypes);
+        // IoRegistry implementations need to register both a String (the IRI) and a DatatypeHandler
+        Map<Class<?>, String> typeMappings = builder.registries.stream()
+                .flatMap(registry -> registry.find(BlackDuckIo.class, String.class).stream())
+                .collect(Collectors.toMap(Pair::getValue0, Pair::getValue1));
 
-        Map<Class<?>, DatatypeHandler<?>> serializers = builder.registries.stream()
+        // Keep all the datatype handlers which have a type mapping
+        datatypeHandlers = builder.registries.stream()
                 .flatMap(registry -> registry.find(BlackDuckIo.class, DatatypeHandler.class).stream())
-                .collect(Collectors.toMap(p -> p.getValue0(), p -> p.getValue1()));
-        serializers.forEach((k, v) -> {
-            // TODO How do we map Class<?> to a datatype string?
+                .map(p -> Pair.with(typeMappings.get(p.getValue0()), p.getValue1()))
+                .filter(p -> p.getValue0() != null)
+                .collect(Collectors.toMap(Pair::getValue0, Pair::getValue1));
+
+        onGraphMapper = builder.onGraphMapper.orElse(b -> {
         });
-
-        datatypeHandlers = new LinkedHashMap<>();
-
-        // TODO This is sqlg specific because record identifiers do not serialize to JSON
-        datatypeHandlers.put(Bdio.Datatype.Default.toString(), DatatypeHandler.from(
-                x -> DatatypeSupport.Default().isInstance(x) || x instanceof RecordId,
-                DatatypeSupport.Default()::serialize,
-                DatatypeSupport.Default()::deserialize));
-
-        // TODO Really this is sqlg specific because TinkerGraph lets any object in
-        datatypeHandlers.put(Bdio.Datatype.Fingerprint.toString(), DatatypeHandler.from(
-                DatatypeSupport.Fingerprint()::isInstance,
-                DatatypeSupport.Fingerprint()::serialize,
-                nullSafe(DatatypeSupport.Fingerprint()::deserialize).andThen(Object::toString)));
-        datatypeHandlers.put(Bdio.Datatype.Products.toString(), DatatypeHandler.from(
-                DatatypeSupport.Products()::isInstance,
-                DatatypeSupport.Products()::serialize,
-                nullSafe(DatatypeSupport.Products()::deserialize).andThen(Object::toString)));
-
-        // TODO Switch back to ZonedDateTime in Sqlg 1.3.3
-        datatypeHandlers.put(Bdio.Datatype.DateTime.toString(), DatatypeHandler.from(
-                LocalDateTime.class::isInstance,
-                DatatypeSupport.DateTime()::serialize,
-                nullSafe(DatatypeSupport.DateTime()::deserialize).andThen(LocalDateTime::from)));
-
     }
 
     @Override
-    public ValueObjectMapper createMapper() {
-        ValueObjectMapper.Builder builder = new ValueObjectMapper.Builder();
-        embeddedTypes.forEach(builder::addEmbeddedType);
-        datatypeHandlers.forEach(builder::useDatatypeHandler);
-        return builder.build();
-    }
-
-    /**
-     * Wraps the supplied function such that it is not invoked with {@code null} values.
-     */
-    private static <T, R> Function<T, R> nullSafe(Function<T, R> f) {
-        Objects.requireNonNull(f);
-        return new Function<T, R>() {
-            @Override
-            public R apply(T t) {
-                return Optional.ofNullable(t).map(f).orElse(null);
-            }
-
-            @Override
-            public <V> Function<V, R> compose(Function<? super V, ? extends T> before) {
-                Objects.requireNonNull(before);
-                return (V v) -> Optional.ofNullable(v).map(before).map(f).orElse(null);
-            }
-
-            @Override
-            public <V> Function<T, V> andThen(Function<? super R, ? extends V> after) {
-                Objects.requireNonNull(after);
-                return (T t) -> Optional.ofNullable(t).map(f).map(after).orElse(null);
-            }
-        };
+    public GraphMapper createMapper() {
+        GraphMapper.Builder mapperBuilder = GraphMapper.build();
+        datatypeHandlers.forEach(mapperBuilder::addDatatype);
+        onGraphMapper.accept(mapperBuilder);
+        return mapperBuilder.create();
     }
 
     public static Builder build() {
@@ -121,7 +71,7 @@ public class BlackDuckIoMapper implements Mapper<ValueObjectMapper> {
 
         private final List<IoRegistry> registries = new ArrayList<>();
 
-        private final Set<String> embeddedTypes = new LinkedHashSet<>();
+        private Optional<Consumer<GraphMapper.Builder>> onGraphMapper = Optional.empty();
 
         private Builder() {
         }
@@ -132,8 +82,8 @@ public class BlackDuckIoMapper implements Mapper<ValueObjectMapper> {
             return this;
         }
 
-        public Builder addEmbeddedType(String embeddedType) {
-            embeddedTypes.add(Objects.requireNonNull(embeddedType));
+        public Builder onGraphMapper(@Nullable Consumer<GraphMapper.Builder> onGraphMapper) {
+            this.onGraphMapper = Optional.ofNullable(onGraphMapper);
             return this;
         }
 

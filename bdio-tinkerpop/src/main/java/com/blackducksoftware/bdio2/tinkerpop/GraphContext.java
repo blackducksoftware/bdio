@@ -27,30 +27,16 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
  */
 abstract class GraphContext {
 
-    private final BlackDuckIoConfig config;
-
     private final Graph graph;
+
+    private final GraphMapper mapper;
 
     private final boolean supportsTransactions;
 
-    protected GraphContext(BlackDuckIoConfig config, Graph graph) {
-        this.config = Objects.requireNonNull(config);
+    protected GraphContext(Graph graph, GraphMapper mapper) {
         this.graph = Objects.requireNonNull(graph);
+        this.mapper = Objects.requireNonNull(mapper);
         this.supportsTransactions = graph.features().graph().supportsTransactions();
-    }
-
-    /**
-     * Initialize this context.
-     */
-    public void initialize(BdioFrame frame) {
-        // Default is a noop
-    }
-
-    /**
-     * Returns the configuration for this context.
-     */
-    protected final BlackDuckIoConfig config() {
-        return config;
     }
 
     /**
@@ -61,11 +47,18 @@ abstract class GraphContext {
     }
 
     /**
+     * Returns the mapper used in this context.
+     */
+    protected final GraphMapper mapper() {
+        return mapper;
+    }
+
+    /**
      * Returns a traversal source for the graph.
      */
     public GraphTraversalSource traversal() {
         GraphTraversalSource traversal = graph().traversal();
-        return config.partitionStrategy().map(traversal::withStrategies).orElse(traversal);
+        return mapper.partitionStrategy().map(traversal::withStrategies).orElse(traversal);
     }
 
     /**

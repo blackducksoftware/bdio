@@ -13,9 +13,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
-import java.time.temporal.Temporal;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -49,7 +47,7 @@ public class BlackDuckIoReaderTest extends BaseTest {
         ZonedDateTime creationDateTime = ZonedDateTime.now();
         BdioMetadata metadata = BdioMetadata.createRandomUUID().creationDateTime(creationDateTime);
 
-        graph.io(BlackDuckIo.build().onConfig(storeMetadataAndIds()))
+        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
                 .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph()));
 
         GraphTraversal<Vertex, Vertex> namedGraphs = graph.traversal().V().hasLabel(TT.Metadata);
@@ -61,9 +59,9 @@ public class BlackDuckIoReaderTest extends BaseTest {
         assertThat(idProperty.isPresent()).isTrue();
         assertThat(idProperty.value()).isEqualTo(metadata.id());
 
-        VertexProperty<Temporal> creationProperty = namedGraph.property(Bdio.DataProperty.creationDateTime.name());
+        VertexProperty<ZonedDateTime> creationProperty = namedGraph.property(Bdio.DataProperty.creationDateTime.name());
         assertThat(creationProperty.isPresent()).isTrue();
-        assertThat(LocalDateTime.from(creationProperty.value())).isEqualTo(creationDateTime.toLocalDateTime());
+        assertThat(creationProperty.value()).isEqualTo(creationDateTime);
     }
 
     @Test
@@ -114,7 +112,7 @@ public class BlackDuckIoReaderTest extends BaseTest {
         fileModel1.byteCount(103L);
         fileModel2.contentType("text/plain");
 
-        graph.io(BlackDuckIo.build().onConfig(storeMetadataAndIds()))
+        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
                 .readGraph(BdioTest.zipJsonBytes(
                         metadata.asNamedGraph(Lists.newArrayList(fileModel1)),
                         metadata.asNamedGraph(Lists.newArrayList(fileModel2), JsonLdConsts.ID)));

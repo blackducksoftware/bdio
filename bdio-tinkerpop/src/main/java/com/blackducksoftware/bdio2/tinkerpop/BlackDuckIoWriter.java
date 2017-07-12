@@ -34,6 +34,7 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.io.GraphWriter;
+import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
 import com.blackducksoftware.bdio2.BdioMetadata;
@@ -48,16 +49,16 @@ import io.reactivex.Flowable;
 
 public class BlackDuckIoWriter implements GraphWriter {
 
-    private final BlackDuckIoConfig config;
+    private final GraphMapper mapper;
 
     private BlackDuckIoWriter(Builder builder) {
-        config = builder.config.orElseGet(() -> BlackDuckIoConfig.build().create());
+        mapper = builder.mapper.orElseGet(() -> BlackDuckIoMapper.build().create()).createMapper();
     }
 
     @Override
     public void writeGraph(OutputStream outputStream, Graph graph) throws IOException {
-        RxJavaBdioDocument document = config.newBdioDocument(RxJavaBdioDocument.class);
-        WriteGraphContext context = config.newWriteContext(graph, null);
+        RxJavaBdioDocument document = mapper.newBdioDocument(RxJavaBdioDocument.class);
+        WriteGraphContext context = new WriteGraphContext(graph, mapper);
 
         // Create the writer with the parsed metadata
         document.writeToFile(readMetadata(context, document.jsonld().options()), outputStream);
@@ -102,11 +103,11 @@ public class BlackDuckIoWriter implements GraphWriter {
      * If a metadata label is configured, read the vertex from the graph into a new BDIO metadata instance.
      */
     private BdioMetadata readMetadata(WriteGraphContext context, JsonLdOptions options) {
-        return config.metadataLabel()
+        return mapper.metadataLabel()
                 .flatMap(label -> context.traversal().V().hasLabel(label).tryNext())
                 .map(vertex -> {
                     BdioMetadata metadata = new BdioMetadata();
-                    config.identifierKey().ifPresent(key -> {
+                    mapper.identifierKey().ifPresent(key -> {
                         metadata.id(vertex.value(key));
                     });
                     try {
@@ -120,6 +121,7 @@ public class BlackDuckIoWriter implements GraphWriter {
                         }
                     } catch (JsonLdError e) {
                         // TODO How should we handle this?
+                        e.printStackTrace();
                     }
                     return metadata;
                 })
@@ -130,11 +132,11 @@ public class BlackDuckIoWriter implements GraphWriter {
      * Produces the identifier (the "@id" value) for a vertex based on the current configuration.
      */
     private String nodeId(Vertex vertex) {
-        Object identifier = config.identifierKey()
+        Object identifier = mapper.identifierKey()
                 .map(key -> vertex.property(key))
                 .orElse(VertexProperty.empty())
                 .orElseGet(() -> vertex.id());
-        return config.valueObjectMapper().toValueObject(identifier).toString();
+        return mapper.valueObjectMapper().toValueObject(identifier).toString();
     }
 
     /**
@@ -143,11 +145,11 @@ public class BlackDuckIoWriter implements GraphWriter {
     private Iterator<Map<String, Object>> nodes(GraphTraversalSource g) {
         return g.V()
                 // Strip out the metadata vertex
-                .where(config.metadataLabel().map(label -> not(hasLabel(label)))
+                .where(mapper.metadataLabel().map(label -> not(hasLabel(label)))
                         .orElse(identity()))
 
                 // Strip out the implicit vertices
-                .where(config.implicitKey().map(propertyKey -> hasNot(propertyKey))
+                .where(mapper.implicitKey().map(propertyKey -> hasNot(propertyKey))
                         .orElse(identity()))
 
                 // TODO This is a big ass lambda step, can we do more with the traversal?
@@ -161,26 +163,26 @@ public class BlackDuckIoWriter implements GraphWriter {
 
                     // Handle vertex properties
                     vertex.properties().forEachRemaining(vp -> {
-                        if (vp.key().equals(config.unknownKey().orElse(null))) {
-                            BdioHelper.restoreUnknownProperties(vp.value(), result::put);
+                        if (vp.key().equals(mapper.unknownKey().orElse(null))) {
+                            mapper.restoreUnknownProperties(vp.value(), result::put);
                         } else {
-                            result.put(vp.key(), config.valueObjectMapper().toValueObject(vp.value()));
+                            result.put(vp.key(), mapper.valueObjectMapper().toValueObject(vp.value()));
                         }
                     });
 
                     // Handle vertex edges
                     vertex.edges(Direction.OUT).forEachRemaining(e -> {
                         Set<String> keys = e.keys();
-                        if (keys.contains(config.implicitKey().orElse(null))) {
+                        if (keys.contains(mapper.implicitKey().orElse(null))) {
                             return;
                         } else {
                             // TODO Edge properties?
-                            result.put(e.label(), config.valueObjectMapper().toReferenceValueObject(nodeId(e.inVertex())));
+                            result.put(e.label(), mapper.valueObjectMapper().toReferenceValueObject(nodeId(e.inVertex())));
                         }
                     });
 
                     // If the identifier key was used, we already stored it as the "@id" value
-                    config.identifierKey().ifPresent(result::remove);
+                    mapper.identifierKey().ifPresent(result::remove);
 
                     return result;
                 });
@@ -192,13 +194,13 @@ public class BlackDuckIoWriter implements GraphWriter {
 
     public final static class Builder implements WriterBuilder<BlackDuckIoWriter> {
 
-        private Optional<BlackDuckIoConfig> config = Optional.empty();
+        private Optional<Mapper<GraphMapper>> mapper = Optional.empty();
 
         private Builder() {
         }
 
-        public Builder config(@Nullable BlackDuckIoConfig config) {
-            this.config = Optional.ofNullable(config);
+        public Builder mapper(@Nullable Mapper<GraphMapper> mapper) {
+            this.mapper = Optional.ofNullable(mapper);
             return this;
         }
 

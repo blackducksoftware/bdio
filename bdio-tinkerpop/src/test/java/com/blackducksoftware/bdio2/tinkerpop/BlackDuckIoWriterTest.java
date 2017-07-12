@@ -50,7 +50,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
                 Bdio.DataProperty.creationDateTime.name(), creationDateTime.toString());
 
         HeapOutputStream buffer = new HeapOutputStream();
-        graph.io(BlackDuckIo.build().onConfig(storeMetadataAndIds()))
+        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
                 .writeGraph(buffer);
 
         List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
@@ -92,7 +92,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
                 TT.id, "urn:uuid:" + UUID.randomUUID());
 
         HeapOutputStream buffer = new HeapOutputStream();
-        graph.io(BlackDuckIo.build().onConfig(storeMetadataAndIds()))
+        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
                 .writeGraph(buffer);
 
         List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
@@ -127,7 +127,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
                 .addEdge("base", file);
 
         HeapOutputStream buffer = new HeapOutputStream();
-        graph.io(BlackDuckIo.build().onConfig(storeMetadataAndIds()))
+        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
                 .writeGraph(buffer);
 
         List<String> entries = BdioTest.zipEntries(buffer.getInputStream());

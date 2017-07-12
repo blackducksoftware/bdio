@@ -19,8 +19,8 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 
 class WriteGraphContext extends GraphContext {
 
-    protected WriteGraphContext(BlackDuckIoConfig config, Graph graph) {
-        super(config, graph);
+    protected WriteGraphContext(Graph graph, GraphMapper mapper) {
+        super(graph, mapper);
     }
 
 }

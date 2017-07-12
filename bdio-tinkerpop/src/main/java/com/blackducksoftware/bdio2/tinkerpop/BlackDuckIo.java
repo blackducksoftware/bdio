@@ -16,6 +16,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -32,55 +33,35 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
 
     private final Consumer<BlackDuckIoMapper.Builder> onMapper;
 
-    private final Consumer<BlackDuckIoConfig.Builder> onConfig;
+    private final Optional<Consumer<GraphMapper.Builder>> onGraphMapper;
 
     private BlackDuckIo(Builder builder) {
         graph = builder.graph.orElseThrow(() -> new NullPointerException("The graph argument was not specified"));
-
         onMapper = mapperBuilder -> {
-            // Deprecated support
-            builder.registry.ifPresent(mapperBuilder::addRegistry);
+            builder.registry.ifPresent(registry -> mapperBuilder.addRegistry(registry));
+            builder.onMapper.ifPresent(onMapper -> onMapper.accept(mapperBuilder));
 
-            // TODO Eventually we just need to save `builder.onMapper.orElse(b -> {})`
-            builder.onMapper.ifPresent(c -> c.accept(mapperBuilder));
+            // TODO Consider the graph type when adding the registry?
+            mapperBuilder.addRegistry(BlackDuckIoRegistry.getInstance());
         };
-
-        // Setup the on-configuration hook to override the value object mapper
-        onConfig = builder.onConfig
-                .orElse(BlackDuckIo::noop)
-                .andThen(configBuilder -> configBuilder.valueObjectMapper(mapper().create().createMapper()));
-    }
-
-    /**
-     * Formatting rules make <code>x -> {}</code> super ugly.
-     */
-    private static <I> void noop(I ignored) {
+        onGraphMapper = Objects.requireNonNull(builder.onGraphMapper);
     }
 
     @Override
     public BlackDuckIoReader.Builder reader() {
-        BlackDuckIoReader.Builder builder = BlackDuckIoReader.build();
-        builder.config(config().create());
-        return builder;
+        return BlackDuckIoReader.build().mapper(mapper().create());
     }
 
     @Override
     public BlackDuckIoWriter.Builder writer() {
-        BlackDuckIoWriter.Builder builder = BlackDuckIoWriter.build();
-        builder.config(config().create());
-        return builder;
+        return BlackDuckIoWriter.build().mapper(mapper().create());
     }
 
     @Override
     public BlackDuckIoMapper.Builder mapper() {
         BlackDuckIoMapper.Builder builder = BlackDuckIoMapper.build();
         onMapper.accept(builder);
-        return builder;
-    }
-
-    public BlackDuckIoConfig.Builder config() {
-        BlackDuckIoConfig.Builder builder = BlackDuckIoConfig.build();
-        onConfig.accept(builder);
+        onGraphMapper.ifPresent(builder::onGraphMapper);
         return builder;
     }
 
@@ -112,17 +93,30 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
 
     public final static class Builder implements Io.Builder<BlackDuckIo> {
 
-        private Optional<Graph> graph = Optional.empty();
-
-        @SuppressWarnings("rawtypes")
-        private Optional<Consumer<Mapper.Builder>> onMapper = Optional.empty();
-
-        private Optional<Consumer<BlackDuckIoConfig.Builder>> onConfig = Optional.empty();
-
         @Deprecated
         private Optional<IoRegistry> registry = Optional.empty();
 
+        private Optional<Consumer<Mapper.Builder<?>>> onMapper = Optional.empty();
+
+        private Optional<Graph> graph = Optional.empty();
+
+        private Optional<Consumer<GraphMapper.Builder>> onGraphMapper = Optional.empty();
+
         private Builder() {
+        }
+
+        @Deprecated
+        @Override
+        public Builder registry(@Nullable IoRegistry registry) {
+            this.registry = Optional.ofNullable(registry);
+            return this;
+        }
+
+        @SuppressWarnings("rawtypes")
+        @Override
+        public Builder onMapper(@Nullable Consumer<Mapper.Builder> onMapper) {
+            this.onMapper = onMapper != null ? Optional.of(onMapper::accept) : Optional.empty();
+            return this;
         }
 
         @Override
@@ -131,37 +125,13 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
             return this;
         }
 
-        @SuppressWarnings("rawtypes")
-        @Override
-        public Builder onMapper(@Nullable Consumer<Mapper.Builder> onMapper) {
-            this.onMapper = Optional.ofNullable(onMapper);
-            return this;
-        }
-
-        /**
-         * Sets the on-configuration hook for this IO instance.
-         * <p>
-         * <em>WARNING</em>: the value object mapper will be overwritten!
-         */
-        public Builder onConfig(@Nullable Consumer<BlackDuckIoConfig.Builder> onConfig) {
-            this.onConfig = Optional.ofNullable(onConfig);
-            return this;
-        }
-
         @Override
         public BlackDuckIo create() {
             return new BlackDuckIo(this);
         }
 
-        /**
-         * @deprecated Instead, use {@link #onMapper(Consumer)}, as in
-         *             {@code onMapper(builder -> builder.addRegistry(registry))}. Just remember that you can only have
-         *             one on-mapper.
-         */
-        @Override
-        @Deprecated
-        public Builder registry(@Nullable IoRegistry registry) {
-            this.registry = Optional.ofNullable(registry);
+        public Builder onGraphMapper(@Nullable Consumer<GraphMapper.Builder> onGraphMapper) {
+            this.onGraphMapper = Optional.ofNullable(onGraphMapper);
             return this;
         }
     }

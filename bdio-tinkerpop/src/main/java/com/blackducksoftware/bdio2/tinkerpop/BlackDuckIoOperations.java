@@ -50,7 +50,7 @@ import com.google.common.collect.Iterators;
  *
  * @author jgustie
  */
-public final class BdioOperations {
+public final class BlackDuckIoOperations {
 
     /**
      * Internal graph context class.
@@ -73,8 +73,8 @@ public final class BdioOperations {
          */
         private final boolean supportsBatchMode;
 
-        private OperationsContext(BlackDuckIoConfig config, Graph graph) {
-            super(config, graph);
+        private OperationsContext(Graph graph, GraphMapper mapper) {
+            super(graph, mapper);
             supportsBatchMode = graph instanceof SqlgGraph && ((SqlgGraph) graph).features().supportsBatchMode();
         }
 
@@ -99,18 +99,18 @@ public final class BdioOperations {
     /**
      * Property key and edge label used to identify the root project.
      */
+    // TODO This should be on the GraphMapper
     public static final String ROOT_PROJECT = "_rootProject";
 
     private final OperationsContext context;
 
-    private BdioOperations(OperationsContext context) {
+    private BlackDuckIoOperations(OperationsContext context) {
         this.context = Objects.requireNonNull(context);
     }
 
-    public static BdioOperations create(Graph graph, Consumer<BlackDuckIoConfig.Builder> onConfig) {
-        BlackDuckIoConfig.Builder builder = BlackDuckIoConfig.build();
-        onConfig.accept(builder);
-        return new BdioOperations(new OperationsContext(builder.create(), graph));
+    public static BlackDuckIoOperations create(Graph graph, Consumer<GraphMapper.Builder> onGraphMapper) {
+        BlackDuckIoMapper mapper = graph.io(BlackDuckIo.build().onGraphMapper(onGraphMapper)).mapper().create();
+        return new BlackDuckIoOperations(new OperationsContext(graph, mapper.createMapper()));
     }
 
     /**
@@ -123,7 +123,7 @@ public final class BdioOperations {
      * </ul>
      */
     public void addImplicitEdges() {
-        if (context.config().implicitKey().isPresent()) {
+        if (context.mapper().implicitKey().isPresent()) {
             // Turn on batch mode so we don't try to do everything directly
             context.batchModeOn();
 
@@ -151,7 +151,7 @@ public final class BdioOperations {
                     .hasLabel(File.name()).not(outE(Bdio.ObjectProperty.parent.name()).or().inE(base.name())).as("orphanFiles")
 
                     // Flat map to the file's path to it's parent's path
-                    .<String> values(path.name()).flatMap(BdioOperations::parentPath).as("parentPath")
+                    .<String> values(path.name()).flatMap(BlackDuckIoOperations::parentPath).as("parentPath")
 
                     // If multiple orphans have the same parent we can only process one at a time
                     // (the dropped orphans will be picked up on the next pass)
@@ -168,7 +168,7 @@ public final class BdioOperations {
                     // Create the parent edge
                     .addE(Bdio.ObjectProperty.parent.name())
                     .from("orphanFiles")
-                    .property(context.config().implicitKey().get(), Boolean.TRUE)
+                    .property(context.mapper().implicitKey().get(), Boolean.TRUE)
 
                     // Periodically commit
                     .sideEffect(t -> context.batchCommitTx())
@@ -184,10 +184,10 @@ public final class BdioOperations {
     private Traversal<?, Vertex> addMissingParentVertex(Object parentPath) {
         GraphTraversal<Object, Vertex> t = addV(File.name())
                 .property(path.name(), parentPath)
-                .property(context.config().implicitKey().get(), Boolean.TRUE);
+                .property(context.mapper().implicitKey().get(), Boolean.TRUE);
 
-        if (context.config().identifierKey().isPresent()) {
-            t = t.property(context.config().identifierKey().get(), BdioObject.randomId());
+        if (context.mapper().identifierKey().isPresent()) {
+            t = t.property(context.mapper().identifierKey().get(), BdioObject.randomId());
         }
 
         return t;
@@ -202,6 +202,7 @@ public final class BdioOperations {
         // First we need to find the root project
         Vertex rootProject = g.V()
                 .hasLabel(Bdio.Class.Project.name())
+                // TODO What about "previous version" relationships?
                 .not(inE(Bdio.ObjectProperty.subproject.name()))
                 .limit(1L)
                 .as("rootProject")
@@ -214,11 +215,11 @@ public final class BdioOperations {
                 .next();
 
         // Create an edge for the root project as well
-        context.config().metadataLabel().ifPresent(label -> {
+        context.mapper().metadataLabel().ifPresent(label -> {
             g.V(rootProject).as("rootProject")
                     .V().hasLabel(label)
                     .addE(ROOT_PROJECT).to("rootProject")
-                    .property(context.config().implicitKey().get(), Boolean.TRUE)
+                    .property(context.mapper().implicitKey().get(), Boolean.TRUE)
                     .iterate();
         });
 

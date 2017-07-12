@@ -54,16 +54,14 @@ class SqlgReadGraphContext extends ReadGraphContext {
      */
     private final BloomFilter<String> uniqueIdentifiers;
 
-    protected SqlgReadGraphContext(BlackDuckIoConfig config, SqlgGraph sqlgGraph, int batchSize) {
-        super(config, sqlgGraph, batchSize);
+    protected SqlgReadGraphContext(SqlgGraph sqlgGraph, GraphMapper mapper, int batchSize) {
+        super(sqlgGraph, mapper, batchSize);
         this.sqlgGraph = Objects.requireNonNull(sqlgGraph);
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
         uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), EXPECTED_INSERTIONS);
-    }
 
-    @Override
-    public void initialize(BdioFrame frame) {
-        super.initialize(frame);
+        // TODO We need a unique constraint on _partition/_id for all labels (if applicable)
+        // TODO We need a unique constraint on _partition/path for files (if applicable)
 
         // Pre-populate label tables
         Consumer<String> populateLabel = label -> {
@@ -72,8 +70,8 @@ class SqlgReadGraphContext extends ReadGraphContext {
             sqlgGraph.createVertexLabeledIndex(label, indexedDummyKeyValues(label));
             sqlgGraph.getSchemaManager().ensureVertexTableExist(schemaTablePair.getSchema(), schemaTablePair.getTable(), dummyKeyValues(label));
         };
-        config().metadataLabel().ifPresent(populateLabel);
-        frame.forEachTypeName(populateLabel);
+        mapper().metadataLabel().ifPresent(populateLabel);
+        mapper.forEachTypeLabel(populateLabel);
 
         // Commit schema changes
         commitTx();
@@ -109,13 +107,13 @@ class SqlgReadGraphContext extends ReadGraphContext {
         }
 
         // Index the JSON-LD identifier
-        config().identifierKey().ifPresent(key -> {
+        mapper().identifierKey().ifPresent(key -> {
             dummyKeyValues.add(key);
             dummyKeyValues.add("http://example.com/1");
         });
 
         // Index the partition key
-        config().partitionStrategy().ifPresent(strategy -> {
+        mapper().partitionStrategy().ifPresent(strategy -> {
             dummyKeyValues.add(strategy.getPartitionKey());
             dummyKeyValues.add(strategy.getWritePartition());
         });
@@ -129,7 +127,7 @@ class SqlgReadGraphContext extends ReadGraphContext {
     private Object[] dummyKeyValues(String label) {
         List<Object> dummyKeyValues = new ArrayList<>();
 
-        config().unknownKey().ifPresent(key -> {
+        mapper().unknownKey().ifPresent(key -> {
             dummyKeyValues.add(key);
             dummyKeyValues.add("{}");
         });

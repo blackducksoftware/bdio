@@ -54,8 +54,8 @@ class ReadGraphContext extends GraphContext {
      */
     private final AtomicLong count;
 
-    protected ReadGraphContext(BlackDuckIoConfig config, Graph graph, int batchSize) {
-        super(config, graph);
+    protected ReadGraphContext(Graph graph, GraphMapper mapper, int batchSize) {
+        super(graph, mapper);
         this.batchSize = batchSize;
         this.count = new AtomicLong();
     }
@@ -90,7 +90,7 @@ class ReadGraphContext extends GraphContext {
                     try {
                         return Optional.ofNullable(Iterators.getNext(graph().vertices(id), null));
                     } catch (InvalidIdException e) {
-                        return config().identifierKey().flatMap(key -> traversal().V().has(key, id.toString()).tryNext());
+                        return mapper().identifierKey().flatMap(key -> traversal().V().has(key, id.toString()).tryNext());
                     }
                 })
 
@@ -133,7 +133,7 @@ class ReadGraphContext extends GraphContext {
 
                     e.properties().forEachRemaining(p -> newEdge.property(p.key(), p.value()));
 
-                    config().partitionStrategy().ifPresent(p -> {
+                    mapper().partitionStrategy().ifPresent(p -> {
                         newEdge.property(p.getPartitionKey(), p.getWritePartition());
                     });
 

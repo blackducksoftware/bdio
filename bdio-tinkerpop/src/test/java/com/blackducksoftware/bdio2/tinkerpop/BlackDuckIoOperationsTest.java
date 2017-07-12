@@ -32,9 +32,9 @@ import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.bdio2.model.File;
 
-public class BdioOperationsTest extends BaseTest {
+public class BlackDuckIoOperationsTest extends BaseTest {
 
-    public BdioOperationsTest(Configuration configuration) {
+    public BlackDuckIoOperationsTest(Configuration configuration) {
         super(configuration);
     }
 
@@ -48,7 +48,7 @@ public class BdioOperationsTest extends BaseTest {
 
         graph.io(BlackDuckIo.build()).readGraph(bdio);
 
-        BdioOperations.create(graph, builder -> builder.implicitKey(TT.implicit)).addImplicitEdges();
+        BlackDuckIoOperations.create(graph, builder -> builder.implicitKey(TT.implicit)).addImplicitEdges();
 
         GraphTraversalSource g = graph.traversal();
         List<Object> leafPaths = g.V()
@@ -66,16 +66,15 @@ public class BdioOperationsTest extends BaseTest {
     public void identifyRootProject() throws IOException {
         InputStream bdio = new NamedGraphBuilder().build();
 
-        Consumer<BlackDuckIoConfig.Builder> config = b -> b.metadataLabel(TT.Metadata).implicitKey(TT.implicit);
+        Consumer<GraphMapper.Builder> onGraphMapper = b -> b.metadataLabel(TT.Metadata).implicitKey(TT.implicit);
+        graph.io(BlackDuckIo.build().onGraphMapper(onGraphMapper)).readGraph(bdio);
 
-        graph.io(BlackDuckIo.build().onConfig(config)).readGraph(bdio);
-
-        BdioOperations.create(graph, config).addImplicitEdges();
+        BlackDuckIoOperations.create(graph, onGraphMapper).addImplicitEdges();
 
         GraphTraversalSource g = graph.traversal();
         List<Object> rootProjectFlags = g.V().hasLabel(TT.Metadata)
-                .out(BdioOperations.ROOT_PROJECT)
-                .values(BdioOperations.ROOT_PROJECT)
+                .out(BlackDuckIoOperations.ROOT_PROJECT)
+                .values(BlackDuckIoOperations.ROOT_PROJECT)
                 .toList();
 
         assertThat(rootProjectFlags).containsExactly(true);

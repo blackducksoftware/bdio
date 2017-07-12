@@ -108,7 +108,7 @@ public abstract class BaseTest {
      *
      * @see TT
      */
-    public Consumer<BlackDuckIoConfig.Builder> storeMetadataAndIds() {
+    public Consumer<GraphMapper.Builder> storeMetadataAndIds() {
         return builder -> {
             builder.metadataLabel(TT.Metadata).identifierKey(TT.id);
         };
