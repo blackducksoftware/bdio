@@ -111,8 +111,9 @@ public class BdioReader implements Closeable {
         jp = new ObjectMapper().getFactory().createParser(in);
 
         // Start by finding the list of nodes
-        if (jp.nextToken() != JsonToken.START_ARRAY) {
-            throw new IOException("expected input to start with an array");
+        JsonToken startingToken = jp.nextToken();
+        if (startingToken != JsonToken.START_ARRAY) {
+            throw new IOException("expected input to start with an array (found " + startingToken + ")");
         }
     }
 
