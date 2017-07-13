@@ -37,6 +37,17 @@ subprojects {
 		testCompile 'com.google.truth:truth'
 	}
 
+	configurations.all {
+		resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+			if (details.requested.group == 'org.apache.httpcomponents' && details.requested.name == 'httpclient-osgi' && details.requested.version == '4.5.2') {
+				details.useVersion '4.5.3'
+			}
+			if (details.requested.group == 'org.apache.httpcomponents' && details.requested.name == 'httpcore-osgi' && details.requested.version == '4.4.4') {
+				details.useVersion '4.4.6'
+			}
+		}
+	}
+
 	jar {
 		manifest {
 			attributes('Implementation-Title': project.description,
