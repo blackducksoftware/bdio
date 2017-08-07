@@ -15,13 +15,13 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collections;
 import java.util.Objects;
-import java.util.function.Consumer;
 
-import org.umlg.sqlg.structure.SchemaTable;
+import org.umlg.sqlg.structure.IndexType;
+import org.umlg.sqlg.structure.PropertyType;
 import org.umlg.sqlg.structure.SqlgGraph;
+import org.umlg.sqlg.structure.VertexLabel;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.google.common.hash.BloomFilter;
@@ -60,18 +60,9 @@ class SqlgReadGraphContext extends ReadGraphContext {
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
         uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), EXPECTED_INSERTIONS);
 
-        // TODO We need a unique constraint on _partition/_id for all labels (if applicable)
-        // TODO We need a unique constraint on _partition/path for files (if applicable)
-
         // Pre-populate label tables
-        Consumer<String> populateLabel = label -> {
-            SchemaTable schemaTablePair = SchemaTable.from(sqlgGraph, label, sqlgGraph.getSqlDialect().getPublicSchema());
-
-            sqlgGraph.createVertexLabeledIndex(label, indexedDummyKeyValues(label));
-            sqlgGraph.getSchemaManager().ensureVertexTableExist(schemaTablePair.getSchema(), schemaTablePair.getTable(), dummyKeyValues(label));
-        };
-        mapper().metadataLabel().ifPresent(populateLabel);
-        mapper.forEachTypeLabel(populateLabel);
+        mapper().metadataLabel().ifPresent(this::defineVertexLabel);
+        mapper().forEachTypeLabel(this::defineVertexLabel);
 
         // Commit schema changes
         commitTx();
@@ -93,46 +84,36 @@ class SqlgReadGraphContext extends ReadGraphContext {
     }
 
     /**
-     * Returns a key/value array of indexed property keys and dummy values. The dummy values are used by the database to
-     * determine what type to assign the newly created column so they must be representative of what will actually be
-     * stored in that property.
+     * Defines the topology for a specific vertex label. Most labels contain the same base set of properties.
      */
-    private Object[] indexedDummyKeyValues(String label) {
-        List<Object> dummyKeyValues = new ArrayList<>();
+    private void defineVertexLabel(String label) {
+        // TODO We need a unique constraint on _partition/_id for all labels (if applicable)
+        // TODO We need a unique constraint on _partition/path for files (if applicable)
 
-        // File paths must be indexed to support efficient HID lookups
+        VertexLabel vertexLabel = sqlgGraph.getTopology().ensureVertexLabelExist(label);
+
+        mapper().partitionStrategy().ifPresent(strategy -> {
+            vertexLabel.ensurePropertiesExist(Collections.singletonMap(strategy.getPartitionKey(), PropertyType.STRING));
+            vertexLabel.getProperty(strategy.getPartitionKey())
+                    .ifPresent(property -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, Collections.singletonList(property)));
+        });
+
+        mapper().identifierKey().ifPresent(key -> {
+            vertexLabel.ensurePropertiesExist(Collections.singletonMap(key, PropertyType.STRING));
+            vertexLabel.getProperty(key)
+                    .ifPresent(property -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, Collections.singletonList(property)));
+        });
+
         if (label.equals(Bdio.Class.File.name())) {
-            dummyKeyValues.add(Bdio.DataProperty.path.name());
-            dummyKeyValues.add("file:///");
+            vertexLabel.ensurePropertiesExist(Collections.singletonMap(Bdio.DataProperty.path.name(), PropertyType.STRING));
+            vertexLabel.getProperty(Bdio.DataProperty.path.name())
+                    .ifPresent(property -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, Collections.singletonList(property)));
         }
 
-        // Index the JSON-LD identifier
-        mapper().identifierKey().ifPresent(key -> {
-            dummyKeyValues.add(key);
-            dummyKeyValues.add("http://example.com/1");
-        });
-
-        // Index the partition key
-        mapper().partitionStrategy().ifPresent(strategy -> {
-            dummyKeyValues.add(strategy.getPartitionKey());
-            dummyKeyValues.add(strategy.getWritePartition());
-        });
-
-        return dummyKeyValues.toArray();
-    }
-
-    /**
-     * Returns a key/value array of non-indexed keys and dummy values.
-     */
-    private Object[] dummyKeyValues(String label) {
-        List<Object> dummyKeyValues = new ArrayList<>();
-
         mapper().unknownKey().ifPresent(key -> {
-            dummyKeyValues.add(key);
-            dummyKeyValues.add("{}");
+            // TODO PropertyType.JSON?
+            vertexLabel.ensurePropertiesExist(Collections.singletonMap(key, PropertyType.STRING));
         });
-
-        return dummyKeyValues.toArray();
     }
 
 }
