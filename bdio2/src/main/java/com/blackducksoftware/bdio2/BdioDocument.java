@@ -24,7 +24,6 @@ import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
-import org.apache.http.impl.client.CloseableHttpClient;
 import org.reactivestreams.Processor;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -98,8 +97,8 @@ public abstract class BdioDocument {
     protected BdioDocument(Builder builder) {
         // Construct the JSON-LD options
         options = new JsonLdOptions(Objects.requireNonNull(builder.base));
-        options.setExpandContext(Objects.requireNonNull(builder.expandContext));
-        options.setDocumentLoader(builder.documentLoader.build());
+        options.setDocumentLoader(new BdioDocumentLoader(options.getDocumentLoader()));
+        options.setExpandContext(builder.expandContext);
     }
 
     /**
@@ -167,16 +166,9 @@ public abstract class BdioDocument {
 
         private Object expandContext;
 
-        private final RemoteDocumentLoader.Builder documentLoader = new RemoteDocumentLoader.Builder();
-
         public Builder() {
             base = "";
             expandContext = Bdio.Context.DEFAULT.toString();
-
-            // Always load all versions of the BDIO context for offline access
-            for (Bdio.Context context : Bdio.Context.values()) {
-                documentLoader.withResource(context.toString(), context.resourceUrl());
-            }
         }
 
         /**
@@ -195,7 +187,7 @@ public abstract class BdioDocument {
          */
         public Builder base(@Nullable String base) {
             if (Strings.isNullOrEmpty(base)) {
-                this.base = base;
+                this.base = Strings.nullToEmpty(base);
                 return this;
             } else {
                 try {
@@ -212,7 +204,7 @@ public abstract class BdioDocument {
         public Builder base(@Nullable URI base) {
             checkArgument(base == null || base.isAbsolute(), "base URI must be absolute");
             checkArgument(base == null || !base.isOpaque(), "base URI must be hierarchical");
-            this.base = Objects.toString(base, null);
+            this.base = Objects.toString(base, "");
             return this;
         }
 
@@ -220,7 +212,8 @@ public abstract class BdioDocument {
          * Prepares the document for processing BDIO loaded from plain JSON. The {@code expandContext} is typically a
          * {@code String} representation of the {@code http://www.w3.org/ns/json-ld#context} link relationship (a URI
          * identifying the context), however it can also be a {@code Map<String, Object>} representing an already parsed
-         * JSON-LD context.
+         * JSON-LD context. Note that, while accepted, a {@code null} context will only produce meaningful results if
+         * the JSON contains fully qualified IRIs.
          */
         public Builder forJson(@Nullable Object expandContext) {
             checkArgument(expandContext == null || expandContext instanceof String
@@ -249,14 +242,24 @@ public abstract class BdioDocument {
         }
 
         /**
-         * Enable remote context loading using the supplied HTTP client.
+         * Prepares this document for processing documents based on their detected or declared content type.
+         * <p>
+         * Note that the supplied expansion context is only used with the {@linkplain Bdio.ContentType#JSON JSON} type.
          */
-        public Builder allowRemoteLoading(CloseableHttpClient httpClient) {
-            documentLoader.allowRemoteLoading(httpClient);
-            return this;
+        public Builder forContentType(Bdio.ContentType contentType, @Nullable Object expandContext) {
+            switch (contentType) {
+            case JSON:
+                return forJson(expandContext);
+            case JSONLD:
+                return forJsonLd();
+            case BDIO_V2_JSON:
+            case BDIO_V2_ZIP:
+                expandContext = Bdio.Context.VERSION_2_0;
+                return this;
+            default:
+                throw new IllegalArgumentException("unknown content type: " + contentType);
+            }
         }
-
-        // TODO Allow offline documents by URL
     }
 
     // NOTE: This is one place where we are opinionated on our JSON-LD usage, that means this code can break
