@@ -71,6 +71,7 @@ public class BdioReaderTest {
     /**
      * Verify a list with a single element can be read through as plain JSON.
      */
+    @Test
     public void singleElementListJson() throws IOException {
         try (BdioReader reader = new BdioReader(utfBytes("[ \"test\" ]"))) {
             Object entry = reader.nextEntry();
@@ -98,6 +99,7 @@ public class BdioReaderTest {
     /**
      * Verify a list with a single element can be read through as a Zip file.
      */
+    @Test
     public void singleElementListZip() throws IOException {
         try (BdioReader reader = new BdioReader(zipBytes("[ \"test\" ]"))) {
             Object entry = reader.nextEntry();
