@@ -137,7 +137,7 @@ public class Bdio {
          * The list of dependencies.
          */
         // AllowedOn: Project, Component
-        dependencies("http://blackducksoftware.com/bdio#dependsOn", Container.unordered),
+        dependencies("http://blackducksoftware.com/bdio#hasDependencies", Container.unordered),
 
         /**
          * Indicates the dependent component.
@@ -238,11 +238,12 @@ public class Bdio {
         identifier("http://blackducksoftware.com/bdio#hasIdentifier", Datatype.Default, Container.single),
 
         /**
-         * The namespace specific context used to resolve a locator. Typically this is just a URL, however any
+         * The namespace specific base context used to resolve a locator. Typically this is just a URL, however any
          * specification understood by the namespace specific resolver is acceptable.
          */
         // AllowedOn: Project, Component, License, Vulnerability
-        repository("http://blackducksoftware.com/bdio#hasRepository", Datatype.Default, Container.single),
+        // TODO Is this a good name?
+        context("http://blackducksoftware.com/bdio#hasContext", Datatype.Default, Container.single),
 
         /**
          * The tool which resolved the namespace specific locator.
