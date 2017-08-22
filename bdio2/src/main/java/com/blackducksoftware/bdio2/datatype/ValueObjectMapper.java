@@ -231,6 +231,8 @@ public class ValueObjectMapper {
             handlers.put(Bdio.Datatype.Long.toString(), DatatypeSupport.Long());
             handlers.put(Bdio.Datatype.Fingerprint.toString(), DatatypeSupport.Fingerprint());
             handlers.put(Bdio.Datatype.Products.toString(), DatatypeSupport.Products());
+            handlers.put(Bdio.Datatype.ContentRange.toString(), DatatypeSupport.ContentRange());
+            handlers.put(Bdio.Datatype.ContentType.toString(), DatatypeSupport.ContentType());
 
             // These are the types that BDIO expects to be embedded
             embeddedTypes.add(Bdio.Class.Note.toString());

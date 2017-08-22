@@ -22,8 +22,8 @@ import java.util.Objects;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bdio2.datatype.Products;
 import com.blackducksoftware.common.base.ExtraStrings;
+import com.blackducksoftware.common.value.ProductList;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableMap;
 
@@ -108,9 +108,9 @@ public final class BdioMetadata extends BdioObject {
                 Object producer = get(Bdio.DataProperty.producer.toString());
                 if (producer != null) {
                     // Merges to create new producer
-                    Products.Builder builder = new Products.Builder();
-                    ((Products) mapper().fromFieldValue(producer)).forEach(builder::addProduct);
-                    ((Products) mapper().fromFieldValue(value)).forEach(builder::addProduct);
+                    ProductList.Builder builder = new ProductList.Builder();
+                    ((ProductList) mapper().fromFieldValue(producer)).forEach(builder::addProduct);
+                    ((ProductList) mapper().fromFieldValue(value)).forEach(builder::addProduct);
                     putData(Bdio.DataProperty.producer, builder.build());
                 } else {
                     // Establishes a new producer
@@ -158,7 +158,7 @@ public final class BdioMetadata extends BdioObject {
     /**
      * Sets the producer string of the tool (or tools) that created the named graph.
      */
-    public BdioMetadata producer(@Nullable Products producer) {
+    public BdioMetadata producer(@Nullable ProductList producer) {
         putData(Bdio.DataProperty.producer, producer);
         return this;
     }

@@ -36,12 +36,12 @@ import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.datatype.Fingerprint;
-import com.blackducksoftware.bdio2.datatype.Products;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.model.Component;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.License;
 import com.blackducksoftware.bdio2.model.Project;
+import com.blackducksoftware.common.value.ProductList;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
@@ -239,7 +239,7 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
                         if (m.group("toolVersion") != null) {
                             producer.append('/').append(m.group("toolVersion"));
                         }
-                        metadata.producer(Products.valueOf(producer.toString()));
+                        metadata.producer(ProductList.parse(producer.toString()));
                     } else if (m.group("organizationName") != null) {
                         // TODO
                     }

@@ -33,8 +33,8 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import javax.annotation.OverridingMethodsMustInvokeSuper;
 
-import com.blackducksoftware.bdio2.datatype.Product;
 import com.blackducksoftware.common.io.ExtraIO;
+import com.blackducksoftware.common.value.Product;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
@@ -278,9 +278,10 @@ public abstract class Tool implements Runnable {
         Optional<String> implementationVersion = Optional.ofNullable(getClass().getPackage().getImplementationVersion());
         Optional<String> specificationVersion = Optional.ofNullable(getClass().getPackage().getSpecificationVersion());
 
-        Product product = Product.create(name().replace(' ', '-'), implementationVersion.orElse("unknown"));
-        specificationVersion.ifPresent(specVersion -> product.withComment("specification " + specVersion));
-        return product;
+        Product.Builder product = new Product.Builder();
+        product.name(name().replace(' ', '-')).version(implementationVersion.orElse("unknown"));
+        specificationVersion.ifPresent(specVersion -> product.comment("(specification " + specVersion + ")"));
+        return product.build();
     }
 
     /**

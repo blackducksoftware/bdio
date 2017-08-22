@@ -361,15 +361,16 @@ public class Bdio {
         Long("http://www.w3.org/2001/XMLSchema#long"),
         Fingerprint("http://blackducksoftware.com/bdio#Fingerprint"),
         Products("http://blackducksoftware.com/bdio#Products"),
+        ContentRange("http://blackducksoftware.com/bdio#ContentRange"),
+        ContentType("http://blackducksoftware.com/bdio#ContentType"),
 
-        // TODO Range
-        // TODO MimeType
-        // TODO Dependency scope?
         // TODO SPDX license expression? Do they have one already?
         // TODO URL? "@id"?
         // TODO UUID?
         // TODO Boolean?
         // TODO Token?
+        // TODO LanguageTag?
+
         ;
 
         private final String iri;

@@ -17,8 +17,8 @@ import java.util.stream.Stream;
 
 import org.junit.Test;
 
-import com.blackducksoftware.bdio2.datatype.Products;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
+import com.blackducksoftware.common.value.ProductList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
@@ -145,14 +145,14 @@ public class BdioMetadataTest {
     @Test
     public void mergeMetadataProducers() {
         BdioMetadata metadataFoo = new BdioMetadata();
-        metadataFoo.putData(Bdio.DataProperty.producer, Products.valueOf("foo"));
+        metadataFoo.putData(Bdio.DataProperty.producer, ProductList.parse("foo"));
 
         BdioMetadata metadataBar = new BdioMetadata();
-        metadataBar.putData(Bdio.DataProperty.producer, Products.valueOf("bar"));
+        metadataBar.putData(Bdio.DataProperty.producer, ProductList.parse("bar"));
 
         assertThat(metadataFoo.merge(metadataBar))
                 .containsEntry(Bdio.DataProperty.producer.toString(),
-                        new ValueObjectMapper.Builder().build().toValueObject(Products.valueOf("foo bar")));
+                        new ValueObjectMapper.Builder().build().toValueObject(ProductList.parse("foo bar")));
     }
 
 }

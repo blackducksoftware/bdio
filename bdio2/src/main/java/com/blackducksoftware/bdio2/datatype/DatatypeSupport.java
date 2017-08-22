@@ -24,6 +24,9 @@ import java.util.Objects;
 import java.util.function.Function;
 
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
+import com.blackducksoftware.common.value.ContentRange;
+import com.blackducksoftware.common.value.ContentType;
+import com.blackducksoftware.common.value.ProductList;
 
 /**
  * Support for the built-in datatypes.
@@ -48,8 +51,16 @@ public class DatatypeSupport {
         return FingerprintDatatypeHandler.INSTANCE;
     }
 
-    public static DatatypeHandler<Products> Products() {
+    public static DatatypeHandler<ProductList> Products() {
         return ProductsDatatypeHandler.INSTANCE;
+    }
+
+    public static DatatypeHandler<ContentRange> ContentRange() {
+        return ContentRangeDatatypeHandler.INSTANCE;
+    }
+
+    public static DatatypeHandler<ContentType> ContentType() {
+        return ContentTypeDatatypeHandler.INSTANCE;
     }
 
     /**
@@ -179,7 +190,7 @@ public class DatatypeSupport {
     /**
      * @see DatatypeSupport#Products()
      */
-    private static final class ProductsDatatypeHandler implements DatatypeHandler<Products> {
+    private static final class ProductsDatatypeHandler implements DatatypeHandler<ProductList> {
         private static final ProductsDatatypeHandler INSTANCE = new ProductsDatatypeHandler();
 
         private ProductsDatatypeHandler() {
@@ -187,7 +198,7 @@ public class DatatypeSupport {
 
         @Override
         public boolean isInstance(Object value) {
-            return value instanceof Products;
+            return value instanceof ProductList;
         }
 
         @Override
@@ -196,11 +207,73 @@ public class DatatypeSupport {
         }
 
         @Override
-        public Products deserialize(Object value) {
-            if (value instanceof Product || value == null) {
-                return (Products) value;
+        public ProductList deserialize(Object value) {
+            if (value instanceof ProductList || value == null) {
+                return (ProductList) value;
             } else if (value instanceof String) {
-                return Products.valueOf((String) value);
+                return ProductList.parse((String) value);
+            } else {
+                throw invalidInput(value, IllegalArgumentException::new);
+            }
+        }
+    }
+
+    /**
+     * @see DatatypeSupport#ContentRange()
+     */
+    private static final class ContentRangeDatatypeHandler implements DatatypeHandler<ContentRange> {
+        private static final ContentRangeDatatypeHandler INSTANCE = new ContentRangeDatatypeHandler();
+
+        private ContentRangeDatatypeHandler() {
+        }
+
+        @Override
+        public boolean isInstance(Object value) {
+            return value instanceof ContentRange;
+        }
+
+        @Override
+        public Object serialize(Object value) {
+            return Objects.toString(value, null);
+        }
+
+        @Override
+        public ContentRange deserialize(Object value) {
+            if (value instanceof ContentRange || value == null) {
+                return (ContentRange) value;
+            } else if (value instanceof String) {
+                return ContentRange.parse((String) value);
+            } else {
+                throw invalidInput(value, IllegalArgumentException::new);
+            }
+        }
+    }
+
+    /**
+     * @see DatatypeSupport#ContentType()
+     */
+    private static final class ContentTypeDatatypeHandler implements DatatypeHandler<ContentType> {
+        private static final ContentTypeDatatypeHandler INSTANCE = new ContentTypeDatatypeHandler();
+
+        private ContentTypeDatatypeHandler() {
+        }
+
+        @Override
+        public boolean isInstance(Object value) {
+            return value instanceof ContentType;
+        }
+
+        @Override
+        public Object serialize(Object value) {
+            return Objects.toString(value, null);
+        }
+
+        @Override
+        public ContentType deserialize(Object value) {
+            if (value instanceof ContentType || value == null) {
+                return (ContentType) value;
+            } else if (value instanceof String) {
+                return ContentType.parse((String) value);
             } else {
                 throw invalidInput(value, IllegalArgumentException::new);
             }

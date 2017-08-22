@@ -30,8 +30,8 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.BdioObject;
-import com.blackducksoftware.bdio2.datatype.Products;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
+import com.blackducksoftware.common.value.ProductList;
 import com.google.common.base.StandardSystemProperty;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteSink;
@@ -106,7 +106,7 @@ public class ConcatenateTool extends Tool {
 
         BdioMetadata metadata = new BdioMetadata();
         metadata.id(id.orElseGet(BdioObject::randomId));
-        metadata.producer(Products.of(getProduct()));
+        metadata.producer(ProductList.of(getProduct()));
         metadata.creationDateTime(ZonedDateTime.now());
         metadata.creator(StandardSystemProperty.USER_NAME.value());
 

@@ -31,11 +31,12 @@ import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.datatype.Fingerprint;
-import com.blackducksoftware.bdio2.datatype.Products;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.Project;
 import com.blackducksoftware.common.base.ExtraStrings;
 import com.blackducksoftware.common.base.HID;
+import com.blackducksoftware.common.value.Product;
+import com.blackducksoftware.common.value.ProductList;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -158,9 +159,13 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
             return new BdioMetadata().id(toFileUri(hostName, baseDir, "bdio"))
                     .name(name)
                     .creationDateTime(createdOn != null ? createdOn.toInstant().atZone(ZoneOffset.UTC) : null)
-                    .producer(new Products.Builder()
+                    .producer(new ProductList.Builder()
                             // TODO Add a product for us?
-                            .addProduct("HubScanClient", scannerVersion, "Signature " + signatureVersion)
+                            .addProduct(new Product.Builder()
+                                    .name("HubScanClient")
+                                    .version(scannerVersion)
+                                    .comment("(Signature " + signatureVersion + ")")
+                                    .build())
                             .build());
 
         }
