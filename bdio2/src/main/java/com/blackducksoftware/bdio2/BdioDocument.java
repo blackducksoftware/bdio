@@ -209,6 +209,33 @@ public abstract class BdioDocument {
         }
 
         /**
+         * Prepares this document for processing documents based on their detected or declared content type.
+         * <p>
+         * Note that the supplied expansion context is only used with the {@linkplain Bdio.ContentType#JSON JSON} type.
+         */
+        public Builder forContentType(@Nullable Bdio.ContentType contentType, @Nullable Object expandContext) {
+            checkArgument(expandContext == null
+                    || expandContext instanceof String
+                    || expandContext instanceof Map<?, ?>
+                    || expandContext instanceof List<?>,
+                    "expandContext must be a String, Map<String, Object> or a List<Object>");
+
+            if (contentType == null) {
+                this.expandContext = Bdio.Context.DEFAULT.toString();
+            } else if (contentType.equals(Bdio.ContentType.JSON)) {
+                // TODO Warn if expandContext is null? Require non-null?
+                this.expandContext = expandContext;
+            } else if (contentType.equals(Bdio.ContentType.JSONLD)) {
+                this.expandContext = null;
+            } else if (contentType.equals(Bdio.ContentType.BDIO_V2_JSON) || contentType.equals(Bdio.ContentType.BDIO_V2_ZIP)) {
+                this.expandContext = Bdio.Context.VERSION_2_0.toString();
+            } else {
+                throw new IllegalArgumentException("unknown content type: " + contentType);
+            }
+            return this;
+        }
+
+        /**
          * Prepares the document for processing BDIO loaded from plain JSON. The {@code expandContext} is typically a
          * {@code String} representation of the {@code http://www.w3.org/ns/json-ld#context} link relationship (a URI
          * identifying the context), however it can also be a {@code Map<String, Object>} representing an already parsed
@@ -216,11 +243,7 @@ public abstract class BdioDocument {
          * the JSON contains fully qualified IRIs.
          */
         public Builder forJson(@Nullable Object expandContext) {
-            checkArgument(expandContext == null || expandContext instanceof String
-                    || expandContext instanceof Map<?, ?> || expandContext instanceof List<?>,
-                    "expandContext must be a String, Map<String, Object> or a List<Object>");
-            this.expandContext = expandContext;
-            return this;
+            return forContentType(Bdio.ContentType.JSON, expandContext);
         }
 
         /**
@@ -228,8 +251,7 @@ public abstract class BdioDocument {
          * defined within the document itself.
          */
         public Builder forJsonLd() {
-            expandContext = null;
-            return this;
+            return forContentType(Bdio.ContentType.JSONLD, null);
         }
 
         /**
@@ -237,28 +259,7 @@ public abstract class BdioDocument {
          * processing plain JSON or JSON-LD input (Zip forms should already be fully expanded internally).
          */
         public Builder forBdio() {
-            expandContext = Bdio.Context.DEFAULT.toString();
-            return this;
-        }
-
-        /**
-         * Prepares this document for processing documents based on their detected or declared content type.
-         * <p>
-         * Note that the supplied expansion context is only used with the {@linkplain Bdio.ContentType#JSON JSON} type.
-         */
-        public Builder forContentType(Bdio.ContentType contentType, @Nullable Object expandContext) {
-            switch (contentType) {
-            case JSON:
-                return forJson(expandContext);
-            case JSONLD:
-                return forJsonLd();
-            case BDIO_V2_JSON:
-            case BDIO_V2_ZIP:
-                expandContext = Bdio.Context.VERSION_2_0;
-                return this;
-            default:
-                throw new IllegalArgumentException("unknown content type: " + contentType);
-            }
+            return forContentType(null, null);
         }
     }
 
