@@ -1,6 +1,6 @@
 initscript {
 	repositories { jcenter() }
-	dependencies { classpath 'org.jfrog.buildinfo:build-info-extractor-gradle:4.5.2' }
+	dependencies { classpath 'org.jfrog.buildinfo:build-info-extractor-gradle:4.4.12' }
 	dependencies { classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3' }
 	dependencies { classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:2.8.1' }
 }
