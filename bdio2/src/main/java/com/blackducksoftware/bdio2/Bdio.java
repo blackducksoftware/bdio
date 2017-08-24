@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.function.Function;
 
 import com.google.common.io.Resources;
+import com.google.common.net.MediaType;
 
 /**
  * A collection of constants and helpers pertaining to the BDIO specification.
@@ -441,15 +442,16 @@ public class Bdio {
 
         /**
          * The content type used when BDIO data is represented using JSON-LD. The context will either be referenced as a
-         * remote document or will be explicitly included in the content body.
+         * remote document or will be explicitly included in the content body. Note that only UTF-8 character encoding
+         * is allowed.
          */
-        JSONLD("application/ld+json", "jsonld"),
+        JSONLD("application/ld+json;charset=utf-8", "jsonld"),
 
         /**
          * The content type used when BDIO data is represented using plain JSON and the context is specified externally
-         * (e.g. using the {@code Link} header).
+         * (e.g. using the {@code Link} header). Note that only UTF-8 character encoding is allowed.
          */
-        JSON("application/json", "json"),
+        JSON("application/json;charset=utf-8", "json"),
 
         /**
          * The content type used when BDIO data is represented using plain JSON that should be interpreted using the
@@ -492,6 +494,22 @@ public class Bdio {
          */
         public <R> R as(Function<String, R> f) {
             return f.apply(mediaType);
+        }
+
+        /**
+         * Returns the BDIO content type corresponding to the supplied media type.
+         */
+        public static ContentType forMediaType(String input) {
+            // TODO Switch from Guava to Magpie when possible
+            MediaType mediaType = MediaType.parse(input);
+            for (Bdio.ContentType contentType : Bdio.ContentType.values()) {
+                // NOTE: Putting the BDIO type on the left means we accept something like "application/json"
+                // instead of strictly requiring "application/json;charset=utf-8"
+                if (contentType.as(MediaType::parse).is(mediaType)) {
+                    return contentType;
+                }
+            }
+            throw new IllegalArgumentException("unsupported media type: " + input);
         }
     }
 
