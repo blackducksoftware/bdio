@@ -445,24 +445,24 @@ public class Bdio {
          * remote document or will be explicitly included in the content body. Note that only UTF-8 character encoding
          * is allowed.
          */
-        JSONLD("application/ld+json;charset=utf-8", "jsonld"),
+        JSONLD("application/ld+json", "jsonld"),
 
         /**
          * The content type used when BDIO data is represented using plain JSON and the context is specified externally
          * (e.g. using the {@code Link} header). Note that only UTF-8 character encoding is allowed.
          */
-        JSON("application/json;charset=utf-8", "json"),
+        JSON("application/json", "json"),
 
         /**
          * The content type used when BDIO data is represented using plain JSON that should be interpreted using the
-         * {@linkplain Bdio.Context#VERSION_2_0 BDIO v2} context.
+         * default BDIO context.
          */
-        BDIO_V2_JSON("application/vnd.blackducksoftware.bdio.v2+json", "json"),
+        BDIO_JSON("application/vnd.blackducksoftware.bdio+json", "json"),
 
         /**
          * The content type used when BDIO data is represented as self-contained JSON-LD stored in a ZIP archive.
          */
-        BDIO_V2_ZIP("application/vnd.blackducksoftware.bdio.v2+zip", "bdio"),
+        BDIO_ZIP("application/vnd.blackducksoftware.bdio+zip", "bdio"),
 
         ;
 
@@ -503,8 +503,6 @@ public class Bdio {
             // TODO Switch from Guava to Magpie when possible
             MediaType mediaType = MediaType.parse(input);
             for (Bdio.ContentType contentType : Bdio.ContentType.values()) {
-                // NOTE: Putting the BDIO type on the left means we accept something like "application/json"
-                // instead of strictly requiring "application/json;charset=utf-8"
                 if (contentType.as(MediaType::parse).is(mediaType)) {
                     return contentType;
                 }

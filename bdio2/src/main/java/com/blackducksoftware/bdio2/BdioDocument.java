@@ -227,8 +227,8 @@ public abstract class BdioDocument {
                 this.expandContext = expandContext;
             } else if (contentType.equals(Bdio.ContentType.JSONLD)) {
                 this.expandContext = null;
-            } else if (contentType.equals(Bdio.ContentType.BDIO_V2_JSON) || contentType.equals(Bdio.ContentType.BDIO_V2_ZIP)) {
-                this.expandContext = Bdio.Context.VERSION_2_0.toString();
+            } else if (contentType.equals(Bdio.ContentType.BDIO_JSON) || contentType.equals(Bdio.ContentType.BDIO_ZIP)) {
+                this.expandContext = Bdio.Context.DEFAULT.toString();
             } else {
                 throw new IllegalArgumentException("unknown content type: " + contentType);
             }
