@@ -11,20 +11,20 @@
  */
 package com.blackducksoftware.bdio2;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
+import java.time.ZonedDateTime;
 import java.util.Date;
+import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Spliterator;
-import java.util.Spliterators.AbstractSpliterator;
-import java.util.function.Consumer;
-import java.util.function.ToIntFunction;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -43,9 +43,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.jsonldjava.core.JsonLdConsts;
-import com.google.common.base.Splitter;
+import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 /**
@@ -54,131 +53,6 @@ import com.google.common.collect.Maps;
  * @author jgustie
  */
 class LegacyScanContainerEmitter extends SpliteratorEmitter {
-
-    /*
-     * Notes on identifiers....
-     * <ol>
-     * <li>The {@code ProtexBomEventHandler} uses the project identifier as the {@code ScanContainer.hostName}</li>
-     * <li>The {@code ScanGroupApi} uses the {@code ScanContainer.hostName} as the unique key IF the type is
-     * {@code BOM_IMPORT}</li>
-     * <li>The {@code ScanGroupApi} uses the host name and base directory as the unique key IF the type is
-     * {@code FS}</li>
-     * </ol>
-     * So by setting the project identifier to the same value used for {@code FS} imports we keep them the same
-     * unique scan group key.
-     * <p>
-     * ...BUT: if we did that then the base directory "File" node and the "Project" node would have the same
-     * identifier. To make them unique we append a fragment to the project identifier (assuming fragments are
-     * stripped off in the {@code ScanGroupApi}.
-     */
-
-    /**
-     * File name extension to URI scheme mapping. This handles most of the legacy cases that we support, there are other
-     * file extensions that would normally be valid (we can't get them all), so this only covers the 80-90% case.
-     */
-    private static final ImmutableMap<String, String> EXTENSION_TO_SCHEME = ImmutableMap.<String, String> builder()
-            .put("zip", "zip")
-            .put("bz", "zip")
-            .put("z", "zip")
-            .put("nupg", "zip")
-            .put("xpi", "zip")
-            .put("egg", "zip")
-            .put("jar", "zip")
-            .put("war", "zip")
-            .put("rar", "zip")
-            .put("apk", "zip")
-            .put("ear", "zip")
-            .put("car", "zip")
-            .put("nbm", "zip")
-            .put("rpm", "rpm")
-            .put("tar", "tar")
-            .put("tgz", "tar")
-            .put("txz", "tar")
-            .put("tbz", "tar")
-            .put("tbz2", "tar")
-            .put("ar", "ar")
-            .put("lib", "ar")
-            .put("arj", "arj")
-            .put("7z", "sevenZ")
-            .build();
-
-    /**
-     * Internal representation of a legacy scan node used for conversion to BDIO.
-     */
-    public static final class LegacyScanContainer {
-
-        @Nullable
-        private final String baseDir;
-
-        @Nullable
-        private final Date createdOn;
-
-        @Nullable
-        private final String hostName;
-
-        @Nullable
-        private final String name;
-
-        @Nullable
-        private final String project;
-
-        @Nullable
-        private final String release;
-
-        private final Map<Long, LegacyScanNode> scanNodeList;
-
-        @Nullable
-        private final String scannerVersion;
-
-        @Nullable
-        private final String signatureVersion;
-
-        @JsonCreator
-        public LegacyScanContainer(
-                @Nullable @JsonProperty("baseDir") String baseDir,
-                @Nullable @JsonProperty("createdOn") Date createdOn,
-                @Nullable @JsonProperty("hostName") String hostName,
-                @Nullable @JsonProperty("name") String name,
-                @Nullable @JsonProperty("project") String project,
-                @Nullable @JsonProperty("release") String release,
-                @Nullable @JsonProperty("scanNodeList") List<LegacyScanNode> scanNodeList,
-                @Nullable @JsonProperty("scannerVersion") String scannerVersion,
-                @Nullable @JsonProperty("signatureVersion") String signatureVersion) {
-            this.baseDir = baseDir;
-            this.createdOn = createdOn;
-            this.hostName = hostName;
-            this.name = name;
-            this.project = project;
-            this.release = release;
-            this.scanNodeList = scanNodeList != null ? Maps.uniqueIndex(scanNodeList, scanNode -> scanNode.id) : ImmutableMap.of();
-            this.scannerVersion = scannerVersion;
-            this.signatureVersion = signatureVersion;
-        }
-
-        private BdioMetadata metadata() {
-            return new BdioMetadata().id(toFileUri(hostName, baseDir, "bdio"))
-                    .name(name)
-                    .creationDateTime(createdOn != null ? createdOn.toInstant().atZone(ZoneOffset.UTC) : null)
-                    .producer(new ProductList.Builder()
-                            // TODO Add a product for us?
-                            .addProduct(new Product.Builder()
-                                    .name("HubScanClient")
-                                    .version(scannerVersion)
-                                    .comment("(Signature " + signatureVersion + ")")
-                                    .build())
-                            .build());
-
-        }
-
-        private Stream<Map<String, Object>> nodes() {
-            return Stream.concat(
-                    Stream.of(new Project(toFileUri(hostName, baseDir, "PROJECT"))
-                            .name(project)
-                            .version(release)
-                            .base(toFileUri(hostName, baseDir, null))),
-                    scanNodeList.values().stream().map(scanNode -> scanNode.file(this)));
-        }
-    }
 
     /**
      * Internal representation of a legacy scan node used for conversion to BDIO.
@@ -211,7 +85,7 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
         @Nullable
         private final String path;
 
-        private final Map<String, String> signatures;
+        private final ImmutableMap<String, String> signatures;
 
         @Nullable
         private final Long size;
@@ -239,30 +113,113 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
             this.type = type;
         }
 
-        private File file(LegacyScanContainer scanContainer) {
-            HID fileHid = fileHid(scanContainer, this);
-            File bdioFile = new File(fileHid.toUri().toString());
-            // TODO Best we can do for media type is extension match
-            if (type == null
-                    || type.equals(LegacyScanNode.TYPE_FILE)
-                    || type.equals(LegacyScanNode.TYPE_ARCHIVE)) {
-                bdioFile.byteCount(size);
+    }
 
-                signatures.entrySet().stream()
+    /**
+     * Internal representation of a legacy scan node used for conversion to BDIO.
+     */
+    public static final class LegacyScanContainer {
+
+        @Nullable
+        private final String baseDir;
+
+        @Nullable
+        private final ZonedDateTime createdOn;
+
+        @Nullable
+        private final String hostName;
+
+        @Nullable
+        private final String name;
+
+        @Nullable
+        private final String project;
+
+        @Nullable
+        private final String release;
+
+        private final ImmutableMap<Long, LegacyScanNode> scanNodeList;
+
+        @Nullable
+        private final String scannerVersion;
+
+        @Nullable
+        private final String signatureVersion;
+
+        @JsonCreator
+        public LegacyScanContainer(
+                @Nullable @JsonProperty("baseDir") String baseDir,
+                @Nullable @JsonProperty("createdOn") Date createdOn,
+                @Nullable @JsonProperty("hostName") String hostName,
+                @Nullable @JsonProperty("name") String name,
+                @Nullable @JsonProperty("project") String project,
+                @Nullable @JsonProperty("release") String release,
+                @Nullable @JsonProperty("scanNodeList") List<LegacyScanNode> scanNodeList,
+                @Nullable @JsonProperty("scannerVersion") String scannerVersion,
+                @Nullable @JsonProperty("signatureVersion") String signatureVersion) {
+            this.baseDir = baseDir;
+            this.createdOn = createdOn != null ? createdOn.toInstant().atZone(ZoneOffset.UTC) : null;
+            this.hostName = hostName;
+            this.name = name;
+            this.project = project;
+            this.release = release;
+            this.scanNodeList = scanNodeList != null ? Maps.uniqueIndex(scanNodeList, scanNode -> scanNode.id) : ImmutableMap.of();
+            this.scannerVersion = scannerVersion;
+            this.signatureVersion = signatureVersion;
+        }
+
+        protected BdioMetadata metadata() {
+            return new BdioMetadata()
+                    .id(toFileUri(hostName, baseDir, null))
+                    .name(name)
+                    .creationDateTime(createdOn)
+                    .producer(new ProductList.Builder()
+                            .addProduct(new Product.Builder()
+                                    .name("HubScanClient")
+                                    .version(scannerVersion)
+                                    .comment("(signature " + signatureVersion + ")")
+                                    .build())
+                            .addProduct(new Product.Builder()
+                                    .simpleName(LegacyScanContainerEmitter.class)
+                                    .implementationVersion(LegacyScanContainerEmitter.class)
+                                    .build())
+                            .build());
+        }
+
+        protected Stream<Map<String, Object>> nodes() {
+            return Stream.concat(Stream.of(project()), scanNodeList.values().stream().map(this::file));
+        }
+
+        private Project project() {
+            return new Project(toFileUri(hostName, baseDir, "project"))
+                    .name(project)
+                    .version(release)
+                    .base(toFileUri(hostName, baseDir, "scanNode-0"));
+        }
+
+        private File file(LegacyScanNode scanNode) {
+            File bdioFile = new File(toFileUri(hostName, baseDir, "scanNode-" + scanNode.id))
+                    .path(toFilePath(this, scanNode));
+            if (scanNode.type == null
+                    || scanNode.type.equals(LegacyScanNode.TYPE_FILE)
+                    || scanNode.type.equals(LegacyScanNode.TYPE_ARCHIVE)) {
+                bdioFile.byteCount(scanNode.size);
+                scanNode.signatures.entrySet().stream()
                         .map(e -> Fingerprint.create(algorithmName(e.getKey()), e.getValue()))
                         .forEach(bdioFile::fingerprint);
-            } else if (!type.equals(LegacyScanNode.TYPE_DIRECTORY)) {
-                throw new IllegalArgumentException("invalid file type: " + type);
+            } else if (!scanNode.type.equals(LegacyScanNode.TYPE_DIRECTORY)) {
+                throw new IllegalArgumentException("invalid file type: " + scanNode.type);
             }
             return bdioFile;
         }
+
     }
 
     /**
      * This module makes the configured object mapper behave like the one used to parse legacy scan container objects.
      */
     public static final class LegacyScanContainerModule extends Module {
-        private static final LegacyScanContainerModule INSTANCE = new LegacyScanContainerModule();
+        public static final LegacyScanContainerModule INSTANCE = new LegacyScanContainerModule();
 
         private LegacyScanContainerModule() {
         }
@@ -284,122 +241,79 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
         }
     }
 
-    /**
-     * Returns the BDIO fingerprint algorithm name given the legacy signature type.
-     */
-    private static String algorithmName(String signatureType) {
-        switch (signatureType) {
-        case LegacyScanNode.SIGNATURES_SHA1:
-            return "sha1";
-        case LegacyScanNode.SIGNATURES_MD5:
-            return "md5";
-        case LegacyScanNode.SIGNATURES_CLEAN_SHA1:
-            return "sha1-ascii";
-        default:
-            return "unknown";
-        }
-    }
-
     public LegacyScanContainerEmitter(InputStream scanContainerData) {
-        super(streamLazyFromJson(scanContainerData, LegacyScanContainer.class, LegacyScanContainerModule.INSTANCE)
-                .flatMap(scanContainer -> {
-                    BdioMetadata metadata = scanContainer.metadata();
-                    return Stream.concat(
-                            Stream.of(metadata.asNamedGraph()),
-                            partitionNodes(scanContainer.nodes())
-                                    .map(graph -> (Object) metadata.asNamedGraph(graph, JsonLdConsts.ID)));
-                })
-                .spliterator());
+        super(parse(scanContainerData).flatMap(LegacyScanContainerEmitter::toBdioEntries).spliterator());
     }
 
-    private static Stream<List<Map<String, Object>>> partitionNodes(Stream<Map<String, Object>> nodeStream) {
-        Spliterator<Map<String, Object>> nodes = nodeStream.spliterator();
-        return StreamSupport.stream(new AbstractSpliterator<List<Map<String, Object>>>(nodes.estimateSize(), nodes.characteristics() | Spliterator.NONNULL) {
-            @Override
-            public boolean tryAdvance(Consumer<? super List<Map<String, Object>>> action) {
-                // TODO Apply a load factor to Bdio.MAX_ENTRY_SIZE
-                Partition<Map<String, Object>> partition = new Partition<>(LegacyScanContainerEmitter::estimateSize, Bdio.MAX_ENTRY_SIZE);
-                while (nodes.tryAdvance(partition) && !partition.isFull()) {
-                }
-                return partition.consume(action);
+    /**
+     * Returns a stream that parses a legacy scan container object from an input stream.
+     */
+    private static Stream<LegacyScanContainer> parse(InputStream inputStream) {
+        return Stream.of(inputStream).map(in -> {
+            try {
+                return new ObjectMapper()
+                        .registerModule(LegacyScanContainerModule.INSTANCE)
+                        .readValue(in, LegacyScanContainer.class);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
             }
-        }, false);
+        });
     }
 
     /**
-     * Attempts to estimate the serialized JSON size of an object by only looking at what is already in available. This
-     * means no character encoding: that would create overhead that isn't necessary for this computation.
+     * Converts a scan container in BDIO entries. The first entry in the stream will be a "header" entry, the remaining
+     * entries will produced as necessary to stay below the serialization size limit.
      */
-    private static int estimateSize(Object obj) {
-        return estimateSize(obj, 0);
+    private static Stream<Object> toBdioEntries(LegacyScanContainer scanContainer) {
+        // Extract the metadata once, we will reuse it for every entry
+        BdioMetadata metadata = scanContainer.metadata();
+
+        // The per-entry overhead is 20 bytes plus the size of the identifier: `{"@id":<ID>,"@graph":[<NODES>]}`
+        int maxSize = Bdio.MAX_ENTRY_SIZE - (20 + estimateSize(metadata.id()));
+        Spliterator<List<Map<String, Object>>> graphNodes = partition(scanContainer.nodes().spliterator(), maxSize, LegacyScanContainerEmitter::estimateSize);
+
+        return Stream.concat(
+                Stream.of(metadata.asNamedGraph()),
+                StreamSupport.stream(graphNodes, false).map(graph -> metadata.asNamedGraph(graph, JsonLdConsts.ID)));
     }
 
     /**
-     * Internal implementation that considers pretty print depth.
+     * Attempts to <em>estimate</em> the serialized JSON size of an object without incurring too much overhead.
      */
-    private static int estimateSize(Object obj, int depth) {
-        if (obj instanceof String) {
-            return 2 + ((String) obj).length(); // Estimate using single byte characters
-        } else if (obj instanceof Number) {
-            return 0; // TODO
+    private static int estimateSize(@Nullable Object obj) {
+        // NOTE: It is better to over estimate then under estimate. String sizes are inflated 10% to account for UTF-8
+        // encoding and we count a delimiter for every collection element (even the last).
+        if (obj == null) {
+            return 4; // "null"
+        } else if (obj instanceof Number || obj instanceof Boolean) {
+            return obj.toString().length(); // Accounts for things like negative numbers
         } else if (obj instanceof List<?>) {
-            int size = 2 + ((List<?>) obj).size(); // Estimate overhead of list itself
+            int size = 2; // "[]"
             for (Object item : (List<?>) obj) {
-                size += estimateSize(item);
+                size += 1 + estimateSize(item); // <item> ","
             }
             return size;
         } else if (obj instanceof Map<?, ?>) {
-            int size = 2 + (((Map<?, ?>) obj).size() * 3); // Estimate overhead of map itself
+            int size = 2; // "{}"
             for (Map.Entry<?, ?> entry : ((Map<?, ?>) obj).entrySet()) {
-                size += estimateSize(entry.getKey());
-                size += estimateSize(entry.getValue());
+                size += 1 + estimateSize(entry.getKey()); // <key> ":"
+                size += 1 + estimateSize(entry.getValue()); // <value> ","
             }
             return size;
         } else {
-            return 0;
+            // `StandardCharsets.UTF_8.newEncoder().averageBytesPerChar() == 1.1`
+            return 2 + (int) (1.1 * obj.toString().length()); // '"' <obj> '"'
         }
     }
 
-    private static class Partition<E> implements Consumer<E> {
-
-        private final ToIntFunction<E> weigher;
-
-        private final long maxWeight;
-
-        private final List<E> partition = new ArrayList<>(); // TODO Give an initial size
-
-        private long weight;
-
-        private Partition(ToIntFunction<E> weigher, long maxWeight) {
-            this.weigher = Objects.requireNonNull(weigher);
-            this.maxWeight = maxWeight;
-        }
-
-        @Override
-        public void accept(E element) {
-            weight += weigher.applyAsInt(element);
-            partition.add(element);
-        }
-
-        public boolean isFull() {
-            return weight >= maxWeight;
-        }
-
-        public boolean consume(Consumer<? super List<E>> action) {
-            if (partition.isEmpty()) {
-                return false;
-            } else {
-                action.accept(partition);
-                return true;
-            }
-        }
-    }
-
+    /**
+     * Attempt to construct a file URI using the supplied parts, falling back to the base directory.
+     */
     private static String toFileUri(@Nullable String hostName, @Nullable String baseDir, @Nullable String fragment) {
         try {
             return new URI("file", hostName, baseDir, fragment).toString();
         } catch (URISyntaxException e) {
-            return baseDir;
+            return fragment != null ? baseDir + '#' + fragment : baseDir;
         }
     }
 
@@ -407,12 +321,13 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
      * Attempts to reconstruct a HID from the supplied scan node. The archive type is lost in the legacy
      * representation.
      */
-    private static HID fileHid(LegacyScanContainer scanContainer, LegacyScanNode scanNode) {
+    private static String toFilePath(LegacyScanContainer scanContainer, LegacyScanNode scanNode) {
         try {
             String scheme = "file";
             String ssp = null;
             String fragment = null;
             for (LegacyScanNode node : listArchives(scanContainer, scanNode)) {
+                // TODO Eliminating intermediate URI construction would be a significant optimization
                 if (ssp == null) {
                     // The file system node should have the host name and base directory
                     String path = ExtraStrings.ensureDelimiter(scanContainer.baseDir, "/", node.path);
@@ -424,7 +339,7 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
                     scheme = guessScheme(ssp);
                 }
             }
-            return HID.from(new URI(scheme, ssp, fragment));
+            return HID.from(new URI(scheme, ssp, fragment)).toUri().toString();
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException(e);
         }
@@ -434,7 +349,7 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
      * Returns a sequence of nesting archive nodes leading up to (and including) the supplied scan node.
      */
     private static Iterable<LegacyScanNode> listArchives(LegacyScanContainer scanContainer, LegacyScanNode scanNode) {
-        LinkedList<LegacyScanNode> result = new LinkedList<>();
+        Deque<LegacyScanNode> result = new LinkedList<>();
         result.add(scanNode);
 
         // Follow the scan nodes up to root
@@ -452,21 +367,75 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
     }
 
     /**
+     * Returns the BDIO fingerprint algorithm name given the legacy signature type.
+     */
+    private static String algorithmName(String signatureType) {
+        switch (signatureType) {
+        case LegacyScanNode.SIGNATURES_SHA1:
+            return "sha1";
+        case LegacyScanNode.SIGNATURES_MD5:
+            return "md5";
+        case LegacyScanNode.SIGNATURES_CLEAN_SHA1:
+            return "sha1-ascii";
+        default:
+            return "unknown";
+        }
+    }
+
+    /**
      * Guesses a scheme based on a file name. We need to attempt this mapping because the original scheme is lost in the
      * legacy encoding, our only chance of reconstructing it is through extension matching.
      */
     private static String guessScheme(String filename) {
-        // Get the cleaned up list of extensions
-        String name = filename.substring(filename.lastIndexOf('/') + 1, filename.length());
-        List<String> extensions = Splitter.on('.').splitToList(name.substring(name.indexOf('.') + 1, name.length()).toLowerCase());
-
-        // Reverse iteration looking for single extension values (note that "foobar.tar.gz" is matched by "tar")
-        for (String part : Lists.reverse(extensions)) {
-            String scheme = EXTENSION_TO_SCHEME.get(part);
-            if (scheme != null) {
-                return scheme;
+        // Scan backwards through the file name trying to match extensions (case-insensitively)
+        // NOTE: we do not differentiate the extension from the base name, e.g. "zip.foo" WILL match as "zip"
+        int start, end;
+        start = end = filename.length();
+        while (start > 0) {
+            char c = filename.charAt(--start);
+            if (c == '/') {
+                // We've hit the end of the filename
+                break;
+            } else if (c == '.') {
+                switch (Ascii.toLowerCase(filename.substring(start + 1, end))) {
+                // This list was taken from the old-old legacy code which used to only match extensions
+                case "zip":
+                case "bz":
+                case "z":
+                case "nupg":
+                case "xpi":
+                case "egg":
+                case "jar":
+                case "war":
+                case "rar":
+                case "apk":
+                case "ear":
+                case "car":
+                case "nbm":
+                    return "zip";
+                case "rpm":
+                    return "rpm";
+                case "tar":
+                case "tgz":
+                case "txz":
+                case "tbz":
+                case "tbz2":
+                    return "tar";
+                case "ar":
+                case "lib":
+                    return "ar";
+                case "arj":
+                    return "arj";
+                case "7z":
+                    return "sevenZ";
+                default:
+                    // Keep looking
+                    end = start;
+                }
             }
         }
+
+        // Hopefully this won't break anything downstream that is depending on a specific scheme...
         return "unknown";
     }
 

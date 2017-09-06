@@ -15,51 +15,33 @@
  */
 package com.blackducksoftware.bdio2;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Spliterator;
-import java.util.Spliterators;
+import java.util.Spliterators.AbstractSpliterator;
 import java.util.function.Consumer;
+import java.util.function.ToIntFunction;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 /**
- * An emitter that is backed by a spliterator.
+ * An emitter that is backed by an arbitrary {@code Spliterator} of BDIO entries.
+ * <p>
+ * Generally the first entry emitted should be
  *
  * @author jgustie
  */
 abstract class SpliteratorEmitter implements Emitter {
 
     /**
-     * The spliterator over the BDIO nodes.
+     * The spliterator over the BDIO entries.
      */
-    private final Spliterator<? extends Object> bdioNodes;
+    private final Spliterator<Object> entries;
 
-    protected SpliteratorEmitter(Spliterator<? extends Object> bdioNodes) {
-        this.bdioNodes = Objects.requireNonNull(bdioNodes);
-    }
-
-    /**
-     * Returns a single element stream which will parse the supplied bytes once a terminal operation is invoked on the
-     * stream, i.e. just constructing the stream will not advance the byte sequence.
-     */
-    protected static <T> Stream<T> streamLazyFromJson(InputStream in, Class<T> type, Module... modules) {
-        return StreamSupport.stream(() -> {
-            try {
-                return Spliterators.spliterator(new Object[] {
-                        new ObjectMapper()
-                                .registerModules(modules)
-                                .readValue(in, type) },
-                        Spliterator.DISTINCT);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        }, Spliterator.DISTINCT | Spliterator.SIZED | Spliterator.SUBSIZED, false);
+    protected SpliteratorEmitter(Spliterator<Object> entries) {
+        this.entries = Objects.requireNonNull(entries);
     }
 
     @Override
@@ -68,7 +50,7 @@ abstract class SpliteratorEmitter implements Emitter {
         Objects.requireNonNull(onError);
         Objects.requireNonNull(onComplete);
         try {
-            if (!bdioNodes.tryAdvance(onNext)) {
+            if (!entries.tryAdvance(onNext)) {
                 onComplete.run();
             }
         } catch (UncheckedIOException e) {
@@ -81,6 +63,48 @@ abstract class SpliteratorEmitter implements Emitter {
     @Override
     public void dispose() {
         // Right now, this does nothing because all we can do at this point is go out of scope
+    }
+
+    @Override
+    public Stream<Object> stream() {
+        // No point in decomposing through an intermediary spliterator
+        return StreamSupport.stream(entries, false);
+    }
+
+    /**
+     * Partitions a sequence of elements into buckets of specified capacity. The resulting sequence consists of lists
+     * such that the sum of the weighing function applied to each element of the list will be strictly less then the
+     * supplied capacity.
+     */
+    protected static <T> Spliterator<List<T>> partition(Spliterator<T> source, long capacity, ToIntFunction<T> weigher) {
+        // Define a type to hold the list of elements and the current weight
+        class Partition implements Consumer<T> {
+            private final List<T> elements = new ArrayList<>(); // TODO Give an initial size
+
+            private long weight;
+
+            @Override
+            public void accept(T element) {
+                weight += weigher.applyAsInt(element);
+                elements.add(element);
+            }
+        }
+
+        // TODO The source size is obviously an over-estimate of the size...
+        return new AbstractSpliterator<List<T>>(source.estimateSize(), source.characteristics()) {
+            @Override
+            public boolean tryAdvance(Consumer<? super List<T>> action) {
+                Partition partition = new Partition();
+                while (source.tryAdvance(partition) && partition.weight < capacity) {
+                }
+                if (partition.elements.isEmpty()) {
+                    return false;
+                } else {
+                    action.accept(partition.elements);
+                    return true;
+                }
+            }
+        };
     }
 
 }

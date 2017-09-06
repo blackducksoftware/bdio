@@ -42,6 +42,8 @@ import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.License;
 import com.blackducksoftware.bdio2.model.Project;
 import com.blackducksoftware.common.value.ProductList;
+import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
@@ -108,7 +110,7 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
     private static final ValueObjectMapper valueObjectMapper = new ValueObjectMapper.Builder().build();
 
     public LegacyBdio1xEmitter(InputStream bdioData) {
-        super(streamLazyFromJson(bdioData, List.class)
+        super(readJsonValue(bdioData, List.class)
                 .map(jsonld -> {
                     // THIS IS GOING TO BE SLOW AND USE A LOT OF MEMORY.
                     try {
@@ -162,6 +164,16 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
                     return Stream.concat(Stream.of(metadata.asNamedGraph()), entries);
                 })
                 .spliterator());
+    }
+
+    protected static <T> Stream<T> readJsonValue(InputStream inputStream, Class<T> type, Module... modules) {
+        return Stream.of(inputStream).map(in -> {
+            try {
+                return new ObjectMapper().registerModules(modules).readValue(in, type);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
     }
 
     public static Stream<?> toBdio2Node(Object node) {
