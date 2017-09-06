@@ -271,7 +271,7 @@ public class Bdio {
          * The fingerprints of a file.
          */
         // AllowedOn: File
-        fingerprint("http://blackducksoftware.com/bdio#hasFingerprint", Datatype.Fingerprint, Container.unordered),
+        fingerprint("http://blackducksoftware.com/bdio#hasFingerprint", Datatype.Digest, Container.unordered),
 
         /**
          * The content type of a file.
@@ -360,8 +360,8 @@ public class Bdio {
 
         Default(""),
         DateTime("http://www.w3.org/2001/XMLSchema#dateTime"),
+        Digest("http://blackducksoftware.com/bdio#Digest"),
         Long("http://www.w3.org/2001/XMLSchema#long"),
-        Fingerprint("http://blackducksoftware.com/bdio#Fingerprint"),
         Products("http://blackducksoftware.com/bdio#Products"),
         ContentRange("http://blackducksoftware.com/bdio#ContentRange"),
         ContentType("http://blackducksoftware.com/bdio#ContentType"),

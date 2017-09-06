@@ -22,10 +22,10 @@ import org.umlg.sqlg.structure.RecordId;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.datatype.DatatypeSupport;
-import com.blackducksoftware.bdio2.datatype.Fingerprint;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
 import com.blackducksoftware.common.value.ContentRange;
 import com.blackducksoftware.common.value.ContentType;
+import com.blackducksoftware.common.value.Digest;
 import com.blackducksoftware.common.value.ProductList;
 
 public class BlackDuckIoRegistry extends AbstractIoRegistry {
@@ -65,10 +65,10 @@ public class BlackDuckIoRegistry extends AbstractIoRegistry {
             return String.class;
         case DateTime:
             return ZonedDateTime.class;
+        case Digest:
+            return Digest.class;
         case Long:
             return Long.class;
-        case Fingerprint:
-            return Fingerprint.class;
         case Products:
             return ProductList.class;
         case ContentRange:

@@ -26,6 +26,7 @@ import java.util.function.Function;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
 import com.blackducksoftware.common.value.ContentRange;
 import com.blackducksoftware.common.value.ContentType;
+import com.blackducksoftware.common.value.Digest;
 import com.blackducksoftware.common.value.ProductList;
 
 /**
@@ -43,12 +44,12 @@ public class DatatypeSupport {
         return DateTimeDatatypeHandler.INSTANCE;
     }
 
-    public static DatatypeHandler<Long> Long() {
-        return LongDatatypeHandler.INSTANCE;
+    public static DatatypeHandler<Digest> Digest() {
+        return DigestDatatypeHandler.INSTANCE;
     }
 
-    public static DatatypeHandler<Fingerprint> Fingerprint() {
-        return FingerprintDatatypeHandler.INSTANCE;
+    public static DatatypeHandler<Long> Long() {
+        return LongDatatypeHandler.INSTANCE;
     }
 
     public static DatatypeHandler<ProductList> Products() {
@@ -124,6 +125,37 @@ public class DatatypeSupport {
     }
 
     /**
+     * @see DatatypeSupport#Digest()
+     */
+    private static final class DigestDatatypeHandler implements DatatypeHandler<Digest> {
+        private static final DigestDatatypeHandler INSTANCE = new DigestDatatypeHandler();
+
+        private DigestDatatypeHandler() {
+        }
+
+        @Override
+        public boolean isInstance(Object value) {
+            return value instanceof Digest;
+        }
+
+        @Override
+        public Object serialize(Object value) {
+            return Objects.toString(value, null);
+        }
+
+        @Override
+        public Digest deserialize(Object value) {
+            if (value instanceof Digest || value == null) {
+                return (Digest) value;
+            } else if (value instanceof String) {
+                return Digest.parse((String) value);
+            } else {
+                throw invalidInput(value, IllegalArgumentException::new);
+            }
+        }
+    }
+
+    /**
      * @see DatatypeSupport#Long()
      */
     private static final class LongDatatypeHandler implements DatatypeHandler<Long> {
@@ -152,37 +184,6 @@ public class DatatypeSupport {
                 return Long.valueOf(((Number) value).longValue());
             } else {
                 throw invalidInput(value, NumberFormatException::new);
-            }
-        }
-    }
-
-    /**
-     * @see DatatypeSupport#Fingerprint()
-     */
-    private static final class FingerprintDatatypeHandler implements DatatypeHandler<Fingerprint> {
-        private static final FingerprintDatatypeHandler INSTANCE = new FingerprintDatatypeHandler();
-
-        private FingerprintDatatypeHandler() {
-        }
-
-        @Override
-        public boolean isInstance(Object value) {
-            return value instanceof Fingerprint;
-        }
-
-        @Override
-        public Object serialize(Object value) {
-            return Objects.toString(value, null);
-        }
-
-        @Override
-        public Fingerprint deserialize(Object value) {
-            if (value instanceof Fingerprint || value == null) {
-                return (Fingerprint) value;
-            } else if (value instanceof String) {
-                return Fingerprint.valueOf((String) value);
-            } else {
-                throw invalidInput(value, IllegalArgumentException::new);
             }
         }
     }

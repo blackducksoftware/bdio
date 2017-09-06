@@ -15,7 +15,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
-import com.blackducksoftware.bdio2.datatype.Fingerprint;
+import com.blackducksoftware.common.value.Digest;
 
 public final class File extends BdioObject {
 
@@ -28,7 +28,7 @@ public final class File extends BdioObject {
         return this;
     }
 
-    public File fingerprint(@Nullable Fingerprint fingerprint) {
+    public File fingerprint(@Nullable Digest fingerprint) {
         putData(Bdio.DataProperty.fingerprint, fingerprint);
         return this;
     }

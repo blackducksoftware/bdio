@@ -228,8 +228,8 @@ public class ValueObjectMapper {
             // Add the standard BDIO datatype handlers
             handlers.put(Bdio.Datatype.Default.toString(), DatatypeSupport.Default());
             handlers.put(Bdio.Datatype.DateTime.toString(), DatatypeSupport.DateTime());
+            handlers.put(Bdio.Datatype.Digest.toString(), DatatypeSupport.Digest());
             handlers.put(Bdio.Datatype.Long.toString(), DatatypeSupport.Long());
-            handlers.put(Bdio.Datatype.Fingerprint.toString(), DatatypeSupport.Fingerprint());
             handlers.put(Bdio.Datatype.Products.toString(), DatatypeSupport.Products());
             handlers.put(Bdio.Datatype.ContentRange.toString(), DatatypeSupport.ContentRange());
             handlers.put(Bdio.Datatype.ContentType.toString(), DatatypeSupport.ContentType());

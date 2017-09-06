@@ -18,7 +18,7 @@ import java.util.List;
 
 import org.junit.Test;
 
-import com.blackducksoftware.bdio2.datatype.Fingerprint;
+import com.blackducksoftware.common.value.Digest;
 import com.google.common.collect.ImmutableMap;
 
 /**
@@ -137,14 +137,14 @@ public class BdioObjectTest {
     @Test
     public void putMultivaluedDataProperty() {
         BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        bdioObject.putData(Bdio.DataProperty.fingerprint, Fingerprint.create("test", "123"));
-        bdioObject.putData(Bdio.DataProperty.fingerprint, Fingerprint.create("test", "456"));
-        bdioObject.putData(Bdio.DataProperty.fingerprint, Fingerprint.create("test", "789"));
+        bdioObject.putData(Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("123").build());
+        bdioObject.putData(Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("456").build());
+        bdioObject.putData(Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("789").build());
         assertThat(bdioObject.get(Bdio.DataProperty.fingerprint.toString())).isInstanceOf(List.class);
         assertThat((List<?>) bdioObject.get(Bdio.DataProperty.fingerprint.toString())).containsExactly(
-                ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", "test:123"),
-                ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", "test:456"),
-                ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", "test:789"));
+                ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:123"),
+                ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:456"),
+                ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:789"));
     }
 
     /**
@@ -153,17 +153,17 @@ public class BdioObjectTest {
     @Test
     public void putMultivaluedDataPropertyNullValue() {
         BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        bdioObject.putData(Bdio.DataProperty.fingerprint, Fingerprint.create("test", "123"));
+        bdioObject.putData(Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("123").build());
         bdioObject.putData(Bdio.DataProperty.fingerprint, null);
         assertThat(bdioObject.get(Bdio.DataProperty.fingerprint.toString()))
-                .isEqualTo(ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", "test:123"));
+                .isEqualTo(ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:123"));
 
-        bdioObject.putData(Bdio.DataProperty.fingerprint, Fingerprint.create("test", "456"));
+        bdioObject.putData(Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("456").build());
         bdioObject.putData(Bdio.DataProperty.fingerprint, null);
         assertThat(bdioObject.get(Bdio.DataProperty.fingerprint.toString())).isInstanceOf(List.class);
         assertThat((List<?>) bdioObject.get(Bdio.DataProperty.fingerprint.toString())).containsExactly(
-                ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", "test:123"),
-                ImmutableMap.of("@type", Bdio.Datatype.Fingerprint.toString(), "@value", "test:456"));
+                ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:123"),
+                ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:456"));
     }
 
     /**

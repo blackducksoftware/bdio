@@ -35,12 +35,12 @@ import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bdio2.datatype.Fingerprint;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.model.Component;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.License;
 import com.blackducksoftware.bdio2.model.Project;
+import com.blackducksoftware.common.value.Digest;
 import com.blackducksoftware.common.value.ProductList;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -271,7 +271,7 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
     /**
      * Copies a checksums list into a fingerprint consumer.
      */
-    private static void checksums(Optional<Object> obj, Consumer<Fingerprint> consumer) {
+    private static void checksums(Optional<Object> obj, Consumer<Digest> consumer) {
         Object checksums = obj.orElse(null);
         if (checksums instanceof Map<?, ?>) {
             checksums = Arrays.asList(checksums);
@@ -281,7 +281,10 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
                 getString(checksum, "spdx:algorithm")
                         .map(x -> FINGERPRINT_ALGORITHMS.getOrDefault(x, x))
                         .ifPresent(algorithm -> getString(checksum, "spdx:checksumValue")
-                                .ifPresent(checksumValue -> consumer.accept(Fingerprint.create(algorithm, checksumValue))));
+                                .ifPresent(checksumValue -> consumer.accept(new Digest.Builder()
+                                        .algorithm(algorithm)
+                                        .value(checksumValue)
+                                        .build())));
             }
         }
     }
