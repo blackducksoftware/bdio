@@ -394,13 +394,13 @@ public class Bdio {
     public enum Context {
 
         VERSION_2_0("http://blackducksoftware.com/bdio/2.0.0", "bdio-context-2.0.jsonld"),
+        VERSION_1_1_1("http://blackducksoftware.com/rdf/terms/1.1.1", "bdio-context-1.1.1.jsonld"),
         VERSION_1_1("http://blackducksoftware.com/rdf/terms/1.1.0", "bdio-context-1.1.jsonld"),
         VERSION_1_0("http://blackducksoftware.com/rdf/terms/1.0.0", "bdio-context-1.0.jsonld"),
         DEFAULT("http://blackducksoftware.com/bdio", VERSION_2_0.resourceName);
 
         private final String iri;
 
-        // TODO Does this get replaced by "jarcache.json"?
         private final String resourceName;
 
         private Context(String iri, String resourceName) {
@@ -430,6 +430,8 @@ public class Bdio {
                 return Context.VERSION_1_0;
             case "1.1.0":
                 return Context.VERSION_1_1;
+            case "1.1.1":
+                return Context.VERSION_1_1_1;
             case "2.0.0":
                 return Context.VERSION_2_0;
             default:
