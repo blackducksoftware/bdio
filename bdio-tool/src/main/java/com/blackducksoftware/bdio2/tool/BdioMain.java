@@ -34,6 +34,7 @@ public class BdioMain extends Tool {
         cat("Concatenate and convert BDIO files", ConcatenateTool::new, false),
         context("Print the BDIO JSON-LD context", ContextTool::new, true),
         entries("Dump the JSON-LD content of a BDIO file", EntriesTool::new, true),
+        graph("Import BDIO to a TinkerPop graph", GraphTool::new, false),
         ;
 
         private final String description;
