@@ -80,6 +80,8 @@ if (System.getenv('TRAVIS_REPO_SLUG') == 'blackducksoftware/bdio'
 		
 				afterEvaluate {
 					publish.dependsOn artifactoryPublish
+					
+					jar.manifest.attributes['Implementation-Version'] += '+build.' + System.getenv('TRAVIS_BUILD_NUMBER')
 				}
 			}
 		} else {
