@@ -135,6 +135,20 @@ public abstract class Tool implements Runnable {
     }
 
     /**
+     * Updates the verbosity level of this tool.
+     */
+    public final void setVerbosity(Level verbosity) {
+        this.verbosity = verbosity;
+    }
+
+    /**
+     * Updates the pretty setting of this tool.
+     */
+    public final void setPretty(boolean pretty) {
+        this.pretty = pretty;
+    }
+
+    /**
      * Parses the command line input, handling any errors cleanly. This is the method that should be invoked from your
      * {@code main} method.
      */
@@ -220,19 +234,19 @@ public abstract class Tool implements Runnable {
      * @see #removeFirst(String, String...)
      */
     @OverridingMethodsMustInvokeSuper
-    protected Tool parseArguments(String[] args) {
+    protected Tool parseArguments(String[] args) throws Exception {
         for (String arg : options(args)) {
             if (arg.equals("--debug")) {
                 checkArgument(verbosity == Level.DEFAULT, "Specify one of: --quiet --verbose --debug");
-                verbosity = Level.DEBUG;
+                setVerbosity(Level.DEBUG);
             } else if (arg.equals("--verbose")) {
                 checkArgument(verbosity == Level.DEFAULT, "Specify one of: --quiet --verbose --debug");
-                verbosity = Level.VERBOSE;
+                setVerbosity(Level.VERBOSE);
             } else if (arg.equals("--quiet")) {
                 checkArgument(verbosity == Level.DEFAULT, "Specify one of: --quiet --verbose --debug");
-                verbosity = Level.QUIET;
+                setVerbosity(Level.QUIET);
             } else if (arg.equals("--pretty")) {
-                pretty = true;
+                setPretty(true);
             } else {
                 return unknownOption(arg);
             }
@@ -275,12 +289,13 @@ public abstract class Tool implements Runnable {
      * Returns a product label with the supplied name.
      */
     protected final Product getProduct() {
-        Optional<String> implementationVersion = Optional.ofNullable(getClass().getPackage().getImplementationVersion());
-        Optional<String> specificationVersion = Optional.ofNullable(getClass().getPackage().getSpecificationVersion());
-
-        Product.Builder product = new Product.Builder();
-        product.name(name().replace(' ', '-')).version(implementationVersion.orElse("unknown"));
-        specificationVersion.ifPresent(specVersion -> product.comment("(specification " + specVersion + ")"));
+        Product.Builder product = new Product.Builder()
+                .implementationTitle(getClass())
+                .implementationVersion(getClass());
+        Optional.ofNullable(getClass().getPackage())
+                .flatMap(p -> Optional.ofNullable(p.getSpecificationVersion()))
+                .map(specVersion -> "(specification " + specVersion + ")")
+                .ifPresent(product::comment);
         return product.build();
     }
 

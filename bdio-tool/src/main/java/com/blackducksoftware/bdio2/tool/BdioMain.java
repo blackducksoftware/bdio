@@ -88,7 +88,7 @@ public class BdioMain extends Tool {
         }
 
         @Override
-        protected Tool parseArguments(String[] args) {
+        protected Tool parseArguments(String[] args) throws Exception {
             commandName = Iterables.getFirst(arguments(args), name());
             return super.parseArguments(args);
         }

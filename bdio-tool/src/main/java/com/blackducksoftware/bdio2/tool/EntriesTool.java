@@ -46,7 +46,7 @@ public class EntriesTool extends Tool {
     }
 
     @Override
-    protected Tool parseArguments(String[] args) {
+    protected Tool parseArguments(String[] args) throws Exception {
         setInput(getInput(Iterables.getFirst(arguments(args), "-")));
         return super.parseArguments(args);
     }
