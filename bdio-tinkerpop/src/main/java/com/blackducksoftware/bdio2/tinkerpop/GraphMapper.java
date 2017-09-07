@@ -30,6 +30,8 @@ import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.T;
 
@@ -399,6 +401,26 @@ public class GraphMapper {
         public Builder partitionStrategy(@Nullable PartitionStrategy partitionStrategy) {
             this.partitionStrategy = Optional.ofNullable(partitionStrategy);
             return this;
+        }
+
+        public Builder withConfiguration(Configuration configuration) {
+            // TODO You still cannot configure the documentBuilder or datatypeHandlers...
+            Configuration config = configuration.subset("bdio");
+            ConfigurationConverter.getMap(config.subset("embeddedClass"))
+                    .forEach((k, v) -> addEmbeddedClass(k.toString(), v.toString()));
+            ConfigurationConverter.getMap(config.subset("class"))
+                    .forEach((k, v) -> addClass(k.toString(), v.toString()));
+            ConfigurationConverter.getMap(config.subset("dataProperties"))
+                    .forEach((k, v) -> addDataProperty(k.toString(), v.toString()));
+            ConfigurationConverter.getMap(config.subset("objectProperties"))
+                    .forEach((k, v) -> addObjectProperty(k.toString(), v.toString()));
+            if (config.containsKey("partitionStrategy.partitionKey")) {
+                partitionStrategy(PartitionStrategy.create(config.subset("partitionStrategy")));
+            }
+            return identifierKey(config.getString("identifierKey", null))
+                    .unknownKey(config.getString("unknownKey", null))
+                    .implicitKey(config.getString("implicitKey", null))
+                    .metadataLabel(config.getString("metadataLabel", null));
         }
 
         public GraphMapper create() {

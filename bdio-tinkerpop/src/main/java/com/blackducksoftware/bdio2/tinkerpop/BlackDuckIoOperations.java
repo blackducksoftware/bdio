@@ -32,6 +32,8 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
+import javax.annotation.Nullable;
+
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
@@ -108,9 +110,13 @@ public final class BlackDuckIoOperations {
         this.context = Objects.requireNonNull(context);
     }
 
-    public static BlackDuckIoOperations create(Graph graph, Consumer<GraphMapper.Builder> onGraphMapper) {
+    public static BlackDuckIoOperations create(Graph graph, @Nullable Consumer<GraphMapper.Builder> onGraphMapper) {
         BlackDuckIoMapper mapper = graph.io(BlackDuckIo.build().onGraphMapper(onGraphMapper)).mapper().create();
         return new BlackDuckIoOperations(new OperationsContext(graph, mapper.createMapper()));
+    }
+
+    public static BlackDuckIoOperations create(Graph graph) {
+        return create(graph, null);
     }
 
     /**

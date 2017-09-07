@@ -16,7 +16,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -33,7 +32,7 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
 
     private final Consumer<BlackDuckIoMapper.Builder> onMapper;
 
-    private final Optional<Consumer<GraphMapper.Builder>> onGraphMapper;
+    private final Consumer<GraphMapper.Builder> onGraphMapper;
 
     private BlackDuckIo(Builder builder) {
         graph = builder.graph.orElseThrow(() -> new NullPointerException("The graph argument was not specified"));
@@ -44,7 +43,13 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
             // TODO Consider the graph type when adding the registry?
             mapperBuilder.addRegistry(BlackDuckIoRegistry.getInstance());
         };
-        onGraphMapper = Objects.requireNonNull(builder.onGraphMapper);
+
+        // Try using the graph configuration, but let the builder override
+        Consumer<GraphMapper.Builder> onGraphMapper = b -> b.withConfiguration(graph.configuration());
+        if (builder.onGraphMapper.isPresent()) {
+            onGraphMapper = onGraphMapper.andThen(builder.onGraphMapper.get());
+        }
+        this.onGraphMapper = onGraphMapper;
     }
 
     @Override
@@ -61,8 +66,7 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
     public BlackDuckIoMapper.Builder mapper() {
         BlackDuckIoMapper.Builder builder = BlackDuckIoMapper.build();
         onMapper.accept(builder);
-        onGraphMapper.ifPresent(builder::onGraphMapper);
-        return builder;
+        return builder.onGraphMapper(onGraphMapper);
     }
 
     @Override
@@ -102,7 +106,12 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
 
         private Optional<Consumer<GraphMapper.Builder>> onGraphMapper = Optional.empty();
 
-        private Builder() {
+        /**
+         * @deprecated Use {@link BlackDuckIo#build()} instead.
+         * @see org.apache.tinkerpop.gremlin.structure.io.IoCore#createIoBuilder(String)
+         */
+        @Deprecated
+        public Builder() {
         }
 
         @Deprecated
@@ -134,6 +143,7 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
             this.onGraphMapper = Optional.ofNullable(onGraphMapper);
             return this;
         }
+
     }
 
 }

@@ -15,6 +15,7 @@ import java.net.URL;
 import java.util.Objects;
 import java.util.function.Function;
 
+import com.blackducksoftware.common.base.ExtraStrings;
 import com.google.common.io.Resources;
 import com.google.common.net.MediaType;
 
@@ -511,6 +512,19 @@ public class Bdio {
             }
             throw new IllegalArgumentException("unsupported media type: " + input);
         }
+
+        /**
+         * Returns the BDIO content type corresponding to the supplied file name.
+         */
+        public static ContentType forFileName(String input) {
+            for (Bdio.ContentType contentType : Bdio.ContentType.values()) {
+                if (input.endsWith("." + contentType.extension)) {
+                    return contentType;
+                }
+            }
+            throw new IllegalArgumentException("unsupported file extension: " + ExtraStrings.afterLast(input, '/'));
+        }
+
     }
 
     /**
