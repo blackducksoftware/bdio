@@ -16,9 +16,11 @@
 package com.blackducksoftware.bdio2.tool;
 
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.id;
 
 import java.io.File;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.net.URI;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -26,6 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -34,6 +37,7 @@ import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.MapConfiguration;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.util.GraphFactory;
@@ -119,10 +123,22 @@ public class GraphTool extends Tool {
         onGraphComplete = onGraphComplete.andThen(listener);
     }
 
+    public void onGraphComplete(String listener) {
+        switch (listener) {
+        case "dump":
+            onGraphComplete(GraphTool::dump);
+            break;
+        default:
+            // TODO Use reflection to create a consumer?
+            throw new UnsupportedOperationException("unable to create listener: " + listener);
+        }
+    }
+
     @Override
     protected void printHelp() {
         printOutput("usage: %s [--graph=tinkergraph|sqlg|<class>] [--clean]%n", name());
-        printOutput("          [--config=<file>] [-D=<key>=<value>]%n%n");
+        printOutput("          [--config=<file>] [-D=<key>=<value>]%n");
+        printOutput("          [--onGraphComplete=dump|<class>]%n%n");
         printOutput("Some common properties are:%n");
         printOutput("   gremlin.tinkergraph.graphFormat - Format used to persist TinkerGraph:%n");
         printOutput("       graphml, graphson, gryo, %s%n", BlackDuckIo.Builder.class.getName());
@@ -138,12 +154,11 @@ public class GraphTool extends Tool {
 
     @Override
     protected Set<String> optionsWithArgs() {
-        return ImmutableSet.of("--graph", "--config", "-D");
+        return ImmutableSet.of("--graph", "--config", "-D", "--onGraphComplete");
     }
 
     @Override
     protected Tool parseArguments(String[] args) throws Exception {
-        // TODO Add an option for onComplete listener by class name?
         for (String arg : options(args)) {
             if (arg.equals("--clean")) {
                 setClean(true);
@@ -160,6 +175,9 @@ public class GraphTool extends Tool {
             } else if (arg.startsWith("-D=")) {
                 optionValue(arg).map(PROPERTY_SPLITTER::split).orElse(Collections.emptyMap())
                         .forEach(this::setProperty);
+                args = removeFirst(arg, args);
+            } else if (arg.startsWith("--onGraphComplete=")) {
+                optionValue(arg).ifPresent(this::onGraphComplete);
                 args = removeFirst(arg, args);
             }
         }
@@ -244,6 +262,37 @@ public class GraphTool extends Tool {
         props.setProperty("jdbc.username", username);
         props.setProperty("jdbc.password", password.toString());
         return new MapConfiguration(props);
+    }
+
+    /**
+     * Helper to a graph to standard output.
+     */
+    // TODO Make this more configurable?
+    public static void dump(Graph graph) {
+        GraphTraversalSource g = graph.traversal();
+        PrintStream out = System.out;
+
+        // TODO This isn't the greatest output, but somewhat useful for small graphs..
+
+        g.V()
+                .order().by(id().map(Objects::toString))
+                .valueMap(true)
+                .forEachRemaining(valueMap -> {
+                    // TODO Why was this needed?
+                    TreeMap<String, Object> sortedValueMap = new TreeMap<>();
+                    for (Map.Entry<?, ?> e : ((Map<?, ?>) valueMap).entrySet()) {
+                        sortedValueMap.put(e.getKey().toString(), e.getValue());
+                    }
+
+                    out.println("{");
+                    sortedValueMap.forEach((k, v) -> out.format("  %s = %s%n", k, v));
+                    out.println("}");
+                    out.println();
+                });
+
+        g.E().forEachRemaining(e -> {
+            out.format("[%s] %s --%s--> %s%n", e.id(), e.outVertex().id(), e.label(), e.inVertex().id());
+        });
     }
 
 }
