@@ -62,6 +62,8 @@ import com.google.common.io.ByteSource;
  */
 public class GraphTool extends Tool {
 
+    private static final String DEFAULT_IMPLICIT_KEY = "_implicit";
+
     private static final String DEFAULT_PARTITION_KEY = "inputSource";
 
     private static final String DEFAULT_PARTITION = "<stdin>";
@@ -207,6 +209,9 @@ public class GraphTool extends Tool {
                             // Make sure each file goes into it's own partition
                             builder.partitionStrategy(partition(input.getKey()));
                         }
+
+                        // Always add an implicit key, otherwise we won't generate implicit edges
+                        builder.implicitKey(configuration.getString("bdio.implicitKey", DEFAULT_IMPLICIT_KEY));
                     };
 
                     // Import the graph and run the extra operations
