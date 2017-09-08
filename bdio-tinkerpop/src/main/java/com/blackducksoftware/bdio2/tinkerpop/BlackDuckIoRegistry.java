@@ -23,6 +23,7 @@ import org.umlg.sqlg.structure.RecordId;
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.datatype.DatatypeSupport;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
+import com.blackducksoftware.common.base.ExtraFunctions;
 import com.blackducksoftware.common.value.ContentRange;
 import com.blackducksoftware.common.value.ContentType;
 import com.blackducksoftware.common.value.Digest;
@@ -44,16 +45,23 @@ public class BlackDuckIoRegistry extends AbstractIoRegistry {
                 DatatypeSupport.Default()::serialize,
                 DatatypeSupport.Default()::deserialize));
 
-        // TODO Do we need these still?
-        // // Really this is sqlg specific because TinkerGraph lets any object in
-        // register(BlackDuckIo.class, Fingerprint.class, DatatypeHandler.from(
-        // DatatypeSupport.Fingerprint()::isInstance,
-        // DatatypeSupport.Fingerprint()::serialize,
-        // nullSafe(DatatypeSupport.Fingerprint()::deserialize).andThen(Object::toString)));
-        // register(BlackDuckIo.class, Products.class, DatatypeHandler.from(
-        // DatatypeSupport.Products()::isInstance,
-        // DatatypeSupport.Products()::serialize,
-        // nullSafe(DatatypeSupport.Products()::deserialize).andThen(Object::toString)));
+        // Really this is sqlg specific because TinkerGraph lets any object in
+        register(BlackDuckIo.class, Digest.class, DatatypeHandler.from(
+                DatatypeSupport.Digest()::isInstance,
+                DatatypeSupport.Digest()::serialize,
+                ExtraFunctions.nullSafe(DatatypeSupport.Digest()::deserialize).andThen(Object::toString)));
+        register(BlackDuckIo.class, ProductList.class, DatatypeHandler.from(
+                DatatypeSupport.Products()::isInstance,
+                DatatypeSupport.Products()::serialize,
+                ExtraFunctions.nullSafe(DatatypeSupport.Products()::deserialize).andThen(Object::toString)));
+        register(BlackDuckIo.class, ContentRange.class, DatatypeHandler.from(
+                DatatypeSupport.ContentRange()::isInstance,
+                DatatypeSupport.ContentRange()::serialize,
+                ExtraFunctions.nullSafe(DatatypeSupport.ContentRange()::deserialize).andThen(Object::toString)));
+        register(BlackDuckIo.class, ContentType.class, DatatypeHandler.from(
+                DatatypeSupport.ContentType()::isInstance,
+                DatatypeSupport.ContentType()::serialize,
+                ExtraFunctions.nullSafe(DatatypeSupport.ContentType()::deserialize).andThen(Object::toString)));
     }
 
     /**
