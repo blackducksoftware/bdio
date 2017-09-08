@@ -15,6 +15,9 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
@@ -26,6 +29,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
@@ -33,6 +37,7 @@ import javax.annotation.Nullable;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 
 import com.blackducksoftware.bdio2.Bdio;
@@ -91,6 +96,11 @@ public class GraphMapper {
     private final ImmutableMap<String, String> objectProperties;
 
     /**
+     * The vertex label used to persist JSON-LD named graph metadata.
+     */
+    private final Optional<String> metadataLabel;
+
+    /**
      * The property key used to persist JSON-LD node identifiers.
      */
     private final Optional<String> identifierKey;
@@ -106,11 +116,6 @@ public class GraphMapper {
     private final Optional<String> implicitKey;
 
     /**
-     * The vertex label used to persist JSON-LD named graph metadata.
-     */
-    private final Optional<String> metadataLabel;
-
-    /**
      * The partitioning strategy used isolate JSON-LD sub-graphs.
      */
     private final Optional<PartitionStrategy> partitionStrategy;
@@ -121,10 +126,10 @@ public class GraphMapper {
         classes = ImmutableMap.copyOf(builder.classes);
         dataProperties = ImmutableMap.copyOf(builder.dataProperties);
         objectProperties = ImmutableMap.copyOf(builder.objectProperties);
+        metadataLabel = Objects.requireNonNull(builder.metadataLabel);
         identifierKey = Objects.requireNonNull(builder.identifierKey);
         unknownKey = Objects.requireNonNull(builder.unknownKey);
         implicitKey = Objects.requireNonNull(builder.implicitKey);
-        metadataLabel = Objects.requireNonNull(builder.metadataLabel);
         partitionStrategy = Objects.requireNonNull(builder.partitionStrategy);
     }
 
@@ -166,6 +171,10 @@ public class GraphMapper {
         return key.indexOf(':') >= 0;
     }
 
+    public Optional<String> metadataLabel() {
+        return metadataLabel;
+    }
+
     public Optional<String> identifierKey() {
         return identifierKey;
     }
@@ -176,10 +185,6 @@ public class GraphMapper {
 
     public Optional<String> implicitKey() {
         return implicitKey;
-    }
-
-    public Optional<String> metadataLabel() {
-        return metadataLabel;
     }
 
     public Optional<PartitionStrategy> partitionStrategy() {
@@ -319,13 +324,13 @@ public class GraphMapper {
 
         private final Map<String, String> objectProperties;
 
+        private Optional<String> metadataLabel = Optional.empty();
+
         private Optional<String> identifierKey = Optional.empty();
 
         private Optional<String> unknownKey = Optional.empty();
 
         private Optional<String> implicitKey = Optional.empty();
-
-        private Optional<String> metadataLabel = Optional.empty();
 
         private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
 
@@ -359,47 +364,56 @@ public class GraphMapper {
         }
 
         public Builder addEmbeddedClass(String label, String iri) {
+            checkUserSuppliedLabel(label, "embedded class label '%s' is reserved");
             valueObjectMapperBuilder.addEmbeddedType(iri);
             return addClass(label, iri);
         }
 
         public Builder addClass(String label, String iri) {
+            checkUserSuppliedLabel(label, "class label '%s' is reserved");
             classes.put(Objects.requireNonNull(label), Objects.requireNonNull(iri));
             return this;
         }
 
         public Builder addDataProperty(String term, String iri) {
+            checkUserSuppliedKey(term, "data property '%s' is reserved");
             dataProperties.put(Objects.requireNonNull(term), Objects.requireNonNull(iri));
             return this;
         }
 
         public Builder addObjectProperty(String term, String iri) {
+            checkUserSuppliedKey(term, "object property '%s' is reserved");
             objectProperties.put(Objects.requireNonNull(term), Objects.requireNonNull(iri));
             return this;
         }
 
+        public Builder metadataLabel(@Nullable String metadataLabel) {
+            this.metadataLabel = checkUserSuppliedLabel(metadataLabel, "metadataLabel '%s' is reserved");
+            return this;
+        }
+
         public Builder identifierKey(@Nullable String identifierKey) {
-            this.identifierKey = Optional.ofNullable(identifierKey);
+            this.identifierKey = checkUserSuppliedKey(identifierKey, "identifierKey '%s' is reserved");
             return this;
         }
 
         public Builder unknownKey(@Nullable String unknownKey) {
-            this.unknownKey = Optional.ofNullable(unknownKey);
+            this.unknownKey = checkUserSuppliedKey(unknownKey, "unknownKey '%s' is reserved");
             return this;
         }
 
         public Builder implicitKey(@Nullable String implicitKey) {
-            this.implicitKey = Optional.ofNullable(implicitKey);
-            return this;
-        }
-
-        public Builder metadataLabel(@Nullable String metadataLabel) {
-            this.metadataLabel = Optional.ofNullable(metadataLabel);
+            this.implicitKey = checkUserSuppliedKey(implicitKey, "implicitKey '%s' is reserved");
             return this;
         }
 
         public Builder partitionStrategy(@Nullable PartitionStrategy partitionStrategy) {
-            this.partitionStrategy = Optional.ofNullable(partitionStrategy);
+            if (partitionStrategy != null) {
+                checkUserSuppliedKey(partitionStrategy.getPartitionKey(), "partitionKey '%s' is reserved");
+                this.partitionStrategy = Optional.of(partitionStrategy);
+            } else {
+                this.partitionStrategy = Optional.empty();
+            }
             return this;
         }
 
@@ -417,14 +431,68 @@ public class GraphMapper {
             if (config.containsKey("partitionStrategy.partitionKey")) {
                 partitionStrategy(PartitionStrategy.create(config.subset("partitionStrategy")));
             }
-            return identifierKey(config.getString("identifierKey", null))
+            return metadataLabel(config.getString("metadataLabel", null))
+                    .identifierKey(config.getString("identifierKey", null))
                     .unknownKey(config.getString("unknownKey", null))
-                    .implicitKey(config.getString("implicitKey", null))
-                    .metadataLabel(config.getString("metadataLabel", null));
+                    .implicitKey(config.getString("implicitKey", null));
         }
 
         public GraphMapper create() {
+            // NOTE: This is not case-insensitive like the `checkUserSupplied...` methods
+            Predicate<String> isLabelInUse = classes::containsKey;
+            Predicate<String> isKeyInUse = key -> dataProperties.containsKey(key) || objectProperties.containsKey(key);
+
+            checkState(!metadataLabel.filter(isLabelInUse).isPresent(), "metadataLabel confict");
+            checkState(!identifierKey.filter(isKeyInUse).isPresent(), "identifierKey conflict");
+            checkState(!unknownKey.filter(isKeyInUse).isPresent(), "unknownKey conflict");
+            checkState(!implicitKey.filter(isKeyInUse).isPresent(), "implicitKey conflict");
+            checkState(!partitionStrategy.map(PartitionStrategy::getPartitionKey).filter(isKeyInUse).isPresent(), "partitionKey conflict");
+
             return new GraphMapper(this);
+        }
+
+    }
+
+    /**
+     * Checks to ensure the user supplied label does not conflict with any known reserved labels.
+     */
+    private static Optional<String> checkUserSuppliedLabel(@Nullable String label, String message) {
+        if (label != null) {
+            // Check all of the BDIO Class names
+            for (Bdio.Class c : Bdio.Class.values()) {
+                checkArgument(!label.equalsIgnoreCase(c.name()), message, label);
+            }
+
+            return Optional.of(label);
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Checks to ensure the user supplied property key does not conflict with an known reserved labels.
+     */
+    private static Optional<String> checkUserSuppliedKey(@Nullable String key, String message) {
+        if (key != null) {
+            // TinkerPop reserves hidden properties
+            checkArgument(!Graph.Hidden.isHidden(key), message, key);
+
+            // We use keys with ":" in them to identify "unknown" keys coming through JSON-LD framing
+            checkArgument(key.indexOf(':') < 0, message, key);
+
+            // Check all of the BDIO Object Property names
+            for (Bdio.ObjectProperty objectProperty : Bdio.ObjectProperty.values()) {
+                checkArgument(!key.equalsIgnoreCase(objectProperty.name()), message, key);
+            }
+
+            // Check all of the BDIO Data Property names
+            for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
+                checkArgument(!key.equalsIgnoreCase(dataProperty.name()), message, key);
+            }
+
+            return Optional.of(key);
+        } else {
+            return Optional.empty();
         }
     }
 }
