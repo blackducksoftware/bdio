@@ -57,6 +57,12 @@ public class EmitterFactory {
             .add("baseDir")
             .add("createdOn")
             .add("hostName")
+
+            // The scan container fields were re-ordered at some point so these would be first
+            .add("scannerVersion")
+            .add("signatureVersion")
+            .add("ownerEntityKeyToken")
+
             .build();
 
     /**
