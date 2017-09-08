@@ -17,7 +17,6 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.bdio2.Bdio.Class.File;
 import static com.blackducksoftware.bdio2.Bdio.DataProperty.path;
-import static com.blackducksoftware.bdio2.Bdio.ObjectProperty.base;
 import static org.apache.tinkerpop.gremlin.process.traversal.P.eq;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.V;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.addV;
@@ -25,11 +24,9 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.outE;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
 
-import java.net.URI;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -60,16 +57,6 @@ public final class BlackDuckIoOperations {
     private static class OperationsContext extends GraphContext {
 
         /**
-         * Current number of operations performed.
-         */
-        private final AtomicLong count = new AtomicLong();
-
-        /**
-         * The number of operations to perform between commits.
-         */
-        private final int batchSize = 5000;
-
-        /**
          * Flag indicating that the current graph supports batch mode. Currently implies the graph is an instance of
          * {@code SqlgGraph}.
          */
@@ -87,14 +74,8 @@ public final class BlackDuckIoOperations {
         }
 
         public void batchCommitTx() {
-            if (supportsBatchMode) {
-                if (count.incrementAndGet() % batchSize == 0) {
-                    commitTx();
-                    batchModeOn();
-                }
-            } else {
-                commitTx();
-            }
+            commitTx();
+            batchModeOn();
         }
     }
 
@@ -149,15 +130,18 @@ public final class BlackDuckIoOperations {
     private void addMissingFileParents() {
         GraphTraversalSource g = context.traversal();
 
-        // TODO Never did figure out how make this recurse properly in the traversal
+        // TODO Need to skip cases where multiple parents occur (e.g. multiple bases containing the same tree)
         boolean hasNewEdges;
         do {
             hasNewEdges = g.V()
                     // Files that missing their parent and are not a project base directory are "orphans"
-                    .hasLabel(File.name()).not(outE(Bdio.ObjectProperty.parent.name()).or().inE(base.name())).as("orphanFiles")
+                    .hasLabel(File.name()).not(outE(Bdio.ObjectProperty.parent.name()).or().inE(Bdio.ObjectProperty.base.name()))
+                    .as("orphanFiles")
+                    .limit(8000)
 
                     // Flat map to the file's path to it's parent's path
-                    .<String> values(path.name()).flatMap(BlackDuckIoOperations::parentPath).as("parentPath")
+                    .<String> values(path.name()).flatMap(BlackDuckIoOperations::parentPath)
+                    .as("parentPath")
 
                     // If multiple orphans have the same parent we can only process one at a time
                     // (the dropped orphans will be picked up on the next pass)
@@ -165,22 +149,19 @@ public final class BlackDuckIoOperations {
 
                     // Find the parent vertex by path, creating it if it does not exist
                     .coalesce(
-                            V().hasLabel(File.name()).as("f").values(path.name()).where(eq("parentPath")).select("f"),
+                            V().hasLabel(File.name()).as("f").values(Bdio.DataProperty.path.name()).where(eq("parentPath")).select("f"),
                             addMissingParentVertex(select("parentPath")))
-
-                    // Periodically commit
-                    .sideEffect(t -> context.batchCommitTx())
 
                     // Create the parent edge
                     .addE(Bdio.ObjectProperty.parent.name())
                     .from("orphanFiles")
                     .property(context.mapper().implicitKey().get(), Boolean.TRUE)
 
-                    // Periodically commit
-                    .sideEffect(t -> context.batchCommitTx())
-
                     // If we created any edges, we might need to continue looping
                     .hasNext();
+
+            // Commit the current batch
+            context.batchCommitTx();
         } while (hasNewEdges);
     }
 
@@ -240,9 +221,9 @@ public final class BlackDuckIoOperations {
      * iterator is returned; the iterator will never contain more then a single element.
      */
     private static Iterator<String> parentPath(Traverser<String> t) {
-        HID parent = HID.from(URI.create(t.get())).getParent();
+        HID parent = HID.from(t.get()).getParent();
         if (parent != null) {
-            return Iterators.singletonIterator(parent.toUri().toString());
+            return Iterators.singletonIterator(parent.toUriString());
         } else {
             return Collections.emptyIterator();
         }

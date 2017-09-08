@@ -342,7 +342,7 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
                     scheme = guessScheme(ssp);
                 }
             }
-            return HID.from(new URI(scheme, ssp, fragment)).toUri().toString();
+            return HID.from(new URI(scheme, ssp, fragment)).toUriString();
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException(e);
         }
