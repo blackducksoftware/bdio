@@ -17,7 +17,9 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.in;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.not;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,6 +53,8 @@ public class BlackDuckIoOperationsTest extends BaseTest {
         BlackDuckIoOperations.create(graph, builder -> builder.implicitKey(TT.implicit)).addImplicitEdges();
 
         GraphTraversalSource g = graph.traversal();
+
+        // Make sure we can traverse from the project to the leaves
         List<Object> leafPaths = g.V()
                 .hasLabel(Bdio.Class.Project.name())
                 .out(Bdio.ObjectProperty.base.name())
@@ -60,6 +64,18 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 .toList();
 
         assertThat(leafPaths).containsExactly("file:///foo/bar/gus/one/more", "file:///foo/bar/gus/two/more");
+
+        // Make sure we can traverse from the leaves to the base directory (AND NO FURTHER!)
+        List<Object> rootPaths = g.V()
+                .hasLabel(Bdio.Class.File.name())
+                .not(inE(Bdio.ObjectProperty.parent.name()))
+                .repeat(out(Bdio.ObjectProperty.parent.name()))
+                .until(not(out(Bdio.ObjectProperty.parent.name())))
+                .dedup()
+                .values(Bdio.DataProperty.path.name())
+                .toList();
+
+        assertThat(rootPaths).containsExactly("file:///foo");
     }
 
     @Test
