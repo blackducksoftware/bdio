@@ -61,12 +61,20 @@ class ReadGraphContext extends GraphContext {
     }
 
     /**
+     * Used to initiate batch processing.
+     */
+    public void startBatchTx() {
+        // By default, do nothing
+    }
+
+    /**
      * Used to perform batch commits, each invocation increments the mutation count and {@link #commitTx()} is called on
      * batch boundaries.
      */
-    public void batchCommitTx(Object obj) {
+    public void batchCommitTx() {
         if (count.incrementAndGet() % batchSize == 0) {
             commitTx();
+            startBatchTx();
         }
     }
 
@@ -125,9 +133,9 @@ class ReadGraphContext extends GraphContext {
 
                 // Connect the edges and store their properties
                 .map(e -> {
-                    final Vertex cachedOutV = persistedVertices.get(e.outVertex());
-                    final Vertex cachedInV = persistedVertices.get(e.inVertex());
-                    final Edge newEdge = edgeFeatures.willAllowId(e.id())
+                    Vertex cachedOutV = persistedVertices.get(e.outVertex());
+                    Vertex cachedInV = persistedVertices.get(e.inVertex());
+                    Edge newEdge = edgeFeatures.willAllowId(e.id())
                             ? cachedOutV.addEdge(e.label(), cachedInV, T.id, e.id())
                             : cachedOutV.addEdge(e.label(), cachedInV);
 

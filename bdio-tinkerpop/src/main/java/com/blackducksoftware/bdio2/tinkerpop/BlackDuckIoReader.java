@@ -78,25 +78,25 @@ public final class BlackDuckIoReader implements GraphReader {
         // Get the sequence of BDIO graph nodes and transform them in vertices and edges
         document.jsonld().frame(mapper.frame()).compose(document.withoutMetadata())
 
-                // Convert nodes to vertices and commit
+                // Convert nodes to vertices
                 .map(node -> createVertex(node, null, null, Direction.OUT))
-                .doOnNext(context::batchCommitTx)
 
                 // Collect all of the vertices in a map, creating the actual vertices in the graph as we go
                 .toMap(vertex -> vertex, vertex -> vertex.attach(context::upsert))
 
-                // Create all the edges and commit
+                // Create all the edges
                 .flatMapObservable(context::createEdges)
-                .doOnNext(context::batchCommitTx)
 
-                // Perform a final commit
+                // Setup batch commits
+                .doOnSubscribe(x -> context.startBatchTx())
+                .doOnNext(x -> context.batchCommitTx())
                 .doOnComplete(context::commitTx)
                 .subscribe();
 
         // Read the supplied input stream
         document.read(inputStream);
 
-        // TODO Error handling? Get the throwable off the processor?
+        // TODO Error handling? Right now it just goes to the RxJavaPlugin
     }
 
     @Override

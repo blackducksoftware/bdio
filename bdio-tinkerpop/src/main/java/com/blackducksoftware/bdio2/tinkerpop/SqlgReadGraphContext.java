@@ -69,10 +69,9 @@ class SqlgReadGraphContext extends ReadGraphContext {
     }
 
     @Override
-    public void commitTx() {
-        super.commitTx();
-
+    public void startBatchTx() {
         // (Re-)enable batch mode if it is supported
+        super.startBatchTx();
         if (supportsBatchMode) {
             sqlgGraph.tx().normalBatchModeOn();
         }
