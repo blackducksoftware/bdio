@@ -17,24 +17,25 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.bdio2.Bdio.Class.File;
 import static com.blackducksoftware.bdio2.Bdio.DataProperty.path;
-import static org.apache.tinkerpop.gremlin.process.traversal.P.eq;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.V;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.addV;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.as;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.outE;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
 
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.umlg.sqlg.structure.SqlgGraph;
@@ -128,28 +129,30 @@ public final class BlackDuckIoOperations {
      */
     @SuppressWarnings("unchecked") // `coalesce` uses generic varargs
     private void addMissingFileParents() {
-        GraphTraversalSource g = context.traversal();
-
         // TODO Need to skip cases where multiple parents occur (e.g. multiple bases containing the same tree)
+
+        GraphTraversalSource g = context.traversal();
+        List<?> baseIds = g.V().out("base").id().toList();
         boolean hasNewEdges;
         do {
             hasNewEdges = g.V()
-                    // Files that missing their parent and are not a project base directory are "orphans"
-                    .hasLabel(File.name()).not(outE(Bdio.ObjectProperty.parent.name()).or().inE(Bdio.ObjectProperty.base.name()))
-                    .as("orphanFiles")
-                    .limit(8000)
-
-                    // Flat map to the file's path to it's parent's path
-                    .<String> values(path.name()).flatMap(BlackDuckIoOperations::parentPath)
-                    .as("parentPath")
-
-                    // If multiple orphans have the same parent we can only process one at a time
-                    // (the dropped orphans will be picked up on the next pass)
-                    .dedup()
+                    .hasLabel(Bdio.Class.File.name())
+                    .hasId(P.without(baseIds))
+                    .match(
+                            as("orphanFiles")
+                                    .not(__.out(Bdio.ObjectProperty.parent.name())),
+                            as("orphanFiles")
+                                    .<String> values(Bdio.DataProperty.path.name())
+                                    .flatMap(BlackDuckIoOperations::parentPath)
+                                    .dedup()
+                                    .as("parentPath"))
 
                     // Find the parent vertex by path, creating it if it does not exist
                     .coalesce(
-                            V().hasLabel(File.name()).as("f").values(Bdio.DataProperty.path.name()).where(eq("parentPath")).select("f"),
+                            __.select("parentPath")
+                                    .flatMap(pp -> g.V()
+                                            .hasLabel(Bdio.Class.File.name())
+                                            .has(Bdio.DataProperty.path.name(), pp.get())),
                             addMissingParentVertex(select("parentPath")))
 
                     // Create the parent edge
@@ -158,7 +161,7 @@ public final class BlackDuckIoOperations {
                     .property(context.mapper().implicitKey().get(), Boolean.TRUE)
 
                     // If we created any edges, we might need to continue looping
-                    .hasNext();
+                    .count().next() > 0;
 
             // Commit the current batch
             context.batchCommitTx();
