@@ -20,6 +20,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 
 import org.umlg.sqlg.structure.IndexType;
@@ -143,6 +145,13 @@ class SqlgReadGraphContext extends ReadGraphContext {
             vertexLabel.ensurePropertiesExist(Collections.singletonMap(Bdio.DataProperty.path.name(), PropertyType.STRING));
             vertexLabel.getProperty(Bdio.DataProperty.path.name())
                     .ifPresent(property -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, Collections.singletonList(property)));
+
+            Map<String, PropertyType> parentEdgeProperties = new LinkedHashMap<>();
+            mapper().implicitKey().ifPresent(key -> {
+                vertexLabel.ensurePropertiesExist(Collections.singletonMap(key, PropertyType.BOOLEAN));
+                parentEdgeProperties.put(key, PropertyType.BOOLEAN);
+            });
+            sqlgGraph.getTopology().ensureEdgeLabelExist(Bdio.ObjectProperty.parent.name(), vertexLabel, vertexLabel, parentEdgeProperties);
         }
 
         mapper().unknownKey().ifPresent(key -> {
