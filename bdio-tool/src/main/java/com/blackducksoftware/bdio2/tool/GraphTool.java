@@ -52,6 +52,7 @@ import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoOperations;
 import com.blackducksoftware.bdio2.tinkerpop.GraphMapper;
 import com.google.common.base.Splitter;
 import com.google.common.base.Splitter.MapSplitter;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteSource;
 
@@ -79,6 +80,8 @@ public class GraphTool extends Tool {
     private CompositeConfiguration configuration = new CompositeConfiguration();
 
     private boolean clean;
+
+    private boolean skipInitialization;
 
     private Consumer<Graph> onGraphComplete = graph -> {
     };
@@ -121,6 +124,10 @@ public class GraphTool extends Tool {
         this.clean = clean;
     }
 
+    public void setSkipInitialization(boolean skipInitialization) {
+        this.skipInitialization = skipInitialization;
+    }
+
     public void onGraphComplete(Consumer<Graph> listener) {
         onGraphComplete = onGraphComplete.andThen(listener);
     }
@@ -138,7 +145,7 @@ public class GraphTool extends Tool {
 
     @Override
     protected void printHelp() {
-        printOutput("usage: %s [--graph=tinkergraph|sqlg|<class>] [--clean]%n", name());
+        printOutput("usage: %s [--graph=tinkergraph|sqlg|<class>] [--clean] [--skip-init]%n", name());
         printOutput("          [--config=<file>] [-D=<key>=<value>]%n");
         printOutput("          [--onGraphComplete=dump|<class>]%n%n");
         printOutput("Some common properties are:%n");
@@ -164,6 +171,9 @@ public class GraphTool extends Tool {
         for (String arg : options(args)) {
             if (arg.equals("--clean")) {
                 setClean(true);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("--skip-init")) {
+                setSkipInitialization(true);
                 args = removeFirst(arg, args);
             } else if (arg.startsWith("--graph=")) {
                 optionValue(arg).ifPresent(this::setGraph);
@@ -214,9 +224,17 @@ public class GraphTool extends Tool {
                         builder.implicitKey(configuration.getString("bdio.implicitKey", DEFAULT_IMPLICIT_KEY));
                     };
 
-                    // Import the graph and run the extra operations
+                    // Import the graph
+                    Stopwatch loadGraphTimer = Stopwatch.createStarted();
                     graph.io(BlackDuckIo.build().onGraphMapper(onGraphMapper)).readGraph(inputStream);
-                    BlackDuckIoOperations.create(graph, onGraphMapper).addImplicitEdges();
+                    printDebugMessage("Time to load BDIO graph: %s%n", loadGraphTimer.stop());
+
+                    // Run the extra operations
+                    if (!skipInitialization) {
+                        Stopwatch initGraphTimer = Stopwatch.createStarted();
+                        BlackDuckIoOperations.create(graph, onGraphMapper).addImplicitEdges();
+                        printDebugMessage("Time to initialize BDIO graph: %s%n", initGraphTimer.stop());
+                    }
                 }
             }
 
