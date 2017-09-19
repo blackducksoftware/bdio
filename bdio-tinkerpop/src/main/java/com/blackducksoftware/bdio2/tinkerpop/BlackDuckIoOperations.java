@@ -15,35 +15,28 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import static com.blackducksoftware.bdio2.Bdio.Class.File;
-import static com.blackducksoftware.bdio2.Bdio.DataProperty.path;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.addV;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.as;
+import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
-import org.apache.tinkerpop.gremlin.process.traversal.P;
-import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.common.base.HID;
-import com.google.common.collect.Iterators;
+import com.google.common.collect.Maps;
 
 /**
  * Graph based operations to perform on BDIO data.
@@ -53,48 +46,26 @@ import com.google.common.collect.Iterators;
 public final class BlackDuckIoOperations {
 
     /**
-     * Internal graph context class.
-     */
-    private static class OperationsContext extends GraphContext {
-
-        /**
-         * Flag indicating that the current graph supports batch mode. Currently implies the graph is an instance of
-         * {@code SqlgGraph}.
-         */
-        private final boolean supportsBatchMode;
-
-        private OperationsContext(Graph graph, GraphMapper mapper) {
-            super(graph, mapper);
-            supportsBatchMode = graph instanceof SqlgGraph && ((SqlgGraph) graph).features().supportsBatchMode();
-        }
-
-        public void batchModeOn() {
-            if (supportsBatchMode) {
-                ((SqlgGraph) graph()).tx().normalBatchModeOn();
-            }
-        }
-
-        public void batchCommitTx() {
-            commitTx();
-            batchModeOn();
-        }
-    }
-
-    /**
      * Property key and edge label used to identify the root project.
      */
     // TODO This should be on the GraphMapper
     public static final String ROOT_PROJECT = "_rootProject";
 
-    private final OperationsContext context;
+    private final ReadGraphContext context;
 
-    private BlackDuckIoOperations(OperationsContext context) {
+    private BlackDuckIoOperations(ReadGraphContext context) {
         this.context = Objects.requireNonNull(context);
     }
 
     public static BlackDuckIoOperations create(Graph graph, @Nullable Consumer<GraphMapper.Builder> onGraphMapper) {
         BlackDuckIoMapper mapper = graph.io(BlackDuckIo.build().onGraphMapper(onGraphMapper)).mapper().create();
-        return new BlackDuckIoOperations(new OperationsContext(graph, mapper.createMapper()));
+        ReadGraphContext context;
+        if (graph instanceof SqlgGraph) {
+            context = new SqlgReadGraphContext((SqlgGraph) graph, mapper.createMapper(), 5000);
+        } else {
+            context = new ReadGraphContext(graph, mapper.createMapper(), 5000);
+        }
+        return new BlackDuckIoOperations(context);
     }
 
     public static BlackDuckIoOperations create(Graph graph) {
@@ -112,9 +83,6 @@ public final class BlackDuckIoOperations {
      */
     public void addImplicitEdges() {
         if (context.mapper().implicitKey().isPresent()) {
-            // Turn on batch mode so we don't try to do everything directly
-            context.batchModeOn();
-
             // Add the implicit edges
             addMissingFileParents();
             addMissingProjectDependencies();
@@ -127,60 +95,81 @@ public final class BlackDuckIoOperations {
     /**
      * This method adds the missing file parent vertices and edges.
      */
-    @SuppressWarnings("unchecked") // `coalesce` uses generic varargs
     private void addMissingFileParents() {
-        // TODO Need to skip cases where multiple parents occur (e.g. multiple bases containing the same tree)
-
         GraphTraversalSource g = context.traversal();
-        List<?> baseIds = g.V().out("base").id().toList();
-        boolean hasNewEdges;
-        do {
-            hasNewEdges = g.V()
-                    .hasLabel(Bdio.Class.File.name())
-                    .hasId(P.without(baseIds))
-                    .match(
-                            as("orphanFiles")
-                                    .not(__.out(Bdio.ObjectProperty.parent.name())),
-                            as("orphanFiles")
-                                    .<String> values(Bdio.DataProperty.path.name())
-                                    .flatMap(BlackDuckIoOperations::parentPath)
-                                    .dedup()
-                                    .as("parentPath"))
 
-                    // Find the parent vertex by path, creating it if it does not exist
-                    .coalesce(
-                            __.select("parentPath")
-                                    .flatMap(pp -> g.V()
-                                            .hasLabel(Bdio.Class.File.name())
-                                            .has(Bdio.DataProperty.path.name(), pp.get())),
-                            addMissingParentVertex(select("parentPath")))
+        // With a database like Sqlg, it's faster to assume we are starting from scratch
+        g.E().hasLabel(Bdio.ObjectProperty.parent.name()).drop().iterate();
+        context.commitTx();
 
-                    // Create the parent edge
-                    .addE(Bdio.ObjectProperty.parent.name())
-                    .from("orphanFiles")
-                    .property(context.mapper().implicitKey().get(), Boolean.TRUE)
+        // Get the list of base paths
+        Set<String> basePaths = g.V()
+                .hasLabel(Bdio.Class.Project.name())
+                .out(Bdio.ObjectProperty.base.name())
+                .<String> values(Bdio.DataProperty.path.name())
+                .toSet();
 
-                    // If we created any edges, we might need to continue looping
-                    .count().next() > 0;
+        // Index all of the files by path
+        // NOTE: This potentially takes a lot of memory as we are loading full files
+        // TODO Can we reduce the footprint somehow? We only need ID and path...
+        int fileCount = Math.toIntExact(context.countVerticesByLabel(Bdio.Class.File.name()));
+        Map<String, Vertex> files = Maps.newHashMapWithExpectedSize(fileCount);
+        g.V().hasLabel(Bdio.Class.File.name()).forEachRemaining(v -> {
+            files.put(v.value(Bdio.DataProperty.path.name()), v);
+        });
 
-            // Commit the current batch
-            context.batchCommitTx();
-        } while (hasNewEdges);
+        // Update the graph
+        createMissingFileParentVertices(files, basePaths);
+        createFileParentEdges(files, basePaths);
     }
 
-    /**
-     * An anonymous traversal that adds a missing parent vertex.
-     */
-    private Traversal<?, Vertex> addMissingParentVertex(Object parentPath) {
-        GraphTraversal<Object, Vertex> t = addV(File.name())
-                .property(path.name(), parentPath)
-                .property(context.mapper().implicitKey().get(), Boolean.TRUE);
-
-        if (context.mapper().identifierKey().isPresent()) {
-            t = t.property(context.mapper().identifierKey().get(), BdioObject.randomId());
+    private void createMissingFileParentVertices(Map<String, Vertex> files, Set<String> basePaths) {
+        // Find the missing files using the HID
+        Set<String> missingFilePaths = new HashSet<>();
+        for (String path : files.keySet()) {
+            String parentPath = path;
+            while (parentPath != null && !basePaths.contains(parentPath)) {
+                parentPath = HID.from(parentPath)
+                        .tryParent()
+                        .map(HID::toUriString)
+                        .filter(p -> !files.containsKey(p))
+                        .filter(missingFilePaths::add)
+                        .orElse(null);
+            }
         }
 
-        return t;
+        // Create File vertices for all the missing paths
+        context.startBatchTx();
+        for (String path : missingFilePaths) {
+            Stream.Builder<Object> properties = Stream.builder()
+                    .add(T.label).add(Bdio.Class.File.name())
+                    .add(Bdio.DataProperty.path.name()).add(path)
+                    .add(context.mapper().implicitKey().get()).add(Boolean.TRUE);
+            context.mapper().identifierKey().ifPresent(key -> properties.add(key).add(BdioObject.randomId()));
+            context.mapper().partitionStrategy().ifPresent(p -> properties.add(p.getPartitionKey()).add(p.getWritePartition()));
+            files.put(path, context.graph().addVertex(properties.build().toArray()));
+            context.batchCommitTx();
+        }
+        context.commitTx();
+    }
+
+    private void createFileParentEdges(Map<String, Vertex> files, Set<String> basePaths) {
+        // Create parent edges
+        context.startBatchTx();
+        for (Map.Entry<String, Vertex> e : files.entrySet()) {
+            if (!basePaths.contains(e.getKey())) {
+                Vertex parent = HID.from(e.getKey()).tryParent()
+                        .map(HID::toUriString)
+                        .map(files::get)
+                        .orElseThrow(illegalState("missing parent: %s", e.getKey()));
+                Stream.Builder<Object> properties = Stream.builder()
+                        .add(context.mapper().implicitKey().get()).add(Boolean.TRUE);
+                context.mapper().partitionStrategy().ifPresent(p -> properties.add(p.getPartitionKey()).add(p.getWritePartition()));
+                e.getValue().addEdge(Bdio.ObjectProperty.parent.name(), parent, properties.build().toArray());
+                context.batchCommitTx();
+            }
+        }
+        context.commitTx();
     }
 
     /**
@@ -189,10 +178,13 @@ public final class BlackDuckIoOperations {
     private void addMissingProjectDependencies() {
         GraphTraversalSource g = context.traversal();
 
+        // TODO How does a repository impact the root project calculation?
+        // Does the repository itself become the root? And we have "contains" instead of sub-project?
+
         // First we need to find the root project
         Vertex rootProject = g.V()
                 .hasLabel(Bdio.Class.Project.name())
-                // TODO What about "previous version" relationships?
+                // TODO What about "previous version" relationships? Need to go to the newest...
                 .not(inE(Bdio.ObjectProperty.subproject.name()))
                 .limit(1L)
                 .as("rootProject")
@@ -217,19 +209,6 @@ public final class BlackDuckIoOperations {
         // g.V(rootProject).as("rootProject")
         // .V().hasLabel(Bdio.Class.Component).not(inE("dependsOn"))
         // .addE("dependsOn").from("rootProject");
-    }
-
-    /**
-     * Maps a string traverser representing a HID to the parent path. If the HID does not have a parent, an empty
-     * iterator is returned; the iterator will never contain more then a single element.
-     */
-    private static Iterator<String> parentPath(Traverser<String> t) {
-        HID parent = HID.from(t.get()).getParent();
-        if (parent != null) {
-            return Iterators.singletonIterator(parent.toUriString());
-        } else {
-            return Collections.emptyIterator();
-        }
     }
 
 }

@@ -149,4 +149,8 @@ class ReadGraphContext extends GraphContext {
                 });
     }
 
+    public long countVerticesByLabel(String label) {
+        return traversal().V().hasLabel(label).count().next();
+    }
+
 }

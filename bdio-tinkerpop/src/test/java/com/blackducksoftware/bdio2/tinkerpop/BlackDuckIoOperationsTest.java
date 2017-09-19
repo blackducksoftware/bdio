@@ -45,14 +45,20 @@ public class BlackDuckIoOperationsTest extends BaseTest {
         InputStream bdio = new NamedGraphBuilder()
                 .withBaseFile(new File(BdioObject.randomId()).path("file:///foo"))
                 .add(new File(BdioObject.randomId()).path("file:///foo/bar/gus/one/more"))
+                .add(new File(BdioObject.randomId()).path("file:///foo/bar"))
                 .add(new File(BdioObject.randomId()).path("file:///foo/bar/gus/two/more"))
                 .build();
 
-        graph.io(BlackDuckIo.build()).readGraph(bdio);
+        Consumer<GraphMapper.Builder> config = b -> b.implicitKey(TT.implicit);
+        graph.io(BlackDuckIo.build().onGraphMapper(config)).readGraph(bdio);
 
-        BlackDuckIoOperations.create(graph, builder -> builder.implicitKey(TT.implicit)).addImplicitEdges();
+        BlackDuckIoOperations.create(graph, config).addImplicitEdges();
 
         GraphTraversalSource g = graph.traversal();
+
+        // There were 3 files that should have been created
+        assertThat(g.V().hasLabel(Bdio.Class.File.name()).has(TT.implicit).count().next())
+                .named("implicit file count").isEqualTo(3);
 
         // Make sure we can traverse from the project to the leaves
         List<Object> leafPaths = g.V()

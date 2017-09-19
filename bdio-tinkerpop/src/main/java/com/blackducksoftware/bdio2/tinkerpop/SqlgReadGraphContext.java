@@ -15,11 +15,17 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Objects;
 
 import org.umlg.sqlg.structure.IndexType;
 import org.umlg.sqlg.structure.PropertyType;
+import org.umlg.sqlg.structure.SchemaManager;
+import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.structure.VertexLabel;
 
@@ -74,6 +80,36 @@ class SqlgReadGraphContext extends ReadGraphContext {
         super.startBatchTx();
         if (supportsBatchMode) {
             sqlgGraph.tx().normalBatchModeOn();
+        }
+    }
+
+    @Override
+    public long countVerticesByLabel(String label) {
+        // NOTE: This is modified code from `SqlgGraph.countVertices()`
+
+        // Determine where the vertices are stored
+        SchemaTable schemaTable = SchemaTable.from(sqlgGraph, label)
+                .withPrefix(SchemaManager.VERTEX_PREFIX);
+
+        // Build the query
+        StringBuilder sql = new StringBuilder()
+                .append("SELECT COUNT(1) FROM ")
+                .append('"').append(schemaTable.getSchema()).append('"')
+                .append('.')
+                .append('"').append(schemaTable.getTable()).append('"');
+        if (sqlgGraph.getSqlDialect().needsSemicolon()) {
+            sql.append(';');
+        }
+
+        // Execute the query
+        Connection conn = sqlgGraph.tx().getConnection();
+        try (PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
+            ResultSet rs = preparedStatement.executeQuery();
+            rs.next();
+            return rs.getLong(1);
+        } catch (SQLException e) {
+            // TODO Anything better we can wrap with?
+            throw new RuntimeException(e);
         }
     }
 
