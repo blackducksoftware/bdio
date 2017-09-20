@@ -20,21 +20,17 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
 
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
-
-import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.bdio2.tinkerpop.GraphContextFactory.AbstractContextBuilder;
 import com.blackducksoftware.common.base.HID;
 import com.google.common.collect.Maps;
 
@@ -45,31 +41,10 @@ import com.google.common.collect.Maps;
  */
 public final class BlackDuckIoOperations {
 
-    /**
-     * Property key and edge label used to identify the root project.
-     */
-    // TODO This should be on the GraphMapper
-    public static final String ROOT_PROJECT = "_rootProject";
+    private final GraphContextFactory contextFactory;
 
-    private final ReadGraphContext context;
-
-    private BlackDuckIoOperations(ReadGraphContext context) {
-        this.context = Objects.requireNonNull(context);
-    }
-
-    public static BlackDuckIoOperations create(Graph graph, @Nullable Consumer<GraphMapper.Builder> onGraphMapper) {
-        BlackDuckIoMapper mapper = graph.io(BlackDuckIo.build().onGraphMapper(onGraphMapper)).mapper().create();
-        ReadGraphContext context;
-        if (graph instanceof SqlgGraph) {
-            context = new SqlgReadGraphContext((SqlgGraph) graph, mapper.createMapper(), 5000);
-        } else {
-            context = new ReadGraphContext(graph, mapper.createMapper(), 5000);
-        }
-        return new BlackDuckIoOperations(context);
-    }
-
-    public static BlackDuckIoOperations create(Graph graph) {
-        return create(graph, null);
+    private BlackDuckIoOperations(Builder builder) {
+        contextFactory = builder.contextFactory();
     }
 
     /**
@@ -81,11 +56,16 @@ public final class BlackDuckIoOperations {
      * project)</li>
      * </ul>
      */
-    public void addImplicitEdges() {
+    public void addImplicitEdges(Graph graph) {
+        ReadGraphContext context = contextFactory.read(graph);
         if (context.mapper().implicitKey().isPresent()) {
-            // Add the implicit edges
-            addMissingFileParents();
-            addMissingProjectDependencies();
+            addMissingFileParents(context);
+
+            if (context.mapper().rootProjectKey().isPresent()) {
+                addMissingRootProject(context);
+            }
+
+            addMissingProjectDependencies(context);
 
             // Use the normal commit, this ensures everything gets flushed and we don't re-enable batch mode
             context.commitTx();
@@ -95,7 +75,7 @@ public final class BlackDuckIoOperations {
     /**
      * This method adds the missing file parent vertices and edges.
      */
-    private void addMissingFileParents() {
+    private void addMissingFileParents(ReadGraphContext context) {
         GraphTraversalSource g = context.traversal();
 
         // With a database like Sqlg, it's faster to assume we are starting from scratch
@@ -119,11 +99,11 @@ public final class BlackDuckIoOperations {
         });
 
         // Update the graph
-        createMissingFileParentVertices(files, basePaths);
-        createFileParentEdges(files, basePaths);
+        createMissingFileParentVertices(context, files, basePaths);
+        createFileParentEdges(context, files, basePaths);
     }
 
-    private void createMissingFileParentVertices(Map<String, Vertex> files, Set<String> basePaths) {
+    private void createMissingFileParentVertices(ReadGraphContext context, Map<String, Vertex> files, Set<String> basePaths) {
         // Find the missing files using the HID
         Set<String> missingFilePaths = new HashSet<>();
         for (String path : files.keySet()) {
@@ -153,7 +133,7 @@ public final class BlackDuckIoOperations {
         context.commitTx();
     }
 
-    private void createFileParentEdges(Map<String, Vertex> files, Set<String> basePaths) {
+    private void createFileParentEdges(ReadGraphContext context, Map<String, Vertex> files, Set<String> basePaths) {
         // Create parent edges
         context.startBatchTx();
         for (Map.Entry<String, Vertex> e : files.entrySet()) {
@@ -173,9 +153,9 @@ public final class BlackDuckIoOperations {
     }
 
     /**
-     * This method adds the missing dependency edges between components and the top level project.
+     * This method adds the missing edge between metadata and the root project.
      */
-    private void addMissingProjectDependencies() {
+    private void addMissingRootProject(ReadGraphContext context) {
         GraphTraversalSource g = context.traversal();
 
         // TODO How does a repository impact the root project calculation?
@@ -193,22 +173,38 @@ public final class BlackDuckIoOperations {
                 // TODO Should we just bail and not have a root project?
 
                 // Always mark the root project with a property
-                .property(ROOT_PROJECT, Boolean.TRUE)
+                .property(context.mapper().rootProjectKey().get(), Boolean.TRUE)
                 .next();
 
         // Create an edge for the root project as well
         context.mapper().metadataLabel().ifPresent(label -> {
             g.V(rootProject).as("rootProject")
                     .V().hasLabel(label)
-                    .addE(ROOT_PROJECT).to("rootProject")
+                    .addE(context.mapper().rootProjectKey().get()).to("rootProject")
                     .property(context.mapper().implicitKey().get(), Boolean.TRUE)
                     .iterate();
         });
+    }
 
+    /**
+     * This method adds the missing dependency edges between components and the top level project.
+     */
+    private void addMissingProjectDependencies(ReadGraphContext context) {
         // TODO "dependsOn" isn't a real edge yet...
         // g.V(rootProject).as("rootProject")
         // .V().hasLabel(Bdio.Class.Component).not(inE("dependsOn"))
         // .addE("dependsOn").from("rootProject");
+    }
+
+    public static Builder build() {
+        return new Builder();
+    }
+
+    public static final class Builder
+            extends AbstractContextBuilder<BlackDuckIoOperations, Builder> {
+        private Builder() {
+            super(BlackDuckIoOperations::new);
+        }
     }
 
 }

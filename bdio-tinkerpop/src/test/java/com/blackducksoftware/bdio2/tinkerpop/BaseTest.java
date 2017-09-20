@@ -53,6 +53,8 @@ public abstract class BaseTest {
 
         public static final String implicit = "_implicit";
 
+        public static final String rootProject = "_rootProject";
+
         public static final String Metadata = "Metadata";
     }
 

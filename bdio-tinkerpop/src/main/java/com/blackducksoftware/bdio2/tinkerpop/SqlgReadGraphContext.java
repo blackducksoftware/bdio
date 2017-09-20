@@ -68,7 +68,7 @@ class SqlgReadGraphContext extends ReadGraphContext {
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
         uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), EXPECTED_INSERTIONS);
 
-        // Pre-populate label tables
+        // Pre-populate vertex tables
         mapper().metadataLabel().ifPresent(this::defineVertexLabel);
         mapper().forEachTypeLabel(this::defineVertexLabel);
 

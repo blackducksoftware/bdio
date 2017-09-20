@@ -16,11 +16,31 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 
+/**
+ * Context used when performing a
+ * {@link org.apache.tinkerpop.gremlin.structure.io.GraphWriter#writeGraph(java.io.OutputStream, Graph)
+ * GraphWrite.writeGraph} operation on BDIO data.
+ *
+ * @author jgustie
+ */
 class WriteGraphContext extends GraphContext {
 
     protected WriteGraphContext(Graph graph, GraphMapper mapper) {
         super(graph, mapper);
+    }
+
+    /**
+     * Produces the identifier (the "@id" value) for a vertex based on the current configuration.
+     */
+    public String nodeId(Vertex vertex) {
+        Object identifier = mapper().identifierKey()
+                .map(key -> vertex.property(key))
+                .orElse(VertexProperty.empty())
+                .orElseGet(() -> vertex.id());
+        return mapper().valueObjectMapper().toValueObject(identifier).toString();
     }
 
 }

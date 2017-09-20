@@ -68,8 +68,6 @@ public class GraphMapper {
     // when the document is built...THEREFORE we would need private ownership of the BdioDocument.Builder in this class
     // If we were to offer compact and expand JSON-LD operations here, it wouldn't matter
 
-    // TODO The BlackDuckIoOperations.ROOT_PROJECT should be a "rootProjectLabel" in here...
-
     /**
      * The JSON-LD value object mapper to use.
      */
@@ -116,6 +114,11 @@ public class GraphMapper {
     private final Optional<String> implicitKey;
 
     /**
+     * The property key and edge label used to identify the root project.
+     */
+    private final Optional<String> rootProjectKey;
+
+    /**
      * The partitioning strategy used isolate JSON-LD sub-graphs.
      */
     private final Optional<PartitionStrategy> partitionStrategy;
@@ -130,6 +133,7 @@ public class GraphMapper {
         identifierKey = Objects.requireNonNull(builder.identifierKey);
         unknownKey = Objects.requireNonNull(builder.unknownKey);
         implicitKey = Objects.requireNonNull(builder.implicitKey);
+        rootProjectKey = Objects.requireNonNull(builder.rootProjectKey);
         partitionStrategy = Objects.requireNonNull(builder.partitionStrategy);
     }
 
@@ -185,6 +189,10 @@ public class GraphMapper {
 
     public Optional<String> implicitKey() {
         return implicitKey;
+    }
+
+    public Optional<String> rootProjectKey() {
+        return rootProjectKey;
     }
 
     public Optional<PartitionStrategy> partitionStrategy() {
@@ -332,9 +340,11 @@ public class GraphMapper {
 
         private Optional<String> implicitKey = Optional.empty();
 
+        private Optional<String> rootProjectKey = Optional.empty();
+
         private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
 
-        public Builder() {
+        private Builder() {
             valueObjectMapperBuilder = new ValueObjectMapper.Builder();
 
             classes = new LinkedHashMap<>();
@@ -407,6 +417,11 @@ public class GraphMapper {
             return this;
         }
 
+        public Builder rootProjectKey(@Nullable String rootProjectKey) {
+            this.rootProjectKey = checkUserSuppliedKey(rootProjectKey, "rootProjectKey '%s' is reserved");
+            return this;
+        }
+
         public Builder partitionStrategy(@Nullable PartitionStrategy partitionStrategy) {
             if (partitionStrategy != null) {
                 checkUserSuppliedKey(partitionStrategy.getPartitionKey(), "partitionKey '%s' is reserved");
@@ -434,7 +449,8 @@ public class GraphMapper {
             return metadataLabel(config.getString("metadataLabel", null))
                     .identifierKey(config.getString("identifierKey", null))
                     .unknownKey(config.getString("unknownKey", null))
-                    .implicitKey(config.getString("implicitKey", null));
+                    .implicitKey(config.getString("implicitKey", null))
+                    .rootProjectKey(config.getString("rootProjectKey", null));
         }
 
         public GraphMapper create() {
@@ -446,6 +462,7 @@ public class GraphMapper {
             checkState(!identifierKey.filter(isKeyInUse).isPresent(), "identifierKey conflict");
             checkState(!unknownKey.filter(isKeyInUse).isPresent(), "unknownKey conflict");
             checkState(!implicitKey.filter(isKeyInUse).isPresent(), "implicitKey conflict");
+            checkState(!rootProjectKey.filter(isKeyInUse).isPresent(), "rootProjectKey conflict");
             checkState(!partitionStrategy.map(PartitionStrategy::getPartitionKey).filter(isKeyInUse).isPresent(), "partitionKey conflict");
 
             return new GraphMapper(this);

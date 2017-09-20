@@ -52,7 +52,7 @@ public class BlackDuckIoOperationsTest extends BaseTest {
         Consumer<GraphMapper.Builder> config = b -> b.implicitKey(TT.implicit);
         graph.io(BlackDuckIo.build().onGraphMapper(config)).readGraph(bdio);
 
-        BlackDuckIoOperations.create(graph, config).addImplicitEdges();
+        BlackDuckIoOperations.build().onGraphMapper(config).create().addImplicitEdges(graph);
 
         GraphTraversalSource g = graph.traversal();
 
@@ -88,15 +88,15 @@ public class BlackDuckIoOperationsTest extends BaseTest {
     public void identifyRootProject() throws IOException {
         InputStream bdio = new NamedGraphBuilder().build();
 
-        Consumer<GraphMapper.Builder> onGraphMapper = b -> b.metadataLabel(TT.Metadata).implicitKey(TT.implicit);
-        graph.io(BlackDuckIo.build().onGraphMapper(onGraphMapper)).readGraph(bdio);
+        Consumer<GraphMapper.Builder> config = b -> b.metadataLabel(TT.Metadata).implicitKey(TT.implicit).rootProjectKey(TT.rootProject);
+        graph.io(BlackDuckIo.build().onGraphMapper(config)).readGraph(bdio);
 
-        BlackDuckIoOperations.create(graph, onGraphMapper).addImplicitEdges();
+        BlackDuckIoOperations.build().onGraphMapper(config).create().addImplicitEdges(graph);
 
         GraphTraversalSource g = graph.traversal();
         List<Object> rootProjectFlags = g.V().hasLabel(TT.Metadata)
-                .out(BlackDuckIoOperations.ROOT_PROJECT)
-                .values(BlackDuckIoOperations.ROOT_PROJECT)
+                .out(TT.rootProject)
+                .values(TT.rootProject)
                 .toList();
 
         assertThat(rootProjectFlags).containsExactly(true);

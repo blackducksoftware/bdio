@@ -15,10 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
-
-import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -29,16 +26,15 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.io.GraphReader;
-import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarEdge;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
-import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
+import com.blackducksoftware.bdio2.tinkerpop.GraphContextFactory.AbstractContextBuilder;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
@@ -47,39 +43,25 @@ import com.google.common.collect.Maps;
 
 public final class BlackDuckIoReader implements GraphReader {
 
-    /**
-     * The schema describing the BDIO graph.
-     */
-    private final GraphMapper mapper;
-
-    /**
-     * The number of graph mutations before a commit is attempted.
-     */
-    private final int batchSize;
+    private final GraphContextFactory contextFactory;
 
     private BlackDuckIoReader(Builder builder) {
-        mapper = builder.mapper.orElseGet(() -> BlackDuckIoMapper.build().create()).createMapper();
-        batchSize = builder.batchSize;
+        contextFactory = builder.contextFactory();
     }
 
     @Override
-    public void readGraph(InputStream inputStream, Graph graphToWriteTo) throws IOException {
-        RxJavaBdioDocument document = mapper.newBdioDocument(RxJavaBdioDocument.class);
-        ReadGraphContext context;
-        if (graphToWriteTo instanceof SqlgGraph) {
-            context = new SqlgReadGraphContext((SqlgGraph) graphToWriteTo, mapper, batchSize);
-        } else {
-            context = new ReadGraphContext(graphToWriteTo, mapper, batchSize);
-        }
+    public void readGraph(InputStream inputStream, Graph graph) throws IOException {
+        ReadGraphContext context = contextFactory.read(graph);
+        RxJavaBdioDocument document = context.mapper().newBdioDocument(RxJavaBdioDocument.class);
 
         // Create a metadata subscription
         document.metadata(metadata -> createMetadata(metadata, context, document.jsonld().options()));
 
         // Get the sequence of BDIO graph nodes and transform them in vertices and edges
-        document.jsonld().frame(mapper.frame()).compose(document.withoutMetadata())
+        document.jsonld().frame(context.mapper().frame()).compose(document.withoutMetadata())
 
                 // Convert nodes to vertices
-                .map(node -> createVertex(node, null, null, Direction.OUT))
+                .map(node -> createVertex(node, null, null, Direction.OUT, context))
 
                 // Collect all of the vertices in a map, creating the actual vertices in the graph as we go
                 .toMap(vertex -> vertex, vertex -> vertex.attach(context::upsert))
@@ -143,21 +125,21 @@ public final class BlackDuckIoReader implements GraphReader {
      * Creates an in-memory vertex from the supplied node data.
      */
     private StarVertex createVertex(Map<String, Object> node, Function<Attachable<Vertex>, Vertex> vertexAttachMethod,
-            Function<Attachable<Edge>, Edge> edgeAttachMethod, Direction attachEdgesOfThisDirection) {
+            Function<Attachable<Edge>, Edge> edgeAttachMethod, Direction attachEdgesOfThisDirection, ReadGraphContext context) {
         // Create a new StarGraph whose primary vertex is the converted node
         StarGraph starGraph = StarGraph.open();
-        StarVertex vertex = (StarVertex) starGraph.addVertex(mapper.getNodeProperties(node, true));
+        StarVertex vertex = (StarVertex) starGraph.addVertex(context.mapper().getNodeProperties(node, true));
         if (vertexAttachMethod != null) {
             vertex.attach(vertexAttachMethod);
         }
 
         // Add outgoing edges for object properties (if requested)
         if (attachEdgesOfThisDirection == Direction.BOTH || attachEdgesOfThisDirection == Direction.OUT) {
-            Maps.transformValues(Maps.filterKeys(node, mapper::isObjectPropertyKey),
+            Maps.transformValues(Maps.filterKeys(node, context.mapper()::isObjectPropertyKey),
                     // TODO Does the ID mapping here need to have the partition ID applied to it for TinkerGraph?
                     Functions.compose(
-                            id -> starGraph.addVertex(T.id, mapper.generateId(id)),
-                            mapper.valueObjectMapper()::fromFieldValue))
+                            id -> starGraph.addVertex(T.id, context.mapper().generateId(id)),
+                            context.mapper().valueObjectMapper()::fromFieldValue))
                     .forEach((label, inVertex) -> {
                         StarEdge edge = (StarEdge) vertex.addEdge(label, inVertex);
                         if (edgeAttachMethod != null) {
@@ -173,17 +155,18 @@ public final class BlackDuckIoReader implements GraphReader {
      * If a metadata label is configured, store the supplied BDIO metadata on a vertex in the graph.
      */
     private void createMetadata(BdioMetadata metadata, ReadGraphContext context, JsonLdOptions options) {
-        if (mapper.metadataLabel().isPresent()) {
+        if (context.mapper().metadataLabel().isPresent()) {
             GraphTraversalSource g = context.traversal();
-            Vertex metadataVertex = g.V().hasLabel(mapper.metadataLabel().get()).tryNext().orElseGet(() -> g.addV(mapper.metadataLabel().get()).next());
+            Vertex metadataVertex = g.V().hasLabel(context.mapper().metadataLabel().get()).tryNext()
+                    .orElseGet(() -> g.addV(context.mapper().metadataLabel().get()).next());
 
-            mapper.identifierKey().ifPresent(key -> {
+            context.mapper().identifierKey().ifPresent(key -> {
                 metadataVertex.property(key, metadata.id());
             });
             try {
                 // Compact the metadata using the context extracted from frame
-                Map<String, Object> compactMetadata = JsonLdProcessor.compact(metadata, mapper.frame(), options);
-                ElementHelper.attachProperties(metadataVertex, mapper.getNodeProperties(compactMetadata, false));
+                Map<String, Object> compactMetadata = JsonLdProcessor.compact(metadata, context.mapper().frame(), options);
+                ElementHelper.attachProperties(metadataVertex, context.mapper().getNodeProperties(compactMetadata, false));
             } catch (JsonLdError e) {
                 // TODO What can we do about this?
                 e.printStackTrace();
@@ -195,28 +178,11 @@ public final class BlackDuckIoReader implements GraphReader {
         return new Builder();
     }
 
-    public final static class Builder implements ReaderBuilder<BlackDuckIoReader> {
-
-        private Optional<Mapper<GraphMapper>> mapper = Optional.empty();
-
-        private int batchSize = 10000;
-
+    public static final class Builder
+            extends AbstractContextBuilder<BlackDuckIoReader, Builder>
+            implements ReaderBuilder<BlackDuckIoReader> {
         private Builder() {
-        }
-
-        public Builder mapper(@Nullable Mapper<GraphMapper> mapper) {
-            this.mapper = Optional.ofNullable(mapper);
-            return this;
-        }
-
-        public Builder batchSize(int batchSize) {
-            this.batchSize = batchSize;
-            return this;
-        }
-
-        @Override
-        public BlackDuckIoReader create() {
-            return new BlackDuckIoReader(this);
+            super(BlackDuckIoReader::new);
         }
     }
 
