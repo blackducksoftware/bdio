@@ -20,6 +20,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
 
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -137,10 +138,13 @@ public final class BlackDuckIoOperations {
         // Create parent edges
         context.startBatchTx();
         for (Map.Entry<String, Vertex> e : files.entrySet()) {
-            if (!basePaths.contains(e.getKey())) {
-                Vertex parent = HID.from(e.getKey()).tryParent()
-                        .map(HID::toUriString)
-                        .map(files::get)
+            Optional<String> parentPath = Optional.of(e.getKey())
+                    .filter(p -> !basePaths.contains(p))
+                    .map(HID::from)
+                    .flatMap(HID::tryParent)
+                    .map(HID::toUriString);
+            if (parentPath.isPresent()) {
+                Vertex parent = parentPath.map(files::get)
                         .orElseThrow(illegalState("missing parent: %s", e.getKey()));
                 Stream.Builder<Object> properties = Stream.builder()
                         .add(context.mapper().implicitKey().get()).add(Boolean.TRUE);
