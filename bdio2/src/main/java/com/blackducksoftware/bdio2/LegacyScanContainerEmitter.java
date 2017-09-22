@@ -43,7 +43,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.jsonldjava.core.JsonLdConsts;
-import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
@@ -273,40 +272,11 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
 
         // The per-entry overhead is 20 bytes plus the size of the identifier: `{"@id":<ID>,"@graph":[<NODES>]}`
         int maxSize = Bdio.MAX_ENTRY_SIZE - (20 + estimateSize(metadata.id()));
-        Spliterator<List<Map<String, Object>>> graphNodes = partition(scanContainer.nodes().spliterator(), maxSize, LegacyScanContainerEmitter::estimateSize);
+        Spliterator<List<Map<String, Object>>> graphNodes = partition(scanContainer.nodes().spliterator(), maxSize, SpliteratorEmitter::estimateSize);
 
         return Stream.concat(
                 Stream.of(metadata.asNamedGraph()),
                 StreamSupport.stream(graphNodes, false).map(graph -> metadata.asNamedGraph(graph, JsonLdConsts.ID)));
-    }
-
-    /**
-     * Attempts to <em>estimate</em> the serialized JSON size of an object without incurring too much overhead.
-     */
-    private static int estimateSize(@Nullable Object obj) {
-        // NOTE: It is better to over estimate then under estimate. String sizes are inflated 10% to account for UTF-8
-        // encoding and we count a delimiter for every collection element (even the last).
-        if (obj == null) {
-            return 4; // "null"
-        } else if (obj instanceof Number || obj instanceof Boolean) {
-            return obj.toString().length(); // Accounts for things like negative numbers
-        } else if (obj instanceof List<?>) {
-            int size = 2; // "[]"
-            for (Object item : (List<?>) obj) {
-                size += 1 + estimateSize(item); // <item> ","
-            }
-            return size;
-        } else if (obj instanceof Map<?, ?>) {
-            int size = 2; // "{}"
-            for (Map.Entry<?, ?> entry : ((Map<?, ?>) obj).entrySet()) {
-                size += 1 + estimateSize(entry.getKey()); // <key> ":"
-                size += 1 + estimateSize(entry.getValue()); // <value> ","
-            }
-            return size;
-        } else {
-            // `StandardCharsets.UTF_8.newEncoder().averageBytesPerChar() == 1.1`
-            return 2 + (int) (1.1 * obj.toString().length()); // '"' <obj> '"'
-        }
     }
 
     /**
@@ -383,63 +353,6 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
         default:
             return "unknown";
         }
-    }
-
-    /**
-     * Guesses a scheme based on a file name. We need to attempt this mapping because the original scheme is lost in the
-     * legacy encoding, our only chance of reconstructing it is through extension matching.
-     */
-    private static String guessScheme(String filename) {
-        // Scan backwards through the file name trying to match extensions (case-insensitively)
-        // NOTE: we do not differentiate the extension from the base name, e.g. "zip.foo" WILL match as "zip"
-        int start, end;
-        start = end = filename.length();
-        while (start > 0) {
-            char c = filename.charAt(--start);
-            if (c == '/') {
-                // We've hit the end of the filename
-                break;
-            } else if (c == '.') {
-                switch (Ascii.toLowerCase(filename.substring(start + 1, end))) {
-                // This list was taken from the old-old legacy code which used to only match extensions
-                case "zip":
-                case "bz":
-                case "z":
-                case "nupg":
-                case "xpi":
-                case "egg":
-                case "jar":
-                case "war":
-                case "rar":
-                case "apk":
-                case "ear":
-                case "car":
-                case "nbm":
-                    return "zip";
-                case "rpm":
-                    return "rpm";
-                case "tar":
-                case "tgz":
-                case "txz":
-                case "tbz":
-                case "tbz2":
-                    return "tar";
-                case "ar":
-                case "lib":
-                    return "ar";
-                case "arj":
-                    return "arj";
-                case "7z":
-                    return "sevenZ";
-                default:
-                    // Keep looking
-                    end = start;
-                }
-            }
-        }
-
-        // Hopefully this won't break anything downstream that is depending on a specific scheme...
-        return "unknown";
     }
 
 }
