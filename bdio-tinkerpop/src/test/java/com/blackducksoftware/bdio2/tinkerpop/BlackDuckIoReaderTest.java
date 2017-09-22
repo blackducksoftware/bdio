@@ -14,6 +14,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import static com.google.common.truth.Truth.assertThat;
 
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,12 +23,14 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.Test;
+import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.Project;
 import com.blackducksoftware.bdio2.test.BdioTest;
+import com.blackducksoftware.common.value.Digest;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.Lists;
 
@@ -69,6 +72,8 @@ public class BlackDuckIoReaderTest extends BaseTest {
         BdioMetadata metadata = new BdioMetadata().id("urn:uuid:" + UUID.randomUUID());
         File fileModel = new File("urn:uuid:" + UUID.randomUUID());
         fileModel.byteCount(101L);
+        fileModel.fingerprint(Digest.of("sha1", "2d05a5f70ffb6fbf6fcbf65bb6f4cd48a8b2592a"));
+        fileModel.fingerprint(Digest.of("md5", "b26af8f84049e82f6a4805d68b0f178d"));
 
         graph.io(BlackDuckIo.build())
                 .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(fileModel))));
@@ -82,6 +87,21 @@ public class BlackDuckIoReaderTest extends BaseTest {
         VertexProperty<Number> byteCountProperty = file.property(Bdio.DataProperty.byteCount.name());
         assertThat(byteCountProperty.isPresent()).isTrue();
         assertThat(byteCountProperty.value().longValue()).isEqualTo(101L);
+
+        // NOTE: Multivalued properties will be returned as arrays by Sqlg
+        if (graph instanceof SqlgGraph) {
+            VertexProperty<String[]> fingerprintProperty = file.property(Bdio.DataProperty.fingerprint.name());
+            assertThat(fingerprintProperty.isPresent()).isTrue();
+            assertThat(fingerprintProperty.value()).asList().containsExactly(
+                    "sha1:2d05a5f70ffb6fbf6fcbf65bb6f4cd48a8b2592a",
+                    "md5:b26af8f84049e82f6a4805d68b0f178d");
+        } else {
+            VertexProperty<List<Digest>> fingerprintProperty = file.property(Bdio.DataProperty.fingerprint.name());
+            assertThat(fingerprintProperty.isPresent()).isTrue();
+            assertThat(fingerprintProperty.value()).containsExactly(
+                    Digest.of("sha1", "2d05a5f70ffb6fbf6fcbf65bb6f4cd48a8b2592a"),
+                    Digest.of("md5", "b26af8f84049e82f6a4805d68b0f178d"));
+        }
     }
 
     @Test
