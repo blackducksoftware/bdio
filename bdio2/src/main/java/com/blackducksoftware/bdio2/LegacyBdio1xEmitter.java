@@ -1,99 +1,65 @@
 /*
- * Copyright (C) 2016 Black Duck Software Inc.
- * http://www.blackducksoftware.com/
- * All rights reserved.
+ * Copyright 2017 Black Duck Software, Inc.
  *
- * This software is the confidential and proprietary information of
- * Black Duck Software ("Confidential Information"). You shall not
- * disclose such Confidential Information and shall use it only in
- * accordance with the terms of the license agreement you entered into
- * with Black Duck Software.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.blackducksoftware.bdio2;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.net.URL;
 import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
+import java.util.Deque;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Spliterators;
+import java.util.Spliterator;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.model.Component;
+import com.blackducksoftware.bdio2.model.Dependency;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.License;
 import com.blackducksoftware.bdio2.model.Project;
+import com.blackducksoftware.common.base.ExtraOptionals;
 import com.blackducksoftware.common.value.Digest;
+import com.blackducksoftware.common.value.Product;
 import com.blackducksoftware.common.value.ProductList;
-import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.util.JsonParserDelegate;
 import com.github.jsonldjava.core.JsonLdConsts;
-import com.github.jsonldjava.core.JsonLdError;
-import com.github.jsonldjava.core.JsonLdOptions;
-import com.github.jsonldjava.core.JsonLdProcessor;
-import com.github.jsonldjava.utils.JsonUtils;
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterators;
-import com.google.common.io.ByteSource;
-import com.google.common.io.Resources;
+import com.google.common.collect.Iterables;
+import com.google.common.net.UrlEscapers;
 
-/**
- * An adaptor to convert BDIO 1.x data into 2.x data. The main reason this isn't done strictly with a JSON-LD context
- * (e.g. compress using the BDIO 1.x context, then expand with a special context that produces 2.x properties) is the
- * switch from the {@code BillOfMaterials} node to using graph metadata. The other reason is that we have seen 600MB
- * BDIO 1.x files and we don't necessarily want to load them using the full JSON-LD APIs.
- *
- * @author jgustie
- */
-class LegacyBdio1xEmitter extends SpliteratorEmitter {
-
-    /**
-     * The BDIO 1.x vocabulary. This is the default prefix taken away from term names.
-     */
-    private static final String VOCAB = "http://blackducksoftware.com/rdf/terms#";
-
-    /**
-     * The prefixes supported in BDIO 1.x.
-     */
-    private static final ImmutableMap<String, String> PREFIXES = ImmutableMap.<String, String> builder()
-            .put("", VOCAB)
-            .put("spdx", "http://spdx.org/rdf/terms#")
-            .put("doap", "http://usefulinc.com/ns/doap#")
-            .put("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
-            .put("xsd", "http://www.w3.org/2001/XMLSchema#")
-            .build();
-
-    /**
-     * The mapping of BDIO 1.x checksum algorithms to fingerprint algorithms.
-     */
-    private static final ImmutableMap<String, String> FINGERPRINT_ALGORITHMS = ImmutableMap.<String, String> builder()
-            .put("http://spdx.org/rdf/terms#checksumAlgorithm_md5", "md5")
-            .put("http://spdx.org/rdf/terms#checksumAlgorithm_sha1", "sha1")
-            .build();
-
-    /**
-     * The mapping of BDIO 1.x external identifier systems to identifier namespaces.
-     */
-    private static final ImmutableMap<String, String> IDENTIFIER_NAMESPACES = ImmutableMap.<String, String> builder()
-            .put("http://blackducksoftware.com/rdf/terms#externalIdentifier_maven", "maven")
-            .build();
+public class LegacyBdio1xEmitter extends SpliteratorEmitter {
 
     /**
      * Regular expression for parsing SPDX creators.
@@ -105,287 +71,525 @@ class LegacyBdio1xEmitter extends SpliteratorEmitter {
             + "|(?:Organization: (?<organizationName>.*))");
 
     /**
-     * The value object mapper to use for converting expanded JSON-LD values back to Java objects.
+     * A class representing the archive context of a path. This code is used in an attempt to reconstruct the nesting
+     * structure of a file name. In general this only works for Protex BOM Tool generated BDIO when the files are listed
+     * in a specific order. It assumes that file names are relatively normalized (e.g. instead of using full HID
+     * normalization, it assumes Protex normalized the paths to something mildly compatible with what we are doing).
      */
-    private static final ValueObjectMapper valueObjectMapper = new ValueObjectMapper.Builder().build();
+    private static class Archive {
 
-    public LegacyBdio1xEmitter(InputStream bdioData) {
-        super(readJsonValue(bdioData, List.class)
-                .map(jsonld -> {
-                    // THIS IS GOING TO BE SLOW AND USE A LOT OF MEMORY.
-                    try {
-                        JsonLdOptions options = new JsonLdOptions();
+        /**
+         * The container of this archive, for multiple nesting levels.
+         */
+        private final Archive container;
 
-                        // Detect and set the expansion context
-                        URL contextResourceUrl = Bdio.Context.forSpecVersion(specVersion(jsonld)).resourceUrl();
-                        ByteSource context = Resources.asByteSource(contextResourceUrl);
-                        try (InputStream contextInputStream = context.openBufferedStream()) {
-                            options.setExpandContext(JsonUtils.fromInputStream(contextInputStream));
-                        }
+        /**
+         * The flattened file name of this archive. For example, "./foo/bar.jar"
+         */
+        private final String fileName;
 
-                        // Expand the JSON-LD
-                        return JsonLdProcessor.expand(jsonld, options);
-                    } catch (JsonLdError e) {
-                        // TODO Auto-generated catch block
-                        throw new RuntimeException(e);
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                })
-                .flatMap(bdio1x -> {
-                    // Scan for BillOfMaterials node to populate metadata
-                    BdioMetadata metadata = bdio1x.stream().limit(10)
-                            .filter(obj -> checkType(obj, "BillOfMaterials"))
-                            .map(bom -> {
-                                BdioMetadata md = new BdioMetadata();
-                                getString(bom, "@id").ifPresent(md::id);
-                                getString(bom, "spdx:name").ifPresent(md::name);
-                                creationInfo(get(bom, "spdx:creationInfo"), md);
-                                return md;
-                            })
-                            .reduce(new BdioMetadata(), BdioMetadata::merge);
-                    // TODO Rewrite the metadata identifier to remove the "#SPDXRef-DOCUMENT"
+        /**
+         * The path used for files nested in this archive. For example, "jar:file%2F%2F%2Ffoo%2Fbar.jar#"
+         */
+        private final String nestedPath;
 
-                    // This is a guess. 20,000 should avoid the 16MB limit.
-                    Stream<Object> entries = StreamSupport.stream(Spliterators.spliteratorUnknownSize(Iterators.partition(bdio1x.iterator(), 20_000), 0), false)
+        private Archive(Archive container, String fileName) {
+            while (container != null && !fileName.startsWith(container.fileName)) {
+                container = container.container;
+            }
 
-                            // Convert each partition of BDIO 1.x nodes into a list of BDIO nodes
-                            .map(nodes -> nodes.stream()
-                                    .flatMap(LegacyBdio1xEmitter::toBdio2Node)
-                                    .collect(Collectors.toList()))
+            this.container = container;
+            this.fileName = fileName;
+            this.nestedPath = new StringBuilder()
+                    .append(guessScheme(fileName)).append(':')
+                    .append(UrlEscapers.urlPathSegmentEscaper().escape(computePath(container, fileName))).append('#')
+                    .toString();
+        }
 
-                            // The flat mapping in the previous step could have ignored all the nodes
-                            .filter(nodes -> !nodes.isEmpty())
-
-                            // Wrap each list with the identifier
-                            .map(nodes -> metadata.asNamedGraph(nodes, JsonLdConsts.ID));
-
-                    // Include the "header" entry along with the rest of the entries
-                    return Stream.concat(Stream.of(metadata.asNamedGraph()), entries);
-                })
-                .spliterator());
+        public static String computePath(Archive container, String fileName) {
+            if (container != null) {
+                String path = fileName.substring(container.fileName.length());
+                return container.nestedPath + UrlEscapers.urlFragmentEscaper().escape(path);
+            } else {
+                return "file:///" + Joiner.on('/')
+                        .join(Iterables.transform(Splitter.on('/').omitEmptyStrings().split(fileName.substring(2)),
+                                UrlEscapers.urlPathSegmentEscaper().asFunction()));
+            }
+        }
     }
 
-    protected static <T> Stream<T> readJsonValue(InputStream inputStream, Class<T> type, Module... modules) {
-        return Stream.of(inputStream).map(in -> {
+    /**
+     * Extends the standard JSON parser with some useful behavior for parsing BDIO 1.x JSON.
+     */
+    private static class Bdio1JsonParser extends JsonParserDelegate {
+
+        /**
+         * The prefixes supported in BDIO 1.x.
+         */
+        private static final ImmutableMap<String, String> PREFIXES = ImmutableMap.<String, String> builder()
+                .put("", "http://blackducksoftware.com/rdf/terms#")
+                .put("spdx:", "http://spdx.org/rdf/terms#")
+                .put("doap:", "http://usefulinc.com/ns/doap#")
+                .put("rdfs:", "http://www.w3.org/2000/01/rdf-schema#")
+                .put("xsd:", "http://www.w3.org/2001/XMLSchema#")
+                .build();
+
+        public static Bdio1JsonParser create(JsonParser jp) {
+            return jp instanceof Bdio1JsonParser ? (Bdio1JsonParser) jp : new Bdio1JsonParser(jp);
+        }
+
+        private Bdio1JsonParser(JsonParser d) {
+            super(Objects.requireNonNull(d));
+        }
+
+        @Override
+        public String nextFieldName() throws IOException {
+            return applyPrefix(super.nextFieldName());
+        }
+
+        @Override
+        public String nextTextValue() throws IOException {
+            String textValue = super.nextTextValue();
+            if (Objects.equals(getCurrentName(), JsonLdConsts.TYPE)) {
+                return applyPrefix(textValue);
+            }
+            return textValue;
+        }
+
+        /**
+         * Returns the next field value, potentially by recursing through structured types.
+         */
+        public Object nextFieldValue() throws IOException {
+            JsonToken currToken = nextToken();
+            if (currToken.isBoolean()) {
+                return getBooleanValue();
+            } else if (currToken.isNumeric()) {
+                return getNumberValue();
+            } else if (currToken == JsonToken.VALUE_STRING) {
+                return getText();
+            } else if (currToken == JsonToken.VALUE_NULL) {
+                return null;
+            } else if (currToken == JsonToken.START_ARRAY) {
+                List<Object> result = new ArrayList<>();
+                Object element = nextFieldValue();
+                while (currentToken() != JsonToken.END_ARRAY) {
+                    result.add(element);
+                    element = nextFieldValue();
+                }
+                return result;
+            } else if (currToken == JsonToken.END_ARRAY) {
+                return null;
+            } else if (currToken == JsonToken.START_OBJECT) {
+                Map<String, Object> result = new LinkedHashMap<>();
+                while (nextToken() == JsonToken.FIELD_NAME) {
+                    result.put(applyPrefix(getCurrentName()), nextFieldValue());
+                }
+                return result;
+            } else {
+                throw new JsonParseException(this, "unexpected field value token: " + currToken);
+            }
+        }
+
+        /**
+         * Normalizes on prefix form instead of fully qualified form since that is how the data was probably already
+         * presented. Also, the fully qualified names are longer which optimizes the "starts with" computation.
+         */
+        @Nullable
+        private static String applyPrefix(@Nullable String value) {
+            if (value != null && value.length() > 0 && value.charAt(0) != '@') {
+                for (Map.Entry<String, String> prefix : PREFIXES.entrySet()) {
+                    if (value.startsWith(prefix.getValue())) {
+                        return prefix.getKey() + value.substring(prefix.getValue().length());
+                    }
+                }
+            }
+            return value;
+        }
+    }
+
+    private static class Bdio1Spliterator implements Spliterator<Object> {
+
+        /**
+         * The parser used to stream in the JSON.
+         */
+        private final Bdio1JsonParser jp;
+
+        /**
+         * Reusable single node buffer.
+         */
+        private final Map<String, Object> currentNode = new LinkedHashMap<>();
+
+        /**
+         * Buffer used to hold nodes which are not ready for being emitted.
+         */
+        private final Deque<Map<String, Object>> buffer = new LinkedList<>();
+
+        /**
+         * The computed BDIO metadata. Will be {@code null} until enough information has been parsed.
+         */
+        private BdioMetadata metadata;
+
+        /**
+         * The archive nesting context use to process file paths.
+         */
+        private Archive archive;
+
+        private Bdio1Spliterator(JsonParser jp) {
+            this.jp = Bdio1JsonParser.create(jp);
+        }
+
+        public static Bdio1Spliterator create(InputStream in) {
             try {
-                return new ObjectMapper().registerModules(modules).readValue(in, type);
+                return new Bdio1Spliterator(new JsonFactory().createParser(in));
+            } catch (IOException e) {
+                // TODO Should this be deferred and thrown from first call to tryAdvance?
+                throw new UncheckedIOException(e);
+            }
+        }
+
+        /**
+         * Emits a BDIO entry. The first entry will be metadata only, subsequent entries will be graphs segments whose
+         * serialized size will remain in the max entry size limit.
+         */
+        @Override
+        public boolean tryAdvance(Consumer<? super Object> action) {
+            try {
+                if (metadata == null) {
+                    if (jp.nextToken() != JsonToken.START_ARRAY) {
+                        return false;
+                    } else if (parseMetadata()) {
+                        action.accept(metadata.asNamedGraph());
+                        return true;
+                    } else {
+                        return false;
+                    }
+                } else {
+                    Object graph = parseGraph();
+                    if (graph != null) {
+                        action.accept(metadata.asNamedGraph(graph, JsonLdConsts.ID));
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
-        });
-    }
-
-    public static Stream<?> toBdio2Node(Object node) {
-        Objects.requireNonNull(node);
-        if (checkType(node, "File")) {
-            File file = toBdio2File(node);
-            return file.size() > 2 ? Stream.of(file) : Stream.empty();
-        } else if (checkType(node, "Component")) {
-            return toBdio2Component(node);
-        } else if (checkType(node, "License")) {
-            return Stream.of(toBdio2License(node));
-        } else if (checkType(node, "Project")) {
-            return Stream.of(toBdio2Project(node));
-        } else {
-            return Stream.empty();
-        }
-    }
-
-    public static File toBdio2File(Object node) {
-        File file = new File(getString(node, "@id").get())
-                .byteCount(getNumber(node, "size").map(Number::longValue).orElse(null));
-        checksums(get(node, "spdx:checksum"), file::fingerprint);
-        return file;
-    }
-
-    public static Project toBdio2Project(Object node) {
-        return new Project(getString(node, "@id").get())
-                .name(getString(node, "doap:name").orElse(null));
-    }
-
-    public static Stream<Component> toBdio2Component(Object node) {
-        return externalIdentifiers(get(node, "externalIdentifier"),
-                () -> new Component(getString(node, "@id").get())
-                        .name(getString(node, "doap:name").orElse(null))
-                        .version(getString(node, "doap:revision").orElse(null))
-                        .homepage(getString(node, "doap:homepage").orElse(null)));
-    }
-
-    public static License toBdio2License(Object node) {
-        License license = new License(getString(node, "@id").get())
-                .name(getString(node, "spdx:name").orElse(null));
-
-        return license;
-    }
-
-    /**
-     * Scans the supplied list of nodes and attempts to extract the specification version. If the specification version
-     * is missing, this method returns an empty string (which is the v0 string since we didn't initially have a
-     * specification version).
-     */
-    private static String specVersion(List<?> input) {
-        for (Object obj : input) {
-            if (checkType(obj, "BillOfMaterials")) {
-                return getString(obj, "specVersion").orElse("");
-            }
-        }
-        return "";
-    }
-
-    /**
-     * Copies a creation info object into a metadata instance.
-     */
-    private static void creationInfo(Optional<Object> obj, BdioMetadata metadata) {
-        // Map the creator product code
-        // TODO Creator can be a list...
-        obj.flatMap(o -> getString(o, "spdx:creator"))
-                .map(SPDX_CREATOR::matcher)
-                .filter(Matcher::matches)
-                .ifPresent(m -> {
-                    if (m.group("personName") != null) {
-                        metadata.creator(m.group("personName"));
-                    } else if (m.group("toolName") != null) {
-                        StringBuilder producer = new StringBuilder();
-                        producer.append(m.group("toolName").replace(' ', '-'));
-                        if (m.group("toolVersion") != null) {
-                            producer.append('/').append(m.group("toolVersion"));
-                        }
-                        metadata.producer(ProductList.parse(producer.toString()));
-                    } else if (m.group("organizationName") != null) {
-                        // TODO
-                    }
-                });
-
-        // Map the created time
-        obj.flatMap(o -> getString(o, "spdx:created")).flatMap(created -> {
-            try {
-
-                return Optional.of(OffsetDateTime.parse(created).toZonedDateTime());
-            } catch (DateTimeParseException e) {
-                return Optional.empty();
-            }
-        }).ifPresent(metadata::creationDateTime);
-    }
-
-    /**
-     * Copies a checksums list into a fingerprint consumer.
-     */
-    private static void checksums(Optional<Object> obj, Consumer<Digest> consumer) {
-        Object checksums = obj.orElse(null);
-        if (checksums instanceof Map<?, ?>) {
-            checksums = Arrays.asList(checksums);
-        }
-        if (checksums instanceof List<?>) {
-            for (Object checksum : (List<?>) checksums) {
-                getString(checksum, "spdx:algorithm")
-                        .map(x -> FINGERPRINT_ALGORITHMS.getOrDefault(x, x))
-                        .ifPresent(algorithm -> getString(checksum, "spdx:checksumValue")
-                                .ifPresent(checksumValue -> consumer.accept(new Digest.Builder()
-                                        .algorithm(algorithm)
-                                        .value(checksumValue)
-                                        .build())));
-            }
-        }
-    }
-
-    /**
-     * Generates a stream of components from the supplied list of external identifiers.
-     */
-    private static Stream<Component> externalIdentifiers(Optional<Object> obj, Supplier<Component> componentSupplier) {
-        List<Component> result = new ArrayList<>();
-
-        // Iterate over external identifiers
-        Object externalIdentifiers = obj.orElse(null);
-        if (externalIdentifiers instanceof Map<?, ?>) {
-            externalIdentifiers = Arrays.asList(externalIdentifiers);
-        }
-        if (externalIdentifiers instanceof List<?>) {
-            for (Object externalIdentifier : (List<?>) externalIdentifiers) {
-                result.add(componentSupplier.get()
-                        .identifier(getString(externalIdentifier, "externalId").orElse(null))
-                        .namespace(getString(externalIdentifier, "externalSystemTypeId")
-                                .map(x -> IDENTIFIER_NAMESPACES.getOrDefault(x, x)).orElse(null))
-                        .repository(getString(externalIdentifier, "externalRepositoryLocation").orElse(null)));
-
-            }
         }
 
-        // Make sure we add at least one
-        if (result.isEmpty()) {
-            result.add(componentSupplier.get());
-        }
-        // TODO We need to link all the result objects together
-
-        return result.stream();
-    }
-
-    /**
-     * Attempts to get a value using a BDIO 1.x term or JSON-LD keyword. If the term is not found directly, another
-     * attempt is made by resolving the terms prefix (using the vocabulary by default). In BDIO 1.x we never officially
-     * supported using your own context and the supported context just used the {@code @vocab} feature of JSON-LD so
-     * this should be a safe way to extract a value from a node.
-     *
-     * @param obj
-     *            an arbitrary object that is expected to a be a {@code Map<String, Object>}.
-     * @param termOrKeyword
-     *            an optionally prefixed term or keyword, e.g. {@code spdx:name}, {@code size} or {@code @id}.
-     */
-    private static Optional<Object> get(@Nullable Object obj, String termOrKeyword) {
-        if (obj instanceof Map<?, ?>) {
-            Object value = null;
-
-            // If it's not a keyword, try the fully expanded key first
-            if (termOrKeyword.charAt(0) != '@') {
-                int pos = termOrKeyword.indexOf(':');
-                value = ((Map<?, ?>) obj).get(PREFIXES.get(termOrKeyword.substring(0, Math.max(0, pos))) + termOrKeyword.substring(pos + 1));
-            }
-
-            // Keyword or somehow not expanded
-            if (value == null) {
-                value = ((Map<?, ?>) obj).get(termOrKeyword);
-            }
-
-            // Convert '@value' objects
-            return Optional.ofNullable(valueObjectMapper.fromFieldValue(value));
-        } else {
-            return Optional.empty();
-        }
-    }
-
-    /**
-     * Helper to get string values.
-     *
-     * @see #get(Object, String)
-     */
-    private static Optional<String> getString(@Nullable Object obj, String termOrKeyword) {
-        return get(obj, termOrKeyword).flatMap(str -> str instanceof String ? Optional.of((String) str) : Optional.empty());
-    }
-
-    /**
-     * Helper to get numeric values.
-     *
-     * @see #get(Object, String)
-     */
-    private static Optional<Number> getNumber(@Nullable Object obj, String termOrKeyword) {
-        return get(obj, termOrKeyword).flatMap(num -> num instanceof Number ? Optional.of((Number) num) : Optional.empty());
-    }
-
-    /**
-     * Checks to see if a node has a specific type. All BDIO 1.x classes were defined using the vocabulary so only the
-     * type's term and vocabulary prefiexed term are tested.
-     */
-    private static boolean checkType(Object obj, String type) {
-        Object actualType = get(obj, "@type").orElse(null);
-        if (actualType instanceof Collection<?>) {
-            for (Object actualIndividualType : (Collection<?>) actualType) {
-                if (Objects.equals(actualIndividualType, type) || Objects.equals(actualIndividualType, VOCAB + type)) {
+        /**
+         * Parses the metadata from the stream by reading nodes until the {@code BillOfMaterials} node is encountered.
+         */
+        private boolean parseMetadata() throws IOException {
+            while (readNode()) {
+                if (Objects.equals(currentType(), "BillOfMaterials")) {
+                    // Convert the BillOfMaterials node into BDIO metadata
+                    metadata = new BdioMetadata().id(currentId());
+                    currentValue("spdx:name").ifPresent(metadata::name);
+                    convertCreationInfo(metadata::creationDateTime, metadata::creator, metadata::producer);
                     return true;
+                } else {
+                    // Weren't ready for this node yet, buffer a copy for later
+                    buffer.add(new LinkedHashMap<>(currentNode));
                 }
             }
+
+            // We got to the end of the file and never found a BillOfMaterials node
             return false;
+        }
+
+        /**
+         * Parses a graph by reading enough nodes to fill a BDIO entry.
+         */
+        private Object parseGraph() throws IOException {
+            List<Object> graph = new ArrayList<>(); // TODO Initial size? Same as the partition code...
+            AtomicInteger estimatedSize = new AtomicInteger(20 + SpliteratorEmitter.estimateSize(metadata.id()));
+            while (estimatedSize.get() < Bdio.MAX_ENTRY_SIZE) {
+                // Look for something in the buffer, otherwise read the next node
+                Map<String, Object> bufferedNode = buffer.pollFirst();
+                if (bufferedNode != null) {
+                    currentNode.clear();
+                    currentNode.putAll(bufferedNode);
+                } else if (!readNode()) {
+                    break;
+                }
+
+                // Convert the current node from BDIO 1.x to BDIO 2.x
+                convert(node -> {
+                    if (node.size() == 2 && node.containsKey(JsonLdConsts.ID) && node.containsKey(JsonLdConsts.TYPE)) {
+                        // Conversion yielded a logically empty node, skip it
+                        return;
+                    } else if (estimatedSize.addAndGet(SpliteratorEmitter.estimateSize(node)) < Bdio.MAX_ENTRY_SIZE) {
+                        // Add it to the result set
+                        graph.add(node);
+                    } else {
+                        // Just put it back, we will have to re-convert it next time around
+                        buffer.offerFirst(new LinkedHashMap<>(currentNode));
+                    }
+                });
+            }
+            return graph.isEmpty() ? null : graph;
+        }
+
+        /**
+         * Populates the {@code currentNode} from the JSON stream.
+         */
+        private boolean readNode() throws IOException {
+            currentNode.clear();
+            if (jp.nextToken() == JsonToken.START_OBJECT) {
+                while (jp.nextToken() == JsonToken.FIELD_NAME) {
+                    String fieldName = jp.getCurrentName();
+                    if (fieldName == null) {
+                        break;
+                    } else if (fieldName.startsWith("@")) {
+                        currentNode.put(fieldName, jp.nextTextValue());
+                    } else {
+                        currentNode.put(fieldName, jp.nextFieldValue());
+                    }
+                }
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        /**
+         * Helper to extract the JSON-LD identifier from the current node.
+         */
+        private String currentId() {
+            // TODO Require not-null?
+            return (String) currentNode.get(JsonLdConsts.ID);
+        }
+
+        /**
+         * Helper to extract the JSON-LD type from the current node.
+         */
+        private String currentType() {
+            // TODO Require not-null?
+            return (String) currentNode.get(JsonLdConsts.TYPE);
+        }
+
+        /**
+         * Helper to traverse the current node for a {@code String} value.
+         *
+         * @see #currentValue(Class, Object...)
+         */
+        private Optional<String> currentValue(Object... paths) {
+            return currentValue(String.class, paths);
+        }
+
+        /**
+         * Helper to traverse the current node. The paths can be string map keys or integer list indexes.
+         */
+        private <T> Optional<T> currentValue(Class<T> type, Object... paths) {
+            Object result = currentNode;
+            for (Object path : paths) {
+                if (result instanceof Map<?, ?>) {
+                    result = ((Map<?, ?>) result).get(path);
+                } else if (result instanceof List<?>) {
+                    result = ((List<?>) result).get((Integer) path);
+                } else if (result == null) {
+                    return Optional.empty();
+                }
+            }
+            return type.isInstance(result) ? Optional.of(type.cast(result)) : Optional.empty();
+        }
+
+        /**
+         * Helper to traverse containers in the current node by returning list or map sizes.
+         */
+        private int currentSize(Object... paths) {
+            return currentValue(Object.class, paths).map(obj -> {
+                if (obj instanceof Map<?, ?>) {
+                    return ((Map<?, ?>) obj).size();
+                } else if (obj instanceof List<?>) {
+                    return ((List<?>) obj).size();
+                } else {
+                    return 0;
+                }
+            }).orElse(0);
+        }
+
+        /**
+         * Converts the current node from BDIO 1.x to BDIO 2.x. If the current node should not be included in the final
+         * result, this method returns {@code null}.
+         */
+        private void convert(Consumer<? super Map<String, Object>> graph) {
+            String type = currentType();
+            if (type.equals("Project")) {
+                convertProject(graph);
+            } else if (type.equals("Component")) {
+                convertComponent(graph);
+            } else if (type.equals("License")) {
+                convertLicense(graph);
+            } else if (type.equals("File")) {
+                convertFile(graph);
+            }
+        }
+
+        private void convertProject(Consumer<? super Project> project) {
+            Project result = new Project(currentId());
+            currentValue("name").ifPresent(result::name);
+            currentValue("revision").ifPresent(result::version);
+            convertExternalIdentifier(result::namespace, result::identifier, result::repository);
+            convertRelationships(result::dependencies);
+            project.accept(result);
+        }
+
+        private void convertComponent(Consumer<? super Component> component) {
+            Component result = new Component(currentId());
+            currentValue("name").ifPresent(result::name);
+            currentValue("revision").ifPresent(result::version);
+            currentValue("homepage").ifPresent(result::homepage);
+            // TODO currentValue("license").ifPresent(result::license);
+            convertExternalIdentifier(result::namespace, result::identifier, result::repository);
+            convertRelationships(result::dependencies);
+            component.accept(result);
+        }
+
+        private void convertLicense(Consumer<? super License> license) {
+            License result = new License(currentId());
+            currentValue("spdx:name").ifPresent(result::name);
+            convertExternalIdentifier(result::namespace, result::identifier, result::repository);
+            license.accept(result);
+        }
+
+        private void convertFile(Consumer<? super File> file) {
+            File result = new File(currentId());
+            currentValue(Number.class, "size").map(Number::longValue).ifPresent(result::byteCount);
+            convertPath(result::path);
+            convertChecksums(result::fingerprint);
+            // TODO "matchDetail", ( "matchType" | "content" | "artifactOf" | "licenseConcluded" )
+            file.accept(result);
+        }
+
+        /**
+         * Converts the creation info from the current node.
+         */
+        private void convertCreationInfo(Consumer<ZonedDateTime> creationDateTime, Consumer<String> creator, Consumer<ProductList> producer) {
+            currentValue("creationInfo", "spdx:created").flatMap(dateTime -> {
+                try {
+                    return Optional.of(OffsetDateTime.parse(dateTime).toZonedDateTime());
+                } catch (DateTimeParseException e) {
+                    return Optional.empty();
+                }
+            }).ifPresent(creationDateTime);
+
+            Optional<Matcher> creationInfo = currentValue("creationInfo", "spdx:creator")
+                    .map(SPDX_CREATOR::matcher)
+                    .filter(Matcher::matches);
+
+            creationInfo.filter(m -> m.group("personName") != null).map(m -> m.group("personName")).ifPresent(creator);
+
+            creationInfo.filter(m -> m.group("toolName") != null).map(m -> {
+                Product.Builder result = new Product.Builder().name(m.group("toolName")).version(m.group("toolVersion"));
+                // TODO "organizationName" in the comment?
+                return ProductList.of(result.build());
+            }).ifPresent(producer);
+        }
+
+        /**
+         * Converts the external identifier from the current node.
+         */
+        private void convertExternalIdentifier(Consumer<String> namespace, Consumer<String> identifier, Consumer<String> repository) {
+            currentValue("externalIdentifier", "externalSystemTypeId").map(LegacyBdio1xEmitter::toNamespace).ifPresent(namespace);
+            currentValue("externalIdentifier", "externalId").ifPresent(identifier);
+            currentValue("externalIdentifier", "externalRepositoryLocation").ifPresent(repository);
+        }
+
+        /**
+         * Converts the file name from the current node.
+         */
+        public void convertPath(Consumer<String> path) {
+            currentValue("fileName").ifPresent(fileName -> {
+                Archive currentArchive;
+                if (currentValue("fileType").filter(Predicate.isEqual("ARCHIVE")).isPresent()) {
+                    currentArchive = (archive = new Archive(archive, fileName)).container;
+                } else {
+                    while (archive != null && !fileName.startsWith(archive.fileName)) {
+                        archive = archive.container;
+                    }
+                    currentArchive = archive;
+                }
+                path.accept(Archive.computePath(currentArchive, fileName));
+            });
+        }
+
+        /**
+         * Converts the checksums from the current node. The supplied consumer may be invoked multiple times.
+         */
+        private void convertChecksums(Consumer<Digest> fingerprint) {
+            for (int index = 0, size = currentSize("checksum"); index < size; ++index) {
+                Optional<String> algorithm = currentValue("checksum", index, "algorithm").map(LegacyBdio1xEmitter::toDigestAlgorithm);
+                Optional<String> checksumValue = currentValue("checksum", index, "checksumValue");
+                ExtraOptionals.and(algorithm, checksumValue, Digest::of).ifPresent(fingerprint);
+            }
+        }
+
+        /**
+         * Converts the relationships from the current node. The supplied consumer may be invoked multiple times.
+         */
+        private void convertRelationships(Consumer<Dependency> dependency) {
+            for (int index = 0, size = currentSize("relationship"); index < size; ++index) {
+                String relationshipType = currentValue("relationship", index, "relationshipType").orElse("");
+                if (relationshipType.equals("DYNAMIC_LINK") || relationshipType.equals("http://blackducksoftware.com/rdf/terms#relationshipType_dynamicLink")) {
+                    currentValue("relationship", index, "related")
+                            .map(ref -> new Dependency().dependsOn(ref))
+                            .ifPresent(dependency);
+                }
+            }
+        }
+
+        @Override
+        public final Spliterator<Object> trySplit() {
+            // Do not support splitting
+            return null;
+        }
+
+        @Override
+        public final long estimateSize() {
+            // Assume we can't compute this effectively
+            return Long.MAX_VALUE;
+        }
+
+        @Override
+        public final int characteristics() {
+            // Technically the source input stream *could* change, but assume immutability in general
+            return Spliterator.IMMUTABLE | Spliterator.NONNULL;
+        }
+
+    }
+
+    public LegacyBdio1xEmitter(InputStream bdio1Data) {
+        super(Bdio1Spliterator.create(bdio1Data));
+    }
+
+    /**
+     * Returns the digest algorithm name from the BDIO 1.x algorithm identifier.
+     */
+    private static String toDigestAlgorithm(String algorithm) {
+        // Look for both the short form and fully qualified form since these were identifiers in BDIO 1.x
+        if (algorithm.equals("sha1") || algorithm.equals("http://spdx.org/rdf/terms#checksumAlgorithm_sha1")) {
+            return "sha1";
+        } else if (algorithm.equals("md5") || algorithm.equals("http://spdx.org/rdf/terms#checksumAlgorithm_md5")) {
+            return "md5";
+        } else if (algorithm.indexOf(':') <= 0) {
+            return algorithm;
         } else {
-            return Objects.equals(actualType, type) || Objects.equals(actualType, VOCAB + type);
+            throw new IllegalArgumentException("unable to convert digest algorithm: " + algorithm);
+        }
+    }
+
+    /**
+     * Returns the namespace name from the BDIO 1.x external system type identifier.
+     */
+    private static String toNamespace(String externalSystemTypeId) {
+        // Look for both the short form and fully qualified form since these were identifiers in BDIO 1.x
+        if (externalSystemTypeId.equals("") || externalSystemTypeId.equals("")) {
+            return "";
+        } else {
+            // TODO Is there anything else we can do?
+            return externalSystemTypeId;
         }
     }
 
