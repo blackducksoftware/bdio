@@ -137,6 +137,9 @@ public class GraphMapper {
         implicitKey = Objects.requireNonNull(builder.implicitKey);
         rootProjectKey = Objects.requireNonNull(builder.rootProjectKey);
         partitionStrategy = Objects.requireNonNull(builder.partitionStrategy);
+
+        // Update the application context
+        documentBuilder.applicationContext(applicationContext());
     }
 
     public ValueObjectMapper valueObjectMapper() {
@@ -216,6 +219,33 @@ public class GraphMapper {
         frame.put(JsonLdConsts.CONTEXT, context);
         frame.put(JsonLdConsts.TYPE, type);
         return frame;
+    }
+
+    @Nullable
+    public Map<String, Object> applicationContext() {
+        // This must construct a new mutable structure for the JSON-LD API
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.putAll(classes);
+        context.putAll(dataProperties);
+        context.putAll(objectProperties);
+
+        // Remove everything that could come from BDIO
+        removeKeysAndValues(Bdio.Class.class, context);
+        removeKeysAndValues(Bdio.DataProperty.class, context);
+        removeKeysAndValues(Bdio.ObjectProperty.class, context);
+
+        // Remove everything that is for internal use
+        // NOTE: These should all be no-ops if pre-build validation is working correctly
+        metadataLabel.ifPresent(context::remove);
+        identifierKey.ifPresent(context::remove);
+        unknownKey.ifPresent(context::remove);
+        implicitKey.ifPresent(context::remove);
+        rootProjectKey.ifPresent(context::remove);
+        partitionStrategy.map(PartitionStrategy::getPartitionKey).ifPresent(context::remove);
+
+        // TODO Remove all keys that start with "_"?
+
+        return context.isEmpty() ? null : context;
     }
 
     /**
@@ -370,6 +400,7 @@ public class GraphMapper {
             return this;
         }
 
+        // TODO Should we expose this builder publicly? Or manage it like ValueObjectMapper.Builder?
         public Builder documentBuilder(@Nullable BdioDocument.Builder documentBuilder) {
             this.documentBuilder = Optional.ofNullable(documentBuilder);
             return this;
@@ -517,6 +548,17 @@ public class GraphMapper {
             return Optional.of(key);
         } else {
             return Optional.empty();
+        }
+    }
+
+    /**
+     * Removes all of the enumeration names from the supplied map's key set and removes all occurrences the enumeration
+     * string representations from the supplied map's value collection.
+     */
+    private static <E extends Enum<E>> void removeKeysAndValues(Class<E> enumType, Map<String, Object> map) {
+        for (E e : enumType.getEnumConstants()) {
+            map.remove(e.name());
+            map.values().removeIf(Predicate.isEqual(e.toString()));
         }
     }
 }

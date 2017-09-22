@@ -149,4 +149,30 @@ public class BlackDuckIoWriterTest extends BaseTest {
         assertThatJson(entries.get(1)).at("@graph", projectIndex, Bdio.ObjectProperty.base, 0, "@value").isEqualTo(fileId);
     }
 
+    @Test
+    public void writeCustomProperty() throws Exception {
+        graph.addVertex(
+                T.label, Bdio.Class.Project.name(),
+                TT.id, BdioObject.randomId(),
+                "foobar", "testing");
+        commit();
+
+        // First write it out without registering the custom field and verify it doesn't show up
+        HeapOutputStream nonCustomBuffer = new HeapOutputStream();
+        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds())).writeGraph(nonCustomBuffer);
+
+        assertThatJson(BdioTest.zipEntries(nonCustomBuffer.getInputStream()).get(1))
+                .at("/@graph/0").doesNotContainName("foobar");
+
+        // Now write it out with the registered custom data property
+        HeapOutputStream customBuffer = new HeapOutputStream();
+        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds().andThen(b -> {
+            b.addDataProperty("foobar", "http://example.com/gus");
+        }))).writeGraph(customBuffer);
+
+        List<String> entries = BdioTest.zipEntries(customBuffer.getInputStream());
+        assertThatJson(entries.get(1)).at("/@graph/0").containsName("http://example.com/gus");
+        assertThatJson(entries.get(1)).at("/@graph/0").doesNotContainName("foobar");
+    }
+
 }
