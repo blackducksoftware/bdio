@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -98,7 +99,31 @@ public abstract class BdioDocument {
         // Construct the JSON-LD options
         options = new JsonLdOptions(Objects.requireNonNull(builder.base));
         options.setDocumentLoader(new BdioDocumentLoader(options.getDocumentLoader()));
-        options.setExpandContext(builder.expandContext);
+        options.setExpandContext(expandContext(builder.contentTypeContext, builder.applicationContext));
+    }
+
+    /**
+     * Generate an expand context from multiple, possibly {@code null}, sources.
+     */
+    private static Object expandContext(Object... contexts) {
+        Object expandContext = null;
+        for (Object context : contexts) {
+            if (context != null && !context.equals(expandContext)) {
+                if (expandContext == null) {
+                    expandContext = context;
+                } else if (expandContext instanceof List<?>) {
+                    @SuppressWarnings("unchecked")
+                    List<Object> contextList = (List<Object>) expandContext;
+                    contextList.add(context);
+                } else {
+                    List<Object> contextList = new ArrayList<>();
+                    contextList.add(expandContext);
+                    contextList.add(context);
+                    expandContext = contextList;
+                }
+            }
+        }
+        return expandContext;
     }
 
     /**
@@ -164,11 +189,13 @@ public abstract class BdioDocument {
 
         private String base;
 
-        private Object expandContext;
+        private Object contentTypeContext;
+
+        private Object applicationContext;
 
         public Builder() {
             base = "";
-            expandContext = Bdio.Context.DEFAULT.toString();
+            contentTypeContext = Bdio.Context.DEFAULT.toString();
         }
 
         /**
@@ -209,6 +236,20 @@ public abstract class BdioDocument {
         }
 
         /**
+         * In a addition to the primary expansion context determined by the content type, applications may include a
+         * secondary "application" context for extensibility.
+         */
+        public Builder applicationContext(Object applicationContext) {
+            checkArgument(applicationContext == null
+                    || applicationContext instanceof String
+                    || applicationContext instanceof Map<?, ?>
+                    || applicationContext instanceof List<?>,
+                    "applicationContext must be a String, Map<String, Object> or a List<Object>");
+            this.applicationContext = applicationContext;
+            return this;
+        }
+
+        /**
          * Prepares this document for processing documents based on their detected or declared content type.
          * <p>
          * Note that the supplied expansion context is only used with the {@linkplain Bdio.ContentType#JSON JSON} type.
@@ -221,14 +262,14 @@ public abstract class BdioDocument {
                     "expandContext must be a String, Map<String, Object> or a List<Object>");
 
             if (contentType == null) {
-                this.expandContext = Bdio.Context.DEFAULT.toString();
+                contentTypeContext = Bdio.Context.DEFAULT.toString();
             } else if (contentType.equals(Bdio.ContentType.JSON)) {
                 // TODO Warn if expandContext is null? Require non-null?
-                this.expandContext = expandContext;
+                contentTypeContext = expandContext;
             } else if (contentType.equals(Bdio.ContentType.JSONLD)) {
-                this.expandContext = null;
+                contentTypeContext = null;
             } else if (contentType.equals(Bdio.ContentType.BDIO_JSON) || contentType.equals(Bdio.ContentType.BDIO_ZIP)) {
-                this.expandContext = Bdio.Context.DEFAULT.toString();
+                contentTypeContext = Bdio.Context.DEFAULT.toString();
             } else {
                 throw new IllegalArgumentException("unknown content type: " + contentType);
             }
