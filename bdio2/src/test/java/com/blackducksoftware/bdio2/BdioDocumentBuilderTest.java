@@ -117,7 +117,7 @@ public class BdioDocumentBuilderTest {
         }
 
         @Override
-        public Subscriber<Map<String, Object>> asNodeSubscriber(BdioMetadata metadata) {
+        public Subscriber<Map<String, Object>> asNodeSubscriber() {
             throw new UnsupportedOperationException();
         }
 

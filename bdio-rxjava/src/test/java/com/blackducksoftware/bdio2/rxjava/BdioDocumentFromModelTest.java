@@ -39,7 +39,7 @@ public class BdioDocumentFromModelTest {
         HeapOutputStream out = new HeapOutputStream();
         BdioDocument doc = new BdioDocument.Builder().build(RxJavaBdioDocument.class).writeToFile(metadata, out);
 
-        Flowable.just(new File("http://example.com/files/1")).subscribe(doc.asNodeSubscriber(metadata));
+        Flowable.just(new File("http://example.com/files/1")).subscribe(doc.asNodeSubscriber());
 
         List<String> entries = BdioTest.zipEntries(out.getInputStream());
         assertThat(entries).hasSize(2);

@@ -62,7 +62,7 @@ public class BlackDuckIoWriter implements GraphWriter {
         // Construct a flowable using the vertex traversal as the iterator
         Flowable.fromIterable(() -> nodes(context))
                 .doOnTerminate(context::rollbackTx)
-                .subscribe(document.asNodeSubscriber(BdioMetadata.createRandomUUID()));
+                .subscribe(document.asNodeSubscriber());
     }
 
     @Override

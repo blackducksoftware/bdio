@@ -13,6 +13,7 @@ package com.blackducksoftware.bdio2.rxjava;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -27,7 +28,6 @@ import com.blackducksoftware.bdio2.BdioSubscriber;
 import com.blackducksoftware.bdio2.Emitter;
 import com.blackducksoftware.bdio2.EmitterFactory;
 import com.blackducksoftware.common.io.ExtraIO;
-import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
 
@@ -87,14 +87,14 @@ public final class RxJavaBdioDocument extends BdioDocument {
     }
 
     @Override
-    public Subscriber<Map<String, Object>> asNodeSubscriber(BdioMetadata metadata) {
+    public Subscriber<Map<String, Object>> asNodeSubscriber() {
         PublishProcessor<Map<String, Object>> nodes = PublishProcessor.create();
 
+        // TODO How do we eliminate the need for guess work?
         // NOTE: The buffer size choice was arbitrary, we just want to ensure we never
         // hit the BDIO imposed 16MB limit on the serialized size
         nodes.buffer(1000)
-                .map(graph -> metadata.asNamedGraph(graph, JsonLdConsts.ID))
-                .startWith(metadata.asNamedGraph())
+                .defaultIfEmpty(new ArrayList<>(0))
                 .subscribe(processor());
 
         // TODO Wrap/hide?

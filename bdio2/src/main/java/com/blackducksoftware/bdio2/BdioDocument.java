@@ -116,7 +116,7 @@ public abstract class BdioDocument {
     /**
      * Allows you to add JSON-LD nodes to this document.
      */
-    public abstract Subscriber<Map<String, Object>> asNodeSubscriber(BdioMetadata metadata);
+    public abstract Subscriber<Map<String, Object>> asNodeSubscriber();
 
     /**
      * Allows you to consume the aggregate BDIO metadata across all entries.
