@@ -28,12 +28,16 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.IntFunction;
 import java.util.function.Predicate;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.common.base.ExtraCollectors;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -108,9 +112,15 @@ public class ValueObjectMapper {
      */
     private final ImmutableSet<String> embeddedTypes;
 
+    /**
+     * Function for producing a collector when dealing with multi-valued fields.
+     */
+    private final IntFunction<Collector<? super Object, ?, ?>> multiValueCollector;
+
     private ValueObjectMapper(Builder builder) {
         handlers = ImmutableMap.copyOf(builder.handlers);
         embeddedTypes = ImmutableSet.copyOf(builder.embeddedTypes);
+        multiValueCollector = Objects.requireNonNull(builder.multiValueCollector);
     }
 
     /**
@@ -118,10 +128,10 @@ public class ValueObjectMapper {
      */
     @Nullable
     public Object fromFieldValue(@Nullable Object input) {
-        if (input instanceof List<?> && ((List<?>) input).size() == 1) {
-            // Unwrap expansion of single element lists
-            // TODO Should this handle multi-valued lists as well?
-            return fromFieldValue(((List<?>) input).get(0));
+        if (input instanceof List<?>) {
+            // Recursively process list elements
+            List<?> valueObjects = (List<?>) input;
+            return valueObjects.stream().map(this::fromFieldValue).collect(multiValueCollector.apply(valueObjects.size()));
         } else if (mappingOf(input, JsonLdConsts.VALUE).isPresent()) {
             // A map that contains "@value" is a value object we can convert to a Java object
             Map<?, ?> valueObject = (Map<?, ?>) input;
@@ -224,6 +234,8 @@ public class ValueObjectMapper {
 
         private final Set<String> embeddedTypes = new LinkedHashSet<>();
 
+        private IntFunction<Collector<? super Object, ?, ?>> multiValueCollector;
+
         public Builder() {
             // Add the standard BDIO datatype handlers
             handlers.put(Bdio.Datatype.Default.toString(), DatatypeSupport.Default());
@@ -237,6 +249,9 @@ public class ValueObjectMapper {
             // These are the types that BDIO expects to be embedded
             embeddedTypes.add(Bdio.Class.Note.toString());
             embeddedTypes.add(Bdio.Class.Dependency.toString());
+
+            // Unwrap single element collections
+            multiValueCollector = size -> size == 1 ? Collectors.collectingAndThen(ExtraCollectors.getOnly(), Optional::get) : Collectors.toList();
         }
 
         public Builder useDatatypeHandler(String type, DatatypeHandler<?> handler) {
@@ -246,6 +261,11 @@ public class ValueObjectMapper {
 
         public Builder addEmbeddedType(String type) {
             embeddedTypes.add(checkNotNull(type));
+            return this;
+        }
+
+        public Builder multiValueCollector(IntFunction<Collector<? super Object, ?, ?>> multiValueCollector) {
+            this.multiValueCollector = Objects.requireNonNull(multiValueCollector);
             return this;
         }
 

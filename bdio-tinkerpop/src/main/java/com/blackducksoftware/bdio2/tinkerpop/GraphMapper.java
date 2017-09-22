@@ -29,7 +29,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.IntFunction;
 import java.util.function.Predicate;
+import java.util.stream.Collector;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
@@ -361,6 +363,11 @@ public class GraphMapper {
             for (Bdio.ObjectProperty bdioObjectProperty : Bdio.ObjectProperty.values()) {
                 objectProperties.put(bdioObjectProperty.name(), bdioObjectProperty.toString());
             }
+        }
+
+        public Builder multiValueCollector(IntFunction<Collector<? super Object, ?, ?>> multiValueCollector) {
+            valueObjectMapperBuilder.multiValueCollector(multiValueCollector);
+            return this;
         }
 
         public Builder documentBuilder(@Nullable BdioDocument.Builder documentBuilder) {
