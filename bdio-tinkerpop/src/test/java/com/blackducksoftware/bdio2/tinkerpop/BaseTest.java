@@ -154,4 +154,10 @@ public abstract class BaseTest {
         graph = null;
     }
 
+    public final void commit() {
+        if (graph.features().graph().supportsTransactions()) {
+            graph.tx().commit();
+        }
+    }
+
 }

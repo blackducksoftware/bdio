@@ -48,6 +48,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
                 T.label, TT.Metadata,
                 TT.id, metadataId,
                 Bdio.DataProperty.creationDateTime.name(), creationDateTime.toString());
+        commit();
 
         HeapOutputStream buffer = new HeapOutputStream();
         graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
@@ -67,6 +68,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
     @Test
     public void writeNoMetadata() throws Exception {
         graph.addVertex(T.label, TT.Metadata);
+        commit();
 
         HeapOutputStream buffer = new HeapOutputStream();
         graph.io(BlackDuckIo.build()).writeGraph(buffer);
@@ -90,6 +92,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
         graph.addVertex(
                 T.label, Bdio.Class.Project.name(),
                 TT.id, BdioObject.randomId());
+        commit();
 
         HeapOutputStream buffer = new HeapOutputStream();
         graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
@@ -125,6 +128,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
                 T.label, "Project",
                 TT.id, projectId)
                 .addEdge("base", file);
+        commit();
 
         HeapOutputStream buffer = new HeapOutputStream();
         graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
