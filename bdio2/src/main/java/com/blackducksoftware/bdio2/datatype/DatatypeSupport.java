@@ -23,6 +23,7 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.function.Function;
 
+import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
 import com.blackducksoftware.common.value.ContentRange;
 import com.blackducksoftware.common.value.ContentType;
@@ -62,6 +63,31 @@ public class DatatypeSupport {
 
     public static DatatypeHandler<ContentType> ContentType() {
         return ContentTypeDatatypeHandler.INSTANCE;
+    }
+
+    /**
+     * Returns the Java type used by the provided datatype handlers.
+     */
+    public static Class<?> getJavaType(Bdio.Datatype datatype) {
+        // Because we iterate over the enumeration, this implementation ensures we do not accidentally forget a type.
+        switch (datatype) {
+        case Default:
+            return String.class;
+        case DateTime:
+            return ZonedDateTime.class;
+        case Digest:
+            return Digest.class;
+        case Long:
+            return Long.class;
+        case Products:
+            return ProductList.class;
+        case ContentRange:
+            return ContentRange.class;
+        case ContentType:
+            return ContentType.class;
+        default:
+            throw new IllegalArgumentException("unrecognized datatype: " + datatype.name());
+        }
     }
 
     /**

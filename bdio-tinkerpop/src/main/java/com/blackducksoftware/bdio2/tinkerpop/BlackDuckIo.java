@@ -11,6 +11,8 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.blackducksoftware.common.base.ExtraThrowables.nullPointer;
+
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -32,24 +34,20 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
 
     private final Consumer<BlackDuckIoMapper.Builder> onMapper;
 
-    private final Consumer<GraphMapper.Builder> onGraphMapper;
-
     private BlackDuckIo(Builder builder) {
-        graph = builder.graph.orElseThrow(() -> new NullPointerException("The graph argument was not specified"));
+        graph = builder.graph.orElseThrow(nullPointer("The graph argument was not specified"));
         onMapper = mapperBuilder -> {
+            // The direct registry addition API is deprecated by TinkerPop
             builder.registry.ifPresent(registry -> mapperBuilder.addRegistry(registry));
+
+            // Allow user supplied mapper configuration
             builder.onMapper.ifPresent(onMapper -> onMapper.accept(mapperBuilder));
 
-            // TODO Consider the graph type when adding the registry?
-            mapperBuilder.addRegistry(BlackDuckIoRegistry.getInstance());
+            // Always add the BDIO registry which customizes behavior based on the graph type
+            BlackDuckIoRegistry registry = new BlackDuckIoRegistry(graph.configuration());
+            builder.onGraphMapper.ifPresent(m -> registry.register(m::accept));
+            mapperBuilder.addRegistry(registry);
         };
-
-        // Try using the graph configuration, but let the builder override
-        Consumer<GraphMapper.Builder> onGraphMapper = b -> b.withConfiguration(graph.configuration());
-        if (builder.onGraphMapper.isPresent()) {
-            onGraphMapper = onGraphMapper.andThen(builder.onGraphMapper.get());
-        }
-        this.onGraphMapper = onGraphMapper;
     }
 
     @Override
@@ -66,7 +64,7 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
     public BlackDuckIoMapper.Builder mapper() {
         BlackDuckIoMapper.Builder builder = BlackDuckIoMapper.build();
         onMapper.accept(builder);
-        return builder.onGraphMapper(onGraphMapper);
+        return builder;
     }
 
     @Override
@@ -91,6 +89,8 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
         reader().create().readGraph(inputStream, graph);
     }
 
+    // TODO Do we want to expose BlackDuckIoOperations here also?
+
     public static Builder build() {
         return new Builder();
     }
@@ -106,11 +106,7 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
 
         private Optional<Consumer<GraphMapper.Builder>> onGraphMapper = Optional.empty();
 
-        /**
-         * @deprecated Use {@link BlackDuckIo#build()} instead.
-         * @see org.apache.tinkerpop.gremlin.structure.io.IoCore#createIoBuilder(String)
-         */
-        @Deprecated
+        // This is only public for IoCore.createIoBuilder
         public Builder() {
         }
 

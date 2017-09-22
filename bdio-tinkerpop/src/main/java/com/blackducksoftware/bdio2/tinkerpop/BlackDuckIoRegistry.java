@@ -15,14 +15,22 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import java.time.ZonedDateTime;
+import static com.blackducksoftware.common.base.ExtraCollectors.getOnly;
+import static java.util.stream.Collectors.collectingAndThen;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toList;
 
+import java.util.Optional;
+
+import org.apache.commons.configuration.Configuration;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.io.AbstractIoRegistry;
 import org.umlg.sqlg.structure.RecordId;
+import org.umlg.sqlg.structure.SqlgGraph;
 
-import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.datatype.DatatypeSupport;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
+import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoMapper.GraphMapperConfigurator;
 import com.blackducksoftware.common.base.ExtraFunctions;
 import com.blackducksoftware.common.value.ContentRange;
 import com.blackducksoftware.common.value.ContentType;
@@ -31,66 +39,50 @@ import com.blackducksoftware.common.value.ProductList;
 
 public class BlackDuckIoRegistry extends AbstractIoRegistry {
 
-    private static final BlackDuckIoRegistry INSTANCE = new BlackDuckIoRegistry();
+    protected BlackDuckIoRegistry(Configuration configuration) {
+        // Give the graph mapper access to the configuration for property based configuration
+        register(b -> b.withConfiguration(configuration));
 
-    private BlackDuckIoRegistry() {
-        // Register a Java type which can be used to overwrite the DatatypeHandler of all the built-in types
-        for (Bdio.Datatype datatype : Bdio.Datatype.values()) {
-            register(BlackDuckIo.class, defaultJavaType(datatype), datatype.toString());
-        }
+        // Special case a bunch of behavior only for Sqlg
+        if (configuration.getString(Graph.GRAPH, "").equals(SqlgGraph.class.getName())) {
+            // Basically turn any multi-valued anything into a String[] or Sqlg won't accept it
+            register(b -> b.multiValueCollector(size -> {
+                if (size == 1) {
+                    return collectingAndThen(getOnly(), Optional::get);
+                } else {
+                    return collectingAndThen(mapping(Object::toString, toList()), l -> l.toArray(new String[l.size()]));
+                }
+            }));
 
-        // This is just to make sure Sqlg works (otherwise RecordId wouldn't serialize correctly)
-        register(BlackDuckIo.class, String.class, DatatypeHandler.from(
-                x -> DatatypeSupport.Default().isInstance(x) || x instanceof RecordId,
-                DatatypeSupport.Default()::serialize,
-                DatatypeSupport.Default()::deserialize));
+            // This is just to make sure Sqlg works (otherwise RecordId wouldn't serialize correctly)
+            register(BlackDuckIo.class, String.class, DatatypeHandler.from(
+                    x -> DatatypeSupport.Default().isInstance(x) || x instanceof RecordId,
+                    DatatypeSupport.Default()::serialize,
+                    DatatypeSupport.Default()::deserialize));
 
-        // Really this is sqlg specific because TinkerGraph lets any object in
-        register(BlackDuckIo.class, Digest.class, DatatypeHandler.from(
-                DatatypeSupport.Digest()::isInstance,
-                DatatypeSupport.Digest()::serialize,
-                ExtraFunctions.nullSafe(DatatypeSupport.Digest()::deserialize).andThen(Object::toString)));
-        register(BlackDuckIo.class, ProductList.class, DatatypeHandler.from(
-                DatatypeSupport.Products()::isInstance,
-                DatatypeSupport.Products()::serialize,
-                ExtraFunctions.nullSafe(DatatypeSupport.Products()::deserialize).andThen(Object::toString)));
-        register(BlackDuckIo.class, ContentRange.class, DatatypeHandler.from(
-                DatatypeSupport.ContentRange()::isInstance,
-                DatatypeSupport.ContentRange()::serialize,
-                ExtraFunctions.nullSafe(DatatypeSupport.ContentRange()::deserialize).andThen(Object::toString)));
-        register(BlackDuckIo.class, ContentType.class, DatatypeHandler.from(
-                DatatypeSupport.ContentType()::isInstance,
-                DatatypeSupport.ContentType()::serialize,
-                ExtraFunctions.nullSafe(DatatypeSupport.ContentType()::deserialize).andThen(Object::toString)));
-    }
-
-    /**
-     * This mapping ensures we do not accidentally forget a type.
-     */
-    private static Class<?> defaultJavaType(Bdio.Datatype datatype) {
-        switch (datatype) {
-        case Default:
-            return String.class;
-        case DateTime:
-            return ZonedDateTime.class;
-        case Digest:
-            return Digest.class;
-        case Long:
-            return Long.class;
-        case Products:
-            return ProductList.class;
-        case ContentRange:
-            return ContentRange.class;
-        case ContentType:
-            return ContentType.class;
-        default:
-            throw new IllegalArgumentException("unrecognized datatype: " + datatype.name());
+            // Really this is sqlg specific because TinkerGraph lets any object in
+            register(BlackDuckIo.class, Digest.class, DatatypeHandler.from(
+                    DatatypeSupport.Digest()::isInstance,
+                    DatatypeSupport.Digest()::serialize,
+                    ExtraFunctions.nullSafe(DatatypeSupport.Digest()::deserialize).andThen(Object::toString)));
+            register(BlackDuckIo.class, ProductList.class, DatatypeHandler.from(
+                    DatatypeSupport.Products()::isInstance,
+                    DatatypeSupport.Products()::serialize,
+                    ExtraFunctions.nullSafe(DatatypeSupport.Products()::deserialize).andThen(Object::toString)));
+            register(BlackDuckIo.class, ContentRange.class, DatatypeHandler.from(
+                    DatatypeSupport.ContentRange()::isInstance,
+                    DatatypeSupport.ContentRange()::serialize,
+                    ExtraFunctions.nullSafe(DatatypeSupport.ContentRange()::deserialize).andThen(Object::toString)));
+            register(BlackDuckIo.class, ContentType.class, DatatypeHandler.from(
+                    DatatypeSupport.ContentType()::isInstance,
+                    DatatypeSupport.ContentType()::serialize,
+                    ExtraFunctions.nullSafe(DatatypeSupport.ContentType()::deserialize).andThen(Object::toString)));
         }
     }
 
-    // TODO Should this be something like `forGraph(Graph)` instead?
-    public static BlackDuckIoRegistry getInstance() {
-        return INSTANCE;
+    // This is really just here so we can invoke register using a lambda
+    protected final void register(GraphMapperConfigurator configurator) {
+        register(BlackDuckIo.class, null, configurator);
     }
 
 }

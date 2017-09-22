@@ -15,16 +15,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-
-import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.structure.io.IoRegistry;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.javatuples.Pair;
 
+import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.datatype.DatatypeSupport;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
 
 /**
@@ -33,6 +32,12 @@ import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
  * @author jgustie
  */
 public class BlackDuckIoMapper implements Mapper<GraphMapper> {
+
+    /**
+     * Strongly typed consumer used for discovery.
+     */
+    public interface GraphMapperConfigurator extends Consumer<GraphMapper.Builder> {
+    }
 
     private final Map<String, DatatypeHandler<?>> datatypeHandlers;
 
@@ -44,6 +49,11 @@ public class BlackDuckIoMapper implements Mapper<GraphMapper> {
                 .flatMap(registry -> registry.find(BlackDuckIo.class, String.class).stream())
                 .collect(Collectors.toMap(Pair::getValue0, Pair::getValue1));
 
+        // Add missing type mappings
+        for (Bdio.Datatype datatype : Bdio.Datatype.values()) {
+            typeMappings.putIfAbsent(DatatypeSupport.getJavaType(datatype), datatype.toString());
+        }
+
         // Keep all the datatype handlers which have a type mapping
         datatypeHandlers = builder.registries.stream()
                 .flatMap(registry -> registry.find(BlackDuckIo.class, DatatypeHandler.class).stream())
@@ -51,8 +61,11 @@ public class BlackDuckIoMapper implements Mapper<GraphMapper> {
                 .filter(p -> p.getValue0() != null)
                 .collect(Collectors.toMap(Pair::getValue0, Pair::getValue1));
 
-        onGraphMapper = builder.onGraphMapper.orElse(b -> {
-        });
+        // Accumulate all the configurations
+        onGraphMapper = builder.registries.stream()
+                .flatMap(registry -> registry.find(BlackDuckIo.class, GraphMapperConfigurator.class).stream())
+                .map(Pair::getValue1)
+                .reduce(b -> {}, Consumer::andThen, Consumer::andThen);
     }
 
     @Override
@@ -71,19 +84,12 @@ public class BlackDuckIoMapper implements Mapper<GraphMapper> {
 
         private final List<IoRegistry> registries = new ArrayList<>();
 
-        private Optional<Consumer<GraphMapper.Builder>> onGraphMapper = Optional.empty();
-
         private Builder() {
         }
 
         @Override
         public Builder addRegistry(IoRegistry registry) {
             registries.add(Objects.requireNonNull(registry));
-            return this;
-        }
-
-        public Builder onGraphMapper(@Nullable Consumer<GraphMapper.Builder> onGraphMapper) {
-            this.onGraphMapper = Optional.ofNullable(onGraphMapper);
             return this;
         }
 
