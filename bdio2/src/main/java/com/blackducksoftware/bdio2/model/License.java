@@ -19,6 +19,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.common.value.ProductList;
 
 public final class License extends BdioObject {
 
@@ -28,6 +29,26 @@ public final class License extends BdioObject {
 
     public License name(@Nullable String name) {
         putData(Bdio.DataProperty.name, name);
+        return this;
+    }
+
+    public License identifier(@Nullable String locator) {
+        putData(Bdio.DataProperty.identifier, locator);
+        return this;
+    }
+
+    public License namespace(@Nullable String namespace) {
+        putData(Bdio.DataProperty.namespace, namespace);
+        return this;
+    }
+
+    public License repository(@Nullable String context) {
+        putData(Bdio.DataProperty.context, context);
+        return this;
+    }
+
+    public License resolver(@Nullable ProductList resolver) {
+        putData(Bdio.DataProperty.resolver, resolver);
         return this;
     }
 

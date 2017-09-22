@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.common.value.ProductList;
 
 public final class Project extends BdioObject {
 
@@ -44,6 +45,26 @@ public final class Project extends BdioObject {
 
     public Project version(@Nullable String version) {
         putData(Bdio.DataProperty.version, version);
+        return this;
+    }
+
+    public Project identifier(@Nullable String locator) {
+        putData(Bdio.DataProperty.identifier, locator);
+        return this;
+    }
+
+    public Project namespace(@Nullable String namespace) {
+        putData(Bdio.DataProperty.namespace, namespace);
+        return this;
+    }
+
+    public Project repository(@Nullable String context) {
+        putData(Bdio.DataProperty.context, context);
+        return this;
+    }
+
+    public Project resolver(@Nullable ProductList resolver) {
+        putData(Bdio.DataProperty.resolver, resolver);
         return this;
     }
 
