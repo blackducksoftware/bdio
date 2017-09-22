@@ -585,8 +585,8 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
      */
     private static String toNamespace(String externalSystemTypeId) {
         // Look for both the short form and fully qualified form since these were identifiers in BDIO 1.x
-        if (externalSystemTypeId.equals("") || externalSystemTypeId.equals("")) {
-            return "";
+        if (externalSystemTypeId.equals("maven") || externalSystemTypeId.equals("http://blackducksoftware.com/rdf/terms#externalIdentifier_maven")) {
+            return "maven";
         } else {
             // TODO Is there anything else we can do?
             return externalSystemTypeId;
