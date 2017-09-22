@@ -16,7 +16,6 @@ import static com.google.common.truth.Truth.assertThat;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
@@ -27,6 +26,7 @@ import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioMetadata;
+import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.Project;
 import com.blackducksoftware.bdio2.test.BdioTest;
@@ -69,8 +69,8 @@ public class BlackDuckIoReaderTest extends BaseTest {
 
     @Test
     public void readFile() throws Exception {
-        BdioMetadata metadata = new BdioMetadata().id("urn:uuid:" + UUID.randomUUID());
-        File fileModel = new File("urn:uuid:" + UUID.randomUUID());
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+        File fileModel = new File(BdioObject.randomId());
         fileModel.byteCount(101L);
         fileModel.fingerprint(Digest.of("sha1", "2d05a5f70ffb6fbf6fcbf65bb6f4cd48a8b2592a"));
         fileModel.fingerprint(Digest.of("md5", "b26af8f84049e82f6a4805d68b0f178d"));
@@ -106,9 +106,9 @@ public class BlackDuckIoReaderTest extends BaseTest {
 
     @Test
     public void readBaseFile() throws Exception {
-        BdioMetadata metadata = new BdioMetadata().id("urn:uuid:" + UUID.randomUUID());
-        Project projectModel = new Project("urn:uuid:" + UUID.randomUUID());
-        File fileModel = new File("urn:uuid:" + UUID.randomUUID());
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+        Project projectModel = new Project(BdioObject.randomId());
+        File fileModel = new File(BdioObject.randomId());
         fileModel.byteCount(103L);
         projectModel.base(fileModel);
 
@@ -126,8 +126,8 @@ public class BlackDuckIoReaderTest extends BaseTest {
 
     @Test
     public void splitNode() throws Exception {
-        BdioMetadata metadata = new BdioMetadata().id("urn:uuid:" + UUID.randomUUID());
-        File fileModel1 = new File("urn:uuid:" + UUID.randomUUID());
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+        File fileModel1 = new File(BdioObject.randomId());
         File fileModel2 = new File(fileModel1.id());
         fileModel1.byteCount(103L);
         fileModel2.contentType("text/plain");

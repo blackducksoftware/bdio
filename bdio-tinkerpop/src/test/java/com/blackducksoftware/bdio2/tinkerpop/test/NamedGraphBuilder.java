@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.blackducksoftware.bdio2.tinkerpop;
+package com.blackducksoftware.bdio2.tinkerpop.test;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.InputStream;
 import java.util.LinkedList;
+import java.util.function.Consumer;
 
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.BdioObject;
@@ -47,12 +50,14 @@ public class NamedGraphBuilder {
         return this;
     }
 
+    public NamedGraphBuilder withProject(Consumer<Project> project) {
+        project.accept((Project) graph.getFirst());
+        return this;
+    }
+
     public NamedGraphBuilder add(BdioObject object) {
-        if (object instanceof Project) {
-            // TODO ???
-        } else {
-            graph.add(object);
-        }
+        checkArgument(!(object instanceof Project), "project cannot be added");
+        graph.add(object);
         return this;
     }
 

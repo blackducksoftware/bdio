@@ -33,6 +33,7 @@ import org.junit.Test;
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.bdio2.model.File;
+import com.blackducksoftware.bdio2.tinkerpop.test.NamedGraphBuilder;
 
 public class BlackDuckIoOperationsTest extends BaseTest {
 

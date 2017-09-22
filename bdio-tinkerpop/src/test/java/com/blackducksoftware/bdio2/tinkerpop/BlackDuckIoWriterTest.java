@@ -20,7 +20,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.UUID;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.structure.T;
@@ -28,6 +27,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.bdio2.test.BdioTest;
 import com.blackducksoftware.common.io.HeapOutputStream;
 
@@ -42,7 +42,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
      */
     @Test
     public void writeMetadata() throws Exception {
-        String metadataId = "urn:uuid:" + UUID.randomUUID();
+        String metadataId = BdioObject.randomId();
         ZonedDateTime creationDateTime = ZonedDateTime.now();
         graph.addVertex(
                 T.label, TT.Metadata,
@@ -89,7 +89,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
     public void writeMissingMetadata() throws Exception {
         graph.addVertex(
                 T.label, Bdio.Class.Project.name(),
-                TT.id, "urn:uuid:" + UUID.randomUUID());
+                TT.id, BdioObject.randomId());
 
         HeapOutputStream buffer = new HeapOutputStream();
         graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
@@ -108,19 +108,19 @@ public class BlackDuckIoWriterTest extends BaseTest {
      */
     @Test
     public void writeRelationship() throws Exception {
-        String metadataId = "urn:uuid:" + UUID.randomUUID();
+        String metadataId = BdioObject.randomId();
         ZonedDateTime creationDateTime = ZonedDateTime.now();
         graph.addVertex(
                 T.label, TT.Metadata,
                 TT.id, metadataId,
                 Bdio.DataProperty.creationDateTime.name(), creationDateTime.toString());
 
-        String fileId = "urn:uuid:" + UUID.randomUUID();
+        String fileId = BdioObject.randomId();
         Vertex file = graph.addVertex(
                 T.label, "File",
                 TT.id, fileId);
 
-        String projectId = "urn:uuid:" + UUID.randomUUID();
+        String projectId = BdioObject.randomId();
         graph.addVertex(
                 T.label, "Project",
                 TT.id, projectId)
