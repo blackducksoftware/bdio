@@ -135,17 +135,21 @@ public final class BlackDuckIoReader implements GraphReader {
 
         // Add outgoing edges for object properties (if requested)
         if (attachEdgesOfThisDirection == Direction.BOTH || attachEdgesOfThisDirection == Direction.OUT) {
-            Maps.transformValues(Maps.filterKeys(node, context.mapper()::isObjectPropertyKey),
-                    // TODO Does the ID mapping here need to have the partition ID applied to it for TinkerGraph?
-                    Functions.compose(
-                            id -> starGraph.addVertex(T.id, context.mapper().generateId(id)),
-                            context.mapper().valueObjectMapper()::fromFieldValue))
-                    .forEach((label, inVertex) -> {
-                        StarEdge edge = (StarEdge) vertex.addEdge(label, inVertex);
-                        if (edgeAttachMethod != null) {
-                            edge.attach(edgeAttachMethod);
-                        }
-                    });
+            Map<String, Object> objectProperties = Maps.filterKeys(node, context.mapper()::isObjectPropertyKey);
+
+            com.google.common.base.Function<Object, Vertex> toVertex = Functions.compose(
+                    // Using the identifier returned by "fromFieldValue", create a vertex
+                    id -> starGraph.addVertex(T.id, context.mapper().generateId(id)),
+
+                    // There is no "fromReferenceFieldValue", data and object properties share "fromFieldValue"
+                    context.mapper().valueObjectMapper()::fromFieldValue);
+
+            Maps.transformValues(objectProperties, toVertex).forEach((label, inVertex) -> {
+                StarEdge edge = (StarEdge) vertex.addEdge(label, inVertex);
+                if (edgeAttachMethod != null) {
+                    edge.attach(edgeAttachMethod);
+                }
+            });
         }
 
         return vertex;
