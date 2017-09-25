@@ -11,7 +11,9 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.blackducksoftware.common.test.JsonSubject.assertThatJson;
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth8.assertThat;
 
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -144,6 +146,37 @@ public class BlackDuckIoReaderTest extends BaseTest {
 
         assertThat(file.property(Bdio.DataProperty.byteCount.name()).isPresent()).isTrue();
         assertThat(file.property(Bdio.DataProperty.contentType.name()).isPresent()).isTrue();
+    }
+
+    @Test
+    public void readUnknownCustomProperty() throws Exception {
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+        Project projectModel = new Project(BdioObject.randomId());
+        projectModel.put("http://example.com/gus", "testing");
+
+        graph.io(BlackDuckIo.build().onGraphMapper(b -> b.unknownKey("_unknown")))
+                .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(projectModel))));
+
+        Optional<Object> unknown = graph.traversal().V().hasLabel(Bdio.Class.Project.name()).values("_unknown").tryNext();
+        assertThat(unknown).isPresent();
+        assertThat(unknown.get()).isInstanceOf(String.class);
+        assertThatJson((String) unknown.get()).containsPair("http://example.com/gus", "testing");
+    }
+
+    @Test
+    public void readCustomProperty() throws Exception {
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+        Project projectModel = new Project(BdioObject.randomId());
+        projectModel.put("http://example.com/gus", "testing");
+
+        graph.io(BlackDuckIo.build().onGraphMapper(b -> b.unknownKey("_unknown").addDataProperty("foobar", "http://example.com/gus")))
+                .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(projectModel))));
+
+        Optional<Object> unknown = graph.traversal().V().hasLabel(Bdio.Class.Project.name()).values("_unknown").tryNext();
+        assertThat(unknown).isEmpty();
+
+        Optional<Object> foobar = graph.traversal().V().hasLabel(Bdio.Class.Project.name()).values("foobar").tryNext();
+        assertThat(foobar).hasValue("testing");
     }
 
 }
