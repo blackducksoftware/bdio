@@ -128,7 +128,7 @@ public final class BlackDuckIoReader implements GraphReader {
             Function<Attachable<Edge>, Edge> edgeAttachMethod, Direction attachEdgesOfThisDirection, ReadGraphContext context) {
         // Create a new StarGraph whose primary vertex is the converted node
         StarGraph starGraph = StarGraph.open();
-        StarVertex vertex = (StarVertex) starGraph.addVertex(context.mapper().getNodeProperties(node, true));
+        StarVertex vertex = (StarVertex) starGraph.addVertex(context.getNodeProperties(node, true));
         if (vertexAttachMethod != null) {
             vertex.attach(vertexAttachMethod);
         }
@@ -139,7 +139,7 @@ public final class BlackDuckIoReader implements GraphReader {
 
             com.google.common.base.Function<Object, Vertex> toVertex = Functions.compose(
                     // Using the identifier returned by "fromFieldValue", create a vertex
-                    id -> starGraph.addVertex(T.id, context.mapper().generateId(id)),
+                    id -> starGraph.addVertex(T.id, context.generateId(id)),
 
                     // There is no "fromReferenceFieldValue", data and object properties share "fromFieldValue"
                     context.mapper().valueObjectMapper()::fromFieldValue);
@@ -170,7 +170,7 @@ public final class BlackDuckIoReader implements GraphReader {
             try {
                 // Compact the metadata using the context extracted from frame
                 Map<String, Object> compactMetadata = JsonLdProcessor.compact(metadata, context.mapper().frame(), options);
-                ElementHelper.attachProperties(metadataVertex, context.mapper().getNodeProperties(compactMetadata, false));
+                ElementHelper.attachProperties(metadataVertex, context.getNodeProperties(compactMetadata, false));
             } catch (JsonLdError e) {
                 // TODO What can we do about this?
                 e.printStackTrace();

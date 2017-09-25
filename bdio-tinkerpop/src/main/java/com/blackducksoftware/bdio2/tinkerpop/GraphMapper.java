@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkState;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +31,6 @@ import java.util.function.Consumer;
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.stream.Collector;
-import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -40,7 +38,6 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.T;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioDocument;
@@ -60,11 +57,6 @@ import com.google.common.collect.Maps;
  */
 // TODO Should this be in a different package and broken into smaller pieces?
 public class GraphMapper {
-
-    // TODO Do we need a sort order that is stable across BDIO versions?
-    // TODO Do we need to promote the File's HID column?
-    private static Comparator<Map.Entry<String, Object>> DATA_PROPERTY_ORDER = Comparator.<Map.Entry<String, Object>, String> comparing(Map.Entry::getKey)
-            .reversed();
 
     // TODO It seems like there is connection here with JsonLdOptions, they are created by the documentBuilder but only
     // when the document is built...THEREFORE we would need private ownership of the BdioDocument.Builder in this class
@@ -307,72 +299,6 @@ public class GraphMapper {
                 // Ignore this...
             }
         }
-    }
-
-    public Object generateId(Object id) {
-        // TODO Can we use a list here instead of strings?
-        return partitionStrategy
-                .map(PartitionStrategy::getWritePartition)
-                // TODO Use a query parameter instead of the fragment
-                .map(writePartition -> (Object) (id + "#" + writePartition))
-                .orElse(id);
-    }
-
-    /**
-     * Returns key/value pairs for the data properties of the specified BDIO node.
-     */
-    public Object[] getNodeProperties(Map<String, Object> node, boolean includeSpecial) {
-        // IMPORTANT: Add elements in reverse order of importance (e.g. T.id should be last!)
-        // TODO This could be a restriction from an old version of Sqlg
-        // TODO Or does it matter because Sqlg pushes them through a ConcurrentHashMap?
-        // TODO Should this just use a LinkedHashMap?
-        Stream.Builder<Map.Entry<?, ?>> properties = Stream.builder();
-
-        // Unknown properties
-        unknownKey().ifPresent(key -> {
-            preserveUnknownProperties(node)
-                    .map(json -> Maps.immutableEntry(key, json))
-                    .ifPresent(properties);
-        });
-
-        // Sorted data properties
-        Maps.transformValues(node, valueObjectMapper()::fromFieldValue).entrySet().stream()
-                .filter(e -> isDataPropertyKey(e.getKey()))
-                .sorted(DATA_PROPERTY_ORDER)
-                .forEachOrdered(properties);
-
-        // Special properties that can be optionally included
-        if (includeSpecial) {
-            // TODO Can we use ElementIdStrategy instead?
-            identifierKey().ifPresent(key -> {
-                Optional.ofNullable(node.get(JsonLdConsts.ID))
-                        .map(id -> Maps.immutableEntry(key, id))
-                        .ifPresent(properties);
-            });
-
-            partitionStrategy()
-                    .map(s -> Maps.immutableEntry(s.getPartitionKey(), s.getWritePartition()))
-                    .ifPresent(properties);
-
-            Optional.ofNullable(node.get(JsonLdConsts.TYPE))
-                    .map(label -> Maps.immutableEntry(T.label, label))
-                    .ifPresent(properties);
-
-            // NOTE: If the graph does not support user identifiers, this value gets ignored
-            // TODO If user identifiers aren't support, skip the computation...
-            // NOTE: If the graph supports user identifiers, we need both the JSON-LD identifier
-            // and the write partition (since the same identifier can exist in multiple partitions)
-
-            Optional.ofNullable(node.get(JsonLdConsts.ID))
-                    .map(id -> generateId(id))
-                    .map(id -> Maps.immutableEntry(T.id, id))
-                    .ifPresent(properties);
-        }
-
-        // Convert the whole thing into an array
-        return properties.build()
-                .flatMap(e -> Stream.of(e.getKey(), e.getValue()))
-                .toArray();
     }
 
     public static Builder build() {

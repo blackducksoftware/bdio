@@ -16,10 +16,13 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -31,7 +34,9 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 import org.umlg.sqlg.structure.SqlgExceptions.InvalidIdException;
 
+import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Maps;
 
 import io.reactivex.Observable;
 
@@ -43,6 +48,11 @@ import io.reactivex.Observable;
  * @author jgustie
  */
 class ReadGraphContext extends GraphContext {
+
+    // TODO Do we need a sort order that is stable across BDIO versions?
+    // TODO Do we need to promote the File's HID column?
+    private static Comparator<Map.Entry<String, Object>> DATA_PROPERTY_ORDER = Comparator.<Map.Entry<String, Object>, String> comparing(Map.Entry::getKey)
+            .reversed();
 
     /**
      * The number of mutations between commits.
@@ -151,6 +161,72 @@ class ReadGraphContext extends GraphContext {
 
     public long countVerticesByLabel(String label) {
         return traversal().V().hasLabel(label).count().next();
+    }
+
+    /**
+     * Returns key/value pairs for the data properties of the specified BDIO node.
+     */
+    public Object[] getNodeProperties(Map<String, Object> node, boolean includeSpecial) {
+        // IMPORTANT: Add elements in reverse order of importance (e.g. T.id should be last!)
+        // TODO This could be a restriction from an old version of Sqlg
+        // TODO Or does it matter because Sqlg pushes them through a ConcurrentHashMap?
+        // TODO Should this just use a LinkedHashMap?
+        Stream.Builder<Map.Entry<?, ?>> properties = Stream.builder();
+
+        // Unknown properties
+        mapper().unknownKey().ifPresent(key -> {
+            mapper().preserveUnknownProperties(node)
+                    .map(json -> Maps.immutableEntry(key, json))
+                    .ifPresent(properties);
+        });
+
+        // Sorted data properties
+        Maps.transformValues(node, mapper().valueObjectMapper()::fromFieldValue).entrySet().stream()
+                .filter(e -> mapper().isDataPropertyKey(e.getKey()))
+                .sorted(DATA_PROPERTY_ORDER)
+                .forEachOrdered(properties);
+
+        // Special properties that can be optionally included
+        if (includeSpecial) {
+            // TODO Can we use ElementIdStrategy instead?
+            mapper().identifierKey().ifPresent(key -> {
+                Optional.ofNullable(node.get(JsonLdConsts.ID))
+                        .map(id -> Maps.immutableEntry(key, id))
+                        .ifPresent(properties);
+            });
+
+            mapper().partitionStrategy()
+                    .map(s -> Maps.immutableEntry(s.getPartitionKey(), s.getWritePartition()))
+                    .ifPresent(properties);
+
+            Optional.ofNullable(node.get(JsonLdConsts.TYPE))
+                    .map(label -> Maps.immutableEntry(T.label, label))
+                    .ifPresent(properties);
+
+            // NOTE: If the graph does not support user identifiers, this value gets ignored
+            // TODO If user identifiers aren't support, skip the computation...
+            // NOTE: If the graph supports user identifiers, we need both the JSON-LD identifier
+            // and the write partition (since the same identifier can exist in multiple partitions)
+
+            Optional.ofNullable(node.get(JsonLdConsts.ID))
+                    .map(id -> generateId(id))
+                    .map(id -> Maps.immutableEntry(T.id, id))
+                    .ifPresent(properties);
+        }
+
+        // Convert the whole thing into an array
+        return properties.build()
+                .flatMap(e -> Stream.of(e.getKey(), e.getValue()))
+                .toArray();
+    }
+
+    public Object generateId(Object id) {
+        // TODO Can we use a list here instead of strings?
+        return mapper().partitionStrategy()
+                .map(PartitionStrategy::getWritePartition)
+                // TODO Use a query parameter instead of the fragment
+                .map(writePartition -> (Object) (id + "#" + writePartition))
+                .orElse(id);
     }
 
 }
