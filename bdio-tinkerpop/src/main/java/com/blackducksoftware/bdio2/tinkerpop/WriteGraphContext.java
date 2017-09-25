@@ -15,9 +15,15 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.function.Predicate;
+
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+
+import com.github.jsonldjava.core.JsonLdConsts;
 
 /**
  * Context used when performing a
@@ -33,9 +39,31 @@ class WriteGraphContext extends GraphContext {
     }
 
     /**
+     * Return the JSON-LD node constructed from the properties on the supplied vertex.
+     */
+    public Map<String, Object> getNodeProperties(Vertex vertex) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put(JsonLdConsts.TYPE, vertex.label());
+        result.put(JsonLdConsts.ID, generateId(vertex));
+        vertex.properties().forEachRemaining(vp -> {
+            if (mapper().unknownKey().filter(Predicate.isEqual(vp.key())).isPresent()) {
+                // Restore unknown properties by putting them all back into the result map
+                mapper().restoreUnknownProperties(vp.value(), result::put);
+            } else if (mapper().isSpecialKey(vp.key())) {
+                // Skip all of the "special" vertex properties used internally on the graph
+                return;
+            } else {
+                // Convert the vertex value to a JSON-LD value object
+                result.put(vp.key(), mapper().valueObjectMapper().toValueObject(vp.value()));
+            }
+        });
+        return result;
+    }
+
+    /**
      * Produces the identifier (the "@id" value) for a vertex based on the current configuration.
      */
-    public String nodeId(Vertex vertex) {
+    public String generateId(Vertex vertex) {
         Object identifier = mapper().identifierKey()
                 .map(key -> vertex.property(key))
                 .orElse(VertexProperty.empty())

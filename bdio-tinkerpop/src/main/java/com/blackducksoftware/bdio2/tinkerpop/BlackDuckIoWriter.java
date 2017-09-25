@@ -11,17 +11,16 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static org.apache.tinkerpop.gremlin.process.traversal.P.within;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasLabel;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasNot;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.not;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -57,10 +56,25 @@ public class BlackDuckIoWriter implements GraphWriter {
         RxJavaBdioDocument document = context.mapper().newBdioDocument(RxJavaBdioDocument.class);
 
         // Create the writer with the parsed metadata
-        document.writeToFile(readMetadata(context, document.jsonld().options()), outputStream);
+        document.writeToFile(createMetadata(context, document.jsonld().options()), outputStream);
+
+        // Collect the vertex labels which should be excluded from the output
+        Collection<String> excludedLabels = new LinkedHashSet<>();
+        context.mapper().metadataLabel().ifPresent(excludedLabels::add);
+        context.mapper().forEachEmbeddedLabel(excludedLabels::add);
 
         // Construct a flowable using the vertex traversal as the iterator
-        Flowable.fromIterable(() -> nodes(context))
+        Flowable.fromIterable(() -> context.traversal().V()
+
+                // Strip out the exclude labels
+                // TODO .hasLabel(without(excludedLabels)) is currently broken on Sqlg
+                .not(hasLabel(within(excludedLabels)))
+
+                // Strip out the implicit vertices since they weren't originally included
+                .where(context.mapper().implicitKey().map(propertyKey -> hasNot(propertyKey)).orElse(identity()))
+
+                // Convert to JSON-LD
+                .map(t -> createNode(t.get(), context)))
                 .doOnTerminate(context::rollbackTx)
                 .subscribe(document.asNodeSubscriber());
     }
@@ -96,9 +110,41 @@ public class BlackDuckIoWriter implements GraphWriter {
     }
 
     /**
+     * Creates a JSON-LD node from a vertex (or multiple vertices in the case of embedded objects).
+     */
+    private Map<String, Object> createNode(Vertex vertex, WriteGraphContext context) {
+        Map<String, Object> result = context.getNodeProperties(vertex);
+
+        vertex.edges(Direction.OUT).forEachRemaining(e -> {
+            // Skip implicit edges
+            if (context.mapper().implicitKey().filter(e.keys()::contains).isPresent()) {
+                return;
+            }
+
+            // Convert the in vertex to a reference
+            Vertex inVertex = e.inVertex();
+            Object ref;
+            if (context.mapper().isEmbeddedLabel(inVertex.label())) {
+                // Recursively create the entire node (without an '@id') for embedded types
+                ref = createNode(inVertex, context);
+                ((Map<?, ?>) ref).remove(JsonLdConsts.ID);
+            } else {
+                // For non-embedded types we just need the identifier
+                ref = context.generateId(inVertex);
+            }
+
+            // Store the result as a reference value object
+            // TODO This needs to be a multi-map!
+            result.put(e.label(), context.mapper().valueObjectMapper().toReferenceValueObject(ref));
+        });
+
+        return result;
+    }
+
+    /**
      * If a metadata label is configured, read the vertex from the graph into a new BDIO metadata instance.
      */
-    private BdioMetadata readMetadata(WriteGraphContext context, JsonLdOptions options) {
+    private BdioMetadata createMetadata(WriteGraphContext context, JsonLdOptions options) {
         return context.mapper().metadataLabel()
                 .flatMap(label -> context.traversal().V().hasLabel(label).tryNext())
                 .map(vertex -> {
@@ -122,55 +168,6 @@ public class BlackDuckIoWriter implements GraphWriter {
                     return metadata;
                 })
                 .orElse(BdioMetadata.createRandomUUID());
-    }
-
-    /**
-     * Returns an iterator (really a graph traversal) over the BDIO nodes to emit.
-     */
-    private Iterator<Map<String, Object>> nodes(WriteGraphContext context) {
-        return context.traversal().V()
-                // Strip out the metadata vertex
-                .where(context.mapper().metadataLabel().map(label -> not(hasLabel(label)))
-                        .orElse(identity()))
-
-                // Strip out the implicit vertices
-                .where(context.mapper().implicitKey().map(propertyKey -> hasNot(propertyKey))
-                        .orElse(identity()))
-
-                // TODO This is a big ass lambda step, can we do more with the traversal?
-                .map(t -> {
-                    Vertex vertex = t.get();
-
-                    // Construct a map to represent the BDIO version of the vertex
-                    Map<String, Object> result = new LinkedHashMap<>();
-                    result.put(JsonLdConsts.TYPE, vertex.label());
-                    result.put(JsonLdConsts.ID, context.nodeId(vertex));
-
-                    // Handle vertex properties
-                    vertex.properties().forEachRemaining(vp -> {
-                        if (vp.key().equals(context.mapper().unknownKey().orElse(null))) {
-                            context.mapper().restoreUnknownProperties(vp.value(), result::put);
-                        } else {
-                            result.put(vp.key(), context.mapper().valueObjectMapper().toValueObject(vp.value()));
-                        }
-                    });
-
-                    // Handle vertex edges
-                    vertex.edges(Direction.OUT).forEachRemaining(e -> {
-                        Set<String> keys = e.keys();
-                        if (keys.contains(context.mapper().implicitKey().orElse(null))) {
-                            return;
-                        } else {
-                            // TODO Edge properties?
-                            result.put(e.label(), context.mapper().valueObjectMapper().toReferenceValueObject(context.nodeId(e.inVertex())));
-                        }
-                    });
-
-                    // If the identifier key was used, we already stored it as the "@id" value
-                    context.mapper().identifierKey().ifPresent(result::remove);
-
-                    return result;
-                });
     }
 
     public static Builder build() {
