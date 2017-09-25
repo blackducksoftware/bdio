@@ -25,7 +25,7 @@
       "@type" : "@id"
     },
     "dependencies" : {
-      "@id" : "http://blackducksoftware.com/bdio#dependsOn",
+      "@id" : "http://blackducksoftware.com/bdio#dependencies",
       "@type" : "@id"
     },
     "dependsOn" : {
