@@ -66,37 +66,45 @@ public class DatatypeSupport {
     }
 
     /**
-     * Returns the Java type used by the provided datatype handlers.
+     * Returns the built-in datatype handler for the supplied datatype.
      */
-    public static Class<?> getJavaType(Bdio.Datatype datatype) {
+    public static DatatypeHandler<?> getDatatypeHandler(Bdio.Datatype datatype) {
         // Because we iterate over the enumeration, this implementation ensures we do not accidentally forget a type.
         switch (datatype) {
         case Default:
-            return String.class;
+            return Default();
         case DateTime:
-            return ZonedDateTime.class;
+            return DateTime();
         case Digest:
-            return Digest.class;
+            return Digest();
         case Long:
-            return Long.class;
+            return Long();
         case Products:
-            return ProductList.class;
+            return Products();
         case ContentRange:
-            return ContentRange.class;
+            return ContentRange();
         case ContentType:
-            return ContentType.class;
+            return ContentType();
         default:
             throw new IllegalArgumentException("unrecognized datatype: " + datatype.name());
         }
     }
 
     /**
+     * Returns the Java type used by the provided datatype handlers.
+     */
+    public static Class<?> getJavaType(Bdio.Datatype datatype) {
+        return ((BuiltInDatatypeHandler<?>) getDatatypeHandler(datatype)).javaType;
+    }
+
+    /**
      * @see DatatypeSupport#Default()
      */
-    private static final class DefaultDatatypeHandler implements DatatypeHandler<Object> {
+    private static final class DefaultDatatypeHandler extends BuiltInDatatypeHandler<Object> {
         private static final DefaultDatatypeHandler INSTANCE = new DefaultDatatypeHandler();
 
         private DefaultDatatypeHandler() {
+            super(String.class);
         }
 
         @Override
@@ -118,20 +126,11 @@ public class DatatypeSupport {
     /**
      * @see DatatypeSupport#DateTime()
      */
-    private static final class DateTimeDatatypeHandler implements DatatypeHandler<ZonedDateTime> {
+    private static final class DateTimeDatatypeHandler extends BuiltInDatatypeHandler<ZonedDateTime> {
         private static final DateTimeDatatypeHandler INSTANCE = new DateTimeDatatypeHandler();
 
         private DateTimeDatatypeHandler() {
-        }
-
-        @Override
-        public boolean isInstance(Object value) {
-            return value instanceof ZonedDateTime;
-        }
-
-        @Override
-        public Object serialize(Object value) {
-            return Objects.toString(value, null);
+            super(ZonedDateTime.class);
         }
 
         @Override
@@ -153,20 +152,11 @@ public class DatatypeSupport {
     /**
      * @see DatatypeSupport#Digest()
      */
-    private static final class DigestDatatypeHandler implements DatatypeHandler<Digest> {
+    private static final class DigestDatatypeHandler extends BuiltInDatatypeHandler<Digest> {
         private static final DigestDatatypeHandler INSTANCE = new DigestDatatypeHandler();
 
         private DigestDatatypeHandler() {
-        }
-
-        @Override
-        public boolean isInstance(Object value) {
-            return value instanceof Digest;
-        }
-
-        @Override
-        public Object serialize(Object value) {
-            return Objects.toString(value, null);
+            super(Digest.class);
         }
 
         @Override
@@ -184,15 +174,11 @@ public class DatatypeSupport {
     /**
      * @see DatatypeSupport#Long()
      */
-    private static final class LongDatatypeHandler implements DatatypeHandler<Long> {
+    private static final class LongDatatypeHandler extends BuiltInDatatypeHandler<Long> {
         private static final LongDatatypeHandler INSTANCE = new LongDatatypeHandler();
 
         private LongDatatypeHandler() {
-        }
-
-        @Override
-        public boolean isInstance(Object value) {
-            return value instanceof Long;
+            super(Long.class);
         }
 
         @Override
@@ -217,20 +203,11 @@ public class DatatypeSupport {
     /**
      * @see DatatypeSupport#Products()
      */
-    private static final class ProductsDatatypeHandler implements DatatypeHandler<ProductList> {
+    private static final class ProductsDatatypeHandler extends BuiltInDatatypeHandler<ProductList> {
         private static final ProductsDatatypeHandler INSTANCE = new ProductsDatatypeHandler();
 
         private ProductsDatatypeHandler() {
-        }
-
-        @Override
-        public boolean isInstance(Object value) {
-            return value instanceof ProductList;
-        }
-
-        @Override
-        public Object serialize(Object value) {
-            return Objects.toString(value, null);
+            super(ProductList.class);
         }
 
         @Override
@@ -248,20 +225,11 @@ public class DatatypeSupport {
     /**
      * @see DatatypeSupport#ContentRange()
      */
-    private static final class ContentRangeDatatypeHandler implements DatatypeHandler<ContentRange> {
+    private static final class ContentRangeDatatypeHandler extends BuiltInDatatypeHandler<ContentRange> {
         private static final ContentRangeDatatypeHandler INSTANCE = new ContentRangeDatatypeHandler();
 
         private ContentRangeDatatypeHandler() {
-        }
-
-        @Override
-        public boolean isInstance(Object value) {
-            return value instanceof ContentRange;
-        }
-
-        @Override
-        public Object serialize(Object value) {
-            return Objects.toString(value, null);
+            super(ContentRange.class);
         }
 
         @Override
@@ -279,20 +247,11 @@ public class DatatypeSupport {
     /**
      * @see DatatypeSupport#ContentType()
      */
-    private static final class ContentTypeDatatypeHandler implements DatatypeHandler<ContentType> {
+    private static final class ContentTypeDatatypeHandler extends BuiltInDatatypeHandler<ContentType> {
         private static final ContentTypeDatatypeHandler INSTANCE = new ContentTypeDatatypeHandler();
 
         private ContentTypeDatatypeHandler() {
-        }
-
-        @Override
-        public boolean isInstance(Object value) {
-            return value instanceof ContentType;
-        }
-
-        @Override
-        public Object serialize(Object value) {
-            return Objects.toString(value, null);
+            super(ContentType.class);
         }
 
         @Override
@@ -308,13 +267,39 @@ public class DatatypeSupport {
     }
 
     /**
-     * Constructs a new runtime exception indicating the supplied value was not suitable for deserialization. The
-     * supplied exception factory should produce the same type of exception that other value object producing methods
-     * producing throw when presented with invalid input.
+     * Base class for the built-in datatype handlers.
      */
-    private static <X extends RuntimeException> X invalidInput(Object value, Function<String, X> factory) {
-        Objects.requireNonNull(value);
-        return factory.apply("invalid input " + value + " (" + value.getClass().getName() + ")");
+    private static abstract class BuiltInDatatypeHandler<T> implements DatatypeHandler<T> {
+
+        /**
+         * The Java type associated with this datatype handler. This may be different from the type parameter, if for
+         * example, the datatype handler can support multiple types.
+         */
+        private final Class<?> javaType;
+
+        private BuiltInDatatypeHandler(Class<?> javaType) {
+            this.javaType = Objects.requireNonNull(javaType);
+        }
+
+        @Override
+        public boolean isInstance(Object value) {
+            return javaType.isInstance(value);
+        }
+
+        @Override
+        public Object serialize(Object value) {
+            return Objects.toString(value, null);
+        }
+
+        /**
+         * Constructs a new runtime exception indicating the supplied value was not suitable for deserialization. The
+         * supplied exception factory should produce the same type of exception that other value object producing
+         * methods producing throw when presented with invalid input.
+         */
+        protected static <X extends RuntimeException> X invalidInput(Object value, Function<String, X> factory) {
+            Objects.requireNonNull(value);
+            return factory.apply("invalid input " + value + " (" + value.getClass().getName() + ")");
+        }
     }
 
     private DatatypeSupport() {
