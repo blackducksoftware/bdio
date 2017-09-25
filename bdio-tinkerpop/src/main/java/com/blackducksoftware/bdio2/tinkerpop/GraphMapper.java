@@ -86,6 +86,11 @@ public class GraphMapper {
     private final ImmutableMap<String, String> classes;
 
     /**
+     * The mapping of vertex labels to {@code @type} IRIs for classes that should be embedded.
+     */
+    private final ImmutableMap<String, String> embeddedClasses;
+
+    /**
      * The mapping of vertex property names or terms to IRIs.
      */
     private final ImmutableMap<String, String> dataProperties;
@@ -129,6 +134,7 @@ public class GraphMapper {
         valueObjectMapper = builder.valueObjectMapperBuilder.build();
         documentBuilder = builder.documentBuilder.orElseGet(BdioDocument.Builder::new);
         classes = ImmutableMap.copyOf(builder.classes);
+        embeddedClasses = ImmutableMap.copyOf(builder.embeddedClasses);
         dataProperties = ImmutableMap.copyOf(builder.dataProperties);
         objectProperties = ImmutableMap.copyOf(builder.objectProperties);
         metadataLabel = Objects.requireNonNull(builder.metadataLabel);
@@ -159,6 +165,13 @@ public class GraphMapper {
     }
 
     /**
+     * Iterates over the known embedded type labels.
+     */
+    public void forEachEmbeddedLabel(Consumer<String> typeLabelConsumer) {
+        embeddedClasses.keySet().forEach(typeLabelConsumer);
+    }
+
+    /**
      * Checks to see if the specified key represents a data property.
      */
     public boolean isDataPropertyKey(String key) {
@@ -178,6 +191,25 @@ public class GraphMapper {
     public boolean isUnknownKey(String key) {
         // If framing did not recognize the attribute, it will still have a scheme or prefix separator
         return key.indexOf(':') >= 0;
+    }
+
+    /**
+     * Checks to see if the specified key represents a special property internal to the graph.
+     */
+    public boolean isSpecialKey(String key) {
+        // TODO All keys that start with "_"?
+        Predicate<String> isKey = Predicate.isEqual(key);
+        return identifierKey().filter(isKey).isPresent()
+                || implicitKey().filter(isKey).isPresent()
+                || rootProjectKey().filter(isKey).isPresent()
+                || partitionStrategy().map(PartitionStrategy::getPartitionKey).filter(isKey).isPresent();
+    }
+
+    /**
+     * Checks to see if the specified label is an embedded class.
+     */
+    public boolean isEmbeddedLabel(String label) {
+        return embeddedClasses.containsKey(label);
     }
 
     public Optional<String> metadataLabel() {
@@ -205,29 +237,20 @@ public class GraphMapper {
     }
 
     public Map<String, Object> frame() {
-        // This must construct a new mutable structure for the JSON-LD API
-        Map<String, Object> context = new LinkedHashMap<>();
-        context.putAll(classes);
-        // TODO Should we be generating @id/@type maps for data properties?
-        context.putAll(dataProperties);
-        context.putAll(objectProperties);
-
         List<String> type = new ArrayList<>();
         type.addAll(classes.values());
+        type.addAll(embeddedClasses.values());
 
+        // TODO Should we be generating @id/@type maps for data properties in the context?
         Map<String, Object> frame = new LinkedHashMap<>();
-        frame.put(JsonLdConsts.CONTEXT, context);
+        frame.put(JsonLdConsts.CONTEXT, expandContext());
         frame.put(JsonLdConsts.TYPE, type);
         return frame;
     }
 
     @Nullable
     public Map<String, Object> applicationContext() {
-        // This must construct a new mutable structure for the JSON-LD API
-        Map<String, Object> context = new LinkedHashMap<>();
-        context.putAll(classes);
-        context.putAll(dataProperties);
-        context.putAll(objectProperties);
+        Map<String, Object> context = expandContext();
 
         // Remove everything that could come from BDIO
         removeKeysAndValues(Bdio.Class.class, context);
@@ -237,15 +260,19 @@ public class GraphMapper {
         // Remove everything that is for internal use
         // NOTE: These should all be no-ops if pre-build validation is working correctly
         metadataLabel.ifPresent(context::remove);
-        identifierKey.ifPresent(context::remove);
-        unknownKey.ifPresent(context::remove);
-        implicitKey.ifPresent(context::remove);
-        rootProjectKey.ifPresent(context::remove);
-        partitionStrategy.map(PartitionStrategy::getPartitionKey).ifPresent(context::remove);
-
-        // TODO Remove all keys that start with "_"?
+        context.keySet().removeIf(this::isSpecialKey);
 
         return context.isEmpty() ? null : context;
+    }
+
+    private Map<String, Object> expandContext() {
+        // This must construct a new mutable structure for the JSON-LD API (and for our own use)
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.putAll(classes);
+        context.putAll(embeddedClasses);
+        context.putAll(dataProperties);
+        context.putAll(objectProperties);
+        return context;
     }
 
     /**
@@ -360,6 +387,8 @@ public class GraphMapper {
 
         private final Map<String, String> classes;
 
+        private final Map<String, String> embeddedClasses;
+
         private final Map<String, String> dataProperties;
 
         private final Map<String, String> objectProperties;
@@ -380,8 +409,17 @@ public class GraphMapper {
             valueObjectMapperBuilder = new ValueObjectMapper.Builder();
 
             classes = new LinkedHashMap<>();
+            embeddedClasses = new LinkedHashMap<>();
             for (Bdio.Class bdioClass : Bdio.Class.values()) {
-                classes.put(bdioClass.name(), bdioClass.toString());
+                if (bdioClass.embedded()) {
+                    embeddedClasses.put(bdioClass.name(), bdioClass.toString());
+
+                    // Normally the ValueObjectMapper only tracks fully qualified types but we need to use it prior to
+                    // JSON-LD expansion so we need to tell it to recognize the vertex labels as well
+                    valueObjectMapperBuilder.addEmbeddedType(bdioClass.name());
+                } else {
+                    classes.put(bdioClass.name(), bdioClass.toString());
+                }
             }
 
             dataProperties = new LinkedHashMap<>();
@@ -411,15 +449,19 @@ public class GraphMapper {
             return this;
         }
 
-        public Builder addEmbeddedClass(String label, String iri) {
-            checkUserSuppliedLabel(label, "embedded class label '%s' is reserved");
-            valueObjectMapperBuilder.addEmbeddedType(iri);
-            return addClass(label, iri);
-        }
-
         public Builder addClass(String label, String iri) {
             checkUserSuppliedLabel(label, "class label '%s' is reserved");
             classes.put(Objects.requireNonNull(label), Objects.requireNonNull(iri));
+            return this;
+        }
+
+        public Builder addEmbeddedClass(String label, String iri) {
+            checkUserSuppliedLabel(label, "embedded class label '%s' is reserved");
+            embeddedClasses.put(label, iri);
+
+            // See note in the constructor about the ValueObjectMapper
+            valueObjectMapperBuilder.addEmbeddedType(label);
+            valueObjectMapperBuilder.addEmbeddedType(iri);
             return this;
         }
 

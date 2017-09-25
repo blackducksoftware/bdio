@@ -103,6 +103,10 @@ public class Bdio {
             this.iri = Objects.requireNonNull(iri);
         }
 
+        public boolean embedded() {
+            return this == Bdio.Class.Note || this == Bdio.Class.Dependency;
+        }
+
         @Override
         public String toString() {
             return iri;

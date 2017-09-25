@@ -243,8 +243,11 @@ public class ValueObjectMapper {
             }
 
             // These are the types that BDIO expects to be embedded
-            embeddedTypes.add(Bdio.Class.Note.toString());
-            embeddedTypes.add(Bdio.Class.Dependency.toString());
+            for (Bdio.Class bdioClass : Bdio.Class.values()) {
+                if (bdioClass.embedded()) {
+                    embeddedTypes.add(bdioClass.toString());
+                }
+            }
 
             // Unwrap single element collections
             multiValueCollector = size -> size == 1 ? Collectors.collectingAndThen(ExtraCollectors.getOnly(), Optional::get) : Collectors.toList();

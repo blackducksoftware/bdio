@@ -71,6 +71,7 @@ class SqlgReadGraphContext extends ReadGraphContext {
         // Pre-populate vertex tables
         mapper().metadataLabel().ifPresent(this::defineVertexLabel);
         mapper().forEachTypeLabel(this::defineVertexLabel);
+        mapper().forEachEmbeddedLabel(this::defineVertexLabel);
 
         // Commit schema changes
         commitTx();
