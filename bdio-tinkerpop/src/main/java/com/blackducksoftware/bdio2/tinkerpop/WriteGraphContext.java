@@ -16,6 +16,7 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
@@ -24,6 +25,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 
 import com.github.jsonldjava.core.JsonLdConsts;
+import com.google.common.collect.Lists;
 
 /**
  * Context used when performing a
@@ -69,6 +71,19 @@ class WriteGraphContext extends GraphContext {
                 .orElse(VertexProperty.empty())
                 .orElseGet(() -> vertex.id());
         return mapper().valueObjectMapper().toValueObject(identifier).toString();
+    }
+
+    /**
+     * Merges two values into a single list value.
+     */
+    @SuppressWarnings("unchecked")
+    public Object combine(Object oldValue, Object value) {
+        if (oldValue instanceof List<?>) {
+            ((List<Object>) oldValue).add(value);
+            return oldValue;
+        } else {
+            return Lists.newArrayList(oldValue, value);
+        }
     }
 
 }

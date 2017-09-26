@@ -134,8 +134,10 @@ public class BlackDuckIoWriter implements GraphWriter {
             }
 
             // Store the result as a reference value object
-            // TODO This needs to be a multi-map!
-            result.put(e.label(), context.mapper().valueObjectMapper().toReferenceValueObject(ref));
+            Object valueObject = context.mapper().valueObjectMapper().toReferenceValueObject(ref);
+            if (valueObject != null) {
+                result.merge(e.label(), valueObject, context::combine);
+            }
         });
 
         return result;
