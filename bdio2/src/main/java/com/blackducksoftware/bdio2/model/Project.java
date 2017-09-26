@@ -73,8 +73,8 @@ public final class Project extends BdioObject {
         return this;
     }
 
-    public Project dependencies(Dependency dependency) {
-        putObject(Bdio.ObjectProperty.dependencies, dependency);
+    public Project dependency(Dependency dependency) {
+        putObject(Bdio.ObjectProperty.dependency, dependency);
         return this;
     }
 

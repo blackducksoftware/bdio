@@ -67,8 +67,8 @@ public final class Component extends BdioObject {
         return this;
     }
 
-    public Component dependencies(Dependency dependency) {
-        putObject(Bdio.ObjectProperty.dependencies, dependency);
+    public Component dependency(Dependency dependency) {
+        putObject(Bdio.ObjectProperty.dependency, dependency);
         return this;
     }
 

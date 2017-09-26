@@ -432,7 +432,8 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
             currentValue("name").ifPresent(result::name);
             currentValue("revision").ifPresent(result::version);
             convertExternalIdentifier(result::namespace, result::identifier, result::repository);
-            convertRelationships(result::dependencies);
+            convertRelationships(result::dependency);
+            // TODO How can we get the reference to the base directory?
             project.accept(result);
         }
 
@@ -443,7 +444,7 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
             currentValue("homepage").ifPresent(result::homepage);
             // TODO currentValue("license").ifPresent(result::license);
             convertExternalIdentifier(result::namespace, result::identifier, result::repository);
-            convertRelationships(result::dependencies);
+            convertRelationships(result::dependency);
             component.accept(result);
         }
 

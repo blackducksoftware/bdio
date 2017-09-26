@@ -42,12 +42,12 @@ public class Bdio {
         Project("http://blackducksoftware.com/bdio#Project"),
 
         /**
-         * A component may also known as a "dependency" or "artifact". Essentially it is a single BOM entry. A component
-         * is the link between two projects (only one of which may be present in the current BDIO context). The link may
-         * not be fully defined: only partial information about linkage may be known given the evidence at hand. In
-         * addition to establishing a link between two projects, a component can contain additional metadata pertaining
-         * to the details of the link: for example, the specific licensing terms used or how a project is using another
-         * project (e.g. is linked project used for building, only at runtime or for testing).
+         * A component may also be known as a "dependency" or "artifact". Essentially it is a single BOM entry. A
+         * component is the link between two projects (only one of which may be present in the current BDIO context).
+         * The link may not be fully defined: only partial information about linkage may be known given the evidence at
+         * hand. In addition to establishing a link between two projects, a component can contain additional metadata
+         * pertaining to the details of the link: for example, the specific licensing terms used or how a project is
+         * using another project (e.g. is linked project used for building, only at runtime or for testing).
          * <p>
          * A component is also a useful stand-in for a project when it is known the other project exists, but only
          * limited details are available in the current context. For example, it may be useful to create a component for
@@ -76,6 +76,13 @@ public class Bdio {
         Vulnerability("http://blackducksoftware.com/bdio#Vulnerability"),
 
         /**
+         * A repository is a collection of software metadata and possibly binary artifacts. Generally speaking a
+         * repository is a collection of projects, however it may be useful to enumerate contents using component
+         * objects.
+         */
+        Repository("http://blackducksoftware.com/bdio#Repository"),
+
+        /**
          * A file is used to represent the metadata pertaining to an entry in a (possibly virtual) file system. Files
          * can used to represent any type of file system entry, including regular files, symlinks and directories. The
          * inclusion of directories is optional, i.e. you do not need to include a full directory structure, if no
@@ -86,7 +93,8 @@ public class Bdio {
         File("http://blackducksoftware.com/bdio#File"),
 
         /**
-         * A note represents data from part of a file.
+         * A note represents the outcome of a specific calculation on part of a file. Notes can be simple (such as
+         * inclusion of a content range), or more complex (such as the output of a processing algorithm).
          */
         Note("http://blackducksoftware.com/bdio#Note"),
 
@@ -143,7 +151,7 @@ public class Bdio {
          * The list of dependencies.
          */
         // AllowedOn: Project, Component
-        dependencies("http://blackducksoftware.com/bdio#hasDependencies", Container.unordered),
+        dependency("http://blackducksoftware.com/bdio#hasDependency", Container.unordered),
 
         /**
          * Indicates the dependent component.
@@ -161,7 +169,7 @@ public class Bdio {
          * Lists the notes applicable to a file.
          */
         // AllowedOn: File
-        notes("http://blackducksoftware.com/bdio#hasNotes", Container.ordered),
+        note("http://blackducksoftware.com/bdio#hasNote", Container.ordered),
 
         ;
 
@@ -208,31 +216,42 @@ public class Bdio {
         /**
          * The display name of the entity.
          */
-        // TODO Container.language?
-        // AllowedOn: @Graph, Project, Component, License, Vulnerability
+        // TODO Use JSON-LD Container.language to support multi-language names?
+        // AllowedOn: @Graph, Project, Component, License, Vulnerability, Repository
         name("http://blackducksoftware.com/bdio#hasName", Datatype.Default, Container.single),
 
         /**
-         * The display version of the entity.
+         * The display version of the entity. Must reference a single version.
          */
         // AllowedOn: Project, Component
         version("http://blackducksoftware.com/bdio#hasVersion", Datatype.Default, Container.single),
 
         /**
-         * The version or version range that resulted in a component being included.
+         * The namespace specific version range that resulted in a component being included.
          */
         // AllowedOn: Component
         requestedVersion("http://blackducksoftware.com/bdio#hasRequestedVersion", Datatype.Default, Container.single),
 
         /**
-         * The license expression describing either the allowed or effective license(s).
+         * The license expression describing either the allowed (in the case of a project) or effective license(s) (in
+         * the case of a component).
+         * <p>
+         * Note that there is not a specific object property creating a relationship between projects/components and
+         * licenses: this expression may reference an otherwise disconnected license within the BDIO document if
+         * necessary.
          */
         // AllowedOn: Project, Component
         // TODO Is there an SPDX type for the license expression?
         license("http://blackducksoftware.com/bdio#hasLicense", Datatype.Default, Container.single),
 
         /**
-         * The namespace a component exists in. Also known as a "forge" or "system type".
+         * The namespace a component exists in. Also known as a "forge" or "system type", this defines how many
+         * different fields should be interpreted (e.g. identifiers, versions and scopes are defined within a particular
+         * namespace).
+         * <p>
+         * Note that namespace values are <em>not</em> part of the BDIO specification. There are BDIO recommendations,
+         * however it is ultimately up to the producer and consumer of the BDIO data to handshake on the appropriate
+         * rules.
          */
         // AllowedOn: Project, Component, License, Vulnerability
         namespace("http://blackducksoftware.com/bdio#hasNamespace", Datatype.Default, Container.single),
@@ -286,7 +305,8 @@ public class Bdio {
         contentType("http://blackducksoftware.com/bdio#hasContentType", Datatype.Default, Container.single),
 
         /**
-         * The character encoding of a file.
+         * The character encoding of a file. It is required that producers store the encoding independent of the content
+         * type's parameters.
          */
         // AllowedOn: File
         encoding("http://blackducksoftware.com/bdio#hasEncoding", Datatype.Default, Container.single),
@@ -298,16 +318,16 @@ public class Bdio {
         path("http://blackducksoftware.com/bdio#hasPath", Datatype.Default, Container.single),
 
         /**
-         * The ranges of file content a note applies to.
+         * The ranges of file content a note applies to. Multiple ranges can be specified, however the units must be
+         * distinct (e.g. "bytes" and "chars").
          */
         // AllowedOn: Note
-        // TODO Change type to a "range"?
-        range("http://blackducksoftware.com/bdio#hasRange", Datatype.Default, Container.unordered),
+        range("http://blackducksoftware.com/bdio#hasRange", Datatype.ContentRange, Container.unordered),
 
         /**
-         * The free-form scope of a dependency as determined by the resolution tool used to define the dependency. For
-         * example, if a dependency came from an npm package's {@code devDependencies} field, then the scope should be
-         * "devDependencies".
+         * The namespace specific scope of a dependency as determined by the resolution tool used to define the
+         * dependency. For example, if a dependency came from an npm package's {@code devDependencies} field, then the
+         * scope should be "devDependencies".
          */
         // AllowedOn: Dependency
         scope("http://blackducksoftware.com/bdio#hasScope", Datatype.Default, Container.single),
@@ -363,12 +383,39 @@ public class Bdio {
 
     public enum Datatype {
 
+        /**
+         * Unrestricted string value.
+         */
         Default(""),
+
+        /**
+         * ISO date/time string.
+         */
         DateTime("http://www.w3.org/2001/XMLSchema#dateTime"),
+
+        /**
+         * A string that encapsulates an algorithm name and an unrestricted digest value.
+         */
         Digest("http://blackducksoftware.com/bdio#Digest"),
+
+        /**
+         * Natural number.
+         */
         Long("http://www.w3.org/2001/XMLSchema#long"),
+
+        /**
+         * An HTTP User Agent string.
+         */
         Products("http://blackducksoftware.com/bdio#Products"),
+
+        /**
+         * An HTTP Content Range string.
+         */
         ContentRange("http://blackducksoftware.com/bdio#ContentRange"),
+
+        /**
+         * An Http Content Type string.
+         */
         ContentType("http://blackducksoftware.com/bdio#ContentType"),
 
         // TODO SPDX license expression? Do they have one already?
