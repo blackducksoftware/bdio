@@ -101,12 +101,14 @@ public final class RxJavaBdioDocument extends BdioDocument {
         return nodes;
     }
 
+    @SuppressWarnings("CheckReturnValue")
     @Override
     public RxJavaBdioDocument metadata(Consumer<BdioMetadata> metadataConsumer) {
         metadata.subscribe(metadataConsumer::accept);
         return this;
     }
 
+    @SuppressWarnings("CheckReturnValue")
     @Override
     public RxJavaBdioDocument takeFirstMetadata(Consumer<BdioMetadata> metadataConsumer) {
         data.take(1).map(this::extractMetadata).map(BdioMetadata::new).subscribe(metadataConsumer::accept);
