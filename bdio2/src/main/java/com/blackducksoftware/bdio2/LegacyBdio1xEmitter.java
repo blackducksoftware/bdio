@@ -172,7 +172,7 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
             } else if (currToken == JsonToken.START_ARRAY) {
                 List<Object> result = new ArrayList<>();
                 Object element = nextFieldValue();
-                while (currentToken() != JsonToken.END_ARRAY) {
+                while (getCurrentToken() != JsonToken.END_ARRAY) {
                     result.add(element);
                     element = nextFieldValue();
                 }

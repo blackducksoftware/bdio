@@ -20,6 +20,8 @@ allprojects {
 	}
 
 	dependencyRecommendations {
+		// Required to prevent getting ahead with Jackson versions
+		strategy OverrideTransitives
 		propertiesFile file: file("$rootDir/dependencies.properties")
 	}
 }
@@ -34,6 +36,11 @@ subprojects {
 
 	tasks.withType(JavaCompile) {
 		options.compilerArgs << '-Xlint:all'
+	}
+
+	dependencies {
+		// This is the last version of Error Prone that works with Guava 19.0
+		errorprone 'com.google.errorprone:error_prone_core:2.0.14'
 	}
 
 	jar {
