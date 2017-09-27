@@ -22,12 +22,6 @@ allprojects {
 	dependencyRecommendations {
 		propertiesFile file: file("$rootDir/dependencies.properties")
 	}
-
-	eclipse {
-		classpath {
-			defaultOutputDir = file('build-eclipse')
-		}
-	}
 }
 
 subprojects {

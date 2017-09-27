@@ -4,13 +4,11 @@
 # Build output
 build/
 
-# Eclipse files
+# Eclipse
 .settings/
 .classpath
 .project
-
-# Eclipse output
-build-eclipse/
+bin/
 
 # Eclipse TestNG plugin output
 test-output/
