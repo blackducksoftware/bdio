@@ -83,8 +83,7 @@ public class GraphTool extends Tool {
 
     private boolean skipInitialization;
 
-    private Consumer<Graph> onGraphComplete = graph -> {
-    };
+    private Consumer<Graph> onGraphComplete = graph -> {};
 
     public GraphTool(@Nullable String name) {
         super(name);
@@ -208,7 +207,8 @@ public class GraphTool extends Tool {
     protected void execute() throws Exception {
         checkState(!inputs.isEmpty(), "no inputs");
 
-        try (Graph graph = openGraph()) {
+        Graph graph = openGraph();
+        try {
             for (Map.Entry<URI, ByteSource> input : inputs.entrySet()) {
                 try (InputStream inputStream = input.getValue().openStream()) {
                     // Create a configuration to handle the input file
@@ -240,6 +240,8 @@ public class GraphTool extends Tool {
 
             // Before we close the graph, give someone else a chance to play with it
             onGraphComplete.accept(graph);
+        } finally {
+            graph.close();
         }
     }
 

@@ -32,7 +32,6 @@ import org.reactivestreams.Subscriber;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
-import com.github.jsonldjava.core.JsonLdProcessor;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -58,14 +57,14 @@ public abstract class BdioDocument {
         /**
          * Compacts each element in the sequence according to the steps in the JSON-LD Compaction algorithm.
          *
-         * @see JsonLdProcessor#compact(Object, Object, JsonLdOptions)
+         * @see com.github.jsonldjava.core.JsonLdProcessor#compact(Object, Object, JsonLdOptions)
          */
         Publisher<Map<String, Object>> compact(Object context);
 
         /**
          * Expands each element in the sequence according to the steps in the Expansion algorithm.
          *
-         * @see JsonLdProcessor#expand(Object, JsonLdOptions)
+         * @see com.github.jsonldjava.core.JsonLdProcessor#expand(Object, JsonLdOptions)
          */
         Publisher<List<Object>> expand();
 
@@ -73,14 +72,14 @@ public abstract class BdioDocument {
          * Flattens each element in the sequence and compacts it using the passed context according to the steps in the
          * Flattening algorithm.
          *
-         * @see JsonLdProcessor#flatten(Object, Object, JsonLdOptions)
+         * @see com.github.jsonldjava.core.JsonLdProcessor#flatten(Object, Object, JsonLdOptions)
          */
         Publisher<Object> flatten(@Nullable Object context);
 
         /**
          * Frames each element in the sequence using the frame according to the steps in the Framing Algorithm.
          *
-         * @see JsonLdProcessor#frame(Object, Object, JsonLdOptions)
+         * @see com.github.jsonldjava.core.JsonLdProcessor#frame(Object, Object, JsonLdOptions)
          */
         Publisher<Map<String, Object>> frame(Object frame);
 
