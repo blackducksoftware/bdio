@@ -120,14 +120,14 @@ public class BlackDuckIoWriterTest extends BaseTest {
 
         String fileId = BdioObject.randomId();
         Vertex file = graph.addVertex(
-                T.label, "File",
+                T.label, Bdio.Class.File.name(),
                 TT.id, fileId);
 
         String projectId = BdioObject.randomId();
         graph.addVertex(
-                T.label, "Project",
+                T.label, Bdio.Class.Project.name(),
                 TT.id, projectId)
-                .addEdge("base", file);
+                .addEdge(Bdio.ObjectProperty.base.name(), file);
         commit();
 
         HeapOutputStream buffer = new HeapOutputStream();
@@ -173,6 +173,31 @@ public class BlackDuckIoWriterTest extends BaseTest {
         List<String> entries = BdioTest.zipEntries(customBuffer.getInputStream());
         assertThatJson(entries.get(1)).at("/@graph/0").containsName("http://example.com/gus");
         assertThatJson(entries.get(1)).at("/@graph/0").doesNotContainName("foobar");
+    }
+
+    @Test
+    public void writeEmbeddedObject() throws Exception {
+        Vertex component1 = graph.addVertex(
+                T.label, Bdio.Class.Component.name(),
+                TT.id, BdioObject.randomId());
+        Vertex component2 = graph.addVertex(
+                T.label, Bdio.Class.Component.name(),
+                TT.id, BdioObject.randomId());
+        Vertex dependency = graph.addVertex(
+                T.label, Bdio.Class.Dependency.name());
+
+        component2.addEdge(Bdio.ObjectProperty.dependency.name(), dependency);
+        dependency.addEdge(Bdio.ObjectProperty.dependsOn.name(), component1);
+        commit();
+
+        HeapOutputStream buffer = new HeapOutputStream();
+        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds())).writeGraph(buffer);
+
+        List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
+
+        assertThatJson(entries.get(1)).arrayAt("/@graph").hasSize(2); // Just the two components
+        assertThatJson(entries.get(1)).at("@graph", 1, Bdio.ObjectProperty.dependency, 0, Bdio.ObjectProperty.dependsOn, 0, "@value")
+                .isEqualTo(component1.value(TT.id));
     }
 
 }
