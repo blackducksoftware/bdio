@@ -9,7 +9,7 @@ dependencies {
 	compile project(':bdio-tinkerpop')
 	compile 'org.apache.tinkerpop:tinkergraph-gremlin'
 	compile 'org.slf4j:slf4j-nop'
-	
+
 	testCompile 'junit:junit'
 }
 

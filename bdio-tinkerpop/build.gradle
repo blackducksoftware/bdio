@@ -4,13 +4,11 @@ dependencies {
 	compile project(':bdio-rxjava')
 	compile 'com.blackducksoftware.magpie:magpie'
 	compile 'org.apache.tinkerpop:gremlin-core'
-	compile ('org.umlg:sqlg-postgres') { 
-		exclude group: 'ch.qos.logback'
-	}
+	compile 'org.umlg:sqlg-postgres'
 
 	testCompile project(':bdio-test')
+	testCompile 'com.google.truth:truth'
+	testCompile 'com.google.truth.extensions:truth-java8-extension'
+	testCompile 'junit:junit'
 	testCompile 'org.apache.tinkerpop:tinkergraph-gremlin'
-    testCompile 'junit:junit'
-    testCompile 'com.google.truth:truth'
-    testCompile 'com.google.truth.extensions:truth-java8-extension'
 }
