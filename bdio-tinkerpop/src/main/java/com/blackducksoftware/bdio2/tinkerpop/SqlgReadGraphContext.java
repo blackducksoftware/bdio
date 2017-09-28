@@ -68,13 +68,16 @@ class SqlgReadGraphContext extends ReadGraphContext {
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
         uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), EXPECTED_INSERTIONS);
 
-        // Pre-populate vertex tables
-        mapper().metadataLabel().ifPresent(this::defineVertexLabel);
-        mapper().forEachTypeLabel(this::defineVertexLabel);
-        mapper().forEachEmbeddedLabel(this::defineVertexLabel);
-
-        // Commit schema changes
-        commitTx();
+        try {
+            // Pre-populate vertex tables
+            sqlgGraph.tx().open();
+            mapper().metadataLabel().ifPresent(this::defineVertexLabel);
+            mapper().forEachTypeLabel(this::defineVertexLabel);
+            mapper().forEachEmbeddedLabel(this::defineVertexLabel);
+            sqlgGraph.tx().commit();
+        } finally {
+            sqlgGraph.tx().rollback();
+        }
     }
 
     @Override
@@ -146,6 +149,9 @@ class SqlgReadGraphContext extends ReadGraphContext {
             vertexLabel.ensurePropertiesExist(Collections.singletonMap(Bdio.DataProperty.path.name(), PropertyType.STRING));
             vertexLabel.getProperty(Bdio.DataProperty.path.name())
                     .ifPresent(property -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, Collections.singletonList(property)));
+
+            // vertexLabel.ensurePropertiesExist(Collections.singletonMap(Bdio.DataProperty.fingerprint.name(),
+            // PropertyType.STRING_ARRAY));
 
             Map<String, PropertyType> parentEdgeProperties = new LinkedHashMap<>();
             mapper().implicitKey().ifPresent(key -> {
