@@ -15,6 +15,8 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.blackducksoftware.common.base.ExtraStrings.afterLast;
+
 import java.io.IOException;
 import java.util.Objects;
 import java.util.UUID;
@@ -59,7 +61,7 @@ public abstract class BaseTest {
     }
 
     /**
-     * Helper to simplify graph configuration.
+     * Helper to simplify graph configuration and make test parameter names more readable.
      */
     private static class GraphConfiguration extends CompositeConfiguration {
         private GraphConfiguration(Class<? extends Graph> graphType) {
@@ -68,8 +70,7 @@ public abstract class BaseTest {
 
         @Override
         public String toString() {
-            String graph = getString(Graph.GRAPH);
-            return graph.substring(graph.lastIndexOf('.') + 1);
+            return afterLast(getString(Graph.GRAPH), '.');
         }
     }
 
@@ -106,14 +107,12 @@ public abstract class BaseTest {
     }
 
     /**
-     * Common configuration.
+     * A common "on-graph-mapper" configuration for storing graph metadata and JSON-LD identifiers.
      *
      * @see TT
      */
     public Consumer<GraphMapper.Builder> storeMetadataAndIds() {
-        return builder -> {
-            builder.metadataLabel(TT.Metadata).identifierKey(TT.id);
-        };
+        return b -> b.metadataLabel(TT.Metadata).identifierKey(TT.id);
     }
 
     /**
@@ -126,6 +125,15 @@ public abstract class BaseTest {
                 .writePartition(id)
                 .readPartitions(id)
                 .create();
+    }
+
+    /**
+     * Helper method to commit the current graph transaction only if the graph supports them.
+     */
+    public final void commit() {
+        if (graph.features().graph().supportsTransactions()) {
+            graph.tx().commit();
+        }
     }
 
     @Before
@@ -152,12 +160,6 @@ public abstract class BaseTest {
         // Close out the graph
         graph.close();
         graph = null;
-    }
-
-    public final void commit() {
-        if (graph.features().graph().supportsTransactions()) {
-            graph.tx().commit();
-        }
     }
 
 }
