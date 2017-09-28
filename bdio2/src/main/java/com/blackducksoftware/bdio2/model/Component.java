@@ -27,6 +27,11 @@ public final class Component extends BdioObject {
         super(id, Bdio.Class.Component);
     }
 
+    public Component dependency(Dependency dependency) {
+        putObject(Bdio.ObjectProperty.dependency, dependency);
+        return this;
+    }
+
     public Component name(@Nullable String name) {
         putData(Bdio.DataProperty.name, name);
         return this;
@@ -42,8 +47,8 @@ public final class Component extends BdioObject {
         return this;
     }
 
-    public Component identifier(@Nullable String locator) {
-        putData(Bdio.DataProperty.identifier, locator);
+    public Component license(@Nullable String license) {
+        putData(Bdio.DataProperty.license, license);
         return this;
     }
 
@@ -52,7 +57,12 @@ public final class Component extends BdioObject {
         return this;
     }
 
-    public Component repository(@Nullable String context) {
+    public Component identifier(@Nullable String identifier) {
+        putData(Bdio.DataProperty.identifier, identifier);
+        return this;
+    }
+
+    public Component context(@Nullable String context) {
         putData(Bdio.DataProperty.context, context);
         return this;
     }
@@ -64,11 +74,6 @@ public final class Component extends BdioObject {
 
     public Component homepage(@Nullable String homepage) {
         putData(Bdio.DataProperty.homepage, homepage);
-        return this;
-    }
-
-    public Component dependency(Dependency dependency) {
-        putObject(Bdio.ObjectProperty.dependency, dependency);
         return this;
     }
 

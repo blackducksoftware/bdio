@@ -23,6 +23,16 @@ public final class File extends BdioObject {
         super(id, Bdio.Class.File);
     }
 
+    public File parent(File parent) {
+        putObject(Bdio.ObjectProperty.parent, parent);
+        return this;
+    }
+
+    public File note(Note note) {
+        putObject(Bdio.ObjectProperty.note, note);
+        return this;
+    }
+
     public File byteCount(@Nullable Long size) {
         putData(Bdio.DataProperty.byteCount, size);
         return this;
@@ -35,6 +45,11 @@ public final class File extends BdioObject {
 
     public File contentType(@Nullable String contentType) {
         putData(Bdio.DataProperty.contentType, contentType);
+        return this;
+    }
+
+    public File encoding(@Nullable String encoding) {
+        putData(Bdio.DataProperty.encoding, encoding);
         return this;
     }
 

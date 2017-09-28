@@ -193,7 +193,7 @@ class LegacyScanContainerEmitter extends SpliteratorEmitter {
             return new Project(toFileUri(hostName, baseDir, "project"))
                     .name(project)
                     .version(release)
-                    .base(toFileUri(hostName, baseDir, "scanNode-0"));
+                    .base(new File(toFileUri(hostName, baseDir, "scanNode-0")));
         }
 
         private File file(LegacyScanNode scanNode) {

@@ -431,7 +431,7 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
             Project result = new Project(currentId());
             currentValue("name").ifPresent(result::name);
             currentValue("revision").ifPresent(result::version);
-            convertExternalIdentifier(result::namespace, result::identifier, result::repository);
+            convertExternalIdentifier(result::namespace, result::identifier, result::context);
             convertRelationships(result::dependency);
             // TODO How can we get the reference to the base directory?
             project.accept(result);
@@ -443,7 +443,7 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
             currentValue("revision").ifPresent(result::version);
             currentValue("homepage").ifPresent(result::homepage);
             // TODO currentValue("license").ifPresent(result::license);
-            convertExternalIdentifier(result::namespace, result::identifier, result::repository);
+            convertExternalIdentifier(result::namespace, result::identifier, result::context);
             convertRelationships(result::dependency);
             component.accept(result);
         }
@@ -451,7 +451,7 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
         private void convertLicense(Consumer<? super License> license) {
             License result = new License(currentId());
             currentValue("spdx:name").ifPresent(result::name);
-            convertExternalIdentifier(result::namespace, result::identifier, result::repository);
+            convertExternalIdentifier(result::namespace, result::identifier, result::context);
             license.accept(result);
         }
 

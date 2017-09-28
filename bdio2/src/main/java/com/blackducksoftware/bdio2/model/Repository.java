@@ -20,24 +20,14 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 
-public final class Dependency extends BdioObject {
+public final class Repository extends BdioObject {
 
-    public Dependency() {
-        super(Bdio.Class.Dependency);
+    public Repository(String id) {
+        super(id, Bdio.Class.Repository);
     }
 
-    public Dependency dependsOn(@Nullable Object component) {
-        putObject(Bdio.ObjectProperty.dependsOn, component);
-        return this;
-    }
-
-    public Dependency declaredBy(@Nullable File file) {
-        putObject(Bdio.ObjectProperty.declaredBy, file);
-        return this;
-    }
-
-    public Dependency scope(@Nullable String scope) {
-        putData(Bdio.DataProperty.scope, scope);
+    public Repository name(@Nullable String name) {
+        putData(Bdio.DataProperty.name, name);
         return this;
     }
 

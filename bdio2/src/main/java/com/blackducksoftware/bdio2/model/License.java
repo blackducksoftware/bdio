@@ -32,23 +32,28 @@ public final class License extends BdioObject {
         return this;
     }
 
-    public License identifier(@Nullable String locator) {
-        putData(Bdio.DataProperty.identifier, locator);
-        return this;
-    }
-
     public License namespace(@Nullable String namespace) {
         putData(Bdio.DataProperty.namespace, namespace);
         return this;
     }
 
-    public License repository(@Nullable String context) {
+    public License identifier(@Nullable String locator) {
+        putData(Bdio.DataProperty.identifier, locator);
+        return this;
+    }
+
+    public License context(@Nullable String context) {
         putData(Bdio.DataProperty.context, context);
         return this;
     }
 
     public License resolver(@Nullable ProductList resolver) {
         putData(Bdio.DataProperty.resolver, resolver);
+        return this;
+    }
+
+    public License homepage(@Nullable String homepage) {
+        putData(Bdio.DataProperty.homepage, homepage);
         return this;
     }
 

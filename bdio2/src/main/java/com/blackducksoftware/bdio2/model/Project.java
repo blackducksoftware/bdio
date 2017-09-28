@@ -23,18 +23,23 @@ public final class Project extends BdioObject {
         super(id, Bdio.Class.Project);
     }
 
-    public Project subproject(@Nullable Object subproject) {
+    public Project subproject(@Nullable Project subproject) {
         putObject(Bdio.ObjectProperty.subproject, subproject);
         return this;
     }
 
-    public Project previousVersion(@Nullable Object previousVersion) {
+    public Project previousVersion(@Nullable Project previousVersion) {
         putObject(Bdio.ObjectProperty.previousVersion, previousVersion);
         return this;
     }
 
-    public Project base(@Nullable Object base) {
+    public Project base(@Nullable File base) {
         putObject(Bdio.ObjectProperty.base, base);
+        return this;
+    }
+
+    public Project dependency(Dependency dependency) {
+        putObject(Bdio.ObjectProperty.dependency, dependency);
         return this;
     }
 
@@ -48,8 +53,8 @@ public final class Project extends BdioObject {
         return this;
     }
 
-    public Project identifier(@Nullable String locator) {
-        putData(Bdio.DataProperty.identifier, locator);
+    public Project license(@Nullable String license) {
+        putData(Bdio.DataProperty.license, license);
         return this;
     }
 
@@ -58,7 +63,12 @@ public final class Project extends BdioObject {
         return this;
     }
 
-    public Project repository(@Nullable String context) {
+    public Project identifier(@Nullable String locator) {
+        putData(Bdio.DataProperty.identifier, locator);
+        return this;
+    }
+
+    public Project context(@Nullable String context) {
         putData(Bdio.DataProperty.context, context);
         return this;
     }
@@ -70,11 +80,6 @@ public final class Project extends BdioObject {
 
     public Project homepage(@Nullable String homepage) {
         putData(Bdio.DataProperty.homepage, homepage);
-        return this;
-    }
-
-    public Project dependency(Dependency dependency) {
-        putObject(Bdio.ObjectProperty.dependency, dependency);
         return this;
     }
 
