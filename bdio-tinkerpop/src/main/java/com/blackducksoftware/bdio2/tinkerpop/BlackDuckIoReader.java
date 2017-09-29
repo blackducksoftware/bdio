@@ -51,7 +51,7 @@ public final class BlackDuckIoReader implements GraphReader {
 
     @Override
     public void readGraph(InputStream inputStream, Graph graph) throws IOException {
-        ReadGraphContext context = contextFactory.read(graph);
+        ReadGraphContext context = contextFactory.forBdioReadingInto(graph);
         RxJavaBdioDocument document = context.mapper().newBdioDocument(RxJavaBdioDocument.class);
 
         // Create a metadata subscription

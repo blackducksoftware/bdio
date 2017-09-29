@@ -33,6 +33,17 @@ import org.umlg.sqlg.structure.SqlgGraph;
  */
 class GraphContextFactory {
 
+    /**
+     * The number of mutations that can occur before we commit a transaction.
+     */
+    private static final int DEFAULT_BATCH_SIZE = 10_000;
+
+    /**
+     * The number of expected BDIO nodes per named graph. This is a rough estimate on the upper bound used for improving
+     * the performance of "upsert" operations (by avoiding a round trip to determine node identifier existence).
+     */
+    private static final int EXPECTED_NODE_COUNT = 10_000_000;
+
     private final GraphMapper mapper;
 
     private final int batchSize;
@@ -45,9 +56,9 @@ class GraphContextFactory {
     /**
      * Returns a new context for reading BDIO into a graph.
      */
-    public ReadGraphContext read(Graph graph) {
+    public ReadGraphContext forBdioReadingInto(Graph graph) {
         if (graph instanceof SqlgGraph) {
-            return new SqlgReadGraphContext((SqlgGraph) graph, mapper, batchSize);
+            return new SqlgReadGraphContext((SqlgGraph) graph, mapper, batchSize, EXPECTED_NODE_COUNT);
         } else {
             return new ReadGraphContext(graph, mapper, batchSize);
         }
@@ -56,7 +67,7 @@ class GraphContextFactory {
     /**
      * Returns a new context for writing BDIO out from a graph.
      */
-    public WriteGraphContext write(Graph graph) {
+    public WriteGraphContext forBdioWritingFrom(Graph graph) {
         return new WriteGraphContext(graph, mapper);
     }
 
@@ -73,7 +84,7 @@ class GraphContextFactory {
 
         protected AbstractContextBuilder(Function<Builder, T> factory) {
             this.factory = Objects.requireNonNull(factory);
-            batchSize = 10_000;
+            batchSize = DEFAULT_BATCH_SIZE;
         }
 
         @SuppressWarnings("unchecked")

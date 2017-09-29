@@ -43,11 +43,6 @@ import com.google.common.hash.Funnels;
 class SqlgReadGraphContext extends ReadGraphContext {
 
     /**
-     * The number of expected BDIO nodes.
-     */
-    private static final int EXPECTED_INSERTIONS = 10_000_000;
-
-    /**
      * Typed reference to the Sqlg graph.
      */
     private final SqlgGraph sqlgGraph;
@@ -62,15 +57,15 @@ class SqlgReadGraphContext extends ReadGraphContext {
      */
     private final BloomFilter<String> uniqueIdentifiers;
 
-    protected SqlgReadGraphContext(SqlgGraph sqlgGraph, GraphMapper mapper, int batchSize) {
+    protected SqlgReadGraphContext(SqlgGraph sqlgGraph, GraphMapper mapper, int batchSize, int expectedNodeCount) {
         super(sqlgGraph, mapper, batchSize);
         this.sqlgGraph = Objects.requireNonNull(sqlgGraph);
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
-        uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), EXPECTED_INSERTIONS);
+        uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), expectedNodeCount);
 
+        // Pre-populate vertex tables
+        sqlgGraph.tx().open();
         try {
-            // Pre-populate vertex tables
-            sqlgGraph.tx().open();
             mapper().metadataLabel().ifPresent(this::defineVertexLabel);
             mapper().forEachTypeLabel(this::defineVertexLabel);
             mapper().forEachEmbeddedLabel(this::defineVertexLabel);
@@ -114,7 +109,7 @@ class SqlgReadGraphContext extends ReadGraphContext {
             rs.next();
             return rs.getLong(1);
         } catch (SQLException e) {
-            // TODO Anything better we can wrap with?
+            // Wrapping SQLException with a RuntimeException is consistent with how Sqlg behaves
             throw new RuntimeException(e);
         }
     }

@@ -52,7 +52,7 @@ public class BlackDuckIoWriter implements GraphWriter {
 
     @Override
     public void writeGraph(OutputStream outputStream, Graph graph) throws IOException {
-        WriteGraphContext context = contextFactory.write(graph);
+        WriteGraphContext context = contextFactory.forBdioWritingFrom(graph);
         RxJavaBdioDocument document = context.mapper().newBdioDocument(RxJavaBdioDocument.class);
 
         // Create the writer with the parsed metadata

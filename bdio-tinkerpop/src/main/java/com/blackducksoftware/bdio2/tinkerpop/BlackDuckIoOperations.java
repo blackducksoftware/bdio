@@ -58,7 +58,7 @@ public final class BlackDuckIoOperations {
      * </ul>
      */
     public void addImplicitEdges(Graph graph) {
-        ReadGraphContext context = contextFactory.read(graph);
+        ReadGraphContext context = contextFactory.forBdioReadingInto(graph);
         if (context.mapper().implicitKey().isPresent()) {
             addMissingFileParents(context);
 
