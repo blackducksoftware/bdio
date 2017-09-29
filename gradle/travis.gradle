@@ -1,6 +1,6 @@
 initscript {
 	repositories { jcenter() }
-	dependencies { classpath 'org.jfrog.buildinfo:build-info-extractor-gradle:4.4.12' }
+	dependencies { classpath 'org.jfrog.buildinfo:build-info-extractor-gradle:4.5.2' }
 	dependencies { classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3' }
 	dependencies { classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:2.8.1' }
 }
@@ -57,12 +57,12 @@ if (System.getenv('TRAVIS_REPO_SLUG') == 'blackducksoftware/bdio'
 	rootProject {
 		if (version.endsWith('-SNAPSHOT')) {
 			// Snapshot version goes to oss.jfrog.org
-			apply plugin: org.jfrog.gradle.plugin.artifactory.ArtifactoryPlugin
+			apply plugin: 'org.jfrog.artifactory'
 			
 			artifactoryPublish.skip = true
 			
 			subprojects {
-				apply plugin: org.jfrog.gradle.plugin.artifactory.ArtifactoryPlugin
+				apply plugin: 'org.jfrog.artifactory'
 		
 				artifactory {
 					publish {
@@ -87,7 +87,7 @@ if (System.getenv('TRAVIS_REPO_SLUG') == 'blackducksoftware/bdio'
 		} else {
 			// Release version goes to bintray.com
 			subprojects {
-				apply plugin: com.jfrog.bintray.gradle.BintrayPlugin
+				apply plugin: 'com.jfrog.bintray'
 		
 				bintray {
 					user = System.getenv('BINTRAY_USER')
