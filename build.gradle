@@ -26,8 +26,8 @@ allprojects {
 
 subprojects {
 	apply plugin: 'java'
-	apply plugin: 'nebula.source-jar'
 	apply plugin: 'nebula.maven-publish'
+	apply plugin: 'nebula.source-jar'
 	apply plugin: 'net.ltgt.errorprone'
 
 	sourceCompatibility = 1.8
@@ -36,7 +36,7 @@ subprojects {
 		options.compilerArgs << '-Xlint:all'
 	}
 	
-	// Force Jackson back to 2.7.9 for compatibility reasons
+	// Force Jackson back to 2.7.8 for compatibility reasons
 	configurations.all {
 		resolutionStrategy {
 			force 'com.fasterxml.jackson.core:jackson-annotations:2.7.0'
