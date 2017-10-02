@@ -98,6 +98,11 @@ public class GraphMapper {
     private final Optional<String> metadataLabel;
 
     /**
+     * The edge label used to connect metadata to a root vertex.
+     */
+    private final Optional<String> rootLabel;
+
+    /**
      * The property key used to persist JSON-LD node identifiers.
      */
     private final Optional<String> identifierKey;
@@ -113,11 +118,6 @@ public class GraphMapper {
     private final Optional<String> implicitKey;
 
     /**
-     * The property key and edge label used to identify the root project.
-     */
-    private final Optional<String> rootProjectKey;
-
-    /**
      * The partitioning strategy used isolate JSON-LD sub-graphs.
      */
     private final Optional<PartitionStrategy> partitionStrategy;
@@ -130,10 +130,10 @@ public class GraphMapper {
         dataProperties = ImmutableMap.copyOf(builder.dataProperties);
         objectProperties = ImmutableMap.copyOf(builder.objectProperties);
         metadataLabel = Objects.requireNonNull(builder.metadataLabel);
+        rootLabel = Objects.requireNonNull(builder.rootLabel);
         identifierKey = Objects.requireNonNull(builder.identifierKey);
         unknownKey = Objects.requireNonNull(builder.unknownKey);
         implicitKey = Objects.requireNonNull(builder.implicitKey);
-        rootProjectKey = Objects.requireNonNull(builder.rootProjectKey);
         partitionStrategy = Objects.requireNonNull(builder.partitionStrategy);
 
         // Update the application context
@@ -193,7 +193,6 @@ public class GraphMapper {
         Predicate<String> isKey = Predicate.isEqual(key);
         return identifierKey().filter(isKey).isPresent()
                 || implicitKey().filter(isKey).isPresent()
-                || rootProjectKey().filter(isKey).isPresent()
                 || partitionStrategy().map(PartitionStrategy::getPartitionKey).filter(isKey).isPresent();
     }
 
@@ -208,6 +207,10 @@ public class GraphMapper {
         return metadataLabel;
     }
 
+    public Optional<String> rootLabel() {
+        return rootLabel;
+    }
+
     public Optional<String> identifierKey() {
         return identifierKey;
     }
@@ -218,10 +221,6 @@ public class GraphMapper {
 
     public Optional<String> implicitKey() {
         return implicitKey;
-    }
-
-    public Optional<String> rootProjectKey() {
-        return rootProjectKey;
     }
 
     public Optional<PartitionStrategy> partitionStrategy() {
@@ -321,13 +320,13 @@ public class GraphMapper {
 
         private Optional<String> metadataLabel = Optional.empty();
 
+        private Optional<String> rootLabel = Optional.empty();
+
         private Optional<String> identifierKey = Optional.empty();
 
         private Optional<String> unknownKey = Optional.empty();
 
         private Optional<String> implicitKey = Optional.empty();
-
-        private Optional<String> rootProjectKey = Optional.empty();
 
         private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
 
@@ -376,13 +375,13 @@ public class GraphMapper {
         }
 
         public Builder addClass(String label, String iri) {
-            checkUserSuppliedLabel(label, "class label '%s' is reserved");
+            checkUserSuppliedVertexLabel(label, "class label '%s' is reserved");
             classes.put(Objects.requireNonNull(label), Objects.requireNonNull(iri));
             return this;
         }
 
         public Builder addEmbeddedClass(String label, String iri) {
-            checkUserSuppliedLabel(label, "embedded class label '%s' is reserved");
+            checkUserSuppliedVertexLabel(label, "embedded class label '%s' is reserved");
             embeddedClasses.put(label, iri);
 
             // See note in the constructor about the ValueObjectMapper
@@ -404,7 +403,12 @@ public class GraphMapper {
         }
 
         public Builder metadataLabel(@Nullable String metadataLabel) {
-            this.metadataLabel = checkUserSuppliedLabel(metadataLabel, "metadataLabel '%s' is reserved");
+            this.metadataLabel = checkUserSuppliedVertexLabel(metadataLabel, "metadataLabel '%s' is reserved");
+            return this;
+        }
+
+        public Builder rootLabel(@Nullable String rootLabel) {
+            this.rootLabel = checkUserSuppliedEdgeLabel(rootLabel, "rootProjectKey '%s' is reserved");
             return this;
         }
 
@@ -420,11 +424,6 @@ public class GraphMapper {
 
         public Builder implicitKey(@Nullable String implicitKey) {
             this.implicitKey = checkUserSuppliedKey(implicitKey, "implicitKey '%s' is reserved");
-            return this;
-        }
-
-        public Builder rootProjectKey(@Nullable String rootProjectKey) {
-            this.rootProjectKey = checkUserSuppliedKey(rootProjectKey, "rootProjectKey '%s' is reserved");
             return this;
         }
 
@@ -453,23 +452,23 @@ public class GraphMapper {
                 partitionStrategy(PartitionStrategy.create(config.subset("partitionStrategy")));
             }
             return metadataLabel(config.getString("metadataLabel", null))
+                    .rootLabel(config.getString("rootLabel", null))
                     .identifierKey(config.getString("identifierKey", null))
                     .unknownKey(config.getString("unknownKey", null))
-                    .implicitKey(config.getString("implicitKey", null))
-                    .rootProjectKey(config.getString("rootProjectKey", null));
+                    .implicitKey(config.getString("implicitKey", null));
         }
 
         public GraphMapper create() {
-            // NOTE: This is not case-insensitive like the `checkUserSupplied...` methods
-            Predicate<String> isLabelInUse = classes::containsKey;
-            Predicate<String> isKeyInUse = key -> dataProperties.containsKey(key) || objectProperties.containsKey(key);
+            // We can't make edges from metadata if we aren't recording metadata
+            checkState(metadataLabel.isPresent() || !rootLabel.isPresent(), "rootLabel cannot be specified without metadataLabel");
 
-            checkState(!metadataLabel.filter(isLabelInUse).isPresent(), "metadataLabel confict");
-            checkState(!identifierKey.filter(isKeyInUse).isPresent(), "identifierKey conflict");
-            checkState(!unknownKey.filter(isKeyInUse).isPresent(), "unknownKey conflict");
-            checkState(!implicitKey.filter(isKeyInUse).isPresent(), "implicitKey conflict");
-            checkState(!rootProjectKey.filter(isKeyInUse).isPresent(), "rootProjectKey conflict");
-            checkState(!partitionStrategy.map(PartitionStrategy::getPartitionKey).filter(isKeyInUse).isPresent(), "partitionKey conflict");
+            // NOTE: This is not case-insensitive like the `checkUserSupplied...` methods
+            checkState(!metadataLabel.filter(classes::containsKey).isPresent(), "metadataLabel confict");
+            checkState(!rootLabel.filter(objectProperties::containsKey).isPresent(), "rootLabel conflict");
+            checkState(!identifierKey.filter(dataProperties::containsKey).isPresent(), "identifierKey conflict");
+            checkState(!unknownKey.filter(dataProperties::containsKey).isPresent(), "unknownKey conflict");
+            checkState(!implicitKey.filter(dataProperties::containsKey).isPresent(), "implicitKey conflict");
+            checkState(!partitionStrategy.map(PartitionStrategy::getPartitionKey).filter(dataProperties::containsKey).isPresent(), "partitionKey conflict");
 
             return new GraphMapper(this);
         }
@@ -477,14 +476,34 @@ public class GraphMapper {
     }
 
     /**
-     * Checks to ensure the user supplied label does not conflict with any known reserved labels.
+     * Checks to ensure the user supplied label does not conflict with any known reserved vertex labels.
      */
-    private static Optional<String> checkUserSuppliedLabel(@Nullable String label, String message) {
+    private static Optional<String> checkUserSuppliedVertexLabel(@Nullable String label, String message) {
         if (label != null) {
             // Check all of the BDIO Class names
-            for (Bdio.Class c : Bdio.Class.values()) {
-                checkArgument(!label.equalsIgnoreCase(c.name()), message, label);
+            for (Bdio.Class bdioClass : Bdio.Class.values()) {
+                checkArgument(!label.equalsIgnoreCase(bdioClass.name()), message, label);
             }
+
+            // TODO Warn if label starts with SchemaManager.VERTEX_PREFIX
+
+            return Optional.of(label);
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Checks to ensure the user supplied label does not conflict with any known reserved edge labels.
+     */
+    private static Optional<String> checkUserSuppliedEdgeLabel(@Nullable String label, String message) {
+        if (label != null) {
+            // Check all of the BDIO Object Property names
+            for (Bdio.ObjectProperty bdioOjectProperty : Bdio.ObjectProperty.values()) {
+                checkArgument(!label.equalsIgnoreCase(bdioOjectProperty.name()), message, label);
+            }
+
+            // TODO Warn if label starts with SchemaManager.EDGE_PREFIX
 
             return Optional.of(label);
         } else {
@@ -503,15 +522,12 @@ public class GraphMapper {
             // We use keys with ":" in them to identify "unknown" keys coming through JSON-LD framing
             checkArgument(key.indexOf(':') < 0, message, key);
 
-            // Check all of the BDIO Object Property names
-            for (Bdio.ObjectProperty objectProperty : Bdio.ObjectProperty.values()) {
-                checkArgument(!key.equalsIgnoreCase(objectProperty.name()), message, key);
-            }
-
             // Check all of the BDIO Data Property names
             for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
                 checkArgument(!key.equalsIgnoreCase(dataProperty.name()), message, key);
             }
+
+            // TODO Does `return checkUserSuppliedEdgeLabel(key, message)` make sense?
 
             return Optional.of(key);
         } else {

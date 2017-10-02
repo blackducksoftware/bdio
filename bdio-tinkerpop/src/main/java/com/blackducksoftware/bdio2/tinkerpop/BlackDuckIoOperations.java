@@ -60,11 +60,11 @@ public final class BlackDuckIoOperations {
     public void addImplicitEdges(Graph graph) {
         ReadGraphContext context = contextFactory.forBdioReadingInto(graph);
         if (context.mapper().implicitKey().isPresent()) {
-            addMissingFileParents(context);
-
-            if (context.mapper().rootProjectKey().isPresent()) {
-                addMissingRootProject(context);
+            if (context.mapper().rootLabel().isPresent()) {
+                addMissingRoot(context);
             }
+
+            addMissingFileParents(context);
 
             addMissingProjectDependencies(context);
 
@@ -159,35 +159,55 @@ public final class BlackDuckIoOperations {
     /**
      * This method adds the missing edge between metadata and the root project.
      */
-    private void addMissingRootProject(ReadGraphContext context) {
+    private void addMissingRoot(ReadGraphContext context) {
         GraphTraversalSource g = context.traversal();
 
-        // TODO How does a repository impact the root project calculation?
-        // Does the repository itself become the root? And we have "contains" instead of sub-project?
+        // Drop any existing root edges
+        g.E().hasLabel(context.mapper().rootLabel().get()).drop().iterate();
 
-        // First we need to find the root project
-        Vertex rootProject = g.V()
+        // Try to find the root project
+        Optional<Vertex> root = g.V()
                 .hasLabel(Bdio.Class.Project.name())
-                // TODO What about "previous version" relationships? Need to go to the newest...
                 .not(inE(Bdio.ObjectProperty.subproject.name()))
-                .limit(1L)
-                .as("rootProject")
+                .not(inE(Bdio.ObjectProperty.previousVersion.name()))
+
                 // WARNING: This is an arbitrary selection!
                 // TODO Can we have a side effect that logs a warning?
-                // TODO Should we just bail and not have a root project?
+                // TODO Should we just bail?
+                .limit(1L)
+                .tryNext();
 
-                // Always mark the root project with a property
-                .property(context.mapper().rootProjectKey().get(), Boolean.TRUE)
-                .next();
+        // Try to find the root Repository
+        if (!root.isPresent()) {
+            root = g.V()
+                    .hasLabel(Bdio.Class.Repository.name())
 
-        // Create an edge for the root project as well
-        context.mapper().metadataLabel().ifPresent(label -> {
-            g.V(rootProject).as("rootProject")
-                    .V().hasLabel(label)
-                    .addE(context.mapper().rootProjectKey().get()).to("rootProject")
-                    .property(context.mapper().implicitKey().get(), Boolean.TRUE)
-                    .iterate();
-        });
+                    // WARNING: This is an arbitrary selection!
+                    // TODO Can we have a side effect that logs a warning?
+                    // TODO Should we just bail?
+                    .limit(1L)
+                    .tryNext();
+        }
+
+        // Create the edge between metadata and the root (creating a root if one does not exist)
+        g.V(root.orElseGet(() -> createImplicitRootVertex(context))).as("root")
+                .V().hasLabel(context.mapper().metadataLabel().get())
+                .addE(context.mapper().rootLabel().get()).to("root")
+                .property(context.mapper().implicitKey().get(), Boolean.TRUE)
+                .iterate();
+
+        context.commitTx();
+    }
+
+    /**
+     * Creates a new root vertex to use in the case that one could not be found.
+     */
+    private Vertex createImplicitRootVertex(ReadGraphContext context) {
+        Vertex implicitRoot = context.graph().addVertex(Bdio.Class.Project.name());
+
+        implicitRoot.property(context.mapper().implicitKey().get(), Boolean.TRUE);
+
+        return implicitRoot;
     }
 
     /**

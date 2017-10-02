@@ -42,14 +42,14 @@ abstract class GraphContext {
     /**
      * Returns the graph for this context.
      */
-    protected final Graph graph() {
+    public final Graph graph() {
         return graph;
     }
 
     /**
      * Returns the mapper used in this context.
      */
-    protected final GraphMapper mapper() {
+    public final GraphMapper mapper() {
         return mapper;
     }
 
