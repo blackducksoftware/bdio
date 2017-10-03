@@ -145,9 +145,6 @@ class SqlgReadGraphContext extends ReadGraphContext {
             vertexLabel.getProperty(Bdio.DataProperty.path.name())
                     .ifPresent(property -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, Collections.singletonList(property)));
 
-            // vertexLabel.ensurePropertiesExist(Collections.singletonMap(Bdio.DataProperty.fingerprint.name(),
-            // PropertyType.STRING_ARRAY));
-
             Map<String, PropertyType> parentEdgeProperties = new LinkedHashMap<>();
             mapper().implicitKey().ifPresent(key -> {
                 vertexLabel.ensurePropertiesExist(Collections.singletonMap(key, PropertyType.BOOLEAN));

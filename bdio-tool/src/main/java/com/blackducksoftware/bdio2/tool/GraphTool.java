@@ -63,6 +63,8 @@ import com.google.common.io.ByteSource;
  */
 public class GraphTool extends Tool {
 
+    private static final String DEFAULT_IDENTIFIER_KEY = "_id";
+
     private static final String DEFAULT_IMPLICIT_KEY = "_implicit";
 
     private static final String DEFAULT_PARTITION_KEY = "inputSource";
@@ -218,6 +220,11 @@ public class GraphTool extends Tool {
                         if (inputs.size() > 1) {
                             // Make sure each file goes into it's own partition
                             builder.partitionStrategy(partition(input.getKey()));
+                        }
+
+                        // If the graph does not support user identifiers, ensure we store JSON-LD identifiers
+                        if (!graph.features().vertex().supportsUserSuppliedIds()) {
+                            builder.identifierKey(configuration.getString("bdio.identifierKey", DEFAULT_IDENTIFIER_KEY));
                         }
 
                         // Always add an implicit key, otherwise we won't generate implicit edges
