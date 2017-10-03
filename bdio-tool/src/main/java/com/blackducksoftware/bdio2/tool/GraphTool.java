@@ -48,7 +48,6 @@ import org.umlg.sqlg.util.SqlgUtil;
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIo;
-import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoOperations;
 import com.blackducksoftware.bdio2.tinkerpop.GraphMapper;
 import com.google.common.base.Splitter;
 import com.google.common.base.Splitter.MapSplitter;
@@ -215,10 +214,14 @@ public class GraphTool extends Tool {
                 try (InputStream inputStream = input.getValue().openStream()) {
                     // Create a configuration to handle the input file
                     Consumer<GraphMapper.Builder> onGraphMapper = builder -> {
-                        Bdio.ContentType contentType = Bdio.ContentType.forFileName(input.getKey().getPath());
-                        builder.documentBuilder(new BdioDocument.Builder().forContentType(contentType, null));
+                        // Set the JSON-LD context using file extensions
+                        if (input.getKey() != null && input.getKey().getPath() != null) {
+                            Bdio.ContentType contentType = Bdio.ContentType.forFileName(input.getKey().getPath());
+                            builder.documentBuilder(new BdioDocument.Builder().forContentType(contentType, null));
+                        }
+
+                        // Make sure each file goes into it's own partition
                         if (inputs.size() > 1) {
-                            // Make sure each file goes into it's own partition
                             builder.partitionStrategy(partition(input.getKey()));
                         }
 
@@ -227,8 +230,10 @@ public class GraphTool extends Tool {
                             builder.identifierKey(configuration.getString("bdio.identifierKey", DEFAULT_IDENTIFIER_KEY));
                         }
 
-                        // Always add an implicit key, otherwise we won't generate implicit edges
-                        builder.implicitKey(configuration.getString("bdio.implicitKey", DEFAULT_IMPLICIT_KEY));
+                        // Add an implicit key, otherwise we won't generate implicit edges
+                        if (!skipInitialization) {
+                            builder.implicitKey(configuration.getString("bdio.implicitKey", DEFAULT_IMPLICIT_KEY));
+                        }
                     };
 
                     // Import the graph
@@ -239,7 +244,7 @@ public class GraphTool extends Tool {
                     // Run the extra operations
                     if (!skipInitialization) {
                         Stopwatch initGraphTimer = Stopwatch.createStarted();
-                        BlackDuckIoOperations.build().onGraphMapper(onGraphMapper).create().addImplicitEdges(graph);
+                        graph.io(BlackDuckIo.build().onGraphMapper(onGraphMapper)).addImplicitEdges();
                         printDebugMessage("Time to initialize BDIO graph: %s%n", initGraphTimer.stop());
                     }
                 }

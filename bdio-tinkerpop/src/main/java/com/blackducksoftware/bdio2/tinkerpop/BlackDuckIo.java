@@ -67,6 +67,10 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
         return builder;
     }
 
+    public BlackDuckIoOperations.Builder operations() {
+        return BlackDuckIoOperations.build().mapper(mapper().create());
+    }
+
     @Override
     public void writeGraph(String file) throws IOException {
         try (OutputStream out = new FileOutputStream(file)) {
@@ -89,7 +93,9 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
         reader().create().readGraph(inputStream, graph);
     }
 
-    // TODO Do we want to expose BlackDuckIoOperations here also?
+    public void addImplicitEdges() {
+        operations().create().addImplicitEdges(graph);
+    }
 
     public static Builder build() {
         return new Builder();
