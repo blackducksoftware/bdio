@@ -137,14 +137,14 @@ public abstract class Tool implements Runnable {
     /**
      * Updates the verbosity level of this tool.
      */
-    public final void setVerbosity(Level verbosity) {
+    public void setVerbosity(Level verbosity) {
         this.verbosity = verbosity;
     }
 
     /**
      * Updates the pretty setting of this tool.
      */
-    public final void setPretty(boolean pretty) {
+    public void setPretty(boolean pretty) {
         this.pretty = pretty;
     }
 

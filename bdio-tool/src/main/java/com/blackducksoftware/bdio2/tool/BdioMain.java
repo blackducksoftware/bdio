@@ -35,6 +35,7 @@ public class BdioMain extends Tool {
         context("Print the BDIO JSON-LD context", ContextTool::new, true),
         entries("Dump the JSON-LD content of a BDIO file", EntriesTool::new, true),
         graph("Import BDIO to a TinkerPop graph", GraphTool::new, false),
+        tree("List contents of files in a tree-like format", TreeTool::new, false),
         ;
 
         private final String description;
