@@ -17,95 +17,29 @@ package com.blackducksoftware.bdio2.tool;
 
 import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
 
-import java.io.File;
-import java.net.URI;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Objects;
+import java.util.List;
 import java.util.Set;
-
-import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 
-import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.common.base.HID;
 import com.google.common.collect.Iterators;
-import com.google.common.io.ByteSource;
 
 /**
  * List contents of files in a tree-like format.
  *
  * @author jgustie
  */
-public class TreeTool extends Tool {
+public class TreeTool extends AbstractFileTool {
 
     public static void main(String[] args) {
         new TreeTool(null).parseArgs(args).run();
     }
-
-    /**
-     * A file in the tree.
-     */
-    private static class FileNode {
-
-        private final Vertex vertex;
-
-        private final int depth;
-
-        public FileNode(Vertex vertex, int depth) {
-            this.vertex = Objects.requireNonNull(vertex);
-            this.depth = depth;
-        }
-
-        public FileNode(Vertex vertex) {
-            this(vertex, 0);
-        }
-
-        public int depth() {
-            return depth;
-        }
-
-        public int parentDepth() {
-            return depth - 1;
-        }
-
-        public String name() {
-            return HID.from(vertex.<String> value(Bdio.DataProperty.path.name())).getName();
-        }
-
-        public String path() {
-            return HID.from(vertex.<String> value(Bdio.DataProperty.path.name())).getPath();
-        }
-
-        public long size() {
-            return vertex.<Number> property(Bdio.DataProperty.byteCount.name()).orElse(0).longValue();
-        }
-
-        public Iterator<FileNode> children(GraphTraversalSource g) {
-            return g.V(vertex)
-                    .in(Bdio.ObjectProperty.parent.name())
-                    .map(t -> new FileNode(t.get(), depth + 1));
-        }
-    }
-
-    /**
-     * (T)ree (T)ool (T)okens.
-     */
-    private enum TTT {
-        _Metadata(),
-        _root(),
-    }
-
-    /**
-     * The graph tool is used internally to handle loading BDIO into a graph.
-     */
-    private final GraphTool graphTool;
 
     /**
      * Turn off file/directory count at end of tree listing.
@@ -132,21 +66,13 @@ public class TreeTool extends Tool {
      */
     private boolean showSize;
 
+    /**
+     * Quote filenames with double quotes.
+     */
+    private boolean quoteFilenames;
+
     public TreeTool(String name) {
         super(name);
-        graphTool = new GraphTool(name);
-        graphTool.setGraph(TinkerGraph.class.getName());
-        graphTool.setProperty("bdio.metadataLabel", TTT._Metadata.name());
-        graphTool.setProperty("bdio.rootLabel", TTT._root.name());
-        graphTool.onGraphComplete(this::executeWithGraph);
-    }
-
-    public void addInput(@Nullable URI id, ByteSource input) {
-        graphTool.addInput(id, input);
-    }
-
-    public void addInput(File file) {
-        graphTool.addInput(file);
     }
 
     public void setNoReport(boolean noReport) {
@@ -169,10 +95,8 @@ public class TreeTool extends Tool {
         this.showSize = showSize;
     }
 
-    @Override
-    public void setVerbosity(Level verbosity) {
-        super.setVerbosity(verbosity);
-        graphTool.setVerbosity(verbosity);
+    public void setQuoteFilenames(boolean quoteFilenames) {
+        this.quoteFilenames = quoteFilenames;
     }
 
     @Override
@@ -193,41 +117,25 @@ public class TreeTool extends Tool {
             } else if (arg.equals("-s")) {
                 setShowSize(true);
                 args = removeFirst(arg, args);
+            } else if (arg.equals("-Q")) {
+                setQuoteFilenames(true);
+                args = removeFirst(arg, args);
             }
         }
-
-        boolean hasInput = false;
-        for (String name : arguments(args)) {
-            addInput(new File(name).toURI(), getInput(name));
-            hasInput = true;
-        }
-        if (!hasInput) {
-            addInput(null, getInput("-"));
-        }
-
         return super.parseArguments(args);
-    }
-
-    @Override
-    protected void execute() throws Exception {
-        graphTool.execute();
     }
 
     /**
      * This will be invoked once the graph is loaded by the graph tool.
      */
-    private void executeWithGraph(Graph graph) {
+    @Override
+    protected void executeWithGraph(Graph graph) {
         GraphTraversalSource g = graph.traversal();
         Deque<Iterator<FileNode>> fileNodes = new ArrayDeque<>();
         Set<Integer> childrenAt = new HashSet<>();
 
         // Find the base file in the graph
-        fileNodes.addFirst(g.V().hasLabel(TTT._Metadata.name())
-                .out(TTT._root.name())
-                .out(Bdio.ObjectProperty.base.name())
-                .tryNext()
-                .map(FileNode::new)
-                .map(Iterators::singletonIterator)
+        fileNodes.addFirst(baseFile(g).map(Iterators::singletonIterator)
                 .orElseThrow(illegalState("No base file found")));
 
         // Do our pre-order traversal, formatting each file node
@@ -257,6 +165,7 @@ public class TreeTool extends Tool {
             formatFileNode(fn, childrenAt, i.hasNext());
         }
 
+        // Print a summary report
         printReport(directoryCount, fileCount);
     }
 
@@ -265,7 +174,9 @@ public class TreeTool extends Tool {
      */
     private void formatFileNode(FileNode fileNode, Set<Integer> childrenAt, boolean hasNext) {
         StringBuilder rowFormat = new StringBuilder();
-        if (fileNode.depth() > 0 && !noIndent) {
+        List<Object> arguments = new ArrayList<>();
+
+        if (!noIndent && fileNode.depth() > 0) {
             for (int i = 0; i < fileNode.depth() - 1; ++i) {
                 if (childrenAt.contains(i)) {
                     rowFormat.append('|');
@@ -276,12 +187,30 @@ public class TreeTool extends Tool {
             }
             rowFormat.append(hasNext ? '|' : '`').append("-- ");
         }
+
         if (showSize) {
             rowFormat.append('[');
-            rowFormat.append(String.format("%11d", fileNode.size()));
+            // TODO UID/GID are "%-8s"
+            if (showSize) {
+                // TODO Human sizes are "%4s" (big K or --si is little k)
+                rowFormat.append("%11d");
+                arguments.add(fileNode.size());
+            }
             rowFormat.append("]  ");
         }
-        printOutput(rowFormat.append("%s%n").toString(), fullPath ? fileNode.path() : fileNode.name());
+
+        if (quoteFilenames) {
+            rowFormat.append("\"%s\"");
+        } else {
+            rowFormat.append("%s");
+        }
+        if (fullPath) {
+            arguments.add(fileNode.path());
+        } else {
+            arguments.add(fileNode.name());
+        }
+
+        printOutput(rowFormat.append("%n").toString(), arguments.toArray());
     }
 
     /**
