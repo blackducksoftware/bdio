@@ -79,6 +79,14 @@ public class TreeTool extends Tool {
             return HID.from(vertex.<String> value(Bdio.DataProperty.path.name())).getName();
         }
 
+        public String path() {
+            return HID.from(vertex.<String> value(Bdio.DataProperty.path.name())).getPath();
+        }
+
+        public long size() {
+            return vertex.<Number> property(Bdio.DataProperty.byteCount.name()).orElse(0).longValue();
+        }
+
         public Iterator<FileNode> children(GraphTraversalSource g) {
             return g.V(vertex)
                     .in(Bdio.ObjectProperty.parent.name())
@@ -99,6 +107,31 @@ public class TreeTool extends Tool {
      */
     private final GraphTool graphTool;
 
+    /**
+     * Turn off file/directory count at end of tree listing.
+     */
+    private boolean noReport;
+
+    /**
+     * Print the full path prefix for each file.
+     */
+    private boolean fullPath;
+
+    /**
+     * List directories only.
+     */
+    private boolean directoriesOnly;
+
+    /**
+     * Don't print indentation lines.
+     */
+    private boolean noIndent;
+
+    /**
+     * Print the size in bytes of each file.
+     */
+    private boolean showSize;
+
     public TreeTool(String name) {
         super(name);
         graphTool = new GraphTool(name);
@@ -116,6 +149,26 @@ public class TreeTool extends Tool {
         graphTool.addInput(file);
     }
 
+    public void setNoReport(boolean noReport) {
+        this.noReport = noReport;
+    }
+
+    public void setFullPath(boolean fullPath) {
+        this.fullPath = fullPath;
+    }
+
+    public void setDirectoriesOnly(boolean directoriesOnly) {
+        this.directoriesOnly = directoriesOnly;
+    }
+
+    public void setNoIndent(boolean noIndent) {
+        this.noIndent = noIndent;
+    }
+
+    public void setShowSize(boolean showSize) {
+        this.showSize = showSize;
+    }
+
     @Override
     public void setVerbosity(Level verbosity) {
         super.setVerbosity(verbosity);
@@ -124,6 +177,25 @@ public class TreeTool extends Tool {
 
     @Override
     protected Tool parseArguments(String[] args) throws Exception {
+        for (String arg : options(args)) {
+            if (arg.equals("--noreport")) {
+                setNoReport(true);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("-f")) {
+                setFullPath(true);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("-d")) {
+                setDirectoriesOnly(true);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("-i")) {
+                setNoIndent(true);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("-s")) {
+                setShowSize(true);
+                args = removeFirst(arg, args);
+            }
+        }
+
         boolean hasInput = false;
         for (String name : arguments(args)) {
             addInput(new File(name).toURI(), getInput(name));
@@ -177,12 +249,15 @@ public class TreeTool extends Tool {
                 directoryCount++;
             } else {
                 fileCount++;
+                if (directoriesOnly) {
+                    continue;
+                }
             }
 
             formatFileNode(fn, childrenAt, i.hasNext());
         }
 
-        printOutput("%n%d directories, %d files%n", directoryCount, fileCount);
+        printReport(directoryCount, fileCount);
     }
 
     /**
@@ -190,7 +265,7 @@ public class TreeTool extends Tool {
      */
     private void formatFileNode(FileNode fileNode, Set<Integer> childrenAt, boolean hasNext) {
         StringBuilder rowFormat = new StringBuilder();
-        if (fileNode.depth() > 0) {
+        if (fileNode.depth() > 0 && !noIndent) {
             for (int i = 0; i < fileNode.depth() - 1; ++i) {
                 if (childrenAt.contains(i)) {
                     rowFormat.append('|');
@@ -201,7 +276,25 @@ public class TreeTool extends Tool {
             }
             rowFormat.append(hasNext ? '|' : '`').append("-- ");
         }
-        printOutput(rowFormat.append("%s%n").toString(), fileNode.name());
+        if (showSize) {
+            rowFormat.append('[');
+            rowFormat.append(String.format("%11d", fileNode.size()));
+            rowFormat.append("]  ");
+        }
+        printOutput(rowFormat.append("%s%n").toString(), fullPath ? fileNode.path() : fileNode.name());
+    }
+
+    /**
+     * Display the directory and file counts.
+     */
+    private void printReport(int directoryCount, int fileCount) {
+        if (!noReport) {
+            printOutput("%n%d directories", directoryCount);
+            if (!directoriesOnly) {
+                printOutput(", %d files", fileCount);
+            }
+            printOutput("%n");
+        }
     }
 
 }
