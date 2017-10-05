@@ -33,6 +33,7 @@ import org.junit.Test;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.bdio2.model.Component;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.tinkerpop.test.NamedGraphBuilder;
 
@@ -101,6 +102,31 @@ public class BlackDuckIoOperationsTest extends BaseTest {
 
         assertThat(roots).hasSize(1);
         assertThat(roots.get(0).label()).isEqualTo(Bdio.Class.Project.name());
+    }
+
+    @Test
+    public void directDependencies() throws IOException {
+        InputStream bdio = new NamedGraphBuilder()
+                .add(new Component(BdioObject.randomId()).name("test1"))
+                .add(new Component(BdioObject.randomId()).name("test2"))
+                .build();
+
+        Consumer<GraphMapper.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
+        graph.io(BlackDuckIo.build().onGraphMapper(config)).readGraph(bdio);
+
+        BlackDuckIoOperations.build().onGraphMapper(config).create().addImplicitEdges(graph);
+
+        Dummy.dump(graph.traversal());
+
+        GraphTraversalSource g = graph.traversal();
+        List<String> directDependencyNames = g.V().hasLabel(TT.Metadata)
+                .out(TT.root)
+                .out(Bdio.ObjectProperty.dependency.name())
+                .out(Bdio.ObjectProperty.dependsOn.name())
+                .<String> values(Bdio.DataProperty.name.name())
+                .toList();
+
+        assertThat(directDependencyNames).containsExactly("test1", "test2");
     }
 
 }

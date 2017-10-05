@@ -62,11 +62,11 @@ public final class BlackDuckIoOperations {
         if (context.mapper().implicitKey().isPresent()) {
             if (context.mapper().rootLabel().isPresent()) {
                 addMissingRoot(context);
+
+                addMissingProjectDependencies(context);
             }
 
             addMissingFileParents(context);
-
-            addMissingProjectDependencies(context);
 
             // Use the normal commit, this ensures everything gets flushed and we don't re-enable batch mode
             context.commitTx();
@@ -214,10 +214,21 @@ public final class BlackDuckIoOperations {
      * This method adds the missing dependency edges between components and the top level project.
      */
     private void addMissingProjectDependencies(ReadGraphContext context) {
-        // TODO "dependsOn" isn't a real edge yet...
-        // g.V(rootProject).as("rootProject")
-        // .V().hasLabel(Bdio.Class.Component).not(inE("dependsOn"))
-        // .addE("dependsOn").from("rootProject");
+        GraphTraversalSource g = context.traversal();
+
+        g.E().hasLabel(context.mapper().rootLabel().get())
+                .inV().as("roots")
+                .V().hasLabel(Bdio.Class.Component.name())
+                .not(inE(Bdio.ObjectProperty.dependsOn.name()))
+                .as("directDependencies")
+                .addV(Bdio.Class.Dependency.name())
+                .property(context.mapper().implicitKey().get(), Boolean.TRUE)
+                .addE(Bdio.ObjectProperty.dependsOn.name()).to("directDependencies")
+                .property(context.mapper().implicitKey().get(), Boolean.TRUE)
+                .outV()
+                .addE(Bdio.ObjectProperty.dependency.name()).from("roots")
+                .property(context.mapper().implicitKey().get(), Boolean.TRUE)
+                .iterate();
     }
 
     public static Builder build() {
