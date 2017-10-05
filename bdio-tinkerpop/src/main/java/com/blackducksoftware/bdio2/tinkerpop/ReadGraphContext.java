@@ -135,7 +135,6 @@ class ReadGraphContext extends GraphContext {
      * using the persisted identifiers.
      */
     public final Observable<Edge> createEdges(Map<StarVertex, Vertex> persistedVertices) {
-        Graph.Features.EdgeFeatures edgeFeatures = graph().features().edge();
         return Observable.fromIterable(persistedVertices.keySet())
 
                 // Gets all the outbound edges from in-memory (StarVertex) vertices
@@ -145,9 +144,7 @@ class ReadGraphContext extends GraphContext {
                 .map(e -> {
                     Vertex cachedOutV = persistedVertices.get(e.outVertex());
                     Vertex cachedInV = persistedVertices.get(e.inVertex());
-                    Edge newEdge = edgeFeatures.willAllowId(e.id())
-                            ? cachedOutV.addEdge(e.label(), cachedInV, T.id, e.id())
-                            : cachedOutV.addEdge(e.label(), cachedInV);
+                    Edge newEdge = cachedOutV.addEdge(e.label(), cachedInV);
 
                     e.properties().forEachRemaining(p -> newEdge.property(p.key(), p.value()));
 
