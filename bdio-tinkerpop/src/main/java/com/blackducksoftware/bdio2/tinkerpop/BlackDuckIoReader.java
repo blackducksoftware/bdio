@@ -11,6 +11,8 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.google.common.base.Throwables.propagateIfPossible;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
@@ -40,6 +42,8 @@ import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
 import com.google.common.base.Functions;
 import com.google.common.collect.Maps;
+
+import io.reactivex.plugins.RxJavaPlugins;
 
 public final class BlackDuckIoReader implements GraphReader {
 
@@ -73,12 +77,15 @@ public final class BlackDuckIoReader implements GraphReader {
                 .doOnSubscribe(x -> context.startBatchTx())
                 .doOnNext(x -> context.batchCommitTx())
                 .doOnComplete(context::commitTx)
-                .subscribe();
+
+                // Ignore values, send errors directly to the default handler (nothing we can do with them)
+                .subscribe(ignored -> {}, RxJavaPlugins::onError);
 
         // Read the supplied input stream
         document.read(inputStream);
 
-        // TODO Error handling? Right now it just goes to the RxJavaPlugin
+        // If reading BDIO encountered a problem (e.g. an IOException), the error will be on the processor
+        propagateIfPossible(document.processor().getThrowable(), IOException.class);
     }
 
     @Override
