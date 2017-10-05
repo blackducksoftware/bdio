@@ -15,6 +15,8 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -22,6 +24,7 @@ import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -31,6 +34,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Spliterator;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -69,6 +73,58 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
     private static Pattern SPDX_CREATOR = Pattern.compile("(?:Person: (?<personName>.*))"
             + "|(?:Tool: (?<toolName>.*?)(?:-(?<toolVersion>.+))?)"
             + "|(?:Organization: (?<organizationName>.*))");
+
+    /**
+     * A class representing the connection between the project and it's base file.
+     */
+    private static class BaseFile {
+
+        private AtomicReference<String> projectId = new AtomicReference<>();
+
+        private AtomicReference<String> baseFileId = new AtomicReference<>();
+
+        /**
+         * Records the presence of a project from a BDIO stream. Note that there are no strict requirements on how many
+         * times this can be called (with the same or different identifiers).
+         */
+        public void accept(Project project) {
+            // Only take the first project identifier
+            projectId.compareAndSet(null, project.id());
+        }
+
+        /**
+         * Records each file from a BDIO stream. Note that we are really only interested in the "base file", in BDIO 1.x
+         * this means the file with the path "./" (which may not exist).
+         */
+        public void accept(File file) {
+            // Take the first file with a path of "./"
+            if (Objects.equals(file.get(Bdio.DataProperty.path.toString()), "./")) {
+                baseFileId.compareAndSet(null, file.id());
+            }
+        }
+
+        /**
+         * Returns the graph nodes needed to associate a project to a base file.
+         */
+        public List<Object> graph() {
+            String projectId = this.projectId.getAndSet(null);
+            if (projectId != null) {
+                // Construct a missing base file if necessary
+                Optional<String> baseFileId = Optional.ofNullable(this.baseFileId.getAndSet(null));
+                File baseFile = baseFileId.map(File::new).orElseGet(() -> new File("file:///").path("file:///"));
+
+                // Connect the project to the base file
+                List<Object> result = new ArrayList<>(2);
+                result.add(new Project(projectId).base(baseFile));
+                if (!baseFileId.isPresent()) {
+                    result.add(baseFile);
+                }
+                return result;
+            } else {
+                return Collections.emptyList();
+            }
+        }
+    }
 
     /**
      * A class representing the archive context of a path. This code is used in an attempt to reconstruct the nesting
@@ -111,6 +167,7 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
                 String path = fileName.substring(container.fileName.length());
                 return container.nestedPath + UrlEscapers.urlFragmentEscaper().escape(path);
             } else {
+                checkArgument(fileName.startsWith("./"), "invalid BDIO 1.x fileName (must start with './'): %s", fileName);
                 return "file:///" + Joiner.on('/')
                         .join(Iterables.transform(Splitter.on('/').omitEmptyStrings().split(fileName.substring(2)),
                                 UrlEscapers.urlPathSegmentEscaper().asFunction()));
@@ -230,12 +287,18 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
         private BdioMetadata metadata;
 
         /**
+         * The base file context used to associate the project with the file hierarchy.
+         */
+        private BaseFile baseFile;
+
+        /**
          * The archive nesting context use to process file paths.
          */
         private Archive archive;
 
         private Bdio1Spliterator(JsonParser jp) {
             this.jp = Bdio1JsonParser.create(jp);
+            this.baseFile = new BaseFile();
         }
 
         public static Bdio1Spliterator create(InputStream in) {
@@ -264,12 +327,12 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
                         return false;
                     }
                 } else {
-                    Object graph = parseGraph();
-                    if (graph != null) {
+                    List<Object> graph = parseGraph();
+                    if (graph.isEmpty()) {
+                        return false;
+                    } else {
                         action.accept(metadata.asNamedGraph(graph, JsonLdConsts.ID));
                         return true;
-                    } else {
-                        return false;
                     }
                 }
             } catch (IOException e) {
@@ -301,7 +364,7 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
         /**
          * Parses a graph by reading enough nodes to fill a BDIO entry.
          */
-        private Object parseGraph() throws IOException {
+        private List<Object> parseGraph() throws IOException {
             List<Object> graph = new ArrayList<>(); // TODO Initial size? Same as the partition code...
             AtomicInteger estimatedSize = new AtomicInteger(20 + SpliteratorEmitter.estimateSize(metadata.id()));
             while (estimatedSize.get() < Bdio.MAX_ENTRY_SIZE) {
@@ -328,7 +391,7 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
                     }
                 });
             }
-            return graph.isEmpty() ? null : graph;
+            return graph.isEmpty() ? baseFile.graph() : graph;
         }
 
         /**
@@ -433,7 +496,7 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
             currentValue("revision").ifPresent(result::version);
             convertExternalIdentifier(result::namespace, result::identifier, result::context);
             convertRelationships(result::dependency);
-            // TODO How can we get the reference to the base directory?
+            baseFile.accept(result);
             project.accept(result);
         }
 
@@ -461,6 +524,7 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
             convertPath(result::path);
             convertChecksums(result::fingerprint);
             // TODO "matchDetail", ( "matchType" | "content" | "artifactOf" | "licenseConcluded" )
+            baseFile.accept(result);
             file.accept(result);
         }
 
