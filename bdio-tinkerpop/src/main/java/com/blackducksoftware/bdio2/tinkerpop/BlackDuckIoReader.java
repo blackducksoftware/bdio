@@ -40,8 +40,6 @@ import com.blackducksoftware.bdio2.tinkerpop.GraphContextFactory.AbstractContext
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
-import com.google.common.base.Functions;
-import com.google.common.collect.Maps;
 
 import io.reactivex.plugins.RxJavaPlugins;
 
@@ -142,21 +140,18 @@ public final class BlackDuckIoReader implements GraphReader {
 
         // Add outgoing edges for object properties (if requested)
         if (attachEdgesOfThisDirection == Direction.BOTH || attachEdgesOfThisDirection == Direction.OUT) {
-            Map<String, Object> objectProperties = Maps.filterKeys(node, context.mapper()::isObjectPropertyKey);
-
-            com.google.common.base.Function<Object, Vertex> toVertex = Functions.compose(
-                    // Using the identifier returned by "fromFieldValue", create a vertex
-                    id -> starGraph.addVertex(T.id, context.generateId(id)),
-
-                    // There is no "fromReferenceFieldValue", data and object properties share "fromFieldValue"
-                    context.mapper().valueObjectMapper()::fromFieldValue);
-
-            Maps.transformValues(objectProperties, toVertex).forEach((label, inVertex) -> {
-                StarEdge edge = (StarEdge) vertex.addEdge(label, inVertex);
-                if (edgeAttachMethod != null) {
-                    edge.attach(edgeAttachMethod);
+            for (Map.Entry<String, Object> property : node.entrySet()) {
+                if (context.mapper().isObjectPropertyKey(property.getKey())) {
+                    context.mapper().valueObjectMapper().fromReferenceValueObject(property.getValue())
+                            .map(id -> starGraph.addVertex(T.id, context.generateId(id)))
+                            .map(inVertex -> (StarEdge) vertex.addEdge(property.getKey(), inVertex))
+                            .forEach(edge -> {
+                                if (edgeAttachMethod != null) {
+                                    edge.attach(edgeAttachMethod);
+                                }
+                            });
                 }
-            });
+            }
         }
 
         return vertex;

@@ -38,6 +38,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.common.base.ExtraCollectors;
+import com.blackducksoftware.common.base.ExtraOptionals;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -178,6 +179,22 @@ public class ValueObjectMapper {
             }
             // TODO What about maps representing complex objects?
             throw new IllegalArgumentException("unrecognized type: " + value.getClass().getName());
+        }
+    }
+
+    /**
+     * Takes a reference value from a JSON-LD node and converts it over to an identifier.
+     */
+    public Stream<Object> fromReferenceValueObject(@Nullable Object input) {
+        if (input instanceof List<?>) {
+            // Recursively process list elements
+            return ((List<?>) input).stream().flatMap(this::fromReferenceValueObject);
+        } else {
+            // Find the identifier, otherwise just return the input as a string
+            // TODO Clean up in Java 9...
+            return ExtraOptionals.stream(ExtraOptionals.or(
+                    mappingOf(input, JsonLdConsts.ID),
+                    () -> Optional.ofNullable(input)).map(Objects::toString));
         }
     }
 
