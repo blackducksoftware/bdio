@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Spliterator;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -48,6 +49,7 @@ import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.License;
 import com.blackducksoftware.bdio2.model.Project;
 import com.blackducksoftware.common.base.ExtraOptionals;
+import com.blackducksoftware.common.base.ExtraStrings;
 import com.blackducksoftware.common.value.Digest;
 import com.blackducksoftware.common.value.Product;
 import com.blackducksoftware.common.value.ProductList;
@@ -79,9 +81,11 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
      */
     private static class BaseFile {
 
-        private AtomicReference<String> projectId = new AtomicReference<>();
+        private final AtomicBoolean hasFiles = new AtomicBoolean(false);
 
-        private AtomicReference<String> baseFileId = new AtomicReference<>();
+        private final AtomicReference<String> projectId = new AtomicReference<>(null);
+
+        private final AtomicReference<String> baseFileId = new AtomicReference<>(null);
 
         /**
          * Records the presence of a project from a BDIO stream. Note that there are no strict requirements on how many
@@ -98,6 +102,7 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
          */
         public void accept(File file) {
             // Take the first file with a path of "./"
+            hasFiles.set(true);
             if (Objects.equals(file.get(Bdio.DataProperty.path.toString()), "./")) {
                 baseFileId.compareAndSet(null, file.id());
             }
@@ -108,7 +113,7 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
          */
         public List<Object> graph() {
             String projectId = this.projectId.getAndSet(null);
-            if (projectId != null) {
+            if (projectId != null && hasFiles.get()) {
                 // Construct a missing base file if necessary
                 Optional<String> baseFileId = Optional.ofNullable(this.baseFileId.getAndSet(null));
                 File baseFile = baseFileId.map(File::new).orElseGet(() -> new File("file:///").path("file:///"));
@@ -503,8 +508,8 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
         private void convertComponent(Consumer<? super Component> component) {
             Component result = new Component(currentId());
             currentValue("name").ifPresent(result::name);
-            currentValue("revision").ifPresent(result::version);
             currentValue("homepage").ifPresent(result::homepage);
+            convertRevision(result::version, result::requestedVersion);
             // TODO currentValue("license").ifPresent(result::license);
             convertExternalIdentifier(result::namespace, result::identifier, result::context);
             convertRelationships(result::dependency);
@@ -556,10 +561,29 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
         /**
          * Converts the external identifier from the current node.
          */
+        // TODO This only converts a single external identifier!
+        // TODO If there are multiple external identifiers, multiple components/projects what-ever need to be created!
         private void convertExternalIdentifier(Consumer<String> namespace, Consumer<String> identifier, Consumer<String> repository) {
             currentValue("externalIdentifier", "externalSystemTypeId").map(LegacyBdio1xEmitter::toNamespace).ifPresent(namespace);
             currentValue("externalIdentifier", "externalId").ifPresent(identifier);
             currentValue("externalIdentifier", "externalRepositoryLocation").ifPresent(repository);
+        }
+
+        /**
+         * Converts the revision from the current node.
+         */
+        // TODO Same multiple external identifier bug exists here
+        private void convertRevision(Consumer<String> version, Consumer<String> requestedVersion) {
+            currentValue("revision").ifPresent(revision -> {
+                String externalSystemTypeId = currentValue("externalIdentifier", "externalSystemTypeId").map(LegacyBdio1xEmitter::toNamespace).orElse("");
+                String externalId = currentValue("externalIdentifier", "externalId").orElse(null);
+                if (externalSystemTypeId.equals("npmjs") && externalId != null) {
+                    version.accept(ExtraStrings.afterLast(externalId, '@'));
+                    requestedVersion.accept(revision);
+                } else {
+                    version.accept(revision);
+                }
+            });
         }
 
         /**
@@ -652,6 +676,8 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
         // Look for both the short form and fully qualified form since these were identifiers in BDIO 1.x
         if (externalSystemTypeId.equals("maven") || externalSystemTypeId.equals("http://blackducksoftware.com/rdf/terms#externalIdentifier_maven")) {
             return "maven";
+        } else if (externalSystemTypeId.equals("npm") || externalSystemTypeId.equals("http://blackducksoftware.com/rdf/terms#externalIdentifier_npm")) {
+            return "npmjs";
         } else {
             // TODO Is there anything else we can do?
             return externalSystemTypeId;
