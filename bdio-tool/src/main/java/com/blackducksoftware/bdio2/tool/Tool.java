@@ -162,12 +162,17 @@ public abstract class Tool implements Runnable {
                 if (optionsWithArgs.contains(arg)) {
                     if (i < args.length - 1 && !args[i + 1].startsWith("-")) {
                         // There is another arg available and it doesn't look like an option...
-                        arg += '=' + args[++i];
+                        normalizedArgs.add(arg += '=' + args[++i]);
                     } else {
                         return optionRequiresArgument(arg);
                     }
+                } else if (arg.startsWith("-") && !arg.startsWith("--")) {
+                    // Split ['-xyz'] into ['-x', '-y', '-z']
+                    arg.substring(1).chars().mapToObj(c -> "-" + (char) c).forEach(normalizedArgs::add);
+                } else {
+                    // Pass the argument through unchanged
+                    normalizedArgs.add(arg);
                 }
-                normalizedArgs.add(arg);
             }
             return parseArguments(Iterables.toArray(normalizedArgs, String.class));
         } catch (Exception e) {
