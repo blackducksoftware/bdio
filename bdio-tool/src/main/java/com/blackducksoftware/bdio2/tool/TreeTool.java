@@ -132,22 +132,23 @@ public class TreeTool extends AbstractFileTool {
     protected void executeWithGraph(Graph graph) {
         GraphTraversalSource g = graph.traversal();
         Deque<Iterator<FileNode>> fileNodes = new ArrayDeque<>();
-        Set<Integer> childrenAt = new HashSet<>();
+        Set<Integer> childrenAtDepths = new HashSet<>();
 
         // Find the base file in the graph
         fileNodes.addFirst(baseFile(g).map(Iterators::singletonIterator)
                 .orElseThrow(illegalState("No base file found")));
 
         // Do our pre-order traversal, formatting each file node
+        // TODO Cycle detection when following links?
         int directoryCount = 0;
         int fileCount = 0;
         while (!fileNodes.isEmpty()) {
             Iterator<FileNode> i = fileNodes.getLast();
             FileNode fn = i.next();
             if (i.hasNext()) {
-                childrenAt.add(fn.parentDepth());
+                childrenAtDepths.add(fn.parentDepth());
             } else {
-                childrenAt.remove(fn.parentDepth());
+                childrenAtDepths.remove(fn.parentDepth());
                 fileNodes.removeLast();
             }
 
@@ -162,7 +163,7 @@ public class TreeTool extends AbstractFileTool {
                 }
             }
 
-            formatFileNode(fn, childrenAt, i.hasNext());
+            formatFileNode(fn, childrenAtDepths, i.hasNext());
         }
 
         // Print a summary report
@@ -172,20 +173,12 @@ public class TreeTool extends AbstractFileTool {
     /**
      * Performs a simple ASCII format of a row in the tree output.
      */
-    private void formatFileNode(FileNode fileNode, Set<Integer> childrenAt, boolean hasNext) {
+    private void formatFileNode(FileNode fileNode, Set<Integer> childrenAtDepths, boolean hasMoreSiblings) {
         StringBuilder rowFormat = new StringBuilder();
         List<Object> arguments = new ArrayList<>();
 
-        if (!noIndent && fileNode.depth() > 0) {
-            for (int i = 0; i < fileNode.depth() - 1; ++i) {
-                if (childrenAt.contains(i)) {
-                    rowFormat.append('|');
-                } else {
-                    rowFormat.append(' ');
-                }
-                rowFormat.append("   ");
-            }
-            rowFormat.append(hasNext ? '|' : '`').append("-- ");
+        if (!noIndent) {
+            TreeFormat.appendAsciiIndent(rowFormat, fileNode.depth(), childrenAtDepths::contains, hasMoreSiblings);
         }
 
         if (showSize) {
