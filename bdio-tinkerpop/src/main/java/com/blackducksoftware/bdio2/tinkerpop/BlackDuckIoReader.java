@@ -51,6 +51,7 @@ public final class BlackDuckIoReader implements GraphReader {
         contextFactory = builder.contextFactory();
     }
 
+    @SuppressWarnings("CheckReturnValue")
     @Override
     public void readGraph(InputStream inputStream, Graph graph) throws IOException {
         ReadGraphContext context = contextFactory.forBdioReadingInto(graph);

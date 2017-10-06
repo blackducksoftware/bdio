@@ -116,8 +116,6 @@ public class BlackDuckIoOperationsTest extends BaseTest {
 
         BlackDuckIoOperations.build().onGraphMapper(config).create().addImplicitEdges(graph);
 
-        Dummy.dump(graph.traversal());
-
         GraphTraversalSource g = graph.traversal();
         List<String> directDependencyNames = g.V().hasLabel(TT.Metadata)
                 .out(TT.root)
