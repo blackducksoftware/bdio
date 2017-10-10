@@ -1,0 +1,3 @@
+# Additional MIME types needed for the visualization web server
+text/css css
+application/javascript js

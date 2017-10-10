@@ -1,5 +1,6 @@
 description = 'Black Duck I/O Tooling'
 
+import org.gradle.plugins.ide.eclipse.model.AccessRule
 apply plugin: 'application'
 
 applicationName = 'bdio'
@@ -17,6 +18,17 @@ distributions {
 	main {
 		contents {
 			from("${rootDir}/LICENSE", "${rootDir}/NOTICE")
+		}
+	}
+}
+
+eclipse {
+	classpath {
+		file {
+			whenMerged {
+				def jre = entries.find { it.path.contains 'org.eclipse.jdt.launching.JRE_CONTAINER' }
+				jre.accessRules.add(new AccessRule('0', 'com/sun/net/httpserver/**'))
+			}
 		}
 	}
 }
