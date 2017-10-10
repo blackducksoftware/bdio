@@ -384,10 +384,7 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
 
                 // Convert the current node from BDIO 1.x to BDIO 2.x
                 convert(node -> {
-                    if (node.size() == 2 && node.containsKey(JsonLdConsts.ID) && node.containsKey(JsonLdConsts.TYPE)) {
-                        // Conversion yielded a logically empty node, skip it
-                        return;
-                    } else if (estimatedSize.addAndGet(SpliteratorEmitter.estimateSize(node)) < Bdio.MAX_ENTRY_SIZE) {
+                    if (estimatedSize.addAndGet(SpliteratorEmitter.estimateSize(node)) < Bdio.MAX_ENTRY_SIZE) {
                         // Add it to the result set
                         graph.add(node);
                     } else {
