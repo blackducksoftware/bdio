@@ -15,6 +15,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 import javax.annotation.OverridingMethodsMustInvokeSuper;
@@ -77,6 +79,68 @@ public abstract class Tool implements Runnable {
         @Override
         protected Tool parseArguments(String[] args) {
             return this;
+        }
+    }
+
+    /**
+     * This is a strange input stream that wraps {@link System#in} and watches for interactions; if nothing happens
+     * after 5 seconds, the program is terminated. The idea is that users may inadvertently ask the program to read from
+     * standard input and the program just appears to be hung reading.
+     */
+    private static final class StandardInputStream extends FilterInputStream {
+
+        private final Thread monitor;
+
+        private StandardInputStream() {
+            super(System.in);
+            monitor = new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        // Under normal circumstances, this sleep will be interrupted and will throw past the exit
+                        sleep(TimeUnit.SECONDS.toMillis(5L));
+                        System.err.println("No interaction on stdin, aborting.");
+                        System.exit(66);
+                    } catch (InterruptedException e) {
+                        interrupt();
+                    }
+                }
+            };
+            monitor.setName("stdin-monitor");
+            monitor.setDaemon(true);
+            monitor.start();
+        }
+
+        @Override
+        public int read() throws IOException {
+            try {
+                return super.read();
+            } finally {
+                monitor.interrupt();
+            }
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            try {
+                return super.read(b, off, len);
+            } finally {
+                monitor.interrupt();
+            }
+        }
+
+        @Override
+        public long skip(long n) throws IOException {
+            try {
+                return super.skip(n);
+            } finally {
+                monitor.interrupt();
+            }
+        }
+
+        @Override
+        public void close() throws IOException {
+            // Don't close the system stream
         }
     }
 
@@ -424,8 +488,7 @@ public abstract class Tool implements Runnable {
                 return new ByteSource() {
                     @Override
                     public InputStream openStream() {
-                        // TODO Block closing?
-                        return System.in;
+                        return new StandardInputStream();
                     }
                 };
             } else {
