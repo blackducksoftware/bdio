@@ -15,11 +15,9 @@
  */
 package com.blackducksoftware.bdio2;
 
-import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Spliterator;
 import java.util.Spliterators.AbstractSpliterator;
 import java.util.function.Consumer;
@@ -32,91 +30,42 @@ import javax.annotation.Nullable;
 import com.google.common.base.Ascii;
 
 /**
- * An emitter that is backed by an arbitrary {@code Spliterator} of BDIO entries.
- * <p>
- * Generally the first entry emitted should be a "header" entry consisting of metadata and an empty list of nodes for
- * the graph. Subsequent entries should only have the identifier metadata and full lists of nodes.
+ * Utilities used to aid in the conversion of legacy formats.
  *
  * @author jgustie
  */
-abstract class SpliteratorEmitter implements Emitter {
+class LegacyUtilities {
 
     /**
-     * The spliterator over the BDIO entries.
+     * Estimation of the size in bytes of each node translated from a legacy format. This estimate is based largely on
+     * Protex BOM Tool output where each legacy "file" node only contains a few (less then 3) properties.
+     * <p>
+     * When used to size an array list for all the nodes in an entry, this empirically covers 95% of entries with only a
+     * single array list expansion.
      */
-    private final Spliterator<Object> entries;
+    private static final int ESTIMATED_NODE_SIZE = 400;
 
-    protected SpliteratorEmitter(Spliterator<Object> entries) {
-        this.entries = Objects.requireNonNull(entries);
-    }
-
-    @Override
-    public void emit(Consumer<Object> onNext, Consumer<Throwable> onError, Runnable onComplete) {
-        Objects.requireNonNull(onNext);
-        Objects.requireNonNull(onError);
-        Objects.requireNonNull(onComplete);
-        try {
-            if (!entries.tryAdvance(onNext)) {
-                onComplete.run();
-            }
-        } catch (UncheckedIOException e) {
-            onError.accept(e.getCause());
-        } catch (RuntimeException e) {
-            onError.accept(e);
-        }
-    }
-
-    @Override
-    public void dispose() {
-        // Right now, this does nothing because all we can do at this point is go out of scope
-    }
-
-    @Override
-    public Stream<Object> stream() {
-        // No point in decomposing through an intermediary spliterator
-        return StreamSupport.stream(entries, false);
+    /**
+     * Provides an estimate for the number of nodes that will fit in an entry.
+     */
+    public static int averageEntryNodeCount() {
+        return Bdio.MAX_ENTRY_SIZE / ESTIMATED_NODE_SIZE;
     }
 
     /**
-     * Partitions a sequence of elements into buckets of specified capacity. The resulting sequence consists of lists
-     * such that the sum of the weighing function applied to each element of the list will be strictly less then the
-     * supplied capacity.
+     * Partitions a stream of nodes into a stream of lists of nodes where the number of nodes in each list stays within
+     * the BDIO entry size limits.
      */
-    protected static <T> Spliterator<List<T>> partition(Spliterator<T> source, long capacity, ToIntFunction<T> weigher) {
-        // Define a type to hold the list of elements and the current weight
-        class Partition implements Consumer<T> {
-            private final List<T> elements = new ArrayList<>(); // TODO Give an initial size
-
-            private long weight;
-
-            @Override
-            public void accept(T element) {
-                weight += weigher.applyAsInt(element);
-                elements.add(element);
-            }
-        }
-
-        // TODO The source size is obviously an over-estimate of the size...
-        return new AbstractSpliterator<List<T>>(source.estimateSize(), source.characteristics()) {
-            @Override
-            public boolean tryAdvance(Consumer<? super List<T>> action) {
-                Partition partition = new Partition();
-                while (source.tryAdvance(partition) && partition.weight < capacity) {
-                }
-                if (partition.elements.isEmpty()) {
-                    return false;
-                } else {
-                    action.accept(partition.elements);
-                    return true;
-                }
-            }
-        };
+    public static Stream<List<Map<String, Object>>> partitionNodes(BdioMetadata metadata, Stream<Map<String, Object>> nodes) {
+        int maxSize = Bdio.MAX_ENTRY_SIZE - estimateEntryOverhead(metadata);
+        int averageSize = Bdio.MAX_ENTRY_SIZE / ESTIMATED_NODE_SIZE; // TODO Is this right?
+        return StreamSupport.stream(partition(nodes.spliterator(), averageSize, maxSize, LegacyUtilities::estimateSize), false);
     }
 
     /**
      * Attempts to <em>estimate</em> the serialized JSON size of an object without incurring too much overhead.
      */
-    protected static int estimateSize(@Nullable Object obj) {
+    public static int estimateSize(@Nullable Object obj) {
         // NOTE: It is better to over estimate then under estimate. String sizes are inflated 10% to account for UTF-8
         // encoding and we count a delimiter for every collection element (even the last).
         if (obj == null) {
@@ -143,10 +92,18 @@ abstract class SpliteratorEmitter implements Emitter {
     }
 
     /**
+     * Provides an estimate of the per-entry overhead needed given the supplied metadata.
+     */
+    public static int estimateEntryOverhead(BdioMetadata metadata) {
+        // The per-entry overhead is 20 bytes plus the size of the identifier: `{"@id":<ID>,"@graph":[<NODES>]}`
+        return 20 + estimateSize(metadata.id());
+    }
+
+    /**
      * Guesses a scheme based on a file name. We need to attempt this mapping because the original scheme is lost in the
      * legacy encoding, our only chance of reconstructing it is through extension matching.
      */
-    protected static String guessScheme(String filename) {
+    public static String guessScheme(String filename) {
         // Scan backwards through the file name trying to match extensions (case-insensitively)
         // NOTE: we do not differentiate the extension from the base name, e.g. "zip.foo" WILL match as "zip"
         int start, end;
@@ -197,6 +154,46 @@ abstract class SpliteratorEmitter implements Emitter {
 
         // Hopefully this won't break anything downstream that is depending on a specific scheme...
         return "unknown";
+    }
+
+    /**
+     * Partitions a sequence of elements into buckets of specified capacity. The resulting sequence consists of lists
+     * such that the sum of the weighing function applied to each element of the list will be strictly less then the
+     * supplied maximum weight. The average weight is used to estimate the size of the resulting spliterator.
+     */
+    private static <T> Spliterator<List<T>> partition(Spliterator<T> source, int averageWeight, long maxWeight, ToIntFunction<T> weigher) {
+        // Use the supplied capacity and average weight to estimate the size (we can no longer claim "sized")
+        int averagePartitionSize = Math.toIntExact(maxWeight / averageWeight);
+        long estimatedSize = source.estimateSize() / averagePartitionSize;
+        int characteristics = source.characteristics() & ~(Spliterator.SIZED | Spliterator.SUBSIZED);
+
+        // Define a type to hold the list of elements and the current weight
+        class Partition implements Consumer<T> {
+            private final List<T> elements = new ArrayList<>(averagePartitionSize);
+
+            private long weight;
+
+            @Override
+            public void accept(T element) {
+                weight += weigher.applyAsInt(element);
+                elements.add(element);
+            }
+        }
+
+        // Create a spliterator which fills up partition instances from the source spliterator
+        return new AbstractSpliterator<List<T>>(estimatedSize, characteristics) {
+            @Override
+            public boolean tryAdvance(Consumer<? super List<T>> action) {
+                Partition partition = new Partition();
+                while (source.tryAdvance(partition) && partition.weight < maxWeight) {}
+                if (partition.elements.isEmpty()) {
+                    return false;
+                } else {
+                    action.accept(partition.elements);
+                    return true;
+                }
+            }
+        };
     }
 
 }

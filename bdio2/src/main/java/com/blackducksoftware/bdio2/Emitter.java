@@ -34,7 +34,8 @@ public interface Emitter {
     /**
      * Releases any resources held by this emitter.
      */
-    void dispose();
+    default void dispose() {
+    }
 
     /**
      * Stream the contents of this emitter.

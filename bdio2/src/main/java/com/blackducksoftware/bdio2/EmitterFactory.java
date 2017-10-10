@@ -89,7 +89,7 @@ public class EmitterFactory {
         int len = readAndReset(bufferedIn, buffer);
 
         // Detect which parser to use
-        return detectParser(buffer, len).orElse(BdioEmitter::new).apply(bufferedIn);
+        return detectEmitter(buffer, len).orElse(BdioEmitter::new).apply(bufferedIn);
     }
 
     /**
@@ -110,9 +110,9 @@ public class EmitterFactory {
      * empty optional if no determination can be made, or if the default parser should be sufficient.
      */
     @VisibleForTesting
-    protected static Optional<Function<InputStream, Emitter>> detectParser(byte[] buffer, int len) throws IOException {
+    protected static Optional<Function<InputStream, Emitter>> detectEmitter(byte[] buffer, int len) throws IOException {
         // If we see Zip magic, stick with the default parser
-        if (len >= 4 && buffer[0] == 0x50 && buffer[1] == 0x4b && buffer[2] == 0x03 && buffer[3] == 0x04) {
+        if (isZipMagic(buffer, len)) {
             return Optional.empty();
         }
 
@@ -140,9 +140,13 @@ public class EmitterFactory {
             // Try with the default parser
             return Optional.empty();
         } catch (JsonParseException e) {
-            // Unrecognizable JSON? Truncated content? Who cares: we don't have a parser for that...
+            // Unrecognizable JSON? Truncated content? Who cares: we don't have an emitter for that...
             return Optional.empty();
         }
+    }
+
+    private static boolean isZipMagic(byte[] buffer, int len) {
+        return len >= 4 && buffer[0] == 0x50 && buffer[1] == 0x4b && buffer[2] == 0x03 && buffer[3] == 0x04;
     }
 
 }

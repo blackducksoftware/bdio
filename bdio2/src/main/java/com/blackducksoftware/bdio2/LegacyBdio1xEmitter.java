@@ -16,6 +16,7 @@
 package com.blackducksoftware.bdio2;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Spliterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -65,7 +65,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.net.UrlEscapers;
 
-public class LegacyBdio1xEmitter extends SpliteratorEmitter {
+/**
+ * An adapter to convert BDIO 1.x data into BDIO.
+ *
+ * @author jgustie
+ */
+class LegacyBdio1xEmitter implements Emitter {
 
     /**
      * Regular expression for parsing SPDX creators.
@@ -162,7 +167,7 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
             this.container = container;
             this.fileName = fileName;
             this.nestedPath = new StringBuilder()
-                    .append(guessScheme(fileName)).append(':')
+                    .append(LegacyUtilities.guessScheme(fileName)).append(':')
                     .append(UrlEscapers.urlPathSegmentEscaper().escape(computePath(container, fileName))).append('#')
                     .toString();
         }
@@ -269,385 +274,361 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
         }
     }
 
-    private static class Bdio1Spliterator implements Spliterator<Object> {
+    /**
+     * The parser used to stream in the JSON.
+     */
+    private final Bdio1JsonParser jp;
 
-        /**
-         * The parser used to stream in the JSON.
-         */
-        private final Bdio1JsonParser jp;
+    /**
+     * Reusable single node buffer.
+     */
+    private final Map<String, Object> currentNode = new LinkedHashMap<>();
 
-        /**
-         * Reusable single node buffer.
-         */
-        private final Map<String, Object> currentNode = new LinkedHashMap<>();
+    /**
+     * Buffer used to hold nodes which are not ready for being emitted.
+     */
+    private final Deque<Map<String, Object>> buffer = new LinkedList<>();
 
-        /**
-         * Buffer used to hold nodes which are not ready for being emitted.
-         */
-        private final Deque<Map<String, Object>> buffer = new LinkedList<>();
+    /**
+     * The base file context used to associate the project with the file hierarchy.
+     */
+    private final BaseFile baseFile = new BaseFile();
 
-        /**
-         * The computed BDIO metadata. Will be {@code null} until enough information has been parsed.
-         */
-        private BdioMetadata metadata;
+    /**
+     * The archive nesting context use to process file paths.
+     */
+    private Archive archive;
 
-        /**
-         * The base file context used to associate the project with the file hierarchy.
-         */
-        private BaseFile baseFile;
+    /**
+     * The computed BDIO metadata. Will be {@code null} until enough information has been parsed.
+     */
+    private BdioMetadata metadata;
 
-        /**
-         * The archive nesting context use to process file paths.
-         */
-        private Archive archive;
-
-        private Bdio1Spliterator(JsonParser jp) {
-            this.jp = Bdio1JsonParser.create(jp);
-            this.baseFile = new BaseFile();
+    public LegacyBdio1xEmitter(InputStream inputStream) {
+        try {
+            this.jp = Bdio1JsonParser.create(new JsonFactory().createParser(inputStream));
+        } catch (IOException e) {
+            // TODO Should this be deferred and thrown from first call to tryAdvance?
+            throw new UncheckedIOException(e);
         }
-
-        public static Bdio1Spliterator create(InputStream in) {
-            try {
-                return new Bdio1Spliterator(new JsonFactory().createParser(in));
-            } catch (IOException e) {
-                // TODO Should this be deferred and thrown from first call to tryAdvance?
-                throw new UncheckedIOException(e);
-            }
-        }
-
-        /**
-         * Emits a BDIO entry. The first entry will be metadata only, subsequent entries will be graphs segments whose
-         * serialized size will remain in the max entry size limit.
-         */
-        @Override
-        public boolean tryAdvance(Consumer<? super Object> action) {
-            try {
-                if (metadata == null) {
-                    if (jp.nextToken() != JsonToken.START_ARRAY) {
-                        return false;
-                    } else if (parseMetadata()) {
-                        action.accept(metadata.asNamedGraph());
-                        return true;
-                    } else {
-                        return false;
-                    }
-                } else {
-                    List<Object> graph = parseGraph();
-                    if (graph.isEmpty()) {
-                        return false;
-                    } else {
-                        action.accept(metadata.asNamedGraph(graph, JsonLdConsts.ID));
-                        return true;
-                    }
-                }
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        }
-
-        /**
-         * Parses the metadata from the stream by reading nodes until the {@code BillOfMaterials} node is encountered.
-         */
-        private boolean parseMetadata() throws IOException {
-            while (readNode()) {
-                if (Objects.equals(currentType(), "BillOfMaterials")) {
-                    // Convert the BillOfMaterials node into BDIO metadata
-                    metadata = new BdioMetadata().id(currentId());
-                    currentValue("spdx:name").ifPresent(metadata::name);
-                    convertCreationInfo(metadata::creationDateTime, metadata::creator, metadata::producer);
-                    return true;
-                } else {
-                    // Weren't ready for this node yet, buffer a copy for later
-                    buffer.add(new LinkedHashMap<>(currentNode));
-                }
-            }
-
-            // We got to the end of the file and never found a BillOfMaterials node
-            return false;
-        }
-
-        /**
-         * Parses a graph by reading enough nodes to fill a BDIO entry.
-         */
-        private List<Object> parseGraph() throws IOException {
-            List<Object> graph = new ArrayList<>(); // TODO Initial size? Same as the partition code...
-            AtomicInteger estimatedSize = new AtomicInteger(20 + SpliteratorEmitter.estimateSize(metadata.id()));
-            while (estimatedSize.get() < Bdio.MAX_ENTRY_SIZE) {
-                // Look for something in the buffer, otherwise read the next node
-                Map<String, Object> bufferedNode = buffer.pollFirst();
-                if (bufferedNode != null) {
-                    currentNode.clear();
-                    currentNode.putAll(bufferedNode);
-                } else if (!readNode()) {
-                    break;
-                }
-
-                // Convert the current node from BDIO 1.x to BDIO 2.x
-                convert(node -> {
-                    if (estimatedSize.addAndGet(SpliteratorEmitter.estimateSize(node)) < Bdio.MAX_ENTRY_SIZE) {
-                        // Add it to the result set
-                        graph.add(node);
-                    } else {
-                        // Just put it back, we will have to re-convert it next time around
-                        buffer.offerFirst(new LinkedHashMap<>(currentNode));
-                    }
-                });
-            }
-            return graph.isEmpty() ? baseFile.graph() : graph;
-        }
-
-        /**
-         * Populates the {@code currentNode} from the JSON stream.
-         */
-        private boolean readNode() throws IOException {
-            currentNode.clear();
-            if (jp.nextToken() == JsonToken.START_OBJECT) {
-                while (jp.nextToken() == JsonToken.FIELD_NAME) {
-                    String fieldName = jp.getCurrentName();
-                    if (fieldName == null) {
-                        break;
-                    } else if (fieldName.startsWith("@")) {
-                        currentNode.put(fieldName, jp.nextTextValue());
-                    } else {
-                        currentNode.put(fieldName, jp.nextFieldValue());
-                    }
-                }
-                return true;
-            } else {
-                return false;
-            }
-        }
-
-        /**
-         * Helper to extract the JSON-LD identifier from the current node.
-         */
-        private String currentId() {
-            // TODO Require not-null?
-            return (String) currentNode.get(JsonLdConsts.ID);
-        }
-
-        /**
-         * Helper to extract the JSON-LD type from the current node.
-         */
-        private String currentType() {
-            // TODO Require not-null?
-            return (String) currentNode.get(JsonLdConsts.TYPE);
-        }
-
-        /**
-         * Helper to traverse the current node for a {@code String} value.
-         *
-         * @see #currentValue(Class, Object...)
-         */
-        private Optional<String> currentValue(Object... paths) {
-            return currentValue(String.class, paths);
-        }
-
-        /**
-         * Helper to traverse the current node. The paths can be string map keys or integer list indexes.
-         */
-        private <T> Optional<T> currentValue(Class<T> type, Object... paths) {
-            Object result = currentNode;
-            for (Object path : paths) {
-                if (result instanceof Map<?, ?>) {
-                    result = ((Map<?, ?>) result).get(path);
-                } else if (result instanceof List<?>) {
-                    result = ((List<?>) result).get((Integer) path);
-                } else if (result == null) {
-                    return Optional.empty();
-                }
-            }
-            return type.isInstance(result) ? Optional.of(type.cast(result)) : Optional.empty();
-        }
-
-        /**
-         * Helper to traverse containers in the current node by returning list or map sizes.
-         */
-        private int currentSize(Object... paths) {
-            return currentValue(Object.class, paths).map(obj -> {
-                if (obj instanceof Map<?, ?>) {
-                    return ((Map<?, ?>) obj).size();
-                } else if (obj instanceof List<?>) {
-                    return ((List<?>) obj).size();
-                } else {
-                    return 0;
-                }
-            }).orElse(0);
-        }
-
-        /**
-         * Converts the current node from BDIO 1.x to BDIO 2.x. If the current node should not be included in the final
-         * result, this method returns {@code null}.
-         */
-        private void convert(Consumer<? super Map<String, Object>> graph) {
-            String type = currentType();
-            if (type.equals("Project")) {
-                convertProject(graph);
-            } else if (type.equals("Component")) {
-                convertComponent(graph);
-            } else if (type.equals("License")) {
-                convertLicense(graph);
-            } else if (type.equals("File")) {
-                convertFile(graph);
-            }
-        }
-
-        private void convertProject(Consumer<? super Project> project) {
-            Project result = new Project(currentId());
-            currentValue("name").ifPresent(result::name);
-            currentValue("revision").ifPresent(result::version);
-            convertExternalIdentifier(result::namespace, result::identifier, result::context);
-            convertRelationships(result::dependency);
-            baseFile.accept(result);
-            project.accept(result);
-        }
-
-        private void convertComponent(Consumer<? super Component> component) {
-            Component result = new Component(currentId());
-            currentValue("name").ifPresent(result::name);
-            currentValue("homepage").ifPresent(result::homepage);
-            convertRevision(result::version, result::requestedVersion);
-            // TODO currentValue("license").ifPresent(result::license);
-            convertExternalIdentifier(result::namespace, result::identifier, result::context);
-            convertRelationships(result::dependency);
-            component.accept(result);
-        }
-
-        private void convertLicense(Consumer<? super License> license) {
-            License result = new License(currentId());
-            currentValue("spdx:name").ifPresent(result::name);
-            convertExternalIdentifier(result::namespace, result::identifier, result::context);
-            license.accept(result);
-        }
-
-        private void convertFile(Consumer<? super File> file) {
-            File result = new File(currentId());
-            currentValue(Number.class, "size").map(Number::longValue).ifPresent(result::byteCount);
-            convertPath(result::path);
-            convertChecksums(result::fingerprint);
-            // TODO "matchDetail", ( "matchType" | "content" | "artifactOf" | "licenseConcluded" )
-            baseFile.accept(result);
-            file.accept(result);
-        }
-
-        /**
-         * Converts the creation info from the current node.
-         */
-        private void convertCreationInfo(Consumer<ZonedDateTime> creationDateTime, Consumer<String> creator, Consumer<ProductList> producer) {
-            currentValue("creationInfo", "spdx:created").flatMap(dateTime -> {
-                try {
-                    return Optional.of(OffsetDateTime.parse(dateTime).toZonedDateTime());
-                } catch (DateTimeParseException e) {
-                    return Optional.empty();
-                }
-            }).ifPresent(creationDateTime);
-
-            Optional<Matcher> creationInfo = currentValue("creationInfo", "spdx:creator")
-                    .map(SPDX_CREATOR::matcher)
-                    .filter(Matcher::matches);
-
-            creationInfo.filter(m -> m.group("personName") != null).map(m -> m.group("personName")).ifPresent(creator);
-
-            creationInfo.filter(m -> m.group("toolName") != null).map(m -> {
-                Product.Builder result = new Product.Builder().name(m.group("toolName")).version(m.group("toolVersion"));
-                // TODO "organizationName" in the comment?
-                return ProductList.of(result.build());
-            }).ifPresent(producer);
-        }
-
-        /**
-         * Converts the external identifier from the current node.
-         */
-        // TODO This only converts a single external identifier!
-        // TODO If there are multiple external identifiers, multiple components/projects what-ever need to be created!
-        private void convertExternalIdentifier(Consumer<String> namespace, Consumer<String> identifier, Consumer<String> repository) {
-            currentValue("externalIdentifier", "externalSystemTypeId").map(LegacyBdio1xEmitter::toNamespace).ifPresent(namespace);
-            currentValue("externalIdentifier", "externalId").ifPresent(identifier);
-            currentValue("externalIdentifier", "externalRepositoryLocation").ifPresent(repository);
-        }
-
-        /**
-         * Converts the revision from the current node.
-         */
-        // TODO Same multiple external identifier bug exists here
-        private void convertRevision(Consumer<String> version, Consumer<String> requestedVersion) {
-            currentValue("revision").ifPresent(revision -> {
-                String externalSystemTypeId = currentValue("externalIdentifier", "externalSystemTypeId").map(LegacyBdio1xEmitter::toNamespace).orElse("");
-                String externalId = currentValue("externalIdentifier", "externalId").orElse(null);
-                if (externalSystemTypeId.equals("npmjs") && externalId != null) {
-                    version.accept(ExtraStrings.afterLast(externalId, '@'));
-                    requestedVersion.accept(revision);
-                } else {
-                    version.accept(revision);
-                }
-            });
-        }
-
-        /**
-         * Converts the file name from the current node.
-         */
-        public void convertPath(Consumer<String> path) {
-            currentValue("fileName").ifPresent(fileName -> {
-                Archive currentArchive;
-                if (currentValue("fileType").filter(Predicate.isEqual("ARCHIVE")).isPresent()) {
-                    currentArchive = (archive = new Archive(archive, fileName)).container;
-                } else {
-                    while (archive != null && !fileName.startsWith(archive.fileName)) {
-                        archive = archive.container;
-                    }
-                    currentArchive = archive;
-                }
-                path.accept(Archive.computePath(currentArchive, fileName));
-            });
-        }
-
-        /**
-         * Converts the checksums from the current node. The supplied consumer may be invoked multiple times.
-         */
-        private void convertChecksums(Consumer<Digest> fingerprint) {
-            for (int index = 0, size = currentSize("checksum"); index < size; ++index) {
-                Optional<String> algorithm = currentValue("checksum", index, "algorithm").map(LegacyBdio1xEmitter::toDigestAlgorithm);
-                Optional<String> checksumValue = currentValue("checksum", index, "checksumValue");
-                ExtraOptionals.and(algorithm, checksumValue, Digest::of).ifPresent(fingerprint);
-            }
-        }
-
-        /**
-         * Converts the relationships from the current node. The supplied consumer may be invoked multiple times.
-         */
-        private void convertRelationships(Consumer<Dependency> dependency) {
-            for (int index = 0, size = currentSize("relationship"); index < size; ++index) {
-                String relationshipType = currentValue("relationship", index, "relationshipType").orElse("");
-                if (relationshipType.equals("DYNAMIC_LINK") || relationshipType.equals("http://blackducksoftware.com/rdf/terms#relationshipType_dynamicLink")) {
-                    currentValue("relationship", index, "related")
-                            .map(ref -> new Dependency().dependsOn(ref))
-                            .ifPresent(dependency);
-                }
-            }
-        }
-
-        @Override
-        public final Spliterator<Object> trySplit() {
-            // Do not support splitting
-            return null;
-        }
-
-        @Override
-        public final long estimateSize() {
-            // Assume we can't compute this effectively
-            return Long.MAX_VALUE;
-        }
-
-        @Override
-        public final int characteristics() {
-            // Technically the source input stream *could* change, but assume immutability in general
-            return Spliterator.IMMUTABLE | Spliterator.NONNULL;
-        }
-
     }
 
-    public LegacyBdio1xEmitter(InputStream bdio1Data) {
-        super(Bdio1Spliterator.create(bdio1Data));
+    @Override
+    public void emit(Consumer<Object> onNext, Consumer<Throwable> onError, Runnable onComplete) {
+        Objects.requireNonNull(onNext);
+        Objects.requireNonNull(onError);
+        Objects.requireNonNull(onComplete);
+        try {
+            if (metadata == null) {
+                if (jp.nextToken() == JsonToken.START_ARRAY && parseMetadata()) {
+                    onNext.accept(metadata.asNamedGraph());
+                    return;
+                }
+            } else {
+                List<Object> graph = parseGraph();
+                if (!graph.isEmpty()) {
+                    onNext.accept(metadata.asNamedGraph(graph, JsonLdConsts.ID));
+                    return;
+                }
+            }
+
+            onComplete.run();
+        } catch (IOException e) {
+            onError.accept(e);
+        }
+    }
+
+    @Override
+    public void dispose() {
+        try {
+            jp.close();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Parses the metadata from the stream by reading nodes until the {@code BillOfMaterials} node is encountered.
+     */
+    private boolean parseMetadata() throws IOException {
+        while (readNode()) {
+            if (currentType().equals("BillOfMaterials")) {
+                // Convert the BillOfMaterials node into BDIO metadata
+                metadata = new BdioMetadata().id(currentId());
+                currentValue("spdx:name").ifPresent(metadata::name);
+                convertCreationInfo(metadata::creationDateTime, metadata::creator, metadata::producer);
+                return true;
+            } else {
+                // Weren't ready for this node yet, buffer a copy for later
+                buffer.add(new LinkedHashMap<>(currentNode));
+            }
+        }
+
+        // We got to the end of the file and never found a BillOfMaterials node
+        return false;
+    }
+
+    /**
+     * Parses a graph by reading enough nodes to fill a BDIO entry.
+     */
+    private List<Object> parseGraph() throws IOException {
+        List<Object> graph = new ArrayList<>(LegacyUtilities.averageEntryNodeCount());
+        AtomicInteger estimatedSize = new AtomicInteger(LegacyUtilities.estimateEntryOverhead(metadata));
+        while (estimatedSize.get() < Bdio.MAX_ENTRY_SIZE) {
+            // Look for something in the buffer, otherwise read the next node
+            Map<String, Object> bufferedNode = buffer.pollFirst();
+            if (bufferedNode != null) {
+                currentNode.clear();
+                currentNode.putAll(bufferedNode);
+            } else if (!readNode()) {
+                break;
+            }
+
+            // Convert the current node from BDIO 1.x to BDIO 2.x
+            convert(node -> {
+                if (estimatedSize.addAndGet(LegacyUtilities.estimateSize(node)) < Bdio.MAX_ENTRY_SIZE) {
+                    // Add it to the result set
+                    graph.add(node);
+                } else {
+                    // Just put it back, we will have to re-convert it next time around
+                    buffer.offerFirst(new LinkedHashMap<>(currentNode));
+                }
+            });
+        }
+        return graph.isEmpty() ? baseFile.graph() : graph;
+    }
+
+    /**
+     * Populates the {@code currentNode} from the JSON stream.
+     */
+    private boolean readNode() throws IOException {
+        currentNode.clear();
+        if (jp.nextToken() == JsonToken.START_OBJECT) {
+            while (jp.nextToken() == JsonToken.FIELD_NAME) {
+                String fieldName = jp.getCurrentName();
+                if (fieldName == null) {
+                    break;
+                } else if (fieldName.startsWith("@")) {
+                    currentNode.put(fieldName, jp.nextTextValue());
+                } else {
+                    currentNode.put(fieldName, jp.nextFieldValue());
+                }
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Helper to extract the JSON-LD identifier from the current node.
+     */
+    private String currentId() {
+        Object id = currentNode.get(JsonLdConsts.ID);
+        checkState(id instanceof String, "current identifier must be a string: %s", id);
+        return (String) id;
+    }
+
+    /**
+     * Helper to extract the JSON-LD type from the current node.
+     */
+    private String currentType() {
+        Object type = currentNode.get(JsonLdConsts.TYPE);
+        checkState(type instanceof String, "current type must be a string: %s", type);
+        return (String) type;
+    }
+
+    /**
+     * Helper to traverse the current node for a {@code String} value.
+     *
+     * @see #currentValue(Class, Object...)
+     */
+    private Optional<String> currentValue(Object... paths) {
+        return currentValue(String.class, paths);
+    }
+
+    /**
+     * Helper to traverse the current node. The paths can be string map keys or integer list indexes.
+     */
+    private <T> Optional<T> currentValue(Class<T> type, Object... paths) {
+        Object result = currentNode;
+        for (Object path : paths) {
+            if (result instanceof Map<?, ?>) {
+                result = ((Map<?, ?>) result).get(path);
+            } else if (result instanceof List<?>) {
+                result = ((List<?>) result).get((Integer) path);
+            } else if (result == null) {
+                return Optional.empty();
+            }
+        }
+        return type.isInstance(result) ? Optional.of(type.cast(result)) : Optional.empty();
+    }
+
+    /**
+     * Helper to traverse containers in the current node by returning list or map sizes.
+     */
+    private int currentSize(Object... paths) {
+        return currentValue(Object.class, paths).map(obj -> {
+            if (obj instanceof Map<?, ?>) {
+                return ((Map<?, ?>) obj).size();
+            } else if (obj instanceof List<?>) {
+                return ((List<?>) obj).size();
+            } else {
+                return 0;
+            }
+        }).orElse(0);
+    }
+
+    /**
+     * Converts the current node from BDIO 1.x to BDIO 2.x. If the current node should not be included in the final
+     * result, this method returns {@code null}.
+     */
+    private void convert(Consumer<? super Map<String, Object>> graph) {
+        String type = currentType();
+        if (type.equals("Project")) {
+            convertProject(graph);
+        } else if (type.equals("Component")) {
+            convertComponent(graph);
+        } else if (type.equals("License")) {
+            convertLicense(graph);
+        } else if (type.equals("File")) {
+            convertFile(graph);
+        }
+    }
+
+    private void convertProject(Consumer<? super Project> project) {
+        Project result = new Project(currentId());
+        currentValue("name").ifPresent(result::name);
+        currentValue("revision").ifPresent(result::version);
+        convertExternalIdentifier(result::namespace, result::identifier, result::context);
+        convertRelationships(result::dependency);
+        baseFile.accept(result);
+        project.accept(result);
+    }
+
+    private void convertComponent(Consumer<? super Component> component) {
+        Component result = new Component(currentId());
+        currentValue("name").ifPresent(result::name);
+        currentValue("homepage").ifPresent(result::homepage);
+        convertRevision(result::version, result::requestedVersion);
+        // TODO currentValue("license").ifPresent(result::license);
+        convertExternalIdentifier(result::namespace, result::identifier, result::context);
+        convertRelationships(result::dependency);
+        component.accept(result);
+    }
+
+    private void convertLicense(Consumer<? super License> license) {
+        License result = new License(currentId());
+        currentValue("spdx:name").ifPresent(result::name);
+        convertExternalIdentifier(result::namespace, result::identifier, result::context);
+        license.accept(result);
+    }
+
+    private void convertFile(Consumer<? super File> file) {
+        File result = new File(currentId());
+        currentValue(Number.class, "size").map(Number::longValue).ifPresent(result::byteCount);
+        convertPath(result::path);
+        convertChecksums(result::fingerprint);
+        // TODO "matchDetail", ( "matchType" | "content" | "artifactOf" | "licenseConcluded" )
+        baseFile.accept(result);
+        file.accept(result);
+    }
+
+    /**
+     * Converts the creation info from the current node.
+     */
+    private void convertCreationInfo(Consumer<ZonedDateTime> creationDateTime, Consumer<String> creator, Consumer<ProductList> producer) {
+        currentValue("creationInfo", "spdx:created").flatMap(dateTime -> {
+            try {
+                return Optional.of(OffsetDateTime.parse(dateTime).toZonedDateTime());
+            } catch (DateTimeParseException e) {
+                return Optional.empty();
+            }
+        }).ifPresent(creationDateTime);
+
+        Optional<Matcher> creationInfo = currentValue("creationInfo", "spdx:creator")
+                .map(SPDX_CREATOR::matcher)
+                .filter(Matcher::matches);
+
+        creationInfo.filter(m -> m.group("personName") != null).map(m -> m.group("personName")).ifPresent(creator);
+
+        creationInfo.filter(m -> m.group("toolName") != null).map(m -> {
+            Product.Builder result = new Product.Builder().name(m.group("toolName")).version(m.group("toolVersion"));
+            // TODO "organizationName" in the comment?
+            return ProductList.of(result.build());
+        }).ifPresent(producer);
+    }
+
+    /**
+     * Converts the external identifier from the current node.
+     */
+    // TODO This only converts a single external identifier!
+    // TODO If there are multiple external identifiers, multiple components/projects what-ever need to be created!
+    private void convertExternalIdentifier(Consumer<String> namespace, Consumer<String> identifier, Consumer<String> repository) {
+        // TODO Attempt to support Black Duck Hub by converting this from an external identifier to Hub reference
+        currentValue("externalIdentifier", "externalSystemTypeId").map(LegacyBdio1xEmitter::toNamespace).ifPresent(namespace);
+        currentValue("externalIdentifier", "externalId").ifPresent(identifier);
+        currentValue("externalIdentifier", "externalRepositoryLocation").ifPresent(repository);
+    }
+
+    /**
+     * Converts the revision from the current node.
+     */
+    // TODO Same multiple external identifier bug exists here
+    private void convertRevision(Consumer<String> version, Consumer<String> requestedVersion) {
+        currentValue("revision").ifPresent(revision -> {
+            String externalSystemTypeId = currentValue("externalIdentifier", "externalSystemTypeId").map(LegacyBdio1xEmitter::toNamespace).orElse("");
+            String externalId = currentValue("externalIdentifier", "externalId").orElse(null);
+            if (externalSystemTypeId.equals("npmjs") && externalId != null) {
+                version.accept(ExtraStrings.afterLast(externalId, '@'));
+                requestedVersion.accept(revision);
+            } else {
+                version.accept(revision);
+            }
+        });
+    }
+
+    /**
+     * Converts the file name from the current node.
+     */
+    public void convertPath(Consumer<String> path) {
+        currentValue("fileName").ifPresent(fileName -> {
+            Archive currentArchive;
+            if (currentValue("fileType").filter(Predicate.isEqual("ARCHIVE")).isPresent()) {
+                currentArchive = (archive = new Archive(archive, fileName)).container;
+            } else {
+                while (archive != null && !fileName.startsWith(archive.fileName)) {
+                    archive = archive.container;
+                }
+                currentArchive = archive;
+            }
+            path.accept(Archive.computePath(currentArchive, fileName));
+        });
+    }
+
+    /**
+     * Converts the checksums from the current node. The supplied consumer may be invoked multiple times.
+     */
+    private void convertChecksums(Consumer<Digest> fingerprint) {
+        for (int index = 0, size = currentSize("checksum"); index < size; ++index) {
+            Optional<String> algorithm = currentValue("checksum", index, "algorithm").map(LegacyBdio1xEmitter::toDigestAlgorithm);
+            Optional<String> checksumValue = currentValue("checksum", index, "checksumValue");
+            ExtraOptionals.and(algorithm, checksumValue, Digest::of).ifPresent(fingerprint);
+        }
+    }
+
+    /**
+     * Converts the relationships from the current node. The supplied consumer may be invoked multiple times.
+     */
+    private void convertRelationships(Consumer<Dependency> dependency) {
+        for (int index = 0, size = currentSize("relationship"); index < size; ++index) {
+            String relationshipType = currentValue("relationship", index, "relationshipType").orElse("");
+            if (relationshipType.equals("DYNAMIC_LINK") || relationshipType.equals("http://blackducksoftware.com/rdf/terms#relationshipType_dynamicLink")) {
+                currentValue("relationship", index, "related")
+                        .map(ref -> new Dependency().dependsOn(ref))
+                        .ifPresent(dependency);
+            }
+        }
     }
 
     /**
