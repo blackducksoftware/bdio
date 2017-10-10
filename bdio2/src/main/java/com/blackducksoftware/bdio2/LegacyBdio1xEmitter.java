@@ -670,13 +670,36 @@ public class LegacyBdio1xEmitter extends SpliteratorEmitter {
      * Returns the namespace name from the BDIO 1.x external system type identifier.
      */
     private static String toNamespace(String externalSystemTypeId) {
+        // Only strip off the vocab fully qualified portion of the identifier, if present
+        externalSystemTypeId = ExtraStrings.removePrefix(externalSystemTypeId, "http://blackducksoftware.com/rdf/terms#");
+
         // Look for both the short form and fully qualified form since these were identifiers in BDIO 1.x
-        if (externalSystemTypeId.equals("maven") || externalSystemTypeId.equals("http://blackducksoftware.com/rdf/terms#externalIdentifier_maven")) {
+        if (externalSystemTypeId.equals("anaconda") || externalSystemTypeId.equals("externalIdentifier_anaconda")) {
+            return "anaconda";
+        } else if (externalSystemTypeId.equals("bower") || externalSystemTypeId.equals("externalIdentifier_bower")) {
+            return "bower";
+        } else if (externalSystemTypeId.equals("cocoapods") || externalSystemTypeId.equals("externalIdentifier_cocoapods")) {
+            return "cocoapods";
+        } else if (externalSystemTypeId.equals("cpan") || externalSystemTypeId.equals("externalIdentifier_cpan")) {
+            return "cpan";
+        } else if (externalSystemTypeId.equals("goget") || externalSystemTypeId.equals("externalIdentifier_goget")) {
+            return "golang";
+        } else if (externalSystemTypeId.equals("maven") || externalSystemTypeId.equals("externalIdentifier_maven")) {
             return "maven";
-        } else if (externalSystemTypeId.equals("npm") || externalSystemTypeId.equals("http://blackducksoftware.com/rdf/terms#externalIdentifier_npm")) {
+        } else if (externalSystemTypeId.equals("npm") || externalSystemTypeId.equals("externalIdentifier_npm")) {
             return "npmjs";
+        } else if (externalSystemTypeId.equals("nuget") || externalSystemTypeId.equals("externalIdentifier_nuget")) {
+            return "nuget";
+        } else if (externalSystemTypeId.equals("rubygems") || externalSystemTypeId.equals("externalIdentifier_rubygems")) {
+            return "rubygems";
+        } else if (externalSystemTypeId.equals("bdsuite") || externalSystemTypeId.equals("externalIdentifier_bdsuite")) {
+            return "bdsuite";
+        } else if (externalSystemTypeId.equals("bdhub") || externalSystemTypeId.equals("externalIdentifier_bdhub")) {
+            return "bdhub";
+        } else if (externalSystemTypeId.equals("openhub") || externalSystemTypeId.equals("externalIdentifier_openhub")) {
+            return "openhub";
         } else {
-            // TODO Is there anything else we can do?
+            // Technically this wasn't supported, but it was still allowed
             return externalSystemTypeId;
         }
     }
