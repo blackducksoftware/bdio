@@ -102,7 +102,7 @@ class ReadGraphContext extends GraphContext {
     public final Vertex upsert(Attachable<Vertex> attachableVertex) {
         Vertex baseVertex = attachableVertex.get();
         return Optional.ofNullable(baseVertex.id())
-                // If this a unique identifier, don't bother trying to look it up
+                // If this is a unique identifier, don't bother trying to look it up
                 .filter(id -> !isIdentifierUnique(id.toString()))
                 .flatMap(id -> {
                     try {

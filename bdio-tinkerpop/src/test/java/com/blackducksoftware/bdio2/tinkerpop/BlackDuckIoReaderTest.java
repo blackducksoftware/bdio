@@ -21,6 +21,7 @@ import java.util.Optional;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.Test;
@@ -146,6 +147,24 @@ public class BlackDuckIoReaderTest extends BaseTest {
 
         assertThat(file.property(Bdio.DataProperty.byteCount.name()).isPresent()).isTrue();
         assertThat(file.property(Bdio.DataProperty.contentType.name()).isPresent()).isTrue();
+    }
+
+    @Test
+    public void splitNodeEdges() throws Exception {
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+        Project projectModel1 = new Project(BdioObject.randomId());
+        Project projectModel2 = new Project(projectModel1.id());
+        File fileModel = new File(BdioObject.randomId());
+        projectModel2.base(fileModel);
+
+        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
+                .readGraph(BdioTest.zipJsonBytes(
+                        metadata.asNamedGraph(Lists.newArrayList(projectModel1)),
+                        metadata.asNamedGraph(Lists.newArrayList(projectModel2, fileModel), JsonLdConsts.ID)));
+
+        GraphTraversalSource g = graph.traversal();
+        assertThat(g.V().hasLabel(Bdio.Class.Project.name()).count().next()).isEqualTo(1);
+        assertThat(g.V().hasLabel(Bdio.Class.Project.name()).out(Bdio.ObjectProperty.base.name()).values(TT.id).tryNext()).hasValue(fileModel.id());
     }
 
     @Test

@@ -15,9 +15,12 @@ import static com.google.common.base.Throwables.propagateIfPossible;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.function.Function;
+
+import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -67,7 +70,8 @@ public final class BlackDuckIoReader implements GraphReader {
                 .map(node -> createVertex(node, null, null, Direction.OUT, context))
 
                 // Collect all of the vertices in a map, creating the actual vertices in the graph as we go
-                .toMap(vertex -> vertex, vertex -> vertex.attach(context::upsert))
+                // THIS IS THE PART WHERE WE READ THE WHOLE GRAPH INTO MEMORY SO WE CAN CREATE THE EDGES
+                .toMap(vertex -> vertex, vertex -> vertex.attach(context::upsert), BlackDuckIoReader::vertexMap)
 
                 // Create all the edges
                 .flatMapObservable(context::createEdges)
@@ -130,8 +134,11 @@ public final class BlackDuckIoReader implements GraphReader {
     /**
      * Creates an in-memory vertex from the supplied node data.
      */
-    private StarVertex createVertex(Map<String, Object> node, Function<Attachable<Vertex>, Vertex> vertexAttachMethod,
-            Function<Attachable<Edge>, Edge> edgeAttachMethod, Direction attachEdgesOfThisDirection, ReadGraphContext context) {
+    private StarVertex createVertex(Map<String, Object> node,
+            @Nullable Function<Attachable<Vertex>, Vertex> vertexAttachMethod,
+            @Nullable Function<Attachable<Edge>, Edge> edgeAttachMethod,
+            Direction attachEdgesOfThisDirection,
+            ReadGraphContext context) {
         // Create a new StarGraph whose primary vertex is the converted node
         StarGraph starGraph = StarGraph.open();
         StarVertex vertex = (StarVertex) starGraph.addVertex(context.getNodeProperties(node, true));
@@ -162,23 +169,55 @@ public final class BlackDuckIoReader implements GraphReader {
      * If a metadata label is configured, store the supplied BDIO metadata on a vertex in the graph.
      */
     private void createMetadata(BdioMetadata metadata, ReadGraphContext context, JsonLdOptions options) {
-        if (context.mapper().metadataLabel().isPresent()) {
+        context.mapper().metadataLabel().ifPresent(metadataLabel -> {
             GraphTraversalSource g = context.traversal();
-            Vertex metadataVertex = g.V().hasLabel(context.mapper().metadataLabel().get()).tryNext()
-                    .orElseGet(() -> g.addV(context.mapper().metadataLabel().get()).next());
 
-            context.mapper().identifierKey().ifPresent(key -> {
-                metadataVertex.property(key, metadata.id());
-            });
+            // Find or create the one vertex with the metadata label
+            Vertex vertex = g.V().hasLabel(metadataLabel).tryNext()
+                    .orElseGet(() -> g.addV(metadataLabel).next());
+
+            // Preserve the identifier (if configured)
+            context.mapper().identifierKey().ifPresent(key -> vertex.property(key, metadata.id()));
+
             try {
                 // Compact the metadata using the context extracted from frame
                 Map<String, Object> compactMetadata = JsonLdProcessor.compact(metadata, context.mapper().frame(), options);
-                ElementHelper.attachProperties(metadataVertex, context.getNodeProperties(compactMetadata, false));
+                ElementHelper.attachProperties(vertex, context.getNodeProperties(compactMetadata, false));
             } catch (JsonLdError e) {
-                // TODO What can we do about this?
-                e.printStackTrace();
+                // If we wrapped this and re-threw it, it would go back to the document's metadata single which is
+                // subscribed to without an error handler, subsequently it would get wrapped in a
+                // OnErrorNotImplementedException and passed to `RxJavaPlugins.onError`. So. Just call it directly.
+                RxJavaPlugins.onError(e);
             }
-        }
+        });
+    }
+
+    /**
+     * Mutable map keys with equality defined such that state gets lost. What joy.
+     */
+    private static Map<StarVertex, Vertex> vertexMap() {
+        return new HashMap<StarVertex, Vertex>() {
+            @Override
+            public Vertex put(StarVertex key, Vertex value) {
+                Vertex oldValue = super.put(key, value);
+                if (oldValue != null) {
+                    // If we re-used the old key, we may need to go back and add edges from the new key
+                    Iterator<Edge> edges = key.edges(Direction.OUT);
+                    if (edges.hasNext()) {
+                        // Worst case scenario. We need to get the old key, which means a linear search...
+                        for (StarVertex oldKey : keySet()) {
+                            if (oldKey.equals(key)) {
+                                edges.forEachRemaining(e -> {
+                                    oldKey.addEdge(e.label(), e.inVertex());
+                                });
+                                break;
+                            }
+                        }
+                    }
+                }
+                return oldValue;
+            }
+        };
     }
 
     public static Builder build() {
