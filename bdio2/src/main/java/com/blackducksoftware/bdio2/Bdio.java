@@ -205,8 +205,7 @@ public class Bdio {
          * The content type of a file.
          */
         // AllowedOn: File
-        // TODO Change type to a "media type"?
-        contentType("http://blackducksoftware.com/bdio#hasContentType", Datatype.Default, Container.single),
+        contentType("http://blackducksoftware.com/bdio#hasContentType", Datatype.ContentType, Container.single),
 
         /**
          * The namespace specific base context used to resolve a locator. Typically this is just a URL, however any

@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.common.value.ContentType;
 import com.blackducksoftware.common.value.Digest;
 
 public final class File extends BdioObject {
@@ -43,7 +44,7 @@ public final class File extends BdioObject {
         return this;
     }
 
-    public File contentType(@Nullable String contentType) {
+    public File contentType(@Nullable ContentType contentType) {
         putData(Bdio.DataProperty.contentType, contentType);
         return this;
     }

@@ -33,6 +33,7 @@ import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.Project;
 import com.blackducksoftware.bdio2.test.BdioTest;
+import com.blackducksoftware.common.value.ContentType;
 import com.blackducksoftware.common.value.Digest;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.Lists;
@@ -133,7 +134,7 @@ public class BlackDuckIoReaderTest extends BaseTest {
         File fileModel1 = new File(BdioObject.randomId());
         File fileModel2 = new File(fileModel1.id());
         fileModel1.byteCount(103L);
-        fileModel2.contentType("text/plain");
+        fileModel2.contentType(ContentType.parse("text/plain"));
 
         graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
                 .readGraph(BdioTest.zipJsonBytes(
