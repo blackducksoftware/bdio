@@ -15,6 +15,9 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static org.umlg.sqlg.structure.PropertyType.BOOLEAN;
+import static org.umlg.sqlg.structure.PropertyType.STRING;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -23,7 +26,10 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Predicate;
 
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.umlg.sqlg.structure.IndexType;
 import org.umlg.sqlg.structure.PropertyType;
 import org.umlg.sqlg.structure.SchemaTable;
@@ -63,12 +69,14 @@ class SqlgReadGraphContext extends ReadGraphContext {
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
         uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), expectedNodeCount);
 
-        // Pre-populate vertex tables
+        // Define a minimal topology to help reduce the number of dynamic topology changes
         sqlgGraph.tx().open();
         try {
             mapper().metadataLabel().ifPresent(this::defineVertexLabel);
             mapper().forEachTypeLabel(this::defineVertexLabel);
             mapper().forEachEmbeddedLabel(this::defineVertexLabel);
+            defineEdgeLabels();
+
             sqlgGraph.tx().commit();
         } finally {
             sqlgGraph.tx().rollback();
@@ -123,40 +131,56 @@ class SqlgReadGraphContext extends ReadGraphContext {
      * Defines the topology for a specific vertex label. Most labels contain the same base set of properties.
      */
     private void defineVertexLabel(String label) {
+        Topology topology = sqlgGraph.getTopology();
+
         // TODO We need a unique constraint on _partition/_id for all labels (if applicable)
         // TODO We need a unique constraint on _partition/path for files (if applicable)
 
-        VertexLabel vertexLabel = sqlgGraph.getTopology().ensureVertexLabelExist(label);
+        // This is just to help make the code look more uniform below
+        Optional<String> filePathKey = Optional.of(label).filter(Predicate.isEqual(Bdio.Class.File.name()))
+                .map(x -> Bdio.DataProperty.path.name());
 
-        mapper().partitionStrategy().ifPresent(strategy -> {
-            vertexLabel.ensurePropertiesExist(Collections.singletonMap(strategy.getPartitionKey(), PropertyType.STRING));
-            vertexLabel.getProperty(strategy.getPartitionKey())
-                    .ifPresent(property -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, Collections.singletonList(property)));
-        });
+        // Define the initial columns used to persist this vertex label
+        Map<String, PropertyType> columns = new LinkedHashMap<>();
+        mapper().partitionStrategy().map(PartitionStrategy::getPartitionKey).ifPresent(c -> columns.put(c, STRING));
+        mapper().identifierKey().ifPresent(c -> columns.put(c, STRING));
+        filePathKey.ifPresent(c -> columns.put(c, STRING));
+        mapper().implicitKey().ifPresent(c -> columns.put(c, BOOLEAN));
+        mapper().unknownKey().ifPresent(c -> columns.put(c, STRING)); // TODO PropertyType.JSON
 
-        mapper().identifierKey().ifPresent(key -> {
-            vertexLabel.ensurePropertiesExist(Collections.singletonMap(key, PropertyType.STRING));
-            vertexLabel.getProperty(key)
-                    .ifPresent(property -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, Collections.singletonList(property)));
-        });
+        // Ensure the vertex label exists with the proper columns
+        VertexLabel vertexLabel = topology.ensureVertexLabelExist(label, columns);
 
-        if (label.equals(Bdio.Class.File.name())) {
-            vertexLabel.ensurePropertiesExist(Collections.singletonMap(Bdio.DataProperty.path.name(), PropertyType.STRING));
-            vertexLabel.getProperty(Bdio.DataProperty.path.name())
-                    .ifPresent(property -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, Collections.singletonList(property)));
+        // Add indexes
+        mapper().partitionStrategy().map(PartitionStrategy::getPartitionKey)
+                .flatMap(vertexLabel::getProperty).map(Collections::singletonList)
+                .ifPresent(properties -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, properties));
+        mapper().identifierKey()
+                .flatMap(vertexLabel::getProperty).map(Collections::singletonList)
+                .ifPresent(properties -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, properties));
+        filePathKey
+                .flatMap(vertexLabel::getProperty).map(Collections::singletonList)
+                .ifPresent(properties -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, properties));
+    }
 
-            Map<String, PropertyType> parentEdgeProperties = new LinkedHashMap<>();
-            mapper().implicitKey().ifPresent(key -> {
-                vertexLabel.ensurePropertiesExist(Collections.singletonMap(key, PropertyType.BOOLEAN));
-                parentEdgeProperties.put(key, PropertyType.BOOLEAN);
-            });
-            sqlgGraph.getTopology().ensureEdgeLabelExist(Bdio.ObjectProperty.parent.name(), vertexLabel, vertexLabel, parentEdgeProperties);
-        }
+    /**
+     * Defines the topology for some of the edge labels.
+     */
+    private void defineEdgeLabels() {
+        Topology topology = sqlgGraph.getTopology();
 
-        mapper().unknownKey().ifPresent(key -> {
-            // TODO PropertyType.JSON?
-            vertexLabel.ensurePropertiesExist(Collections.singletonMap(key, PropertyType.STRING));
-        });
+        // In general we do not store BDIO information on edges, however there are a few common properties we use
+        Map<String, PropertyType> properties = new LinkedHashMap<>();
+        mapper().partitionStrategy().map(PartitionStrategy::getPartitionKey).ifPresent(c -> properties.put(c, STRING));
+        mapper().implicitKey().ifPresent(c -> properties.put(c, BOOLEAN));
+
+        // Collect the vertex labels used to define edges
+        VertexLabel projectVertex = topology.ensureVertexLabelExist(Bdio.Class.Project.name());
+        VertexLabel fileVertex = topology.ensureVertexLabelExist(Bdio.Class.File.name());
+
+        // Define a small number of edges (those that most commonly used or are extremely dense)
+        topology.ensureEdgeLabelExist(Bdio.ObjectProperty.base.name(), projectVertex, fileVertex, properties);
+        topology.ensureEdgeLabelExist(Bdio.ObjectProperty.parent.name(), fileVertex, fileVertex, properties);
     }
 
 }
