@@ -18,7 +18,8 @@ package com.blackducksoftware.bdio2.tinkerpop.test;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.InputStream;
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 import com.blackducksoftware.bdio2.BdioMetadata;
@@ -36,22 +37,22 @@ public class NamedGraphBuilder {
 
     private BdioMetadata metadata;
 
-    private LinkedList<BdioObject> graph;
+    private List<BdioObject> graph;
 
     public NamedGraphBuilder() {
         metadata = BdioMetadata.createRandomUUID();
-        graph = new LinkedList<>();
+        graph = new ArrayList<>();
         graph.add(new Project(BdioObject.randomId()));
     }
 
     public NamedGraphBuilder withBaseFile(File base) {
-        ((Project) graph.getFirst()).base(base);
+        ((Project) graph.get(0)).base(base);
         graph.add(base);
         return this;
     }
 
     public NamedGraphBuilder withProject(Consumer<Project> project) {
-        project.accept((Project) graph.getFirst());
+        project.accept((Project) graph.get(0));
         return this;
     }
 

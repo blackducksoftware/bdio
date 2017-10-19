@@ -18,7 +18,7 @@ package com.blackducksoftware.bdio2.tool;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.time.ZonedDateTime;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -52,7 +52,7 @@ public class ConcatenateTool extends Tool {
 
     private ByteSink output;
 
-    private List<ByteSource> inputs = new LinkedList<>();
+    private List<ByteSource> inputs = new ArrayList<>();
 
     // TODO Allow the ID to customized
     private Optional<String> id = Optional.empty();

@@ -22,9 +22,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.ArrayDeque;
 import java.util.Date;
 import java.util.Deque;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -346,7 +346,7 @@ class LegacyScanContainerEmitter implements Emitter {
      * Returns a sequence of nesting archive nodes leading up to (and including) the supplied scan node.
      */
     private static Iterable<LegacyScanNode> listArchives(LegacyScanContainer scanContainer, LegacyScanNode scanNode) {
-        Deque<LegacyScanNode> result = new LinkedList<>();
+        Deque<LegacyScanNode> result = new ArrayDeque<>();
         result.add(scanNode);
 
         // Follow the scan nodes up to root

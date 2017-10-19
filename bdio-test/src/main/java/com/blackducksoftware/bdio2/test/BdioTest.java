@@ -17,7 +17,6 @@ import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
@@ -94,7 +93,7 @@ public final class BdioTest {
      * Returns a collection of strings representing each entry in a Zip file.
      */
     public static List<String> zipEntries(InputStream in) {
-        List<String> result = new LinkedList<>();
+        List<String> result = new ArrayList<>();
         try (ZipInputStream zip = new ZipInputStream(in)) {
             ZipEntry entry = zip.getNextEntry();
             while (entry != null) {

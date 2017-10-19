@@ -24,11 +24,11 @@ import java.io.UncheckedIOException;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -287,7 +287,7 @@ class LegacyBdio1xEmitter implements Emitter {
     /**
      * Buffer used to hold nodes which are not ready for being emitted.
      */
-    private final Deque<Map<String, Object>> buffer = new LinkedList<>();
+    private final Deque<Map<String, Object>> buffer = new ArrayDeque<>();
 
     /**
      * The base file context used to associate the project with the file hierarchy.
