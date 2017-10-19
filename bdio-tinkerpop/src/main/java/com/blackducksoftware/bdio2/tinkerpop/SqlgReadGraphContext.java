@@ -26,9 +26,9 @@ import java.util.Objects;
 
 import org.umlg.sqlg.structure.IndexType;
 import org.umlg.sqlg.structure.PropertyType;
-import org.umlg.sqlg.structure.SchemaManager;
 import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
+import org.umlg.sqlg.structure.Topology;
 import org.umlg.sqlg.structure.VertexLabel;
 
 import com.blackducksoftware.bdio2.Bdio;
@@ -90,7 +90,7 @@ class SqlgReadGraphContext extends ReadGraphContext {
 
         // Determine where the vertices are stored
         SchemaTable schemaTable = SchemaTable.from(sqlgGraph, label)
-                .withPrefix(SchemaManager.VERTEX_PREFIX);
+                .withPrefix(Topology.VERTEX_PREFIX);
 
         // Build the query
         StringBuilder sql = new StringBuilder()
