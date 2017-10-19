@@ -437,6 +437,14 @@ public class GraphMapper {
             return this;
         }
 
+        public Builder partitionStrategy(String partitionKey, String value) {
+            return partitionStrategy(PartitionStrategy.build()
+                    .partitionKey(partitionKey)
+                    .writePartition(value)
+                    .readPartitions(value)
+                    .create());
+        }
+
         public Builder withConfiguration(Configuration configuration) {
             // TODO You still cannot configure the documentBuilder or datatypeHandlers...
             Configuration config = configuration.subset("bdio");
