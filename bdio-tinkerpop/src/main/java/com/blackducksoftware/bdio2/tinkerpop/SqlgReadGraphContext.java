@@ -76,9 +76,8 @@ class SqlgReadGraphContext extends ReadGraphContext {
             mapper().forEachTypeLabel(this::defineVertexLabel);
             mapper().forEachEmbeddedLabel(this::defineVertexLabel);
             defineEdgeLabels();
-
-            sqlgGraph.tx().commit();
         } finally {
+            // Topology changes are idempotent, if they were committed, this is a noop
             sqlgGraph.tx().rollback();
         }
     }
@@ -161,6 +160,9 @@ class SqlgReadGraphContext extends ReadGraphContext {
         filePathKey
                 .flatMap(vertexLabel::getProperty).map(Collections::singletonList)
                 .ifPresent(properties -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, properties));
+
+        // Commit changes for this label
+        sqlgGraph.tx().commit();
     }
 
     /**
@@ -181,6 +183,9 @@ class SqlgReadGraphContext extends ReadGraphContext {
         // Define a small number of edges (those that most commonly used or are extremely dense)
         topology.ensureEdgeLabelExist(Bdio.ObjectProperty.base.name(), projectVertex, fileVertex, properties);
         topology.ensureEdgeLabelExist(Bdio.ObjectProperty.parent.name(), fileVertex, fileVertex, properties);
+
+        // Commit all edges
+        sqlgGraph.tx().commit();
     }
 
 }
