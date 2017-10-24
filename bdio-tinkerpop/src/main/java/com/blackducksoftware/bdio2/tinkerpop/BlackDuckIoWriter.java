@@ -11,13 +11,13 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import static org.apache.tinkerpop.gremlin.process.traversal.P.within;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasLabel;
+import static org.apache.tinkerpop.gremlin.process.traversal.P.without;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasNot;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -29,16 +29,11 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.io.GraphWriter;
-import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
-import com.blackducksoftware.bdio2.BdioMetadata;
+import com.blackducksoftware.bdio2.BdioWriter;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.blackducksoftware.bdio2.tinkerpop.GraphContextFactory.AbstractContextBuilder;
 import com.github.jsonldjava.core.JsonLdConsts;
-import com.github.jsonldjava.core.JsonLdError;
-import com.github.jsonldjava.core.JsonLdOptions;
-import com.github.jsonldjava.core.JsonLdProcessor;
-import com.google.common.collect.Iterables;
 
 import io.reactivex.Flowable;
 
@@ -53,30 +48,33 @@ public class BlackDuckIoWriter implements GraphWriter {
     @Override
     public void writeGraph(OutputStream outputStream, Graph graph) throws IOException {
         WriteGraphContext context = contextFactory.forBdioWritingFrom(graph);
-        RxJavaBdioDocument document = context.mapper().newBdioDocument(RxJavaBdioDocument.class);
-
-        // Create the writer with the parsed metadata
-        document.writeToFile(createMetadata(context, document.jsonld().options()), outputStream);
+        RxJavaBdioDocument document = context.mapper().newBdioDocument();
 
         // Collect the vertex labels which should be excluded from the output
         Collection<String> excludedLabels = new LinkedHashSet<>();
         context.mapper().metadataLabel().ifPresent(excludedLabels::add);
         context.mapper().forEachEmbeddedLabel(excludedLabels::add);
 
-        // Construct a flowable using the vertex traversal as the iterator
-        Flowable.fromIterable(() -> context.traversal().V()
+        try {
+            Flowable.fromIterable(() -> context.traversal().V()
 
-                // Strip out the exclude labels
-                // TODO .hasLabel(without(excludedLabels)) is currently broken on Sqlg
-                .not(hasLabel(within(excludedLabels)))
+                    // Strip out the exclude labels
+                    .hasLabel(without(excludedLabels))
 
-                // Strip out the implicit vertices since they weren't originally included
-                .where(context.mapper().implicitKey().map(propertyKey -> hasNot(propertyKey)).orElse(identity()))
+                    // Strip out the implicit vertices since they weren't originally included
+                    .where(context.mapper().implicitKey().map(propertyKey -> hasNot(propertyKey)).orElse(identity()))
 
-                // Convert to JSON-LD
-                .map(t -> createNode(t.get(), context)))
-                .doOnTerminate(context::rollbackTx)
-                .subscribe(document.asNodeSubscriber());
+                    // Convert to JSON-LD
+                    .map(t -> createNode(t.get(), context)))
+                    .doOnTerminate(context::rollbackTx)
+
+                    // TODO How do exceptions come through here?
+                    .buffer(1000)
+                    .blockingSubscribe(document.write(context.createMetadata(), new BdioWriter.BdioFile(outputStream)));
+        } catch (UncheckedIOException e) {
+            // TODO We loose the stack of the unchecked wrapper: `e.getCause().addSuppressed(e)`?
+            throw e.getCause();
+        }
     }
 
     @Override
@@ -141,35 +139,6 @@ public class BlackDuckIoWriter implements GraphWriter {
         });
 
         return result;
-    }
-
-    /**
-     * If a metadata label is configured, read the vertex from the graph into a new BDIO metadata instance.
-     */
-    private BdioMetadata createMetadata(WriteGraphContext context, JsonLdOptions options) {
-        return context.mapper().metadataLabel()
-                .flatMap(label -> context.traversal().V().hasLabel(label).tryNext())
-                .map(vertex -> {
-                    BdioMetadata metadata = new BdioMetadata();
-                    context.mapper().identifierKey().ifPresent(key -> {
-                        metadata.id(vertex.value(key));
-                    });
-                    try {
-                        Object expandedMetadata = Iterables.getOnlyElement(JsonLdProcessor.expand(ElementHelper.propertyValueMap(vertex), options), null);
-                        if (expandedMetadata instanceof Map<?, ?>) {
-                            ((Map<?, ?>) expandedMetadata).forEach((key, value) -> {
-                                if (key instanceof String) {
-                                    metadata.put((String) key, value);
-                                }
-                            });
-                        }
-                    } catch (JsonLdError e) {
-                        // TODO How should we handle this?
-                        e.printStackTrace();
-                    }
-                    return metadata;
-                })
-                .orElse(BdioMetadata.createRandomUUID());
     }
 
     public static Builder build() {

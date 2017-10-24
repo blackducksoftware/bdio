@@ -12,12 +12,13 @@
 package com.blackducksoftware.bdio2;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.Map;
 import java.util.Objects;
 
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
+
+import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 
 /**
  * A subscriber for serializing BDIO nodes to a byte stream.
@@ -31,8 +32,8 @@ public class BdioSubscriber implements Subscriber<Map<String, Object>> {
 
     private Subscription subscription;
 
-    public BdioSubscriber(BdioMetadata metadata, OutputStream out) {
-        writer = new BdioWriter(metadata, out);
+    public BdioSubscriber(BdioMetadata metadata, StreamSupplier entryStreams) {
+        writer = new BdioWriter(metadata, entryStreams);
     }
 
     private void validateSubscription(Subscription s) {

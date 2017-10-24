@@ -27,9 +27,10 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.bdio2.BdioOptions;
+import com.blackducksoftware.bdio2.BdioWriter;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.blackducksoftware.common.value.ProductList;
 import com.google.common.base.StandardSystemProperty;
@@ -104,6 +105,8 @@ public class ConcatenateTool extends Tool {
     protected void execute() throws Exception {
         checkState(!inputs.isEmpty(), "input is not set");
 
+        BdioOptions options = new BdioOptions.Builder().build();
+
         BdioMetadata metadata = new BdioMetadata();
         metadata.id(id.orElseGet(BdioObject::randomId));
         metadata.producer(ProductList.of(getProduct()));
@@ -112,9 +115,12 @@ public class ConcatenateTool extends Tool {
 
         Flowable.fromIterable(inputs)
                 .map(ByteSource::openStream)
-                .flatMap(in -> new BdioDocument.Builder()
-                        .build(RxJavaBdioDocument.class)
-                        .fromInputStream(in))
+
+                // TODO Instead of ignoring metadata should we use `metadata::merge`? (then do a clean up later...)
+
+                .flatMap(in -> new RxJavaBdioDocument(options).read(in, x -> {}).identity())
+
+                // TODO Offer the option to do framing here to optimize Protex files?
 
                 // TODO Clean everything up here...
                 .map(entry -> {
@@ -128,10 +134,7 @@ public class ConcatenateTool extends Tool {
                 })
 
                 // Send everything to a new BDIO document
-                .subscribe(new BdioDocument.Builder()
-                        .build(RxJavaBdioDocument.class)
-                        .writeToFile(metadata, output.openStream())
-                        .processor());
+                .subscribe(new RxJavaBdioDocument(options).write(metadata, new BdioWriter.BdioFile(output.openStream())));
     }
 
 }

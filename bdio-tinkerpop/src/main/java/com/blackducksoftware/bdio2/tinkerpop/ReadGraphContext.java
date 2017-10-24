@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -34,11 +35,14 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 import org.umlg.sqlg.structure.SqlgExceptions.InvalidIdException;
 
+import com.blackducksoftware.bdio2.BdioMetadata;
 import com.github.jsonldjava.core.JsonLdConsts;
+import com.github.jsonldjava.core.JsonLdError;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 
 import io.reactivex.Observable;
+import io.reactivex.plugins.RxJavaPlugins;
 
 /**
  * Context used when performing a
@@ -154,6 +158,32 @@ class ReadGraphContext extends GraphContext {
 
                     return newEdge;
                 });
+    }
+
+    /**
+     * If a metadata label is configured, store the supplied BDIO metadata on a vertex in the graph.
+     */
+    public void createMetadata(BdioMetadata metadata) {
+        mapper().metadataLabel().ifPresent(metadataLabel -> {
+            GraphTraversalSource g = traversal();
+
+            // Find or create the one vertex with the metadata label
+            Vertex vertex = g.V().hasLabel(metadataLabel).tryNext()
+                    .orElseGet(() -> g.addV(metadataLabel).next());
+
+            // Preserve the identifier (if configured)
+            mapper().identifierKey().ifPresent(key -> vertex.property(key, metadata.id()));
+
+            try {
+                Map<String, Object> compactMetadata = mapper().compact(metadata);
+                ElementHelper.attachProperties(vertex, getNodeProperties(compactMetadata, false));
+            } catch (JsonLdError e) {
+                // If we wrapped this and re-threw it, it would go back to the document's metadata single which is
+                // subscribed to without an error handler, subsequently it would get wrapped in a
+                // OnErrorNotImplementedException and passed to `RxJavaPlugins.onError`. So. Just call it directly.
+                RxJavaPlugins.onError(e);
+            }
+        });
     }
 
     public long countVerticesByLabel(String label) {

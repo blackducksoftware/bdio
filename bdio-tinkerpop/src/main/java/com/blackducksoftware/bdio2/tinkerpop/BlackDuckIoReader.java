@@ -11,10 +11,9 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import static com.google.common.base.Throwables.propagateIfPossible;
-
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -22,7 +21,6 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -32,19 +30,12 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.io.GraphReader;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
-import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarEdge;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 
-import com.blackducksoftware.bdio2.BdioMetadata;
-import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
+import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.tinkerpop.GraphContextFactory.AbstractContextBuilder;
-import com.github.jsonldjava.core.JsonLdError;
-import com.github.jsonldjava.core.JsonLdOptions;
-import com.github.jsonldjava.core.JsonLdProcessor;
-
-import io.reactivex.plugins.RxJavaPlugins;
 
 public final class BlackDuckIoReader implements GraphReader {
 
@@ -58,38 +49,39 @@ public final class BlackDuckIoReader implements GraphReader {
     @Override
     public void readGraph(InputStream inputStream, Graph graph) throws IOException {
         ReadGraphContext context = contextFactory.forBdioReadingInto(graph);
-        RxJavaBdioDocument document = context.mapper().newBdioDocument(RxJavaBdioDocument.class);
+        try {
+            context.mapper().newBdioDocument()
 
-        // Create a metadata subscription
-        document.metadata(metadata -> createMetadata(metadata, context, document.jsonld().options()));
+                    // Convert bytes to a sequence of BDIO entries, while also storing the aggregated metadata
+                    .read(inputStream, context::createMetadata)
 
-        // Get the sequence of BDIO graph nodes and transform them in vertices and edges
-        document.jsonld().frame(context.mapper().frame()).compose(document.withoutMetadata())
+                    // Convert entries to individual nodes
+                    .frame(context.mapper().frame())
+                    .flatMapIterable(BdioDocument::toGraphNodes)
 
-                // Convert nodes to vertices
-                .map(node -> createVertex(node, null, null, Direction.OUT, context))
+                    // Convert nodes to vertices
+                    .map(node -> createVertex(node, null, null, Direction.OUT, context))
 
-                // Collect all of the vertices in a map, creating the actual vertices in the graph as we go
-                // THIS IS THE PART WHERE WE READ THE WHOLE GRAPH INTO MEMORY SO WE CAN CREATE THE EDGES
-                .toMap(vertex -> vertex, vertex -> vertex.attach(context::upsert), BlackDuckIoReader::vertexMap)
+                    // Collect all of the vertices in a map, creating the actual vertices in the graph as we go
+                    // THIS IS THE PART WHERE WE READ THE WHOLE GRAPH INTO MEMORY SO WE CAN CREATE THE EDGES
+                    // TODO Combine these two steps so it can be implemented in the context (allowing us to leverage
+                    // bulk edge creation in Sqlg)
+                    .toMap(vertex -> vertex, vertex -> vertex.attach(context::upsert), BlackDuckIoReader::vertexMap)
+                    .flatMapObservable(context::createEdges)
 
-                // Create all the edges
-                .flatMapObservable(context::createEdges)
+                    // Setup batch commits
+                    .doOnSubscribe(x -> context.startBatchTx())
+                    .doOnNext(x -> context.batchCommitTx()) // TODO Should this be right after attach?
+                    .doOnError(x -> context.rollbackTx())
+                    .doOnComplete(context::commitTx)
 
-                // Setup batch commits
-                .doOnSubscribe(x -> context.startBatchTx())
-                .doOnNext(x -> context.batchCommitTx())
-                .doOnError(x -> context.rollbackTx())
-                .doOnComplete(context::commitTx)
+                    // Ignore values, propagate errors
+                    .blockingSubscribe();
 
-                // Ignore values, send errors directly to the default handler (nothing we can do with them)
-                .subscribe(ignored -> {}, RxJavaPlugins::onError);
-
-        // Read the supplied input stream
-        document.read(inputStream);
-
-        // If reading BDIO encountered a problem (e.g. an IOException), the error will be on the processor
-        propagateIfPossible(document.processor().getThrowable(), IOException.class);
+        } catch (UncheckedIOException e) {
+            // TODO We loose the stack of the unchecked wrapper: `e.getCause().addSuppressed(e)`?
+            throw e.getCause();
+        }
     }
 
     @Override
@@ -164,33 +156,6 @@ public final class BlackDuckIoReader implements GraphReader {
         }
 
         return vertex;
-    }
-
-    /**
-     * If a metadata label is configured, store the supplied BDIO metadata on a vertex in the graph.
-     */
-    private void createMetadata(BdioMetadata metadata, ReadGraphContext context, JsonLdOptions options) {
-        context.mapper().metadataLabel().ifPresent(metadataLabel -> {
-            GraphTraversalSource g = context.traversal();
-
-            // Find or create the one vertex with the metadata label
-            Vertex vertex = g.V().hasLabel(metadataLabel).tryNext()
-                    .orElseGet(() -> g.addV(metadataLabel).next());
-
-            // Preserve the identifier (if configured)
-            context.mapper().identifierKey().ifPresent(key -> vertex.property(key, metadata.id()));
-
-            try {
-                // Compact the metadata using the context extracted from frame
-                Map<String, Object> compactMetadata = JsonLdProcessor.compact(metadata, context.mapper().frame(), options);
-                ElementHelper.attachProperties(vertex, context.getNodeProperties(compactMetadata, false));
-            } catch (JsonLdError e) {
-                // If we wrapped this and re-threw it, it would go back to the document's metadata single which is
-                // subscribed to without an error handler, subsequently it would get wrapped in a
-                // OnErrorNotImplementedException and passed to `RxJavaPlugins.onError`. So. Just call it directly.
-                RxJavaPlugins.onError(e);
-            }
-        });
     }
 
     /**

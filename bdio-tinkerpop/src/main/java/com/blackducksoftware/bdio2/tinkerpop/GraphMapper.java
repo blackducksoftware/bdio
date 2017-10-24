@@ -40,10 +40,13 @@ import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.Partit
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.BdioDocument;
+import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
+import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.github.jsonldjava.core.JsonLdConsts;
+import com.github.jsonldjava.core.JsonLdError;
+import com.github.jsonldjava.core.JsonLdProcessor;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -58,19 +61,15 @@ import com.google.common.collect.Maps;
 // TODO Should this be in a different package and broken into smaller pieces?
 public class GraphMapper {
 
-    // TODO It seems like there is connection here with JsonLdOptions, they are created by the documentBuilder but only
-    // when the document is built...THEREFORE we would need private ownership of the BdioDocument.Builder in this class
-    // If we were to offer compact and expand JSON-LD operations here, it wouldn't matter
-
     /**
      * The JSON-LD value object mapper to use.
      */
     private final ValueObjectMapper valueObjectMapper;
 
     /**
-     * Builder for creating BDIO documents.
+     * Options for creating BDIO documents.
      */
-    private final BdioDocument.Builder documentBuilder;
+    private final BdioOptions options;
 
     /**
      * The mapping of vertex labels to {@code @type} IRIs. Does not include the metadata vertex label.
@@ -123,8 +122,6 @@ public class GraphMapper {
     private final Optional<PartitionStrategy> partitionStrategy;
 
     private GraphMapper(Builder builder) {
-        valueObjectMapper = builder.valueObjectMapperBuilder.build();
-        documentBuilder = builder.documentBuilder.orElseGet(BdioDocument.Builder::new);
         classes = ImmutableMap.copyOf(builder.classes);
         embeddedClasses = ImmutableMap.copyOf(builder.embeddedClasses);
         dataProperties = ImmutableMap.copyOf(builder.dataProperties);
@@ -136,17 +133,31 @@ public class GraphMapper {
         implicitKey = Objects.requireNonNull(builder.implicitKey);
         partitionStrategy = Objects.requireNonNull(builder.partitionStrategy);
 
-        // Update the application context
-        documentBuilder.applicationContext(applicationContext());
+        // Construct the value object mapper
+        ValueObjectMapper.Builder valueObjectMapperBuilder = new ValueObjectMapper.Builder();
+        builder.datatypes.forEach(valueObjectMapperBuilder::useDatatypeHandler);
+        builder.embeddedClasses.forEach((k, v) -> {
+            // Normally the ValueObjectMapper only tracks fully qualified types but we need to use it prior to
+            // JSON-LD expansion so we need to tell it to recognize the vertex labels as well
+            valueObjectMapperBuilder.addEmbeddedType(k);
+            valueObjectMapperBuilder.addEmbeddedType(v);
+        });
+        builder.multiValueCollector.ifPresent(valueObjectMapperBuilder::multiValueCollector);
+        valueObjectMapper = valueObjectMapperBuilder.build();
+
+        // Construct the BDIO options
+        BdioOptions.Builder optionsBuilder = new BdioOptions.Builder();
+        builder.contentType.ifPresent(contentType -> optionsBuilder.forContentType(contentType, builder.expandContext.orElse(null)));
+        optionsBuilder.applicationContext(applicationContext());
+        options = optionsBuilder.build();
     }
 
     public ValueObjectMapper valueObjectMapper() {
         return valueObjectMapper;
     }
 
-    public <D extends BdioDocument> D newBdioDocument(Class<D> type) {
-        // Do not expose the whole builder as it is mutable
-        return documentBuilder.build(type);
+    public RxJavaBdioDocument newBdioDocument() {
+        return new RxJavaBdioDocument(options);
     }
 
     /**
@@ -227,6 +238,24 @@ public class GraphMapper {
         return partitionStrategy;
     }
 
+    public Map<String, Object> compact(Map<String, Object> input) throws JsonLdError {
+        return JsonLdProcessor.compact(input, expandContext(), options.jsonLdOptions());
+    }
+
+    public List<Object> expand(Object input) throws JsonLdError {
+        return JsonLdProcessor.expand(input, options.jsonLdOptions());
+    }
+
+    private Map<String, Object> expandContext() {
+        // This must construct a new mutable structure for the JSON-LD API (and for our own use)
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.putAll(classes);
+        context.putAll(embeddedClasses);
+        context.putAll(dataProperties);
+        context.putAll(objectProperties);
+        return context;
+    }
+
     public Map<String, Object> frame() {
         List<String> type = new ArrayList<>();
         type.addAll(classes.values());
@@ -240,7 +269,7 @@ public class GraphMapper {
     }
 
     @Nullable
-    public Map<String, Object> applicationContext() {
+    private Map<String, Object> applicationContext() {
         Map<String, Object> context = expandContext();
 
         // Remove everything that could come from BDIO
@@ -254,16 +283,6 @@ public class GraphMapper {
         context.keySet().removeIf(this::isSpecialKey);
 
         return context.isEmpty() ? null : context;
-    }
-
-    private Map<String, Object> expandContext() {
-        // This must construct a new mutable structure for the JSON-LD API (and for our own use)
-        Map<String, Object> context = new LinkedHashMap<>();
-        context.putAll(classes);
-        context.putAll(embeddedClasses);
-        context.putAll(dataProperties);
-        context.putAll(objectProperties);
-        return context;
     }
 
     /**
@@ -306,9 +325,7 @@ public class GraphMapper {
 
     public static final class Builder {
 
-        private final ValueObjectMapper.Builder valueObjectMapperBuilder;
-
-        private Optional<BdioDocument.Builder> documentBuilder = Optional.empty();
+        private final Map<String, DatatypeHandler<?>> datatypes;
 
         private final Map<String, String> classes;
 
@@ -317,6 +334,12 @@ public class GraphMapper {
         private final Map<String, String> dataProperties;
 
         private final Map<String, String> objectProperties;
+
+        private Optional<IntFunction<Collector<? super Object, ?, ?>>> multiValueCollector = Optional.empty();
+
+        private Optional<Bdio.ContentType> contentType = Optional.empty();
+
+        private Optional<Object> expandContext = Optional.empty();
 
         private Optional<String> metadataLabel = Optional.empty();
 
@@ -331,17 +354,13 @@ public class GraphMapper {
         private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
 
         private Builder() {
-            valueObjectMapperBuilder = new ValueObjectMapper.Builder();
+            datatypes = new LinkedHashMap<>();
 
             classes = new LinkedHashMap<>();
             embeddedClasses = new LinkedHashMap<>();
             for (Bdio.Class bdioClass : Bdio.Class.values()) {
                 if (bdioClass.embedded()) {
                     embeddedClasses.put(bdioClass.name(), bdioClass.toString());
-
-                    // Normally the ValueObjectMapper only tracks fully qualified types but we need to use it prior to
-                    // JSON-LD expansion so we need to tell it to recognize the vertex labels as well
-                    valueObjectMapperBuilder.addEmbeddedType(bdioClass.name());
                 } else {
                     classes.put(bdioClass.name(), bdioClass.toString());
                 }
@@ -358,19 +377,19 @@ public class GraphMapper {
             }
         }
 
-        public Builder multiValueCollector(IntFunction<Collector<? super Object, ?, ?>> multiValueCollector) {
-            valueObjectMapperBuilder.multiValueCollector(multiValueCollector);
+        public Builder multiValueCollector(@Nullable IntFunction<Collector<? super Object, ?, ?>> multiValueCollector) {
+            this.multiValueCollector = Optional.ofNullable(multiValueCollector);
             return this;
         }
 
-        // TODO Should we expose this builder publicly? Or manage it like ValueObjectMapper.Builder?
-        public Builder documentBuilder(@Nullable BdioDocument.Builder documentBuilder) {
-            this.documentBuilder = Optional.ofNullable(documentBuilder);
+        public Builder forContentType(@Nullable Bdio.ContentType contentType, @Nullable Object expandContext) {
+            this.contentType = Optional.ofNullable(contentType);
+            this.expandContext = Optional.ofNullable(expandContext);
             return this;
         }
 
         public Builder addDatatype(String iri, DatatypeHandler<?> handler) {
-            valueObjectMapperBuilder.useDatatypeHandler(iri, handler);
+            datatypes.put(Objects.requireNonNull(iri), Objects.requireNonNull(handler));
             return this;
         }
 
@@ -383,10 +402,6 @@ public class GraphMapper {
         public Builder addEmbeddedClass(String label, String iri) {
             checkUserSuppliedVertexLabel(label, "embedded class label '%s' is reserved");
             embeddedClasses.put(label, iri);
-
-            // See note in the constructor about the ValueObjectMapper
-            valueObjectMapperBuilder.addEmbeddedType(label);
-            valueObjectMapperBuilder.addEmbeddedType(iri);
             return this;
         }
 
@@ -446,7 +461,7 @@ public class GraphMapper {
         }
 
         public Builder withConfiguration(Configuration configuration) {
-            // TODO You still cannot configure the documentBuilder or datatypeHandlers...
+            // TODO You still cannot configure the datatypeHandlers...
             Configuration config = configuration.subset("bdio");
             ConfigurationConverter.getMap(config.subset("embeddedClass"))
                     .forEach((k, v) -> addEmbeddedClass(k.toString(), v.toString()));
@@ -493,7 +508,7 @@ public class GraphMapper {
                 checkArgument(!label.equalsIgnoreCase(bdioClass.name()), message, label);
             }
 
-            // TODO Warn if label starts with SchemaManager.VERTEX_PREFIX
+            // TODO Warn if label starts with Topology.VERTEX_PREFIX
 
             return Optional.of(label);
         } else {
@@ -511,7 +526,7 @@ public class GraphMapper {
                 checkArgument(!label.equalsIgnoreCase(bdioOjectProperty.name()), message, label);
             }
 
-            // TODO Warn if label starts with SchemaManager.EDGE_PREFIX
+            // TODO Warn if label starts with Topology.EDGE_PREFIX
 
             return Optional.of(label);
         } else {

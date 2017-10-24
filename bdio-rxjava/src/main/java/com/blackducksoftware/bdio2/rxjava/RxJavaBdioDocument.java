@@ -11,30 +11,23 @@
  */
 package com.blackducksoftware.bdio2.rxjava;
 
+import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.io.UncheckedIOException;
 import java.util.function.Consumer;
 
-import javax.annotation.Nullable;
-
+import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
 import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.BdioMetadata;
+import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.BdioSubscriber;
+import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.bdio2.Emitter;
 import com.blackducksoftware.bdio2.EmitterFactory;
-import com.blackducksoftware.common.io.ExtraIO;
-import com.github.jsonldjava.core.JsonLdError;
-import com.github.jsonldjava.core.JsonLdOptions;
 
 import io.reactivex.Flowable;
-import io.reactivex.FlowableTransformer;
-import io.reactivex.Single;
-import io.reactivex.processors.FlowableProcessor;
 import io.reactivex.processors.PublishProcessor;
 
 /**
@@ -44,145 +37,57 @@ import io.reactivex.processors.PublishProcessor;
  */
 public final class RxJavaBdioDocument extends BdioDocument {
 
-    /**
-     * Returns more specific types then the {@link BdioDocument.JsonLdProcessing}.
-     */
-    public interface RxJavaJsonLdProcessing extends BdioDocument.JsonLdProcessing {
-        @Override
-        Flowable<Map<String, Object>> compact(Object context);
-
-        @Override
-        Flowable<List<Object>> expand();
-
-        @Override
-        Flowable<Object> flatten(@Nullable Object context);
-
-        @Override
-        Flowable<Map<String, Object>> frame(Object frame);
+    public RxJavaBdioDocument(BdioOptions options) {
+        super(options);
     }
 
-    private final PublishProcessor<Object> data;
+    @Override
+    public RxJavaJsonLdProcessing jsonLd(Publisher<Object> inputs) {
+        return new RxJavaJsonLdProcessing(Flowable.fromPublisher(inputs), options());
+    }
 
-    private final Single<BdioMetadata> metadata;
+    @SuppressWarnings("CheckReturnValue")
+    @Override
+    public RxJavaJsonLdProcessing read(InputStream in, Consumer<BdioMetadata> metadataConsumer) {
+        Flowable<Object> entries = Flowable.generate(
+                () -> EmitterFactory.newEmitter(in),
+                (parser, emitter) -> {
+                    parser.emit(emitter::onNext, emitter::onError, emitter::onComplete);
+                },
+                Emitter::dispose)
 
-    public RxJavaBdioDocument(Builder builder) {
-        super(builder);
+                // Make IOExceptions unchecked
+                .onErrorResumeNext(t -> {
+                    if (t instanceof IOException) {
+                        return Flowable.error(new UncheckedIOException((IOException) t));
+                    } else {
+                        return Flowable.error(t);
+                    }
+                })
 
-        // Create a new processor to facilitate the flow of BDIO data
-        data = PublishProcessor.create();
+                // TODO Should this happen on the I/O scheduler?
+                .publish().autoConnect(2);
 
-        // Each "entry" may contain metadata which needs to be collected
-        metadata = data
-                .map(this::extractMetadata)
+        entries.map(BdioDocument::toGraphMetadata)
                 .reduce(new BdioMetadata(), BdioMetadata::merge)
-                .cache();
+                // TODO Have our own default error handler that defaults to the RxJavaPlugins.onError?
+                // TODO What do we do with the disposable?
+                .subscribe(metadataConsumer::accept);
 
-        // Make sure we don't miss any metadata
-        metadata.subscribe();
+        return jsonLd(entries);
     }
 
     @Override
-    public FlowableProcessor<Object> processor() {
-        return data;
-    }
+    public Subscriber<Object> write(BdioMetadata metadata, StreamSupplier entryStreams) {
+        PublishProcessor<Object> data = PublishProcessor.create();
 
-    @Override
-    public Subscriber<Map<String, Object>> asNodeSubscriber() {
-        PublishProcessor<Map<String, Object>> nodes = PublishProcessor.create();
-
-        // TODO How do we eliminate the need for guess work?
-        // NOTE: The buffer size choice was arbitrary, we just want to ensure we never
-        // hit the BDIO imposed 16MB limit on the serialized size
-        nodes.buffer(1000)
-                .defaultIfEmpty(new ArrayList<>(0))
-                .subscribe(processor());
+        jsonLd(data)
+                .expand()
+                .flatMapIterable(BdioDocument::toGraphNodes)
+                .subscribe(new BdioSubscriber(metadata, entryStreams));
 
         // TODO Wrap/hide?
-        return nodes;
-    }
-
-    @SuppressWarnings("CheckReturnValue")
-    @Override
-    public RxJavaBdioDocument metadata(Consumer<BdioMetadata> metadataConsumer) {
-        metadata.subscribe(metadataConsumer::accept);
-        return this;
-    }
-
-    @SuppressWarnings("CheckReturnValue")
-    @Override
-    public RxJavaBdioDocument takeFirstMetadata(Consumer<BdioMetadata> metadataConsumer) {
-        data.take(1).map(this::extractMetadata).map(BdioMetadata::new).subscribe(metadataConsumer::accept);
-        return this;
-    }
-
-    @Override
-    public RxJavaJsonLdProcessing jsonld() {
-        return new RxJavaJsonLdProcessing() {
-            @Override
-            public Flowable<Map<String, Object>> frame(Object frame) {
-                // TODO Restore the graph label?
-                return processor().map(x -> dropGraphLabel(x)).compose(RxJavaJsonLdProcessor.frame(frame, options()));
-            }
-
-            @Override
-            public Flowable<Object> flatten(Object context) {
-                return processor().compose(RxJavaJsonLdProcessor.flatten(context, options()));
-            }
-
-            @Override
-            public Flowable<List<Object>> expand() {
-                return processor().compose(RxJavaJsonLdProcessor.expand(options()));
-            }
-
-            @Override
-            public Flowable<Map<String, Object>> compact(Object context) {
-                return processor().compose(RxJavaJsonLdProcessor.compact(context, options()));
-            }
-
-            @Override
-            public JsonLdOptions options() {
-                return RxJavaBdioDocument.this.options();
-            }
-        };
-    }
-
-    @Override
-    public RxJavaBdioDocument writeToFile(BdioMetadata metadata, OutputStream out) {
-        jsonld().expand().compose(withoutMetadata())
-                .subscribe(new BdioSubscriber(metadata, ExtraIO.buffer(out)));
-        return this;
-    }
-
-    /**
-     * Transformer to obtain a list of JSON-LD nodes, discarding any metadata (including the named graph label).
-     */
-    public <T> FlowableTransformer<T, Map<String, Object>> withoutMetadata() {
-        return entry -> entry.flatMap(input -> {
-            try {
-                return Flowable.fromIterable(extractNodes(input));
-            } catch (JsonLdError e) {
-                return Flowable.error(e);
-            }
-        });
-    }
-
-    @Override
-    public RxJavaBdioDocument read(InputStream in) {
-        // TODO Should this happen on the I/O scheduler?
-        fromInputStream(in).subscribe(processor());
-        return this;
-    }
-
-    /**
-     * Returns a flowable representing the BDIO entries from the supplied input stream. Generally it is preferable to
-     * use {@link #read(InputStream)}, however it may be necessary to manipulate the sequence prior to subscribing.
-     */
-    public Flowable<Object> fromInputStream(InputStream in) {
-        return Flowable.generate(() -> EmitterFactory.newEmitter(in),
-                (parser, emitter) -> {
-                    // FIXME: Braces shouldn't be necessary, Eclipse thinks it is ambiguous, it isn't...
-                    parser.emit(emitter::onNext, emitter::onError, emitter::onComplete);
-                }, Emitter::dispose);
+        return data;
     }
 
 }

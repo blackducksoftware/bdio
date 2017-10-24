@@ -26,6 +26,8 @@ import java.util.UUID;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.blackducksoftware.bdio2.BdioWriter.BdioFile;
+import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.bdio2.test.BdioTest;
 import com.blackducksoftware.common.io.HeapOutputStream;
 import com.google.common.collect.ImmutableMap;
@@ -38,6 +40,13 @@ import com.google.common.io.ByteStreams;
  */
 public class BdioWriterTest {
 
+    private static final StreamSupplier NULL_STREAM_SUPPLIER = new StreamSupplier() {
+        @Override
+        public OutputStream newStream() throws IOException {
+            return ByteStreams.nullOutputStream();
+        }
+    };
+
     private BdioMetadata metadata;
 
     @Before
@@ -48,18 +57,18 @@ public class BdioWriterTest {
     @SuppressWarnings("resource")
     @Test(expected = NullPointerException.class)
     public void nullMetadata() {
-        new BdioWriter(null, ByteStreams.nullOutputStream());
+        new BdioWriter(null, NULL_STREAM_SUPPLIER);
     }
 
     @SuppressWarnings("resource")
     @Test(expected = NullPointerException.class)
-    public void nullOutputStream() {
+    public void nullStreamSupplier() {
         new BdioWriter(metadata, null);
     }
 
     @Test(expected = IllegalStateException.class)
     public void doubleStart() throws IOException {
-        try (BdioWriter writer = new BdioWriter(metadata, ByteStreams.nullOutputStream())) {
+        try (BdioWriter writer = new BdioWriter(metadata, NULL_STREAM_SUPPLIER)) {
             writer.start();
             writer.start();
         }
@@ -67,7 +76,7 @@ public class BdioWriterTest {
 
     @Test(expected = IllegalStateException.class)
     public void noStart() throws IOException {
-        try (BdioWriter writer = new BdioWriter(metadata, ByteStreams.nullOutputStream())) {
+        try (BdioWriter writer = new BdioWriter(metadata, NULL_STREAM_SUPPLIER)) {
             writer.next(new HashMap<>());
         }
     }
@@ -75,7 +84,7 @@ public class BdioWriterTest {
     @Test
     public void idempotentClose() throws IOException {
         OutputStream out = mock(OutputStream.class);
-        BdioWriter writer = new BdioWriter(metadata, out);
+        BdioWriter writer = new BdioWriter(metadata, new BdioFile(out));
         writer.close();
         writer.close();
         verify(out, times(1)).close();
@@ -84,7 +93,7 @@ public class BdioWriterTest {
     @Test
     public void noNextCalls() throws IOException {
         HeapOutputStream buffer = new HeapOutputStream();
-        try (BdioWriter writer = new BdioWriter(metadata, buffer)) {
+        try (BdioWriter writer = new BdioWriter(metadata, new BdioFile(buffer))) {
             writer.start();
         }
         List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
@@ -96,7 +105,7 @@ public class BdioWriterTest {
     @Test
     public void twoNextCalls() throws IOException {
         HeapOutputStream buffer = new HeapOutputStream();
-        try (BdioWriter writer = new BdioWriter(metadata, buffer)) {
+        try (BdioWriter writer = new BdioWriter(metadata, new BdioFile(buffer))) {
             writer.start();
             writer.next(ImmutableMap.of("test", "foo"));
             writer.next(ImmutableMap.of("test", "bar"));

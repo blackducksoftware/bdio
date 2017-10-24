@@ -23,8 +23,12 @@ import java.util.function.Predicate;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
+import com.blackducksoftware.bdio2.BdioMetadata;
 import com.github.jsonldjava.core.JsonLdConsts;
+import com.github.jsonldjava.core.JsonLdError;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 /**
@@ -38,6 +42,35 @@ class WriteGraphContext extends GraphContext {
 
     protected WriteGraphContext(Graph graph, GraphMapper mapper) {
         super(graph, mapper);
+    }
+
+    /**
+     * If a metadata label is configured, read the vertex from the graph into a new BDIO metadata instance.
+     */
+    public BdioMetadata createMetadata() {
+        return mapper().metadataLabel()
+                .flatMap(label -> traversal().V().hasLabel(label).tryNext())
+                .map(vertex -> {
+                    BdioMetadata metadata = new BdioMetadata();
+                    mapper().identifierKey().ifPresent(key -> {
+                        metadata.id(vertex.value(key));
+                    });
+                    try {
+                        Object expandedMetadata = Iterables.getOnlyElement(mapper().expand(ElementHelper.propertyValueMap(vertex)), null);
+                        if (expandedMetadata instanceof Map<?, ?>) {
+                            ((Map<?, ?>) expandedMetadata).forEach((key, value) -> {
+                                if (key instanceof String) {
+                                    metadata.put((String) key, value);
+                                }
+                            });
+                        }
+                    } catch (JsonLdError e) {
+                        // TODO How should we handle this?
+                        e.printStackTrace();
+                    }
+                    return metadata;
+                })
+                .orElse(BdioMetadata.createRandomUUID());
     }
 
     /**

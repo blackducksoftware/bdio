@@ -21,6 +21,8 @@ import javax.annotation.Nullable;
 
 import org.reactivestreams.Publisher;
 
+import com.blackducksoftware.bdio2.BdioDocument;
+import com.blackducksoftware.bdio2.BdioOptions;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
@@ -34,7 +36,7 @@ import io.reactivex.FlowableTransformer;
  *
  * @author jgustie
  */
-public class RxJavaJsonLdProcessor {
+public class RxJavaJsonLdProcessing implements BdioDocument.JsonLdProcessing {
 
     // Note that the gratuitous use of Object stems from the JSON-LD API itself: often times it
     // passes Object when it will accept String, Map<String, Object> or List<Object>.
@@ -44,9 +46,9 @@ public class RxJavaJsonLdProcessor {
      */
     private static abstract class JsonLdProcessorTransformer<R> implements FlowableTransformer<Object, R> {
 
-        private final JsonLdOptions options;
+        private final BdioOptions options;
 
-        protected JsonLdProcessorTransformer(JsonLdOptions options) {
+        protected JsonLdProcessorTransformer(BdioOptions options) {
             this.options = Objects.requireNonNull(options);
         }
 
@@ -55,7 +57,7 @@ public class RxJavaJsonLdProcessor {
             // Use flat map so we can propagate the checked JSON-LD error cleanly
             return inputs.flatMap(input -> {
                 try {
-                    return Flowable.just(applyOnce(input, options));
+                    return Flowable.just(applyOnce(input, options.jsonLdOptions()));
                 } catch (JsonLdError e) {
                     return Flowable.error(e);
                 }
@@ -75,12 +77,12 @@ public class RxJavaJsonLdProcessor {
     }
 
     /**
-     * @see RxJsonLdProcessor#compact(Object, JsonLdOptions)
+     * @see RxJavaJsonLdProcessing#compact(Object)
      */
     private static class CompactTransformer extends JsonLdProcessorTransformer<Map<String, Object>> {
         private final Object context;
 
-        private CompactTransformer(Object context, JsonLdOptions options) {
+        private CompactTransformer(Object context, BdioOptions options) {
             super(options);
             this.context = Objects.requireNonNull(context);
         }
@@ -92,10 +94,10 @@ public class RxJavaJsonLdProcessor {
     }
 
     /**
-     * @see RxJsonLdProcessor#expand(JsonLdOptions)
+     * @see RxJavaJsonLdProcessing#expand()
      */
     private static class ExpandTransformer extends JsonLdProcessorTransformer<List<Object>> {
-        private ExpandTransformer(JsonLdOptions options) {
+        private ExpandTransformer(BdioOptions options) {
             super(options);
         }
 
@@ -106,13 +108,13 @@ public class RxJavaJsonLdProcessor {
     }
 
     /**
-     * @see RxJsonLdProcessor#flatten(Object, JsonLdOptions)
+     * @see RxJavaJsonLdProcessing#flatten(Object, JsonLdOptions)
      */
     private static class FlattenTransformer extends JsonLdProcessorTransformer<Object> {
         @Nullable
         private final Object context;
 
-        private FlattenTransformer(@Nullable Object context, JsonLdOptions options) {
+        private FlattenTransformer(@Nullable Object context, BdioOptions options) {
             super(options);
             this.context = context;
         }
@@ -124,12 +126,12 @@ public class RxJavaJsonLdProcessor {
     }
 
     /**
-     * @see RxJsonLdProcessor#frame(Object, JsonLdOptions)
+     * @see RxJavaJsonLdProcessing#frame(Object)
      */
     private static class FrameTransformer extends JsonLdProcessorTransformer<Map<String, Object>> {
         private final Object frame;
 
-        private FrameTransformer(Object frame, JsonLdOptions options) {
+        private FrameTransformer(Object frame, BdioOptions options) {
             super(options);
             this.frame = Objects.requireNonNull(frame);
         }
@@ -147,41 +149,39 @@ public class RxJavaJsonLdProcessor {
         }
     }
 
-    /**
-     * Compacts each element in the sequence according to the steps in the JSON-LD Compaction algorithm.
-     *
-     * @see JsonLdProcessor#compact(Object, Object, JsonLdOptions)
-     */
-    public static FlowableTransformer<Object, Map<String, Object>> compact(Object context, JsonLdOptions options) {
-        return new CompactTransformer(context, options);
+    private final Flowable<Object> entries;
+
+    private final BdioOptions options;
+
+    RxJavaJsonLdProcessing(Flowable<Object> entries, BdioOptions options) {
+        this.entries = Objects.requireNonNull(entries);
+        this.options = Objects.requireNonNull(options);
     }
 
-    /**
-     * Expands each element in the sequence according to the steps in the Expansion algorithm.
-     *
-     * @see JsonLdProcessor#expand(Object, JsonLdOptions)
-     */
-    public static FlowableTransformer<Object, List<Object>> expand(JsonLdOptions options) {
-        return new ExpandTransformer(options);
+    @Override
+    public Flowable<Object> identity() {
+        return entries;
     }
 
-    /**
-     * Flattens each element in the sequence and compacts it using the passed context according to the steps in the
-     * Flattening algorithm.
-     *
-     * @see JsonLdProcessor#flatten(Object, Object, JsonLdOptions)
-     */
-    public static FlowableTransformer<Object, Object> flatten(@Nullable Object context, JsonLdOptions options) {
-        return new FlattenTransformer(context, options);
+    @Override
+    public Flowable<Map<String, Object>> frame(Object frame) {
+        // TODO Restore the graph label?
+        return identity().map(BdioDocument::dropGraphLabel).compose(new FrameTransformer(frame, options));
     }
 
-    /**
-     * Frames each element in the sequence using the frame according to the steps in the Framing Algorithm.
-     *
-     * @see JsonLdProcessor#frame(Object, Object, JsonLdOptions)
-     */
-    public static FlowableTransformer<Object, Map<String, Object>> frame(Object frame, JsonLdOptions options) {
-        return new FrameTransformer(frame, options);
+    @Override
+    public Flowable<Object> flatten(Object context) {
+        return identity().compose(new FlattenTransformer(context, options));
+    }
+
+    @Override
+    public Flowable<List<Object>> expand() {
+        return identity().compose(new ExpandTransformer(options));
+    }
+
+    @Override
+    public Flowable<Map<String, Object>> compact(Object context) {
+        return identity().compose(new CompactTransformer(context, options));
     }
 
 }

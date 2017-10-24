@@ -18,8 +18,9 @@ import java.util.List;
 
 import org.junit.Test;
 
-import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.BdioMetadata;
+import com.blackducksoftware.bdio2.BdioOptions;
+import com.blackducksoftware.bdio2.BdioWriter;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.test.BdioTest;
 import com.blackducksoftware.common.io.HeapOutputStream;
@@ -37,9 +38,11 @@ public class BdioDocumentFromModelTest {
     public void singleNode() {
         BdioMetadata metadata = BdioMetadata.createRandomUUID();
         HeapOutputStream out = new HeapOutputStream();
-        BdioDocument doc = new BdioDocument.Builder().build(RxJavaBdioDocument.class).writeToFile(metadata, out);
+        RxJavaBdioDocument doc = new RxJavaBdioDocument(new BdioOptions.Builder().build());
 
-        Flowable.just(new File("http://example.com/files/1")).subscribe(doc.asNodeSubscriber());
+        Flowable.just(new File("http://example.com/files/1"))
+                .buffer(1)
+                .subscribe(doc.write(metadata, new BdioWriter.BdioFile(out)));
 
         List<String> entries = BdioTest.zipEntries(out.getInputStream());
         assertThat(entries).hasSize(2);

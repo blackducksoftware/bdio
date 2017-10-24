@@ -11,13 +11,7 @@
  */
 package com.blackducksoftware.bdio2;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,26 +19,17 @@ import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
-import org.reactivestreams.Processor;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
+import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.github.jsonldjava.core.JsonLdConsts;
-import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 /**
- * A BDIO Document. A BDIO document is a {@link rx.subjects.Subject} of JSON-LD graphs; each element published or
- * consumed is a graph (generally a sequence of nodes).
- * <p>
- * Because the data is represented as a subject, there is meant to be very little data actually at rest: the data flows
- * through the document but is not actually held in memory. If you are trying to read BDIO data in from a file, you must
- * first subscribe to this document (e.g. using {@link #asObservable()} or one of the JSON-LD API operations)
- * <em>before</em> invoking {@link #read(InputStream)}. Similarly, if you are trying to write BDIO data out to a file,
- * you must first invoke {@link #writeTo(OutputStream)} before publishing data (e.g. using {@link #asSubscriber()}).
+ * A BDIO Document. A BDIO document works on sequences of "BDIO entries", each entry is a JSON-LD
  *
  * @author jgustie
  */
@@ -54,6 +39,11 @@ public abstract class BdioDocument {
      * Exposes the BDIO document using the JSON-LD processing API.
      */
     public interface JsonLdProcessing {
+        /**
+         * Returns each element in the sequence unaltered.
+         */
+        Publisher<Object> identity();
+
         /**
          * Compacts each element in the sequence according to the steps in the JSON-LD Compaction algorithm.
          *
@@ -82,234 +72,60 @@ public abstract class BdioDocument {
          * @see com.github.jsonldjava.core.JsonLdProcessor#frame(Object, Object, JsonLdOptions)
          */
         Publisher<Map<String, Object>> frame(Object frame);
-
-        /**
-         * Returns the options to use when invoking the JSON-LD API.
-         */
-        JsonLdOptions options();
     }
 
     /**
-     * The JSON-LD options used to manipulate the data.
+     * The configuration options.
      */
-    private final JsonLdOptions options;
+    private final BdioOptions options;
 
-    protected BdioDocument(Builder builder) {
-        // Construct the JSON-LD options
-        options = new JsonLdOptions(Objects.requireNonNull(builder.base));
-        options.setDocumentLoader(new BdioDocumentLoader(options.getDocumentLoader()));
-        options.setExpandContext(expandContext(builder.contentTypeContext, builder.applicationContext));
+    protected BdioDocument(BdioOptions options) {
+        this.options = Objects.requireNonNull(options);
     }
 
     /**
-     * Generate an expand context from multiple, possibly {@code null}, sources.
+     * Returns the configuration options on this document for use by subclasses.
      */
-    private static Object expandContext(Object... contexts) {
-        Object expandContext = null;
-        for (Object context : contexts) {
-            if (context != null && !context.equals(expandContext)) {
-                if (expandContext == null) {
-                    expandContext = context;
-                } else if (expandContext instanceof List<?>) {
-                    @SuppressWarnings("unchecked")
-                    List<Object> contextList = (List<Object>) expandContext;
-                    contextList.add(context);
-                } else {
-                    List<Object> contextList = new ArrayList<>();
-                    contextList.add(expandContext);
-                    contextList.add(context);
-                    expandContext = contextList;
-                }
-            }
-        }
-        return expandContext;
-    }
-
-    /**
-     * Returns the JSON-LD API configuration options.
-     */
-    protected final JsonLdOptions options() {
+    protected final BdioOptions options() {
         return options;
     }
 
     /**
-     * Allows you to add or consume JSON-LD graph entries.
+     * Prepares the supplied input stream for being read as a sequence of JSON-LD entries.
      */
-    public abstract Processor<Object, Object> processor();
+    public abstract JsonLdProcessing read(InputStream in, Consumer<BdioMetadata> metadataConsumer);
 
     /**
-     * Allows you to add JSON-LD nodes to this document.
+     * Creates a subscriber for writing a sequence of JSON-LD entries to the supplied output streams.
      */
-    public abstract Subscriber<Map<String, Object>> asNodeSubscriber();
+    public abstract Subscriber<Object> write(BdioMetadata metadata, StreamSupplier entryStreams);
 
     /**
-     * Allows you to consume the aggregate BDIO metadata across all entries.
-     *
-     * @return this BDIO document for call chaining
+     * Expose the JSON-LD processing API on a given sequence of inputs.
      */
-    public abstract BdioDocument metadata(Consumer<BdioMetadata> metadataSubscriber);
-
-    /**
-     * Allows you to consume just the metadata from the first entry. This is always enough to obtain the identifier,
-     * however, depending on how the data was structured there is no guarantee that other metadata will be available (in
-     * general, if a BDIO file has a header entry, this will give you complete metadata).
-     *
-     * @return this BDIO document for call chaining
-     */
-    public abstract BdioDocument takeFirstMetadata(Consumer<BdioMetadata> metadataSubscriber);
-
-    /**
-     * Allows you to consume the processed JSON-LD graph entries from this document.
-     */
-    public abstract JsonLdProcessing jsonld();
-
-    /**
-     * Writes the BDIO data coming into this document out to the supplied byte stream.
-     *
-     * @return this BDIO document for call chaining
-     */
-    // TODO Also take a Consumer<Throwable> for error handling?
-    public abstract BdioDocument writeToFile(BdioMetadata metadata, OutputStream out);
-
-    // TODO Should we have more generic writing facilities for streaming?
-    // public abstract Subscriber<Map<String, Object>> write(Supplier<OutputStream> streamFactory);
-
-    /**
-     * Reads BDIO data into this document from the supplied byte stream.
-     *
-     * @return this BDIO document for call chaining
-     */
-    public abstract BdioDocument read(InputStream in);
-
-    /**
-     * A builder for constructing BDIO documents.
-     */
-    public static class Builder {
-
-        private String base;
-
-        private Object contentTypeContext;
-
-        private Object applicationContext;
-
-        public Builder() {
-            base = "";
-            contentTypeContext = Bdio.Context.DEFAULT.toString();
-        }
-
-        /**
-         * Creates a new BDIO document of the specified type from the current state of this builder.
-         */
-        public <D extends BdioDocument> D build(Class<D> type) {
-            try {
-                return type.getConstructor(getClass()).newInstance(this);
-            } catch (ReflectiveOperationException e) {
-                throw new IllegalStateException("cannot construct BdioDocument: " + type.getName(), e);
-            }
-        }
-
-        /**
-         * Specifies the base URI as a string. The base URI is used to relavitize identifiers.
-         */
-        public Builder base(@Nullable String base) {
-            if (Strings.isNullOrEmpty(base)) {
-                this.base = Strings.nullToEmpty(base);
-                return this;
-            } else {
-                try {
-                    return base(new URI(base));
-                } catch (URISyntaxException e) {
-                    throw new IllegalArgumentException("base URI must be well formed", e);
-                }
-            }
-        }
-
-        /**
-         * Specifies the base URI. The base URI is used to relavitize identifiers.
-         */
-        public Builder base(@Nullable URI base) {
-            checkArgument(base == null || base.isAbsolute(), "base URI must be absolute");
-            checkArgument(base == null || !base.isOpaque(), "base URI must be hierarchical");
-            this.base = Objects.toString(base, "");
-            return this;
-        }
-
-        /**
-         * In a addition to the primary expansion context determined by the content type, applications may include a
-         * secondary "application" context for extensibility.
-         */
-        public Builder applicationContext(Object applicationContext) {
-            checkArgument(applicationContext == null
-                    || applicationContext instanceof String
-                    || applicationContext instanceof Map<?, ?>
-                    || applicationContext instanceof List<?>,
-                    "applicationContext must be a String, Map<String, Object> or a List<Object>");
-            this.applicationContext = applicationContext;
-            return this;
-        }
-
-        /**
-         * Prepares this document for processing documents based on their detected or declared content type.
-         * <p>
-         * Note that the supplied expansion context is only used with the {@linkplain Bdio.ContentType#JSON JSON} type.
-         */
-        public Builder forContentType(@Nullable Bdio.ContentType contentType, @Nullable Object expandContext) {
-            checkArgument(expandContext == null
-                    || expandContext instanceof String
-                    || expandContext instanceof Map<?, ?>
-                    || expandContext instanceof List<?>,
-                    "expandContext must be a String, Map<String, Object> or a List<Object>");
-
-            if (contentType == null) {
-                contentTypeContext = Bdio.Context.DEFAULT.toString();
-            } else if (contentType.equals(Bdio.ContentType.JSON)) {
-                // TODO Warn if expandContext is null? Require non-null?
-                contentTypeContext = expandContext;
-            } else if (contentType.equals(Bdio.ContentType.JSONLD)) {
-                contentTypeContext = null;
-            } else if (contentType.equals(Bdio.ContentType.BDIO_JSON) || contentType.equals(Bdio.ContentType.BDIO_ZIP)) {
-                contentTypeContext = Bdio.Context.DEFAULT.toString();
-            } else {
-                throw new IllegalArgumentException("unknown content type: " + contentType);
-            }
-            return this;
-        }
-
-        /**
-         * Prepares the document for processing BDIO loaded from plain JSON. The {@code expandContext} is typically a
-         * {@code String} representation of the {@code http://www.w3.org/ns/json-ld#context} link relationship (a URI
-         * identifying the context), however it can also be a {@code Map<String, Object>} representing an already parsed
-         * JSON-LD context. Note that, while accepted, a {@code null} context will only produce meaningful results if
-         * the JSON contains fully qualified IRIs.
-         */
-        public Builder forJson(@Nullable Object expandContext) {
-            return forContentType(Bdio.ContentType.JSON, expandContext);
-        }
-
-        /**
-         * Prepares this document for processing BDIO loaded from JSON-LD. The JSON-LD contexts must be explicitly
-         * defined within the document itself.
-         */
-        public Builder forJsonLd() {
-            return forContentType(Bdio.ContentType.JSONLD, null);
-        }
-
-        /**
-         * Prepares this document for processing BDIO documents. This assumes the default BDIO context will be used for
-         * processing plain JSON or JSON-LD input (Zip forms should already be fully expanded internally).
-         */
-        public Builder forBdio() {
-            return forContentType(null, null);
-        }
-    }
+    protected abstract JsonLdProcessing jsonLd(Publisher<Object> inputs);
 
     // NOTE: This is one place where we are opinionated on our JSON-LD usage, that means this code can break
     // general JSON-LD interoperability if someone produces something we weren't expecting...
 
     /**
+     * Extracts metadata from the supplied entry.
+     */
+    protected static Map<String, Object> toGraphMetadata(Object input) {
+        if (input instanceof Map<?, ?>) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) input;
+            if (data.containsKey(JsonLdConsts.GRAPH)) {
+                return Maps.filterKeys(data, key -> !key.equals(JsonLdConsts.GRAPH));
+            }
+        }
+        return ImmutableMap.of();
+    }
+
+    /**
      * Returns the list of JSON-LD nodes extracted from the supplied input.
      */
-    protected final List<Map<String, Object>> extractNodes(Object input) throws JsonLdError {
+    public static List<Map<String, Object>> toGraphNodes(Object input) {
         // TODO Should this consider the identifier from `metadata.id()`?
         Object nodes = null;
         if (input instanceof List<?>) {
@@ -334,7 +150,8 @@ public abstract class BdioDocument {
             return nodeList;
         } else {
             // TODO Emit just the input as a single node list? Only if it has '@id'?
-            throw new JsonLdError(JsonLdError.Error.SYNTAX_ERROR);
+            // throw new JsonLdError(JsonLdError.Error.SYNTAX_ERROR);
+            return null;
         }
     }
 
@@ -344,7 +161,7 @@ public abstract class BdioDocument {
      * @see <a href="https://github.com/jsonld-java/jsonld-java/issues/109">#109</a>
      */
     @Nullable
-    protected final Object dropGraphLabel(@Nullable Object input) {
+    public static Object dropGraphLabel(@Nullable Object input) {
         if (input instanceof Map<?, ?>
                 && ((Map<?, ?>) input).containsKey(JsonLdConsts.ID)
                 && ((Map<?, ?>) input).containsKey(JsonLdConsts.GRAPH)) {
@@ -362,20 +179,6 @@ public abstract class BdioDocument {
         } else {
             return null;
         }
-    }
-
-    /**
-     * Extracts metadata from the supplied entry.
-     */
-    protected final Map<String, Object> extractMetadata(Object input) {
-        if (input instanceof Map<?, ?>) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> data = (Map<String, Object>) input;
-            if (data.containsKey(JsonLdConsts.GRAPH)) {
-                return Maps.filterKeys(data, key -> !key.equals(JsonLdConsts.GRAPH));
-            }
-        }
-        return ImmutableMap.of();
     }
 
 }

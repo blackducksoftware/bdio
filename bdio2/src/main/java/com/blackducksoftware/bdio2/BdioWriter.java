@@ -15,6 +15,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.Closeable;
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -41,15 +42,79 @@ public class BdioWriter implements Closeable {
     // TODO What about signing?
 
     /**
+     * Supplier of output streams for writing BDIO data.
+     */
+    @FunctionalInterface
+    public interface StreamSupplier extends Closeable {
+
+        /**
+         * Returns a new output stream for writing BDIO with the supplied entry name. The caller is responsible for
+         * closing the supplied stream.
+         */
+        OutputStream newStream() throws IOException;
+
+        /**
+         * Called one to release all resources associated with this stream supplier. It is implementation specific as to
+         * how existing unclosed streams will be handled.
+         */
+        @Override
+        default void close() throws IOException {
+            // By default, do nothing on close
+        }
+    }
+
+    /**
+     * A stream supplier for writing BDIO out to a file.
+     */
+    public static class BdioFile implements StreamSupplier {
+
+        /**
+         * The output stream used for constructing the Zip file.
+         */
+        private final ZipOutputStream out;
+
+        /**
+         * The number of entries written to the BDIO document. Starts at -1 to account for an initial "header" entry
+         * that includes an empty named graph solely for expressing graph metadata.
+         */
+        private final AtomicInteger entryCount = new AtomicInteger(-1);
+
+        // TODO Take a java.nio.file.Path instead?
+        public BdioFile(OutputStream outputStream) {
+            out = new ZipOutputStream(Objects.requireNonNull(outputStream));
+        }
+
+        @Override
+        public OutputStream newStream() throws IOException {
+            out.putNextEntry(new ZipEntry(Bdio.dataEntryName(entryCount.getAndIncrement())));
+            return new FilterOutputStream(out) {
+                @Override
+                public void close() throws IOException {
+                    // Do not close the Zip file for each entry
+                }
+            };
+        }
+
+        @Override
+        public void close() throws IOException {
+            out.close();
+        }
+    }
+
+    /**
      * Closed state.
      */
     private final AtomicBoolean closed = new AtomicBoolean();
 
     /**
-     * The number of entries written to the BDIO document. Starts at -1 to account for an initial "header" entry that
-     * includes an empty named graph solely for expressing graph metadata.
+     * Started state.
      */
-    private final AtomicInteger entryCount = new AtomicInteger(-1);
+    private final AtomicBoolean started = new AtomicBoolean();
+
+    /**
+     * Matching header/footer state.
+     */
+    private final AtomicBoolean needsFooter = new AtomicBoolean();
 
     /**
      * The number of bytes remaining before the current entry is full. Entries have a fixed size limit that must not be
@@ -66,9 +131,9 @@ public class BdioWriter implements Closeable {
     private final BdioMetadata metadata;
 
     /**
-     * The output stream used for constructing the Zip file.
+     * The source of output streams for each entry.
      */
-    private final ZipOutputStream out;
+    private final StreamSupplier entryStreams;
 
     /**
      * The leading bytes used to start each entry in the Zip file.
@@ -85,9 +150,17 @@ public class BdioWriter implements Closeable {
      */
     private final byte[] footer;
 
-    public BdioWriter(BdioMetadata metadata, OutputStream out) {
+    /**
+     * The output stream for the current entry.
+     */
+    private OutputStream out;
+
+    /**
+     * Creates a new writer using the supplied metadata and source of output streams.
+     */
+    public BdioWriter(BdioMetadata metadata, StreamSupplier entryStreams) {
         this.metadata = Objects.requireNonNull(metadata);
-        this.out = new ZipOutputStream(Objects.requireNonNull(out));
+        this.entryStreams = Objects.requireNonNull(entryStreams);
 
         // Generate these fixed byte arrays used to serialize each graph
         header = new StringBuilder()
@@ -108,22 +181,20 @@ public class BdioWriter implements Closeable {
      * to write individual nodes.
      */
     public void start() throws IOException {
-        checkState(entryCount.get() < 0, "already started");
+        checkState(started.compareAndSet(false, true), "already started");
 
-        // Generate the header entry and serialize the JSON to it
-        out.putNextEntry(new ZipEntry(Bdio.dataEntryName(entryCount.getAndIncrement())));
-
-        // Generate a representation of the first named graph in the sequence
+        // Write just the full metadata as the first entry
+        out = entryStreams.newStream();
         Writer writer = new OutputStreamWriter(out, UTF_8);
         JsonUtils.writePrettyPrint(writer, metadata.asNamedGraph());
         writer.flush();
     }
 
     /**
-     * Writes an individual node to the BDIO document. This must be called <em>after</em> calling {@code start}.
+     * Writes an individual node to the BDIO document.
      */
     public void next(Map<String, Object> node) throws IOException {
-        checkState(entryCount.get() >= 0, "not started");
+        checkState(started.get(), "not started");
 
         // TODO Have a reusable pool of ByteArrayOutputStream wrapped writers?
         byte[] serializedNode = JsonUtils.toPrettyString(node).replace("\n", "\n  ").getBytes(UTF_8);
@@ -134,12 +205,28 @@ public class BdioWriter implements Closeable {
         } else {
             // It didn't fit, create a new entry and try again
             nextEntry();
-            if (remaining.addAndGet(serializedNode.length * -1) >= 0L) {
+            if (remaining.addAndGet(serializedNode.length * -1) > 0L) {
                 out.write(serializedNode);
             } else {
-                throw new EntrySizeViolationException(
-                        Bdio.dataEntryName(entryCount.get() - 1),
-                        Math.abs(remaining.get()) + Bdio.MAX_ENTRY_SIZE);
+                throw new EntrySizeViolationException(null, Math.abs(remaining.get()) + Bdio.MAX_ENTRY_SIZE);
+            }
+        }
+    }
+
+    /**
+     * Closes this BDIO document, finishing all output and releasing any resources.
+     */
+    @Override
+    public void close() throws IOException {
+        if (closed.compareAndSet(false, true)) {
+            try {
+                // Write the footer for the current entry
+                closeStream();
+
+                // TODO Write out signature files here? Or are we signing each file?
+            } finally {
+                // Release the source of entry streams
+                entryStreams.close();
             }
         }
     }
@@ -153,37 +240,28 @@ public class BdioWriter implements Closeable {
     }
 
     /**
-     * Closes this BDIO document, finishing all output and closing the underlying stream.
-     */
-    @Override
-    public void close() throws IOException {
-        if (closed.compareAndSet(false, true)) {
-            // Write the footer for the current entry
-            if (entryCount.get() > 0) {
-                out.write(footer);
-            }
-
-            // TODO Write out signature files here? Or are we signing each file?
-
-            // Finish the Zip file
-            out.close();
-        }
-    }
-
-    /**
      * Increments the entry being written out.
      */
     private void nextEntry() throws IOException {
-        // Check the current entry number to see if we need to close the previous entry
-        final int entryNumber = entryCount.getAndIncrement();
-        if (entryNumber > 0) {
-            out.write(footer);
-        }
-
         // Create a new entry and reset the remaining size
-        out.putNextEntry(new ZipEntry(Bdio.dataEntryName(entryNumber)));
+        closeStream();
+        out = entryStreams.newStream();
         out.write(header);
+        needsFooter.set(true);
         remaining.set(Bdio.MAX_ENTRY_SIZE - header.length - footer.length);
+    }
+
+    /**
+     * Closes the current entry stream.
+     */
+    private void closeStream() throws IOException {
+        // Check if we need to finish the previous entry
+        if (out != null) {
+            if (needsFooter.get()) {
+                out.write(footer);
+            }
+            out.close();
+        }
     }
 
 }

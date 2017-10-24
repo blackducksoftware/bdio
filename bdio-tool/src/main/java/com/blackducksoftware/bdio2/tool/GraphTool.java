@@ -46,7 +46,6 @@ import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.util.SqlgUtil;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIo;
 import com.blackducksoftware.bdio2.tinkerpop.GraphMapper;
 import com.google.common.base.Splitter;
@@ -217,7 +216,7 @@ public class GraphTool extends Tool {
                         // Set the JSON-LD context using file extensions
                         if (input.getKey() != null && input.getKey().getPath() != null) {
                             Bdio.ContentType contentType = Bdio.ContentType.forFileName(input.getKey().getPath());
-                            builder.documentBuilder(new BdioDocument.Builder().forContentType(contentType, null));
+                            builder.forContentType(contentType, null);
                         }
 
                         // Make sure each file goes into it's own partition
