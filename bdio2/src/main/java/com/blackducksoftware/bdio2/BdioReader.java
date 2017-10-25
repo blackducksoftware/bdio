@@ -117,8 +117,6 @@ public class BdioReader implements Closeable {
             return result;
         }
 
-        // TODO Mark support?
-
         @Override
         public synchronized void reset() throws IOException {
             throw new IOException("mark/reset not supported");

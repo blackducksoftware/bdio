@@ -15,12 +15,10 @@ import java.io.IOException;
 
 import javax.annotation.Nullable;
 
-// Thrown when the 16MB limit is violated...on read OR write
-// TODO Name?
 /**
+ * Thrown when a BDIO entry exceeds the maximum allowable size.
  *
  * @author jgustie
- * @since 2.0.0
  */
 public class EntrySizeViolationException extends IOException {
 
@@ -52,7 +50,7 @@ public class EntrySizeViolationException extends IOException {
 
     /**
      * Returns the name of the entry that caused the violation. This might be {@code null} if the violation occurred
-     * while reading a plain JSON file.
+     * while reading a plain JSON file or while writing a BDIO file where the entry name has not yet been computed.
      */
     @Nullable
     public String getName() {

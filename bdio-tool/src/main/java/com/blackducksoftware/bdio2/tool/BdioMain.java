@@ -42,6 +42,7 @@ public class BdioMain extends Tool {
 
         private final String description;
 
+        @SuppressWarnings("ImmutableEnumChecker")
         private final Function<String, Tool> factory;
 
         private final boolean common;

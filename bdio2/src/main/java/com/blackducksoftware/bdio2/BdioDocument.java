@@ -12,6 +12,7 @@
 package com.blackducksoftware.bdio2;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -126,7 +127,6 @@ public abstract class BdioDocument {
      * Returns the list of JSON-LD nodes extracted from the supplied input.
      */
     public static List<Map<String, Object>> toGraphNodes(Object input) {
-        // TODO Should this consider the identifier from `metadata.id()`?
         Object nodes = null;
         if (input instanceof List<?>) {
             for (Object item : (List<?>) input) {
@@ -149,9 +149,7 @@ public abstract class BdioDocument {
             // TODO Sort these while we have the in memory list?
             return nodeList;
         } else {
-            // TODO Emit just the input as a single node list? Only if it has '@id'?
-            // throw new JsonLdError(JsonLdError.Error.SYNTAX_ERROR);
-            return null;
+            return new ArrayList<>(0);
         }
     }
 
@@ -174,7 +172,6 @@ public abstract class BdioDocument {
     @Nullable
     private static Object getGraph(@Nullable Object input) {
         if (input instanceof Map<?, ?>) {
-            // TODO Do we need an ID to check to determine which graph to get?
             return ((Map<?, ?>) input).get(JsonLdConsts.GRAPH);
         } else {
             return null;

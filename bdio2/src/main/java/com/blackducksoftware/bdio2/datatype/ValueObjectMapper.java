@@ -15,7 +15,6 @@
  */
 package com.blackducksoftware.bdio2.datatype;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.net.URI;
@@ -271,12 +270,12 @@ public class ValueObjectMapper {
         }
 
         public Builder useDatatypeHandler(String type, DatatypeHandler<?> handler) {
-            handlers.put(type, handler);
+            handlers.put(Objects.requireNonNull(type), Objects.requireNonNull(handler));
             return this;
         }
 
         public Builder addEmbeddedType(String type) {
-            embeddedTypes.add(checkNotNull(type));
+            embeddedTypes.add(Objects.requireNonNull(type));
             return this;
         }
 
