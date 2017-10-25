@@ -74,6 +74,10 @@ public class ExternalIdentifier extends AbstractEmbeddedModel<ExternalIdentifier
                     && externalIdentifier.getExternalId() != null
                     && Objects.equals(externalIdentifier.getExternalSystemTypeId(), externalSystemTypeId);
         }
+
+        public boolean test(ExternalIdentifier externalIdentifier) {
+            return apply(externalIdentifier);
+        }
     }
 
     private static final ModelField<ExternalIdentifier, String> EXTERNAL_SYSTEM_TYPE_ID = new ModelField<ExternalIdentifier, String>(
