@@ -46,7 +46,10 @@ public interface Emitter {
 
             @Override
             public boolean tryAdvance(Consumer<? super Object> action) {
-                emit(action, Throwables::propagate, () -> {
+                emit(action, t -> {
+                    Throwables.throwIfUnchecked(t);
+                    throw new RuntimeException(t);
+                }, () -> {
                     if (hasNext.compareAndSet(true, false)) {
                         dispose();
                     }
