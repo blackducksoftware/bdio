@@ -32,6 +32,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collector;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -39,6 +40,7 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.Bdio.Container;
@@ -106,6 +108,7 @@ public class GraphMapper {
     /**
      * The property key used to persist JSON-LD node identifiers.
      */
+    // TODO Can we use ElementIdStrategy instead?
     private final Optional<String> identifierKey;
 
     /**
@@ -154,6 +157,19 @@ public class GraphMapper {
         builder.contentType.ifPresent(contentType -> optionsBuilder.forContentType(contentType, builder.expandContext.orElse(null)));
         optionsBuilder.applicationContext(applicationContext());
         options = optionsBuilder.build();
+    }
+
+    public static Stream<?> streamVertexPropertyValue(VertexProperty<?> vp) {
+        Object value = vp.orElse(null);
+        if (value == null) {
+            return Stream.empty();
+        } else if (value instanceof List<?>) {
+            return ((List<?>) value).stream();
+        } else if (value.getClass().isArray()) {
+            return Stream.of((Object[]) value);
+        } else {
+            return Stream.of(value);
+        }
     }
 
     public ValueObjectMapper valueObjectMapper() {
