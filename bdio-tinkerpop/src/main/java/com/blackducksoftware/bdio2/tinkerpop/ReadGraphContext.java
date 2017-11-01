@@ -23,10 +23,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.Graph.Features.VertexFeatures;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -38,6 +38,8 @@ import org.umlg.sqlg.structure.SqlgExceptions.InvalidIdException;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 
@@ -68,10 +70,16 @@ class ReadGraphContext extends GraphContext {
      */
     private final AtomicLong count;
 
+    /**
+     * Cached instance of vertex features.
+     */
+    private final VertexFeatures vertexFeatures;
+
     protected ReadGraphContext(Graph graph, GraphMapper mapper, int batchSize) {
         super(graph, mapper);
         this.batchSize = batchSize;
         this.count = new AtomicLong();
+        vertexFeatures = graph.features().vertex();
     }
 
     /**
@@ -215,7 +223,6 @@ class ReadGraphContext extends GraphContext {
 
         // Special properties that can be optionally included
         if (includeSpecial) {
-            // TODO Can we use ElementIdStrategy instead?
             mapper().identifierKey().ifPresent(key -> {
                 Optional.ofNullable(node.get(JsonLdConsts.ID))
                         .map(id -> Maps.immutableEntry(key, id))
@@ -230,13 +237,8 @@ class ReadGraphContext extends GraphContext {
                     .map(label -> Maps.immutableEntry(T.label, label))
                     .ifPresent(properties);
 
-            // NOTE: If the graph does not support user identifiers, this value gets ignored
-            // TODO If user identifiers aren't support, skip the computation...
-            // NOTE: If the graph supports user identifiers, we need both the JSON-LD identifier
-            // and the write partition (since the same identifier can exist in multiple partitions)
-
             Optional.ofNullable(node.get(JsonLdConsts.ID))
-                    .map(id -> generateId(id))
+                    .map(this::generateId)
                     .map(id -> Maps.immutableEntry(T.id, id))
                     .ifPresent(properties);
         }
@@ -248,12 +250,31 @@ class ReadGraphContext extends GraphContext {
     }
 
     public Object generateId(Object id) {
-        // TODO Can we use a list here instead of strings?
-        return mapper().partitionStrategy()
-                .map(PartitionStrategy::getWritePartition)
-                // TODO Use a query parameter instead of the fragment
-                .map(writePartition -> (Object) (id + "#" + writePartition))
-                .orElse(id);
+        // If user supplied identifiers are not support this value will only be used by the star graph elements
+        // (for example, this is the identifier used by star vertices prior to being attached, and is later used to look
+        // up the persisted identifier of the star edge incoming vertex)
+        if (!vertexFeatures.supportsUserSuppliedIds()) {
+            return id;
+        }
+
+        // The effective identifier must include the write partition value (if present) to avoid problems where the same
+        // node imported into separate partitions gets recreated instead merged into
+        ImmutableMap.Builder<String, Object> effectiveId = ImmutableMap.builder();
+        effectiveId.put(JsonLdConsts.ID, id);
+        mapper().partitionStrategy().ifPresent(s -> effectiveId.put(s.getPartitionKey(), s.getWritePartition()));
+
+        if (vertexFeatures.supportsAnyIds()) {
+            // If the graph supports arbitrary objects, just use the map as the identifier
+            return effectiveId.build();
+        } else if (vertexFeatures.supportsStringIds()) {
+            // Next best thing is a string representation of the map
+            StringBuilder result = new StringBuilder().append("{\"");
+            Joiner.on("\",\"").withKeyValueSeparator("\"=\"").appendTo(result, effectiveId.build()).append("\"}");
+            return result.toString();
+        } else {
+            // TODO For numeric IDs we could hash the string representation? Same for UUID IDs?
+            throw new IllegalStateException("unable to provide mapped graph identifier: " + id);
+        }
     }
 
 }
