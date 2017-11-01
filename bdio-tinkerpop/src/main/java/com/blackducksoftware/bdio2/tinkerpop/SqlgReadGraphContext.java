@@ -17,6 +17,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import static org.umlg.sqlg.structure.PropertyType.BOOLEAN;
 import static org.umlg.sqlg.structure.PropertyType.STRING;
+import static org.umlg.sqlg.structure.PropertyType.STRING_ARRAY;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -69,17 +70,7 @@ class SqlgReadGraphContext extends ReadGraphContext {
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
         uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), expectedNodeCount);
 
-        // Define a minimal topology to help reduce the number of dynamic topology changes
-        sqlgGraph.tx().open();
-        try {
-            mapper().metadataLabel().ifPresent(this::defineVertexLabel);
-            mapper().forEachTypeLabel(this::defineVertexLabel);
-            mapper().forEachEmbeddedLabel(this::defineVertexLabel);
-            defineEdgeLabels();
-        } finally {
-            // Topology changes are idempotent, if they were committed, this is a noop
-            sqlgGraph.tx().rollback();
-        }
+        defineTopology();
     }
 
     @Override
@@ -127,6 +118,24 @@ class SqlgReadGraphContext extends ReadGraphContext {
     }
 
     /**
+     * Define a minimal topology to help reduce the number of dynamic topology changes.
+     */
+    private void defineTopology() {
+        sqlgGraph.tx().open();
+        try {
+            mapper().metadataLabel().ifPresent(this::defineVertexLabel);
+            mapper().forEachTypeLabel(this::defineVertexLabel);
+            mapper().forEachEmbeddedLabel(this::defineVertexLabel);
+            defineEdgeLabels();
+
+            sqlgGraph.tx().commit();
+        } catch (RuntimeException | Error e) {
+            sqlgGraph.tx().rollback();
+            throw e;
+        }
+    }
+
+    /**
      * Defines the topology for a specific vertex label. Most labels contain the same base set of properties.
      */
     private void defineVertexLabel(String label) {
@@ -138,12 +147,15 @@ class SqlgReadGraphContext extends ReadGraphContext {
         // This is just to help make the code look more uniform below
         Optional<String> filePathKey = Optional.of(label).filter(Predicate.isEqual(Bdio.Class.File.name()))
                 .map(x -> Bdio.DataProperty.path.name());
+        Optional<String> fileFingerprintKey = Optional.of(label).filter(Predicate.isEqual(Bdio.Class.File.name()))
+                .map(x -> Bdio.DataProperty.fingerprint.name());
 
         // Define the initial columns used to persist this vertex label
         Map<String, PropertyType> columns = new LinkedHashMap<>();
         mapper().partitionStrategy().map(PartitionStrategy::getPartitionKey).ifPresent(c -> columns.put(c, STRING));
         mapper().identifierKey().ifPresent(c -> columns.put(c, STRING));
         filePathKey.ifPresent(c -> columns.put(c, STRING));
+        fileFingerprintKey.ifPresent(c -> columns.put(c, STRING_ARRAY));
         mapper().implicitKey().ifPresent(c -> columns.put(c, BOOLEAN));
         mapper().unknownKey().ifPresent(c -> columns.put(c, STRING)); // TODO PropertyType.JSON
 
@@ -160,9 +172,6 @@ class SqlgReadGraphContext extends ReadGraphContext {
         filePathKey
                 .flatMap(vertexLabel::getProperty).map(Collections::singletonList)
                 .ifPresent(properties -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, properties));
-
-        // Commit changes for this label
-        sqlgGraph.tx().commit();
     }
 
     /**
@@ -183,9 +192,6 @@ class SqlgReadGraphContext extends ReadGraphContext {
         // Define a small number of edges (those that most commonly used or are extremely dense)
         topology.ensureEdgeLabelExist(Bdio.ObjectProperty.base.name(), projectVertex, fileVertex, properties);
         topology.ensureEdgeLabelExist(Bdio.ObjectProperty.parent.name(), fileVertex, fileVertex, properties);
-
-        // Commit all edges
-        sqlgGraph.tx().commit();
     }
 
 }
