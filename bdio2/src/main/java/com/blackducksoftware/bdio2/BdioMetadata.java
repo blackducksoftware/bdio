@@ -109,8 +109,8 @@ public final class BdioMetadata extends BdioObject {
                 if (producer != null) {
                     // Merges to create new producer
                     ProductList.Builder builder = new ProductList.Builder();
-                    ((ProductList) mapper().fromFieldValue(producer)).forEach(builder::addProduct);
-                    ((ProductList) mapper().fromFieldValue(value)).forEach(builder::addProduct);
+                    ((ProductList) mapper().fromFieldValue(key, producer)).forEach(builder::addProduct);
+                    ((ProductList) mapper().fromFieldValue(key, value)).forEach(builder::addProduct);
                     putData(Bdio.DataProperty.producer, builder.build());
                 } else {
                     // Establishes a new producer

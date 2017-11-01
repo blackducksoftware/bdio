@@ -27,7 +27,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
@@ -36,11 +35,11 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.common.base.ExtraCollectors;
 import com.blackducksoftware.common.base.ExtraOptionals;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 
 /**
  * A mapper for converting between JSON-LD value objects and Java objects.
@@ -48,6 +47,24 @@ import com.google.common.collect.ImmutableSet;
  * @author jgustie
  */
 public class ValueObjectMapper {
+
+    /**
+     * The context mapper to use.
+     */
+    private static final ThreadLocal<ValueObjectMapper> contextMapper = new InheritableThreadLocal<ValueObjectMapper>() {
+        @Override
+        protected ValueObjectMapper initialValue() {
+            return new ValueObjectMapper.Builder().build();
+        }
+    };
+
+    public static ValueObjectMapper getContextValueObjectMapper() {
+        return contextMapper.get();
+    }
+
+    public static void setContextValueObjectMapper(ValueObjectMapper mapper) {
+        contextMapper.set(mapper);
+    }
 
     /**
      * Handler for an individual datatype.
@@ -113,13 +130,19 @@ public class ValueObjectMapper {
     private final ImmutableSet<String> embeddedTypes;
 
     /**
+     * The keys which should be treated as multi-valued fields.
+     */
+    private final ImmutableSet<String> multiValueKeys;
+
+    /**
      * Function for producing a collector when dealing with multi-valued fields.
      */
-    private final IntFunction<Collector<? super Object, ?, ?>> multiValueCollector;
+    private final Collector<? super Object, ?, ?> multiValueCollector;
 
     private ValueObjectMapper(Builder builder) {
         handlers = ImmutableMap.copyOf(builder.handlers);
         embeddedTypes = ImmutableSet.copyOf(builder.embeddedTypes);
+        multiValueKeys = ImmutableSet.copyOf(builder.multiValueKeys);
         multiValueCollector = Objects.requireNonNull(builder.multiValueCollector);
     }
 
@@ -127,11 +150,22 @@ public class ValueObjectMapper {
      * Takes a field value from a JSON-LD node and converts it over to a Java object.
      */
     @Nullable
-    public Object fromFieldValue(@Nullable Object input) {
+    public Object fromFieldValue(String key, @Nullable Object input) {
+        if (multiValueKeys.contains(key) && !(input instanceof List<?>)) {
+            return fromFieldValue(Lists.newArrayList(input));
+        } else {
+            return fromFieldValue(input);
+        }
+    }
+
+    /**
+     * Internal implementation; does not require the field key name for forced multi-value checks.
+     */
+    @Nullable
+    private Object fromFieldValue(@Nullable Object input) {
         if (input instanceof List<?>) {
             // Recursively process list elements
-            List<?> valueObjects = (List<?>) input;
-            return valueObjects.stream().map(this::fromFieldValue).collect(multiValueCollector.apply(valueObjects.size()));
+            return ((List<?>) input).stream().map(this::fromFieldValue).collect(multiValueCollector);
         } else if (mappingOf(input, JsonLdConsts.VALUE).isPresent()) {
             // A map that contains "@value" is a value object we can convert to a Java object
             Map<?, ?> valueObject = (Map<?, ?>) input;
@@ -250,7 +284,9 @@ public class ValueObjectMapper {
 
         private final Set<String> embeddedTypes = new LinkedHashSet<>();
 
-        private IntFunction<Collector<? super Object, ?, ?>> multiValueCollector;
+        private final Set<String> multiValueKeys = new LinkedHashSet<>();
+
+        private Collector<? super Object, ?, ?> multiValueCollector;
 
         public Builder() {
             // Add the standard BDIO datatype handlers
@@ -265,8 +301,8 @@ public class ValueObjectMapper {
                 }
             }
 
-            // Unwrap single element collections
-            multiValueCollector = size -> size == 1 ? Collectors.collectingAndThen(ExtraCollectors.getOnly(), Optional::get) : Collectors.toList();
+            // Collect multi-valued fields in an array list
+            multiValueCollector = Collectors.toList();
         }
 
         public Builder useDatatypeHandler(String type, DatatypeHandler<?> handler) {
@@ -279,7 +315,12 @@ public class ValueObjectMapper {
             return this;
         }
 
-        public Builder multiValueCollector(IntFunction<Collector<? super Object, ?, ?>> multiValueCollector) {
+        public Builder addMultiValueKey(String key) {
+            multiValueKeys.add(Objects.requireNonNull(key));
+            return this;
+        }
+
+        public Builder multiValueCollector(Collector<? super Object, ?, ?> multiValueCollector) {
             this.multiValueCollector = Objects.requireNonNull(multiValueCollector);
             return this;
         }

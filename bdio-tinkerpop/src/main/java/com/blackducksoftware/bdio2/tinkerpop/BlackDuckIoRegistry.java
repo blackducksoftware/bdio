@@ -15,12 +15,9 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import static com.blackducksoftware.common.base.ExtraCollectors.getOnly;
 import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
-
-import java.util.Optional;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -46,13 +43,7 @@ public class BlackDuckIoRegistry extends AbstractIoRegistry {
         // Special case a bunch of behavior only for Sqlg
         if (configuration.getString(Graph.GRAPH, "").equals(SqlgGraph.class.getName())) {
             // Basically turn any multi-valued anything into a String[] or Sqlg won't accept it
-            register(b -> b.multiValueCollector(size -> {
-                if (size == 1) {
-                    return collectingAndThen(getOnly(), Optional::get);
-                } else {
-                    return collectingAndThen(mapping(Object::toString, toList()), l -> l.toArray(new String[l.size()]));
-                }
-            }));
+            register(b -> b.multiValueCollector(collectingAndThen(mapping(Object::toString, toList()), l -> l.toArray(new String[l.size()]))));
 
             // This is just to make sure Sqlg works (otherwise RecordId wouldn't serialize correctly)
             register(BlackDuckIo.class, String.class, DatatypeHandler.from(

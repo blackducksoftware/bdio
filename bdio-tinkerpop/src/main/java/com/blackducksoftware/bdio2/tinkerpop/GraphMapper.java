@@ -22,13 +22,14 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.stream.Collector;
 
@@ -40,6 +41,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.Partit
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.Bdio.Container;
 import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
@@ -142,8 +144,10 @@ public class GraphMapper {
             valueObjectMapperBuilder.addEmbeddedType(k);
             valueObjectMapperBuilder.addEmbeddedType(v);
         });
+        builder.multiValueProperties.forEach(valueObjectMapperBuilder::addMultiValueKey);
         builder.multiValueCollector.ifPresent(valueObjectMapperBuilder::multiValueCollector);
         valueObjectMapper = valueObjectMapperBuilder.build();
+        ValueObjectMapper.setContextValueObjectMapper(valueObjectMapper);
 
         // Construct the BDIO options
         BdioOptions.Builder optionsBuilder = new BdioOptions.Builder();
@@ -335,7 +339,9 @@ public class GraphMapper {
 
         private final Map<String, String> objectProperties;
 
-        private Optional<IntFunction<Collector<? super Object, ?, ?>>> multiValueCollector = Optional.empty();
+        private final Set<String> multiValueProperties;
+
+        private Optional<Collector<? super Object, ?, ?>> multiValueCollector = Optional.empty();
 
         private Optional<Bdio.ContentType> contentType = Optional.empty();
 
@@ -367,8 +373,12 @@ public class GraphMapper {
             }
 
             dataProperties = new LinkedHashMap<>();
+            multiValueProperties = new LinkedHashSet<>();
             for (Bdio.DataProperty bdioDataProperty : Bdio.DataProperty.values()) {
                 dataProperties.put(bdioDataProperty.name(), bdioDataProperty.toString());
+                if (bdioDataProperty.container() != Container.single) {
+                    multiValueProperties.add(bdioDataProperty.name());
+                }
             }
 
             objectProperties = new LinkedHashMap<>();
@@ -377,7 +387,7 @@ public class GraphMapper {
             }
         }
 
-        public Builder multiValueCollector(@Nullable IntFunction<Collector<? super Object, ?, ?>> multiValueCollector) {
+        public Builder multiValueCollector(@Nullable Collector<? super Object, ?, ?> multiValueCollector) {
             this.multiValueCollector = Optional.ofNullable(multiValueCollector);
             return this;
         }
@@ -408,6 +418,12 @@ public class GraphMapper {
         public Builder addDataProperty(String term, String iri) {
             checkUserSuppliedKey(term, "data property '%s' is reserved");
             dataProperties.put(Objects.requireNonNull(term), Objects.requireNonNull(iri));
+            return this;
+        }
+
+        public Builder addMultiValueDataProperty(String term, String iri) {
+            addDataProperty(term, iri);
+            multiValueProperties.add(term);
             return this;
         }
 

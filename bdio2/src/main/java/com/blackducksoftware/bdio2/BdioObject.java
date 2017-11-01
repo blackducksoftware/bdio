@@ -39,8 +39,6 @@ import com.google.common.collect.Lists;
  */
 public class BdioObject extends AbstractMap<String, Object> {
 
-    private static ValueObjectMapper VALUE_OBJECT_MAPPER = new ValueObjectMapper.Builder().build();
-
     /**
      * The backing node data for this BDIO object.
      * <p>
@@ -129,7 +127,7 @@ public class BdioObject extends AbstractMap<String, Object> {
      * Returns the mapper to use for doing JSON-LD value object conversions.
      */
     protected static ValueObjectMapper mapper() {
-        return VALUE_OBJECT_MAPPER;
+        return ValueObjectMapper.getContextValueObjectMapper();
     }
 
     /**

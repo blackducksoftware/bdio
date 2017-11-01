@@ -109,6 +109,33 @@ public class BlackDuckIoReaderTest extends BaseTest {
     }
 
     @Test
+    public void readFileSingleFingerprint() throws Exception {
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+        File fileModel = new File(BdioObject.randomId());
+        fileModel.fingerprint(Digest.of("sha1", "2d05a5f70ffb6fbf6fcbf65bb6f4cd48a8b2592a"));
+
+        graph.io(BlackDuckIo.build())
+                .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(fileModel))));
+
+        GraphTraversal<Vertex, Vertex> files = graph.traversal().V().hasLabel(Bdio.Class.File.name());
+        assertThat(files.hasNext()).isTrue();
+        Vertex file = files.next();
+        assertThat(files.hasNext()).isFalse();
+
+        if (graph instanceof SqlgGraph) {
+            VertexProperty<String[]> fingerprintProperty = file.property(Bdio.DataProperty.fingerprint.name());
+            assertThat(fingerprintProperty.isPresent()).isTrue();
+            assertThat(fingerprintProperty.value()).asList().containsExactly(
+                    "sha1:2d05a5f70ffb6fbf6fcbf65bb6f4cd48a8b2592a");
+        } else {
+            VertexProperty<List<Digest>> fingerprintProperty = file.property(Bdio.DataProperty.fingerprint.name());
+            assertThat(fingerprintProperty.isPresent()).isTrue();
+            assertThat(fingerprintProperty.value()).containsExactly(
+                    Digest.of("sha1", "2d05a5f70ffb6fbf6fcbf65bb6f4cd48a8b2592a"));
+        }
+    }
+
+    @Test
     public void readBaseFile() throws Exception {
         BdioMetadata metadata = BdioMetadata.createRandomUUID();
         Project projectModel = new Project(BdioObject.randomId());

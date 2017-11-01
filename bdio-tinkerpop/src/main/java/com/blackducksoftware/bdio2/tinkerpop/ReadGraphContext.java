@@ -208,7 +208,7 @@ class ReadGraphContext extends GraphContext {
         });
 
         // Sorted data properties
-        Maps.transformValues(node, mapper().valueObjectMapper()::fromFieldValue).entrySet().stream()
+        Maps.transformEntries(node, mapper().valueObjectMapper()::fromFieldValue).entrySet().stream()
                 .filter(e -> mapper().isDataPropertyKey(e.getKey()))
                 .sorted(DATA_PROPERTY_ORDER)
                 .forEachOrdered(properties);
