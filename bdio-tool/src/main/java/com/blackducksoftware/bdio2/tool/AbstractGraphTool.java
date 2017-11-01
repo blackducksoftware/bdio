@@ -32,7 +32,7 @@ import com.google.common.io.ByteSource;
  *
  * @author jgustie
  */
-abstract class AbstractGraphTool extends Tool {
+public abstract class AbstractGraphTool extends Tool {
 
     /**
      * The graph tool is used internally to handle loading BDIO into a graph.

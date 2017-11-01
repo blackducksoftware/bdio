@@ -30,7 +30,7 @@ import com.blackducksoftware.common.base.HID;
  *
  * @author jgustie
  */
-abstract class AbstractFileTool extends AbstractGraphTool {
+public abstract class AbstractFileTool extends AbstractGraphTool {
 
     /**
      * A file in the tree.
@@ -48,6 +48,10 @@ abstract class AbstractFileTool extends AbstractGraphTool {
 
         public FileNode(Vertex vertex) {
             this(vertex, 0);
+        }
+
+        public Vertex vertex() {
+            return vertex;
         }
 
         public int depth() {

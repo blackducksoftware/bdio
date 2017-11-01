@@ -28,6 +28,7 @@ import java.util.Set;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 
 /**
@@ -40,6 +41,11 @@ public class TreeTool extends AbstractFileTool {
     public static void main(String[] args) {
         new TreeTool(null).parseArgs(args).run();
     }
+
+    /**
+     * Descend only level directories deep.
+     */
+    private int level = Integer.MAX_VALUE;
 
     /**
      * Turn off file/directory count at end of tree listing.
@@ -75,6 +81,10 @@ public class TreeTool extends AbstractFileTool {
         super(name);
     }
 
+    public void setLevel(int level) {
+        this.level = level;
+    }
+
     public void setNoReport(boolean noReport) {
         this.noReport = noReport;
     }
@@ -100,9 +110,17 @@ public class TreeTool extends AbstractFileTool {
     }
 
     @Override
+    protected Set<String> optionsWithArgs() {
+        return ImmutableSet.of("-L");
+    }
+
+    @Override
     protected Tool parseArguments(String[] args) throws Exception {
         for (String arg : options(args)) {
-            if (arg.equals("--noreport")) {
+            if (arg.startsWith("-L=")) {
+                optionValue(arg).map(Integer::valueOf).ifPresent(this::setLevel);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("--noreport")) {
                 setNoReport(true);
                 args = removeFirst(arg, args);
             } else if (arg.equals("-f")) {
@@ -150,6 +168,9 @@ public class TreeTool extends AbstractFileTool {
             } else {
                 childrenAtDepths.remove(fn.parentDepth());
                 fileNodes.removeLast();
+            }
+            if (fn.depth() > level) {
+                continue;
             }
 
             Iterator<FileNode> children = fn.children(g);
