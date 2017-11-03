@@ -53,6 +53,11 @@ public final class Project extends BdioObject {
         return this;
     }
 
+    public Project vendor(@Nullable String vendor) {
+        putData(Bdio.DataProperty.vendor, vendor);
+        return this;
+    }
+
     public Project license(@Nullable String license) {
         putData(Bdio.DataProperty.license, license);
         return this;

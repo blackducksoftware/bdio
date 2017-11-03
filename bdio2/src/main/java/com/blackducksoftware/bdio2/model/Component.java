@@ -47,6 +47,11 @@ public final class Component extends BdioObject {
         return this;
     }
 
+    public Component vendor(@Nullable String vendor) {
+        putData(Bdio.DataProperty.vendor, vendor);
+        return this;
+    }
+
     public Component license(@Nullable String license) {
         putData(Bdio.DataProperty.license, license);
         return this;

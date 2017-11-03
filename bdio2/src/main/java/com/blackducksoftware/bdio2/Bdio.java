@@ -340,6 +340,12 @@ public class Bdio {
         scope("http://blackducksoftware.com/bdio#hasScope", Datatype.Default, Container.single),
 
         /**
+         * The name of the vendor who provides a project or component.
+         */
+        // AllowedOn: Project, Component
+        vendor("http://blackducksoftware.com/bdio#hasVendor", Datatype.Default, Container.single),
+
+        /**
          * The display version of the entity. Must reference a single version.
          */
         // AllowedOn: Project, Component
