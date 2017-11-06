@@ -138,6 +138,7 @@ class LegacyUtilities {
                 case "tbz":
                 case "tbz2":
                     return "tar";
+                case "a":
                 case "ar":
                 case "lib":
                     return "ar";
