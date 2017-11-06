@@ -163,4 +163,52 @@ public final class BdioMetadata extends BdioObject {
         return this;
     }
 
+    /**
+     * Sets the build details URL captured from the build environment.
+     */
+    public BdioMetadata buildDetails(@Nullable String buildDetails) {
+        putData(Bdio.DataProperty.buildDetails, buildDetails);
+        return this;
+    }
+
+    /**
+     * Sets the build number captured from the build environment.
+     */
+    public BdioMetadata buildNumber(@Nullable String buildNumber) {
+        putData(Bdio.DataProperty.buildNumber, buildNumber);
+        return this;
+    }
+
+    /**
+     * Sets the source repository URL captured from the build environment.
+     */
+    public BdioMetadata sourceRepository(@Nullable String sourceRepository) {
+        putData(Bdio.DataProperty.sourceRepository, sourceRepository);
+        return this;
+    }
+
+    /**
+     * Sets the source repository revision identifier captured from the build environment.
+     */
+    public BdioMetadata sourceRevision(@Nullable String sourceRevision) {
+        putData(Bdio.DataProperty.sourceRevision, sourceRevision);
+        return this;
+    }
+
+    /**
+     * Sets the source repository branch name captured from the build environment.
+     */
+    public BdioMetadata sourceBranch(@Nullable String sourceBranch) {
+        putData(Bdio.DataProperty.sourceBranch, sourceBranch);
+        return this;
+    }
+
+    /**
+     * Sets the source repository tag captured from the build environment.
+     */
+    public BdioMetadata sourceTag(@Nullable String sourceTag) {
+        putData(Bdio.DataProperty.sourceTag, sourceTag);
+        return this;
+    }
+
 }

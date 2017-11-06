@@ -195,6 +195,19 @@ public class Bdio {
     public enum DataProperty {
 
         /**
+         * The build number captured from the build environment.
+         */
+        // AllowedOn: @Graph
+        buildNumber("http://blackducksoftware.com/bdio#hasBuildNumber", Datatype.Default, Container.single),
+
+        /**
+         * The URL used to obtain additional details about the build environment.
+         */
+        // AllowedOn: @Graph
+        // TODO Change type to "URL"?
+        buildDetails("http://blackducksoftware.com/bdio#hasBuildDetails", Datatype.Default, Container.single),
+
+        /**
          * The size (in bytes) of a file.
          */
         // AllowedOn: File
@@ -340,6 +353,30 @@ public class Bdio {
         scope("http://blackducksoftware.com/bdio#hasScope", Datatype.Default, Container.single),
 
         /**
+         * The URI representing the SCM location from the build environment.
+         */
+        // AllowedOn: @Graph
+        sourceRepository("http://blackducksoftware.com/bdio#hasSourceRepository", Datatype.Default, Container.single),
+
+        /**
+         * The SCM revision identifier from the build environment.
+         */
+        // AllowedOn: @Graph
+        sourceRevision("http://blackducksoftware.com/bdio#hasSourceRevision", Datatype.Default, Container.single),
+
+        /**
+         * The SCM branch name from the build environment.
+         */
+        // AllowedOn: @Graph
+        sourceBranch("http://blackducksoftware.com/bdio#hasSourceBranch", Datatype.Default, Container.single),
+
+        /**
+         * The SCM tag name from the build environment.
+         */
+        // AllowedOn: @Graph
+        sourceTag("http://blackducksoftware.com/bdio#hasSourceTag", Datatype.Default, Container.single),
+
+        /**
          * The name of the vendor who provides a project or component.
          */
         // AllowedOn: Project, Component
@@ -351,9 +388,6 @@ public class Bdio {
         // AllowedOn: Project, Component
         version("http://blackducksoftware.com/bdio#hasVersion", Datatype.Default, Container.single),
 
-        // TODO Continuous Integration environment
-        // repository, branch, buildNumber, build[Url], ref, etc.
-        // buildName (like Jenkins "BUILD_TAG")
         // TODO Container information: repo, tag, id, etc.
         // TODO Removed/updated files? Removed entities in general? Whiteout?
 
