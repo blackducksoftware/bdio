@@ -332,7 +332,7 @@ class LegacyScanContainerEmitter implements Emitter {
                 } else {
                     // Nest the scheme specific part
                     ssp = new URI(scheme, ssp, fragment).toString();
-                    fragment = ExtraStrings.ensurePrefix("/", node.path);
+                    fragment = ExtraStrings.ensurePrefix("/", Objects.equals(node.name, "/") ? "" : node.path);
                     scheme = LegacyUtilities.guessScheme(ssp);
                 }
             }
@@ -347,13 +347,12 @@ class LegacyScanContainerEmitter implements Emitter {
      */
     private static Iterable<LegacyScanNode> listArchives(LegacyScanContainer scanContainer, LegacyScanNode scanNode) {
         Deque<LegacyScanNode> result = new ArrayDeque<>();
-        result.add(scanNode);
 
         // Follow the scan nodes up to root
         LegacyScanNode parent = scanNode;
         while (parent != null) {
             // Add the parent (to the front) if the type is archive
-            if (Objects.equals(parent.type, LegacyScanNode.TYPE_ARCHIVE)) {
+            if (Objects.equals(parent.type, LegacyScanNode.TYPE_ARCHIVE) || result.isEmpty()) {
                 result.addFirst(parent);
             }
 
