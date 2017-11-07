@@ -14,6 +14,7 @@ package com.blackducksoftware.bdio2;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -30,10 +31,13 @@ public class BdioSubscriber implements Subscriber<Map<String, Object>> {
 
     private final BdioWriter writer;
 
+    private final Consumer<Throwable> onError;
+
     private Subscription subscription;
 
-    public BdioSubscriber(BdioMetadata metadata, StreamSupplier entryStreams) {
+    public BdioSubscriber(BdioMetadata metadata, StreamSupplier entryStreams, Consumer<Throwable> onError) {
         writer = new BdioWriter(metadata, entryStreams);
+        this.onError = Objects.requireNonNull(onError);
     }
 
     private void validateSubscription(Subscription s) {
@@ -72,7 +76,8 @@ public class BdioSubscriber implements Subscriber<Map<String, Object>> {
         try {
             writer.close();
         } catch (IOException e) {
-            // TODO What do we do? Anything?
+            // Don't call `onError(e)` here (even though `writer.close()` is idempotent?!)
+            onError.accept(e);
         }
     }
 
@@ -81,10 +86,9 @@ public class BdioSubscriber implements Subscriber<Map<String, Object>> {
         // Make sure we try to close the writer so the Zip isn't corrupted
         try {
             writer.close();
-        } catch (IOException suppressed) {
+        } catch (IOException | RuntimeException suppressed) {
             e.addSuppressed(suppressed);
         }
-
-        // TODO What else do we do? Anything?
+        onError.accept(e);
     }
 }

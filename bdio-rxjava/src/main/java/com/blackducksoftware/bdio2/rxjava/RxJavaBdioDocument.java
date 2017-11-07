@@ -28,6 +28,7 @@ import com.blackducksoftware.bdio2.Emitter;
 import com.blackducksoftware.bdio2.EmitterFactory;
 
 import io.reactivex.Flowable;
+import io.reactivex.plugins.RxJavaPlugins;
 import io.reactivex.processors.PublishProcessor;
 
 /**
@@ -84,7 +85,7 @@ public final class RxJavaBdioDocument extends BdioDocument {
         jsonLd(data)
                 .expand()
                 .flatMapIterable(BdioDocument::toGraphNodes)
-                .subscribe(new BdioSubscriber(metadata, entryStreams));
+                .subscribe(new BdioSubscriber(metadata, entryStreams, RxJavaPlugins::onError));
 
         // TODO Wrap/hide?
         return data;
