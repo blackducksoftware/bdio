@@ -14,7 +14,6 @@ package com.blackducksoftware.bdio2.rxjava;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.util.function.Consumer;
 
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -43,14 +42,9 @@ public final class RxJavaBdioDocument extends BdioDocument {
     }
 
     @Override
-    public RxJavaJsonLdProcessing jsonLd(Publisher<Object> inputs) {
-        return new RxJavaJsonLdProcessing(Flowable.fromPublisher(inputs), options());
-    }
-
-    @SuppressWarnings("CheckReturnValue")
-    @Override
-    public RxJavaJsonLdProcessing read(InputStream in, Consumer<BdioMetadata> metadataConsumer) {
-        Flowable<Object> entries = Flowable.generate(
+    public Flowable<Object> read(InputStream in) {
+        // TODO Should this happen on the I/O scheduler?
+        return Flowable.generate(
                 () -> EmitterFactory.newEmitter(in),
                 (parser, emitter) -> {
                     parser.emit(emitter::onNext, emitter::onError, emitter::onComplete);
@@ -64,18 +58,7 @@ public final class RxJavaBdioDocument extends BdioDocument {
                     } else {
                         return Flowable.error(t);
                     }
-                })
-
-                // TODO Should this happen on the I/O scheduler?
-                .publish().autoConnect(2);
-
-        entries.map(BdioDocument::toGraphMetadata)
-                .reduce(new BdioMetadata(), BdioMetadata::merge)
-                // TODO Have our own default error handler that defaults to the RxJavaPlugins.onError?
-                // TODO What do we do with the disposable?
-                .subscribe(metadataConsumer::accept);
-
-        return jsonLd(entries);
+                });
     }
 
     @Override
@@ -87,8 +70,21 @@ public final class RxJavaBdioDocument extends BdioDocument {
                 .flatMapIterable(BdioDocument::toGraphNodes)
                 .subscribe(new BdioSubscriber(metadata, entryStreams, RxJavaPlugins::onError));
 
-        // TODO Wrap/hide?
+        // TODO How can we use FlowableHide.HideSubscriber?
         return data;
+    }
+
+    @Override
+    public RxJavaJsonLdProcessing jsonLd(Publisher<Object> inputs) {
+        return new RxJavaJsonLdProcessing(Flowable.fromPublisher(inputs), options());
+    }
+
+    @Override
+    public Flowable<BdioMetadata> metadata(Publisher<Object> inputs) {
+        return Flowable.fromPublisher(inputs)
+                .map(BdioDocument::toGraphMetadata)
+                .reduce(new BdioMetadata(), BdioMetadata::merge)
+                .toFlowable();
     }
 
 }

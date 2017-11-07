@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
@@ -92,19 +91,27 @@ public abstract class BdioDocument {
     }
 
     /**
-     * Prepares the supplied input stream for being read as a sequence of JSON-LD entries.
+     * Prepares the supplied input stream for being read as a sequence of BDIO entries.
      */
-    public abstract JsonLdProcessing read(InputStream in, Consumer<BdioMetadata> metadataConsumer);
+    public abstract Publisher<Object> read(InputStream in);
 
     /**
      * Creates a subscriber for writing a sequence of JSON-LD entries to the supplied output streams.
      */
+    // TODO Should we accept a Consumer<Throwable> for error handling?
     public abstract Subscriber<Object> write(BdioMetadata metadata, StreamSupplier entryStreams);
 
     /**
-     * Expose the JSON-LD processing API on a given sequence of inputs.
+     * Leverage the JSON-LD processing API on a given sequence of BDIO entries.
      */
-    protected abstract JsonLdProcessing jsonLd(Publisher<Object> inputs);
+    public abstract JsonLdProcessing jsonLd(Publisher<Object> inputs);
+
+    /**
+     * Returns a single element sequence of the combined metadata from all of the supplied BDIO entries. Typically BDIO
+     * producers will generate BDIO entries in such a way that all of the metadata is found only on the first entry,
+     * however this is not a strict requirement.
+     */
+    public abstract Publisher<BdioMetadata> metadata(Publisher<Object> inputs);
 
     // NOTE: This is one place where we are opinionated on our JSON-LD usage, that means this code can break
     // general JSON-LD interoperability if someone produces something we weren't expecting...
@@ -150,22 +157,6 @@ public abstract class BdioDocument {
             return nodeList;
         } else {
             return new ArrayList<>(0);
-        }
-    }
-
-    /**
-     * Framing does not work on named graphs so we need to pull just the graph nodes out.
-     *
-     * @see <a href="https://github.com/jsonld-java/jsonld-java/issues/109">#109</a>
-     */
-    @Nullable
-    public static Object dropGraphLabel(@Nullable Object input) {
-        if (input instanceof Map<?, ?>
-                && ((Map<?, ?>) input).containsKey(JsonLdConsts.ID)
-                && ((Map<?, ?>) input).containsKey(JsonLdConsts.GRAPH)) {
-            return getGraph(input);
-        } else {
-            return input;
         }
     }
 

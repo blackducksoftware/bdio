@@ -17,10 +17,10 @@ package com.blackducksoftware.bdio2.tool;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import java.io.InputStream;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -31,6 +31,7 @@ import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.BdioWriter;
+import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.blackducksoftware.common.value.ProductList;
 import com.google.common.base.StandardSystemProperty;
@@ -105,7 +106,8 @@ public class ConcatenateTool extends Tool {
     protected void execute() throws Exception {
         checkState(!inputs.isEmpty(), "input is not set");
 
-        BdioOptions options = new BdioOptions.Builder().build();
+        RxJavaBdioDocument document = new RxJavaBdioDocument(new BdioOptions.Builder().build());
+        StreamSupplier out = new BdioWriter.BdioFile(output.openStream());
 
         BdioMetadata metadata = new BdioMetadata();
         metadata.id(id.orElseGet(BdioObject::randomId));
@@ -113,28 +115,20 @@ public class ConcatenateTool extends Tool {
         metadata.creationDateTime(ZonedDateTime.now());
         metadata.creator(StandardSystemProperty.USER_NAME.value());
 
-        Flowable.fromIterable(inputs)
-                .map(ByteSource::openStream)
+        // Read all the configured inputs into a single sequence of entries
+        Flowable<InputStream> data = Flowable.fromIterable(inputs).map(ByteSource::openStream);
 
-                // TODO Instead of ignoring metadata should we use `metadata::merge`? (then do a clean up later...)
+        // Only collect metadata from the first entry
+        document.metadata(data.flatMap(in -> document.read(in).take(1)))
+                .subscribe(m -> combineMetadata(metadata, m))
+                .isDisposed();
 
-                .flatMap(in -> new RxJavaBdioDocument(options).read(in, x -> {}).identity())
+        // Write the all the entries back out using the new metadata
+        data.flatMap(document::read).subscribe(document.write(metadata, out));
+    }
 
-                // TODO Offer the option to do framing here to optimize Protex files?
-
-                // TODO Clean everything up here...
-                .map(entry -> {
-                    // TODO Strip #declared-components projects if there is already an equiv project
-
-                    // This removes the named graph identifiers from the input otherwise they would conflict
-                    if (entry instanceof Map<?, ?> && ((Map<?, ?>) entry).containsKey("@id")) {
-                        ((Map<?, ?>) entry).remove("@id");
-                    }
-                    return entry;
-                })
-
-                // Send everything to a new BDIO document
-                .subscribe(new RxJavaBdioDocument(options).write(metadata, new BdioWriter.BdioFile(output.openStream())));
+    private void combineMetadata(BdioMetadata catMetadata, BdioMetadata otherMetadata) {
+        // TODO Merge other into cat (can't use BdioMetadata.merge because of @id conflicts)
     }
 
 }

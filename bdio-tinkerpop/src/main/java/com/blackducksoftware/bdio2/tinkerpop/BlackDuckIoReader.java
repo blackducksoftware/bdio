@@ -35,7 +35,10 @@ import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarEdge;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 
 import com.blackducksoftware.bdio2.BdioDocument;
+import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.blackducksoftware.bdio2.tinkerpop.GraphContextFactory.AbstractContextBuilder;
+
+import io.reactivex.Flowable;
 
 public final class BlackDuckIoReader implements GraphReader {
 
@@ -50,11 +53,10 @@ public final class BlackDuckIoReader implements GraphReader {
     public void readGraph(InputStream inputStream, Graph graph) throws IOException {
         ReadGraphContext context = contextFactory.forBdioReadingInto(graph);
         try {
-            context.mapper().newBdioDocument()
-
-                    // Convert bytes to a sequence of BDIO entries, while also storing the aggregated metadata
-                    .read(inputStream, context::createMetadata)
-
+            RxJavaBdioDocument doc = context.mapper().newBdioDocument();
+            Flowable<Object> entries = doc.read(inputStream).publish().autoConnect(2);
+            doc.metadata(entries).singleOrError().subscribe(context::createMetadata);
+            doc.jsonLd(entries)
                     // Convert entries to individual nodes
                     .frame(context.mapper().frame())
                     .flatMapIterable(BdioDocument::toGraphNodes)

@@ -136,16 +136,23 @@ public class RxJavaJsonLdProcessing implements BdioDocument.JsonLdProcessing {
             this.frame = Objects.requireNonNull(frame);
         }
 
+        /**
+         * Framing does not work on named graphs so we need to pull just the graph nodes out.
+         *
+         * @see <a href="https://github.com/jsonld-java/jsonld-java/issues/109">#109</a>
+         */
         @Override
         protected Map<String, Object> applyOnce(Object input, JsonLdOptions options) throws JsonLdError {
-            if (input instanceof List<?> && ((List<?>) input).isEmpty()) {
+            List<Map<String, Object>> graphNodes = BdioDocument.toGraphNodes(input);
+            if (graphNodes.isEmpty()) {
                 // There is a bug in the JSON-LD API where an empty list causes an NPE
                 Map<String, Object> emptyResult = new HashMap<>(1);
                 emptyResult.put(JsonLdConsts.GRAPH, new ArrayList<>(0));
                 return emptyResult;
+            } else {
+                // TODO Restore the graph label?
+                return JsonLdProcessor.frame(graphNodes, frame, options);
             }
-
-            return JsonLdProcessor.frame(input, frame, options);
         }
     }
 
@@ -165,8 +172,7 @@ public class RxJavaJsonLdProcessing implements BdioDocument.JsonLdProcessing {
 
     @Override
     public Flowable<Map<String, Object>> frame(Object frame) {
-        // TODO Restore the graph label?
-        return identity().map(BdioDocument::dropGraphLabel).compose(new FrameTransformer(frame, options));
+        return identity().compose(new FrameTransformer(frame, options));
     }
 
     @Override
