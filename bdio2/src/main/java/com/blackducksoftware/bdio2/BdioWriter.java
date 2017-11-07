@@ -14,8 +14,8 @@ package com.blackducksoftware.bdio2;
 import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.io.BufferedOutputStream;
 import java.io.Closeable;
-import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import com.blackducksoftware.common.io.ExtraIO;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.utils.JsonUtils;
 
@@ -73,6 +74,8 @@ public class BdioWriter implements Closeable {
          */
         private final ZipOutputStream out;
 
+        private final OutputStream bufferedOut;
+
         /**
          * The number of entries written to the BDIO document. Starts at -1 to account for an initial "header" entry
          * that includes an empty named graph solely for expressing graph metadata.
@@ -81,18 +84,20 @@ public class BdioWriter implements Closeable {
 
         // TODO Take a java.nio.file.Path instead?
         public BdioFile(OutputStream outputStream) {
-            out = new ZipOutputStream(Objects.requireNonNull(outputStream));
+            out = new ZipOutputStream(ExtraIO.buffer(outputStream));
+            bufferedOut = new BufferedOutputStream(out) {
+                @Override
+                public void close() throws IOException {
+                    // Do not close the Zip file for each entry, just flush it to disk
+                    super.flush();
+                }
+            };
         }
 
         @Override
         public OutputStream newStream() throws IOException {
             out.putNextEntry(new ZipEntry(Bdio.dataEntryName(entryCount.getAndIncrement())));
-            return new FilterOutputStream(out) {
-                @Override
-                public void close() throws IOException {
-                    // Do not close the Zip file for each entry
-                }
-            };
+            return bufferedOut;
         }
 
         @Override

@@ -190,11 +190,12 @@ class LegacyBdio1xEmitter implements Emitter {
      */
     private static class Bdio1JsonParser extends JsonParserDelegate {
 
+        private static final String VOCAB = "http://blackducksoftware.com/rdf/terms#";
+
         /**
          * The prefixes supported in BDIO 1.x.
          */
         private static final ImmutableMap<String, String> PREFIXES = ImmutableMap.<String, String> builder()
-                .put("", "http://blackducksoftware.com/rdf/terms#")
                 .put("spdx:", "http://spdx.org/rdf/terms#")
                 .put("doap:", "http://usefulinc.com/ns/doap#")
                 .put("rdfs:", "http://www.w3.org/2000/01/rdf-schema#")
@@ -258,19 +259,22 @@ class LegacyBdio1xEmitter implements Emitter {
         }
 
         /**
-         * Normalizes on prefix form instead of fully qualified form since that is how the data was probably already
-         * presented. Also, the fully qualified names are longer which optimizes the "starts with" computation.
+         * Normalizes on shorter prefix form instead of the fully qualified form.
          */
         @Nullable
         private static String applyPrefix(@Nullable String value) {
-            if (value != null && value.length() > 0 && value.charAt(0) != '@') {
+            if (value == null || value.length() <= 26 || value.charAt(0) == '@') {
+                return value;
+            } else if (value.startsWith(VOCAB)) {
+                return value.substring(VOCAB.length());
+            } else {
                 for (Map.Entry<String, String> prefix : PREFIXES.entrySet()) {
                     if (value.startsWith(prefix.getValue())) {
                         return prefix.getKey() + value.substring(prefix.getValue().length());
                     }
                 }
+                return value;
             }
-            return value;
         }
     }
 
