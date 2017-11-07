@@ -195,17 +195,17 @@ public class Bdio {
     public enum DataProperty {
 
         /**
-         * The build number captured from the build environment.
-         */
-        // AllowedOn: @Graph
-        buildNumber("http://blackducksoftware.com/bdio#hasBuildNumber", Datatype.Default, Container.single),
-
-        /**
          * The URL used to obtain additional details about the build environment.
          */
         // AllowedOn: @Graph
         // TODO Change type to "URL"?
         buildDetails("http://blackducksoftware.com/bdio#hasBuildDetails", Datatype.Default, Container.single),
+
+        /**
+         * The build number captured from the build environment.
+         */
+        // AllowedOn: @Graph
+        buildNumber("http://blackducksoftware.com/bdio#hasBuildNumber", Datatype.Default, Container.single),
 
         /**
          * The size (in bytes) of a file.
@@ -353,6 +353,12 @@ public class Bdio {
         scope("http://blackducksoftware.com/bdio#hasScope", Datatype.Default, Container.single),
 
         /**
+         * The SCM branch name from the build environment.
+         */
+        // AllowedOn: @Graph
+        sourceBranch("http://blackducksoftware.com/bdio#hasSourceBranch", Datatype.Default, Container.single),
+
+        /**
          * The URI representing the SCM location from the build environment.
          */
         // AllowedOn: @Graph
@@ -363,12 +369,6 @@ public class Bdio {
          */
         // AllowedOn: @Graph
         sourceRevision("http://blackducksoftware.com/bdio#hasSourceRevision", Datatype.Default, Container.single),
-
-        /**
-         * The SCM branch name from the build environment.
-         */
-        // AllowedOn: @Graph
-        sourceBranch("http://blackducksoftware.com/bdio#hasSourceBranch", Datatype.Default, Container.single),
 
         /**
          * The SCM tag name from the build environment.
