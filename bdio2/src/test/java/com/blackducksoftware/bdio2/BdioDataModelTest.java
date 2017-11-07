@@ -22,7 +22,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -40,7 +39,7 @@ import com.google.common.collect.ImmutableSet;
  * @author jgustie
  */
 @RunWith(Parameterized.class)
-public class BdioDataModel {
+public class BdioDataModelTest {
 
     /**
      * This string is hard coded here independent of the {@link Bdio} class for testing purposes.
@@ -50,7 +49,7 @@ public class BdioDataModel {
     /**
      * These enumerations are not expected to start with {@value #VOCAB}.
      */
-    private static final Set<Enum<?>> NON_VOCAB = ImmutableSet.of(Bdio.Datatype.DateTime, Bdio.Datatype.Default, Bdio.Datatype.Long);
+    private static final ImmutableSet<Enum<?>> NON_VOCAB = ImmutableSet.of(Bdio.Datatype.DateTime, Bdio.Datatype.Default, Bdio.Datatype.Long);
 
     /**
      * Helper that checks to the name and string representation.
@@ -90,7 +89,7 @@ public class BdioDataModel {
      */
     private final Enum<?> bdioEnum;
 
-    public BdioDataModel(String name, Enum<?> bdioEnum) {
+    public BdioDataModelTest(String name, Enum<?> bdioEnum) {
         this.bdioEnum = Objects.requireNonNull(bdioEnum);
     }
 
