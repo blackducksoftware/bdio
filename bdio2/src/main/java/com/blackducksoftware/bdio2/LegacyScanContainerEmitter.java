@@ -58,6 +58,9 @@ import com.google.common.collect.Maps;
  */
 class LegacyScanContainerEmitter implements Emitter {
 
+    // TODO New versions of the file rearranged the order of the fields so that we can stream them
+    // We should make the EmitterFactory detect this and choose either this emitter or a streaming emitter...
+
     /**
      * Internal representation of a legacy scan node used for conversion to BDIO.
      */
@@ -203,7 +206,8 @@ class LegacyScanContainerEmitter implements Emitter {
 
         private File file(LegacyScanNode scanNode) {
             File bdioFile = new File(toFileUri(hostName, baseDir, "scanNode-" + scanNode.id))
-                    .path(toFilePath(this, scanNode));
+                    .path(path(this, scanNode))
+                    .filesystemType(filesystemType(scanNode.type));
             if (scanNode.type == null
                     || scanNode.type.equals(LegacyScanNode.TYPE_FILE)
                     || scanNode.type.equals(LegacyScanNode.TYPE_ARCHIVE)) {
@@ -214,8 +218,6 @@ class LegacyScanContainerEmitter implements Emitter {
                                 .value(e.getValue())
                                 .build())
                         .forEach(bdioFile::fingerprint);
-            } else if (!scanNode.type.equals(LegacyScanNode.TYPE_DIRECTORY)) {
-                throw new IllegalArgumentException("invalid file type: " + scanNode.type);
             }
             return bdioFile;
         }
@@ -318,7 +320,7 @@ class LegacyScanContainerEmitter implements Emitter {
      * Attempts to reconstruct a HID from the supplied scan node. The archive type is lost in the legacy
      * representation.
      */
-    private static String toFilePath(LegacyScanContainer scanContainer, LegacyScanNode scanNode) {
+    private static String path(LegacyScanContainer scanContainer, LegacyScanNode scanNode) {
         try {
             String scheme = "file";
             String ssp = null;
@@ -360,6 +362,31 @@ class LegacyScanContainerEmitter implements Emitter {
             parent = scanContainer.scanNodeList.get(parent.parentId);
         }
         return result;
+    }
+
+    /**
+     * Returns the BDIO filesystem type given the legacy file type.
+     */
+    @Nullable
+    private static String filesystemType(@Nullable String type) {
+        if (type == null) {
+            return null;
+        }
+
+        switch (type) {
+        case LegacyScanNode.TYPE_FILE:
+            return Bdio.FilesystemType.REGULAR.toString();
+        case LegacyScanNode.TYPE_ARCHIVE:
+            return Bdio.FilesystemType.DIRECTORY_ARCHIVE.toString();
+        case LegacyScanNode.TYPE_DIRECTORY:
+            return Bdio.FilesystemType.DIRECTORY.toString();
+        case "PLACEHOLDER":
+        case "DECLARED_COMPONENT":
+            // This is a real edge case
+            return null;
+        default:
+            throw new IllegalArgumentException("invalid file type: " + type);
+        }
     }
 
     /**

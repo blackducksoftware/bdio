@@ -268,6 +268,7 @@ class LegacyBdio1xEmitter implements Emitter {
             } else if (value.startsWith(VOCAB)) {
                 return value.substring(VOCAB.length());
             } else {
+                // TODO Does this do the right thing for terms in the context (which won't need prefixes)?
                 for (Map.Entry<String, String> prefix : PREFIXES.entrySet()) {
                     if (value.startsWith(prefix.getValue())) {
                         return prefix.getKey() + value.substring(prefix.getValue().length());
@@ -532,6 +533,7 @@ class LegacyBdio1xEmitter implements Emitter {
         File result = new File(currentId());
         currentValue(Number.class, "size").map(Number::longValue).ifPresent(result::byteCount);
         convertPath(result::path);
+        convertFileTypes(result::filesystemType);
         convertChecksums(result::fingerprint);
         // TODO "matchDetail", ( "matchType" | "content" | "artifactOf" | "licenseConcluded" )
         baseFile.accept(result);
@@ -595,9 +597,10 @@ class LegacyBdio1xEmitter implements Emitter {
     /**
      * Converts the file name from the current node.
      */
-    public void convertPath(Consumer<String> path) {
+    private void convertPath(Consumer<String> path) {
         currentValue("fileName").ifPresent(fileName -> {
             Archive currentArchive;
+            // TODO Leverage filesystemType conversion? What about multiple values?
             if (currentValue("fileType").filter(Predicate.isEqual("ARCHIVE")).isPresent()) {
                 currentArchive = (archive = new Archive(archive, fileName)).container;
             } else {
@@ -611,8 +614,17 @@ class LegacyBdio1xEmitter implements Emitter {
     }
 
     /**
+     * Converts the filesystem type from the current node.
+     */
+    private void convertFileTypes(Consumer<String> filesystemType) {
+        // TODO This can have multiple values?
+        currentValue("fileType").flatMap(fileType -> Optional.ofNullable(toFilesystemType(fileType))).ifPresent(filesystemType);
+    }
+
+    /**
      * Converts the checksums from the current node. The supplied consumer may be invoked multiple times.
      */
+    // TODO This should take a `Consumer<List<Digest>>`
     private void convertChecksums(Consumer<Digest> fingerprint) {
         for (int index = 0, size = currentSize("checksum"); index < size; ++index) {
             Optional<String> algorithm = currentValue("checksum", index, "algorithm").map(LegacyBdio1xEmitter::toDigestAlgorithm);
@@ -632,6 +644,25 @@ class LegacyBdio1xEmitter implements Emitter {
                         .map(ref -> new Dependency().dependsOn(ref))
                         .ifPresent(dependency);
             }
+        }
+    }
+
+    /**
+     * Returns the filesystem type from the BDIO 1.x file type.
+     */
+    private static String toFilesystemType(String fileType) {
+        // TODO There were other SPDX types that were supported and were not in the context...
+        if (fileType.equals("BINARY") || fileType.equals("APPLICATION")) {
+            return Bdio.FilesystemType.REGULAR.toString();
+        } else if (fileType.equals("TEXT") || fileType.equals("SOURCE")) {
+            // TODO We don't have encodings, should we not return this?
+            return Bdio.FilesystemType.REGULAR_TEXT.toString();
+        } else if (fileType.equals("DIRECTORY")) {
+            return Bdio.FilesystemType.DIRECTORY.toString();
+        } else if (fileType.equals("ARCHIVE")) {
+            return Bdio.FilesystemType.DIRECTORY_ARCHIVE.toString();
+        } else {
+            return null;
         }
     }
 
