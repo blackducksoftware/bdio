@@ -312,7 +312,7 @@ public class Bdio {
          * different fields should be interpreted (e.g. identifiers, versions and scopes are defined within a particular
          * namespace).
          * <p>
-         * Note that namespace values are <em>not</em> part of the BDIO specification. There are BDIO recommendations,
+         * Note that namespace values are not part of the BDIO specification. There are BDIO recommendations,
          * however it is ultimately up to the producer and consumer of the BDIO data to handshake on the appropriate
          * rules.
          */
@@ -359,7 +359,7 @@ public class Bdio {
 
         /**
          * The namespace specific scope of a dependency as determined by the resolution tool used to define the
-         * dependency. For example, if a dependency came from an npm package's {@code devDependencies} field, then the
+         * dependency. For example, if a dependency came from an npm package's "devDependencies" field, then the
          * scope should be "devDependencies".
          */
         // AllowedOn: Dependency
