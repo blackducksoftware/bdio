@@ -256,6 +256,14 @@ public class Bdio {
         encoding("http://blackducksoftware.com/bdio#hasEncoding", Datatype.Default, Container.single),
 
         /**
+         * The filesystem type of file. Represented as a content-type-like string indicating the type file.
+         *
+         * @see Bdio.FilesystemType
+         */
+        // AllowedOn: File
+        filesystemType("http://blackducksoftware.com/bdio#hasFilesystemType", Datatype.Default, Container.single),
+
+        /**
          * The fingerprints of a file.
          */
         // AllowedOn: File
@@ -286,6 +294,12 @@ public class Bdio {
         // AllowedOn: Project, Component
         // TODO Is there an SPDX type for the license expression?
         license("http://blackducksoftware.com/bdio#hasLicense", Datatype.Default, Container.single),
+
+        /**
+         * The symbolic link target of a file.
+         */
+        // AllowedOn: File
+        linkPath("http://blackducksoftware.com/bdio#hasLinkPath", Datatype.Default, Container.single),
 
         /**
          * The display name of the entity.
@@ -389,7 +403,6 @@ public class Bdio {
         version("http://blackducksoftware.com/bdio#hasVersion", Datatype.Default, Container.single),
 
         // TODO Container information: repo, tag, id, etc.
-        // TODO Removed/updated files? Removed entities in general? Whiteout?
 
         ;
 

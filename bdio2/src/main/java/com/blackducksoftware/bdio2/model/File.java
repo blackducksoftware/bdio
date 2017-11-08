@@ -44,6 +44,11 @@ public final class File extends BdioObject {
         return this;
     }
 
+    public File filesystemType(@Nullable String filesystemType) {
+        putData(Bdio.DataProperty.filesystemType, filesystemType);
+        return this;
+    }
+
     public File contentType(@Nullable ContentType contentType) {
         putData(Bdio.DataProperty.contentType, contentType);
         return this;
@@ -56,6 +61,11 @@ public final class File extends BdioObject {
 
     public File path(@Nullable String path) {
         putData(Bdio.DataProperty.path, path);
+        return this;
+    }
+
+    public File linkPath(@Nullable String linkPath) {
+        putData(Bdio.DataProperty.linkPath, linkPath);
         return this;
     }
 
