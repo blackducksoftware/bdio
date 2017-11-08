@@ -494,6 +494,79 @@ public class Bdio {
         single, ordered, unordered
     }
 
+    public enum FilesystemType {
+        /**
+         * A regular file, typically of unknown or binary content.
+         */
+        REGULAR("regular"),
+
+        /**
+         * A regular file with known text content. Should be accompanied by an encoding.
+         */
+        REGULAR_TEXT("regular/text"),
+
+        /**
+         * A directory entry which may or may not contain children.
+         */
+        DIRECTORY("directory"),
+
+        /**
+         * An archive which may or may not contain children. Can also be treated as a regular file.
+         */
+        DIRECTORY_ARCHIVE("directory/archive"),
+
+        /**
+         * A symbolic link. Should be accompanied by a link target.
+         */
+        SYMLINK("symlink"),
+
+        /**
+         * A block device, like a drive.
+         */
+        OTHER_DEVICE_BLOCK("other/device/block"),
+
+        /**
+         * A character device, like a terminal.
+         */
+        OTHER_DEVICE_CHARACTER("other/device/character"),
+
+        /**
+         * A named pipe.
+         */
+        OTHER_PIPE("other/pipe"),
+
+        /**
+         * A socket.
+         */
+        OTHER_SOCKET("other/socket"),
+
+        /**
+         * A whiteout, or file removal in a layered file system.
+         */
+        OTHER_WHITEOUT("other/whiteout"),
+        ;
+
+        private final String value;
+
+        private FilesystemType(String value) {
+            this.value = Objects.requireNonNull(value);
+        }
+
+        public static FilesystemType forString(String value) {
+            for (FilesystemType filesystemType : values()) {
+                if (filesystemType.value.equals(value)) {
+                    return filesystemType;
+                }
+            }
+            throw new IllegalArgumentException("unknown filesystem type: " + value);
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
+    }
+
     public enum ContentType {
 
         /**
