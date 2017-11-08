@@ -54,8 +54,7 @@ public class Bdio {
          * can used to represent any type of file system entry, including regular files, symlinks and directories. The
          * inclusion of directories is optional, i.e. you do not need to include a full directory structure, if no
          * metadata is captured for a directory, then it does not need to be included. All sizes should be represented
-         * in bytes (not blocks). For file systems with efficient calculation of directory sizes, those sizes can be
-         * included for directory entries.
+         * in bytes (not blocks).
          */
         File("http://blackducksoftware.com/bdio#File"),
 
@@ -495,55 +494,6 @@ public class Bdio {
         single, ordered, unordered
     }
 
-    public enum Context {
-
-        VERSION_2_0("http://blackducksoftware.com/bdio/2.0.0", "bdio-context-2.0.jsonld"),
-        VERSION_1_1_1("http://blackducksoftware.com/rdf/terms/1.1.1", "bdio-context-1.1.1.jsonld"),
-        VERSION_1_1("http://blackducksoftware.com/rdf/terms/1.1.0", "bdio-context-1.1.jsonld"),
-        VERSION_1_0("http://blackducksoftware.com/rdf/terms/1.0.0", "bdio-context-1.0.jsonld"),
-        DEFAULT("http://blackducksoftware.com/bdio", VERSION_2_0.resourceName);
-
-        private final String iri;
-
-        private final String resourceName;
-
-        private Context(String iri, String resourceName) {
-            this.iri = Objects.requireNonNull(iri);
-            this.resourceName = Objects.requireNonNull(resourceName);
-        }
-
-        @Override
-        public String toString() {
-            return iri;
-        }
-
-        /**
-         * Returns the class loader resource used to access the context definition.
-         */
-        URL resourceUrl() {
-            return Resources.getResource(Bdio.class, resourceName);
-        }
-
-        /**
-         * Returns the context for a given specification version.
-         */
-        public static Context forSpecVersion(String specVersion) {
-            switch (specVersion) {
-            case "": // v0 == v1.0.0
-            case "1.0.0":
-                return Context.VERSION_1_0;
-            case "1.1.0":
-                return Context.VERSION_1_1;
-            case "1.1.1":
-                return Context.VERSION_1_1_1;
-            case "2.0.0":
-                return Context.VERSION_2_0;
-            default:
-                throw new IllegalArgumentException("unknown BDIO specification version: " + specVersion);
-            }
-        }
-    }
-
     public enum ContentType {
 
         /**
@@ -628,6 +578,55 @@ public class Bdio {
             throw new IllegalArgumentException("unsupported file extension: " + ExtraStrings.afterLast(input, '/'));
         }
 
+    }
+
+    public enum Context {
+
+        VERSION_2_0("http://blackducksoftware.com/bdio/2.0.0", "bdio-context-2.0.jsonld"),
+        VERSION_1_1_1("http://blackducksoftware.com/rdf/terms/1.1.1", "bdio-context-1.1.1.jsonld"),
+        VERSION_1_1("http://blackducksoftware.com/rdf/terms/1.1.0", "bdio-context-1.1.jsonld"),
+        VERSION_1_0("http://blackducksoftware.com/rdf/terms/1.0.0", "bdio-context-1.0.jsonld"),
+        DEFAULT("http://blackducksoftware.com/bdio", VERSION_2_0.resourceName);
+
+        private final String iri;
+
+        private final String resourceName;
+
+        private Context(String iri, String resourceName) {
+            this.iri = Objects.requireNonNull(iri);
+            this.resourceName = Objects.requireNonNull(resourceName);
+        }
+
+        @Override
+        public String toString() {
+            return iri;
+        }
+
+        /**
+         * Returns the class loader resource used to access the context definition.
+         */
+        URL resourceUrl() {
+            return Resources.getResource(Bdio.class, resourceName);
+        }
+
+        /**
+         * Returns the context for a given specification version.
+         */
+        public static Context forSpecVersion(String specVersion) {
+            switch (specVersion) {
+            case "": // v0 == v1.0.0
+            case "1.0.0":
+                return Context.VERSION_1_0;
+            case "1.1.0":
+                return Context.VERSION_1_1;
+            case "1.1.1":
+                return Context.VERSION_1_1_1;
+            case "2.0.0":
+                return Context.VERSION_2_0;
+            default:
+                throw new IllegalArgumentException("unknown BDIO specification version: " + specVersion);
+            }
+        }
     }
 
     /**
