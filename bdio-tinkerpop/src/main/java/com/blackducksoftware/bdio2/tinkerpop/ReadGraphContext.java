@@ -250,31 +250,28 @@ class ReadGraphContext extends GraphContext {
     }
 
     public Object generateId(Object id) {
-        // If user supplied identifiers are not support this value will only be used by the star graph elements
+        // If user supplied identifiers are not supported this value will only be used by the star graph elements
         // (for example, this is the identifier used by star vertices prior to being attached, and is later used to look
         // up the persisted identifier of the star edge incoming vertex)
-        if (!vertexFeatures.supportsUserSuppliedIds()) {
-            return id;
-        }
+        if (vertexFeatures.supportsUserSuppliedIds() && mapper().partitionStrategy().isPresent()) {
+            // The effective identifier must include the write partition value to avoid problems where the
+            // same node imported into separate partitions gets recreated instead merged
+            String partitionKey = mapper().partitionStrategy().get().getPartitionKey();
+            Object partitionValue = mapper().partitionStrategy().get().getWritePartition();
 
-        // The effective identifier must include the write partition value (if present) to avoid problems where the same
-        // node imported into separate partitions gets recreated instead merged into
-        ImmutableMap.Builder<String, Object> effectiveId = ImmutableMap.builder();
-        effectiveId.put(JsonLdConsts.ID, id);
-        mapper().partitionStrategy().ifPresent(s -> effectiveId.put(s.getPartitionKey(), s.getWritePartition()));
+            Map<String, Object> mapId = ImmutableMap.of(JsonLdConsts.ID, id, partitionKey, partitionValue);
+            if (vertexFeatures.willAllowId(mapId)) {
+                return mapId;
+            }
 
-        if (vertexFeatures.supportsAnyIds()) {
-            // If the graph supports arbitrary objects, just use the map as the identifier
-            return effectiveId.build();
-        } else if (vertexFeatures.supportsStringIds()) {
-            // Next best thing is a string representation of the map
-            StringBuilder result = new StringBuilder().append("{\"");
-            Joiner.on("\",\"").withKeyValueSeparator("\"=\"").appendTo(result, effectiveId.build()).append("\"}");
-            return result.toString();
-        } else {
-            // TODO For numeric IDs we could hash the string representation? Same for UUID IDs?
-            throw new IllegalStateException("unable to provide mapped graph identifier: " + id);
+            String stringId = Joiner.on("\",\"").withKeyValueSeparator("\"=\"").appendTo(new StringBuilder().append("{\""), mapId).append("\"}").toString();
+            if (vertexFeatures.willAllowId(stringId)) {
+                return stringId;
+            }
+
+            // TODO For numeric IDs we could hash the string representation? Similar for UUID IDs?
         }
+        return id;
     }
 
 }
