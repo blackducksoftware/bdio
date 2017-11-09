@@ -14,20 +14,22 @@ package com.blackducksoftware.bdio2;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bdio2.Bdio.Container;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.common.base.ExtraStrings;
 import com.github.jsonldjava.core.JsonLdConsts;
-import com.google.common.collect.Lists;
+import com.google.common.collect.Streams;
 
 /**
  * Base class used to help model the BDIO JSON-LD classes. This map does not allow {@code null} keys, attempts to map
@@ -112,7 +114,7 @@ public class BdioObject extends AbstractMap<String, Object> {
      * previously mapped and the supplied value is {@code null}.
      */
     protected final Object putData(Bdio.DataProperty key, @Nullable Object value) {
-        return putJsonLd(key, mapper().toValueObject(value));
+        return putJsonLd(key, value, mapper()::toValueObject);
     }
 
     /**
@@ -120,27 +122,37 @@ public class BdioObject extends AbstractMap<String, Object> {
      * previously mapped and the supplied value is {@code null}.
      */
     protected final Object putObject(Bdio.ObjectProperty key, @Nullable Object value) {
-        return putJsonLd(key, mapper().toReferenceValueObject(value));
+        return putJsonLd(key, value, mapper()::toReferenceValueObject);
     }
 
     /**
      * Returns the mapper to use for doing JSON-LD value object conversions.
      */
-    protected static ValueObjectMapper mapper() {
+    protected ValueObjectMapper mapper() {
         return ValueObjectMapper.getContextValueObjectMapper();
     }
 
     /**
      * Generic implementation of {@code put} for JSON-LD values.
      */
-    private Object putJsonLd(Object key, @Nullable Object valueObject) {
+    private Object putJsonLd(Object key, @Nullable Object value, Function<Object, Object> toValueObject) {
         Bdio.Container container = container(key);
-        if (valueObject != null) {
-            // Replace the mapping for a single, otherwise combine the values into a list
-            return merge(key.toString(), valueObject, container != Container.single ? BdioObject::combine : (k, v) -> v);
+        if (container == Bdio.Container.single) {
+            // Use `compute` instead of `put` because `put` returns the previous value
+            return compute(key.toString(), (k, v) -> toValueObject.apply(value));
+        } else if (value != null) {
+            @SuppressWarnings("unchecked")
+            List<Object> result = (List<Object>) computeIfAbsent(key.toString(), k -> new ArrayList<>());
+            Stream<?> values = streamValue(value).map(toValueObject);
+            if (container == Bdio.Container.ordered) {
+                values.forEachOrdered(result::add);
+            } else {
+                values.forEach(result::add);
+            }
+            return result;
         } else {
-            // Remove the mapping for a single, otherwise keep the old value (i.e. don't add anything)
-            return compute(key.toString(), (k, v) -> container != Container.single ? v : null);
+            // Current value is unmodified
+            return get(key.toString());
         }
     }
 
@@ -159,15 +171,16 @@ public class BdioObject extends AbstractMap<String, Object> {
     }
 
     /**
-     * Merges two values into a single list value.
+     * Converts an arbitrary value into a stream of one or more values.
      */
-    @SuppressWarnings("unchecked")
-    private static Object combine(Object oldValue, Object value) {
-        if (oldValue instanceof List<?>) {
-            ((List<Object>) oldValue).add(value);
-            return oldValue;
+    private Stream<?> streamValue(Object value) {
+        Objects.requireNonNull(value);
+        if (value instanceof Iterable<?>) {
+            return Streams.stream((Iterable<?>) value);
+        } else if (value.getClass().isArray()) {
+            return Stream.of((Object[]) value);
         } else {
-            return Lists.newArrayList(oldValue, value);
+            return Stream.of(value);
         }
     }
 

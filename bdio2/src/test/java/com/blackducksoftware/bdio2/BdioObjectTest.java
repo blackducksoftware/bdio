@@ -155,12 +155,11 @@ public class BdioObjectTest {
         BdioObject bdioObject = new BdioObject(ImmutableMap.of());
         bdioObject.putData(Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("123").build());
         bdioObject.putData(Bdio.DataProperty.fingerprint, null);
-        assertThat(bdioObject.get(Bdio.DataProperty.fingerprint.toString()))
-                .isEqualTo(ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:123"));
+        assertThat((List<?>) bdioObject.get(Bdio.DataProperty.fingerprint.toString())).containsExactly(
+                ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:123"));
 
         bdioObject.putData(Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("456").build());
         bdioObject.putData(Bdio.DataProperty.fingerprint, null);
-        assertThat(bdioObject.get(Bdio.DataProperty.fingerprint.toString())).isInstanceOf(List.class);
         assertThat((List<?>) bdioObject.get(Bdio.DataProperty.fingerprint.toString())).containsExactly(
                 ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:123"),
                 ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:456"));
