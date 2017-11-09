@@ -15,7 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tool;
 
-import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
+import static com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -152,9 +152,9 @@ public class TreeTool extends AbstractFileTool {
         Deque<Iterator<FileNode>> fileNodes = new ArrayDeque<>();
         Set<Integer> childrenAtDepths = new HashSet<>();
 
-        // Find the base file in the graph
-        fileNodes.addFirst(baseFile(g).map(Iterators::singletonIterator)
-                .orElseThrow(illegalState("No base file found")));
+        // Find the base file(s) in the graph
+        baseFile(g).map(Iterators::singletonIterator).forEach(fileNodes::addFirst);
+        checkState(!fileNodes.isEmpty(), "No base file found");
 
         // Do our pre-order traversal, formatting each file node
         // TODO Cycle detection when following links?
@@ -169,7 +169,11 @@ public class TreeTool extends AbstractFileTool {
                 childrenAtDepths.remove(fn.parentDepth());
                 fileNodes.removeLast();
             }
-            if (fn.depth() > level) {
+            if (fn.depth() == 0) {
+                if (fileCount > 0 || directoryCount > 0) {
+                    printOutput("%n");
+                }
+            } else if (fn.depth() > level) {
                 continue;
             }
 

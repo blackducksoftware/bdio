@@ -216,7 +216,7 @@ public class GraphTool extends Tool {
                         // Set the JSON-LD context using file extensions
                         if (input.getKey() != null && input.getKey().getPath() != null) {
                             Bdio.ContentType contentType = Bdio.ContentType.forFileName(input.getKey().getPath());
-                            builder.forContentType(contentType, null);
+                            builder.forContentType(contentType, Bdio.Context.DEFAULT.toString());
                         }
 
                         // Make sure each file goes into it's own partition

@@ -15,9 +15,11 @@
  */
 package com.blackducksoftware.bdio2.tool;
 
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
+
 import java.util.Iterator;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.stream.Stream;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -95,11 +97,12 @@ public abstract class AbstractFileTool extends AbstractGraphTool {
         graphTool().setProperty("bdio.rootLabel", FTT._root.name());
     }
 
-    protected Optional<FileNode> baseFile(GraphTraversalSource g) {
+    protected Stream<FileNode> baseFile(GraphTraversalSource g) {
         return g.V().hasLabel(FTT._Metadata.name())
                 .out(FTT._root.name())
+                .emit().repeat(out(Bdio.ObjectProperty.subproject.name()))
                 .out(Bdio.ObjectProperty.base.name())
-                .tryNext()
+                .toStream()
                 .map(FileNode::new);
     }
 
