@@ -159,7 +159,12 @@ public class GraphMapper {
         options = optionsBuilder.build();
     }
 
-    public static Stream<?> streamVertexPropertyValue(VertexProperty<?> vp) {
+    /**
+     * Returns a stream representing the values of the vertex property. If the value is null or not present, an empty
+     * stream is returned; if the value is not a list or array then a single element stream is returned; otherwise a
+     * stream is returned over the individual elements of the value.
+     */
+    public static Stream<?> streamValue(VertexProperty<?> vp) {
         Object value = vp.orElse(null);
         if (value == null) {
             return Stream.empty();
@@ -170,6 +175,14 @@ public class GraphMapper {
         } else {
             return Stream.of(value);
         }
+    }
+
+    /**
+     * Returns an optional representing the value of the vertex property. While the vertex property itself has methods
+     * like {@code orElse}, it lacks methods like {@code map}.
+     */
+    public static <T> Optional<T> optionalValue(VertexProperty<T> vp) {
+        return Optional.of(vp).filter(VertexProperty::isPresent).map(VertexProperty::value);
     }
 
     public ValueObjectMapper valueObjectMapper() {
