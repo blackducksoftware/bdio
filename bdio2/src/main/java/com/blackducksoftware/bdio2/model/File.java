@@ -44,8 +44,8 @@ public final class File extends BdioObject {
         return this;
     }
 
-    public File filesystemType(@Nullable String filesystemType) {
-        putData(Bdio.DataProperty.filesystemType, filesystemType);
+    public File fileSystemType(@Nullable String fileSystemType) {
+        putData(Bdio.DataProperty.fileSystemType, fileSystemType);
         return this;
     }
 

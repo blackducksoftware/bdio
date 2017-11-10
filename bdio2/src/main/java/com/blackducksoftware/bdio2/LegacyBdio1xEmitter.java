@@ -533,7 +533,7 @@ class LegacyBdio1xEmitter implements Emitter {
         File result = new File(currentId());
         currentValue(Number.class, "size").map(Number::longValue).ifPresent(result::byteCount);
         convertPath(result::path);
-        convertFileTypes(result::filesystemType);
+        convertFileTypes(result::fileSystemType);
         convertChecksums(result::fingerprint);
         // TODO "matchDetail", ( "matchType" | "content" | "artifactOf" | "licenseConcluded" )
         baseFile.accept(result);
@@ -600,7 +600,7 @@ class LegacyBdio1xEmitter implements Emitter {
     private void convertPath(Consumer<String> path) {
         currentValue("fileName").ifPresent(fileName -> {
             Archive currentArchive;
-            // TODO Leverage filesystemType conversion? What about multiple values?
+            // TODO Leverage file systemType conversion? What about multiple values?
             if (currentValue("fileType").filter(Predicate.isEqual("ARCHIVE")).isPresent()) {
                 currentArchive = (archive = new Archive(archive, fileName)).container;
             } else {
@@ -614,11 +614,11 @@ class LegacyBdio1xEmitter implements Emitter {
     }
 
     /**
-     * Converts the filesystem type from the current node.
+     * Converts the file system type from the current node.
      */
-    private void convertFileTypes(Consumer<String> filesystemType) {
+    private void convertFileTypes(Consumer<String> fileSystemType) {
         // TODO This can have multiple values?
-        currentValue("fileType").flatMap(fileType -> Optional.ofNullable(toFilesystemType(fileType))).ifPresent(filesystemType);
+        currentValue("fileType").flatMap(fileType -> Optional.ofNullable(toFileSystemType(fileType))).ifPresent(fileSystemType);
     }
 
     /**
@@ -648,19 +648,19 @@ class LegacyBdio1xEmitter implements Emitter {
     }
 
     /**
-     * Returns the filesystem type from the BDIO 1.x file type.
+     * Returns the file system type from the BDIO 1.x file type.
      */
-    private static String toFilesystemType(String fileType) {
+    private static String toFileSystemType(String fileType) {
         // TODO There were other SPDX types that were supported and were not in the context...
         if (fileType.equals("BINARY") || fileType.equals("APPLICATION")) {
-            return Bdio.FilesystemType.REGULAR.toString();
+            return Bdio.FileSystemType.REGULAR.toString();
         } else if (fileType.equals("TEXT") || fileType.equals("SOURCE")) {
             // TODO We don't have encodings, should we not return this?
-            return Bdio.FilesystemType.REGULAR_TEXT.toString();
+            return Bdio.FileSystemType.REGULAR_TEXT.toString();
         } else if (fileType.equals("DIRECTORY")) {
-            return Bdio.FilesystemType.DIRECTORY.toString();
+            return Bdio.FileSystemType.DIRECTORY.toString();
         } else if (fileType.equals("ARCHIVE")) {
-            return Bdio.FilesystemType.DIRECTORY_ARCHIVE.toString();
+            return Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString();
         } else {
             return null;
         }

@@ -255,12 +255,12 @@ public class Bdio {
         encoding("http://blackducksoftware.com/bdio#hasEncoding", Container.single, Datatype.Default),
 
         /**
-         * The filesystem type of file. Represented as a content-type-like string indicating the type file.
+         * The file system type of file. Represented as a content-type-like string indicating the type file.
          *
-         * @see Bdio.FilesystemType
+         * @see Bdio.FileSystemType
          */
         // AllowedOn: File
-        filesystemType("http://blackducksoftware.com/bdio#hasFilesystemType", Container.single, Datatype.Default),
+        fileSystemType("http://blackducksoftware.com/bdio#hasFileSystemType", Container.single, Datatype.Default),
 
         /**
          * The fingerprints of a file.
@@ -494,7 +494,7 @@ public class Bdio {
         single, ordered, unordered
     }
 
-    public enum FilesystemType {
+    public enum FileSystemType {
         /**
          * A regular file, typically of unknown or binary content.
          */
@@ -548,17 +548,17 @@ public class Bdio {
 
         private final String value;
 
-        private FilesystemType(String value) {
+        private FileSystemType(String value) {
             this.value = Objects.requireNonNull(value);
         }
 
-        public static FilesystemType forString(String value) {
-            for (FilesystemType filesystemType : values()) {
-                if (filesystemType.value.equals(value)) {
-                    return filesystemType;
+        public static FileSystemType forString(String value) {
+            for (FileSystemType fileSystemType : values()) {
+                if (fileSystemType.value.equals(value)) {
+                    return fileSystemType;
                 }
             }
-            throw new IllegalArgumentException("unknown filesystem type: " + value);
+            throw new IllegalArgumentException("unknown file system type: " + value);
         }
 
         @Override

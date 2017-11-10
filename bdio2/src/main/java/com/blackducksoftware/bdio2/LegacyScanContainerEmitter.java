@@ -207,7 +207,7 @@ class LegacyScanContainerEmitter implements Emitter {
         private File file(LegacyScanNode scanNode) {
             File bdioFile = new File(toFileUri(hostName, baseDir, "scanNode-" + scanNode.id))
                     .path(path(this, scanNode))
-                    .filesystemType(filesystemType(scanNode.type));
+                    .fileSystemType(fileSystemType(scanNode.type));
             if (scanNode.type == null
                     || scanNode.type.equals(LegacyScanNode.TYPE_FILE)
                     || scanNode.type.equals(LegacyScanNode.TYPE_ARCHIVE)) {
@@ -365,21 +365,21 @@ class LegacyScanContainerEmitter implements Emitter {
     }
 
     /**
-     * Returns the BDIO filesystem type given the legacy file type.
+     * Returns the BDIO file system type given the legacy file type.
      */
     @Nullable
-    private static String filesystemType(@Nullable String type) {
+    private static String fileSystemType(@Nullable String type) {
         if (type == null) {
             return null;
         }
 
         switch (type) {
         case LegacyScanNode.TYPE_FILE:
-            return Bdio.FilesystemType.REGULAR.toString();
+            return Bdio.FileSystemType.REGULAR.toString();
         case LegacyScanNode.TYPE_ARCHIVE:
-            return Bdio.FilesystemType.DIRECTORY_ARCHIVE.toString();
+            return Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString();
         case LegacyScanNode.TYPE_DIRECTORY:
-            return Bdio.FilesystemType.DIRECTORY.toString();
+            return Bdio.FileSystemType.DIRECTORY.toString();
         case "PLACEHOLDER":
         case "DECLARED_COMPONENT":
             // This is a real edge case

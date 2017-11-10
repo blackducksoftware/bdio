@@ -117,9 +117,9 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : `http://blackducksoftware.com/bdio#hasEncoding`
 : The character encoding of a file. It is required that producers store the encoding independent of the content type's parameters.
 
-`filesystemType`
-: `http://blackducksoftware.com/bdio#hasFilesystemType`
-: The filesystem type of file. Represented as a content-type-like string indicating the type file.
+`fileSystemType`
+: `http://blackducksoftware.com/bdio#hasFileSystemType`
+: The file system type of file. Represented as a content-type-like string indicating the type file.
 
 `fingerprint`
 : `http://blackducksoftware.com/bdio#hasFingerprint`
@@ -265,18 +265,18 @@ BDIO files must be represented as a tree-like hierarchy: each file is permitted 
 Using this pattern, it is possible to encode archive entry paths at arbitrary "nesting levels" (i.e. archives within archives). It is important when constructing archive entry path URIs that the URI of the archive itself be encoded (including any "/" characters), as archive nesting levels increase, so will the encodings (e.g. a "/" will initially be encoded as "%2F", at the next nesting level it will appear as "%252F"). All URI encodings MUST be performed on NFC normalized UTF-8 encoded byte sequences. Trailing slashes and files named "." or ".." MUST be omitted. The scheme should be used to identify the archive format. Archive entry names SHOULD start with a "/", however there are cases where the entry name can be used without the leading slash (refer to [Appendix C: File Data][appendix-c] for additional details).
 
 ### File Types
-Metadata regarding how the content of a file should be (or was) interpreted is split over several data properties in BDIO. The filesystem type is defined the role a file plays in the structure of the file hierarchy, it should be obtained either directly from the file system or from archive metadata used to preserve the original file system structure. The content type describes how the contents of the file should be interpreted, often times this information is inferred from the file name (e.g. extension matching); however producers may know the type as a consequence of processing the file. Publishers MUST NOT include a content type obtained through simple file name matching as this work can be done by a processor later; if content type is represented in metadata using a different format (e.g. using extended file attributes), or if the content type was determined based on some specific processing performed on the actual contents of the file, it is appropriate to include the content type, even if the result would be the same as computed through standard name mapping. Text based content SHOULD include the encoding (this information MUST NOT be included in the content type); it is possible that the encoding can be determined without a content type. Symbolic links can be recorded using the link path: the value is the same format described for file paths.
+Metadata regarding how the content of a file should be (or was) interpreted is split over several data properties in BDIO. The file system type is defined the role a file plays in the structure of the file hierarchy, it should be obtained either directly from the file system or from archive metadata used to preserve the original file system structure. The content type describes how the contents of the file should be interpreted, often times this information is inferred from the file name (e.g. extension matching); however producers may know the type as a consequence of processing the file. Publishers MUST NOT include a content type obtained through simple file name matching as this work can be done by a processor later; if content type is represented in metadata using a different format (e.g. using extended file attributes), or if the content type was determined based on some specific processing performed on the actual contents of the file, it is appropriate to include the content type, even if the result would be the same as computed through standard name mapping. Text based content SHOULD include the encoding (this information MUST NOT be included in the content type); it is possible that the encoding can be determined without a content type. Symbolic links can be recorded using the link path: the value is the same format described for file paths.
 
-Processors MAY imply the filesystem type according the following rules, publishers MUST NOT generate conflicting data and consumers SHOULD reject data containing conflicts:
+Processors MAY imply the file system type according the following rules, publishers MUST NOT generate conflicting data and consumers SHOULD reject data containing conflicts:
 
-1. A link path implies a filesystem type of `symlink`
-1. An encoding implies a filesystem type of `regular/text`
+1. A link path implies a file system type of `symlink`
+1. An encoding implies a file system type of `regular/text`
 1. If another file references the file as a parent...
-    * A byte count or content type implies a filesystem type of `directory/archive`
-    * Otherwise the implied filesystem type is `directory`
+    * A byte count or content type implies a file system type of `directory/archive`
+    * Otherwise the implied file system type is `directory`
 1. If no other file references the file as a parent...
-    * The implied filesystem type is `regular`
-1. Processors MAY apply implementation specific file path hueristics to determine the filesystem type
+    * The implied file system type is `regular`
+1. Processors MAY apply implementation specific file path hueristics to determine the file system type
 
 # Document Format
 BDIO data can be transferred using one of four different formats depending on the capabilities of the parties involved and volume of data. Any JSON data being transferred MAY be pretty printed, it makes human consumption easier and has minimal impact on data size when compression is being used. BDIO data MUST be expressed as a named graph, the graph's label is used to uniquely identify the source of the data.
@@ -343,9 +343,9 @@ TODO Suggest identifiers to use in specific situations, include use of "mvn:" an
 
 NOTE: File extensions and/or compression formats are not accounted for using the scheme, e.g. a file with the extension ".tgz" or ".tar.gz" still has a scheme of "tar".
 
-## Allowed Filesystem Types
+## Allowed File System Types
 
-| Filesystem Type          | Description |
+| File System Type         | Description |
 |--------------------------|-------------|
 | `regular`                | A regular file, typically of unknown or binary content. |
 | `regular/text`           | A regular file with known text content. Should be accompanied by an encoding. |
@@ -358,7 +358,7 @@ NOTE: File extensions and/or compression formats are not accounted for using the
 | `other/socket`           | A socket. |
 | `other/whiteout`         | A whiteout, or file removal in a layered file system. |
 
-NOTE: Filesystem types are compared case-insensitively.
+NOTE: File system types are compared case-insensitively.
 
 # Appendix D: BDIO Content Types [appendix-d]
 
