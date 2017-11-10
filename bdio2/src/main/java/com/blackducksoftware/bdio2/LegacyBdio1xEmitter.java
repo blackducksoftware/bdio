@@ -558,11 +558,19 @@ class LegacyBdio1xEmitter implements Emitter {
 
         creationInfo.filter(m -> m.group("personName") != null).map(m -> m.group("personName")).ifPresent(creator);
 
-        creationInfo.filter(m -> m.group("toolName") != null).map(m -> {
-            Product.Builder result = new Product.Builder().name(m.group("toolName")).version(m.group("toolVersion"));
-            // TODO "organizationName" in the comment?
-            return ProductList.of(result.build());
-        }).ifPresent(producer);
+        ProductList.Builder producerBuilder = new ProductList.Builder();
+        // TODO "organizationName" in the comment?
+        creationInfo.filter(m -> m.group("toolName") != null)
+                .map(m -> new Product.Builder()
+                        .name(m.group("toolName"))
+                        .version(m.group("toolVersion"))
+                        .build())
+                .ifPresent(producerBuilder::addProduct);
+        producerBuilder.addProduct(new Product.Builder()
+                .simpleName(LegacyBdio1xEmitter.class)
+                .implementationVersion(LegacyBdio1xEmitter.class)
+                .build());
+        producer.accept(producerBuilder.build());
     }
 
     /**
