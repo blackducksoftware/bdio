@@ -93,8 +93,8 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
         reader().create().readGraph(inputStream, graph);
     }
 
-    public void addImplicitEdges() {
-        operations().create().addImplicitEdges(graph);
+    public void applySemanticRules() {
+        operations().create().applySemanticRules(graph);
     }
 
     public static Builder build() {

@@ -39,6 +39,7 @@ import org.junit.runners.Parameterized.Parameters;
 import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.util.SqlgUtil;
 
+import com.blackducksoftware.bdio2.tinkerpop.GraphContextFactory.AbstractContextBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
 
@@ -58,6 +59,15 @@ public abstract class BaseTest {
         public static final String root = "_root";
 
         public static final String Metadata = "Metadata";
+    }
+
+    /**
+     * The most basic context builder possible, produces graph context factories directly.
+     */
+    public static class GraphContextFactoryBuilder extends AbstractContextBuilder<GraphContextFactory, GraphContextFactoryBuilder> {
+        public GraphContextFactoryBuilder() {
+            super(GraphContextFactoryBuilder::contextFactory);
+        }
     }
 
     /**

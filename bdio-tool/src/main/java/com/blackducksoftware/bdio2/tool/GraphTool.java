@@ -243,7 +243,7 @@ public class GraphTool extends Tool {
                     // Run the extra operations
                     if (!skipInitialization) {
                         Stopwatch initGraphTimer = Stopwatch.createStarted();
-                        graph.io(BlackDuckIo.build().onGraphMapper(onGraphMapper)).addImplicitEdges();
+                        graph.io(BlackDuckIo.build().onGraphMapper(onGraphMapper)).applySemanticRules();
                         printDebugMessage("Time to initialize BDIO graph: %s%n", initGraphTimer.stop());
                     }
                 }

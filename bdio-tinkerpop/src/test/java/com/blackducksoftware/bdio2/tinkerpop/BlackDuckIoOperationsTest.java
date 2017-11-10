@@ -29,6 +29,7 @@ import java.util.function.Consumer;
 import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.Test;
 
 import com.blackducksoftware.bdio2.Bdio;
@@ -55,7 +56,8 @@ public class BlackDuckIoOperationsTest extends BaseTest {
         Consumer<GraphMapper.Builder> config = b -> b.implicitKey(TT.implicit);
         graph.io(BlackDuckIo.build().onGraphMapper(config)).readGraph(bdio);
 
-        BlackDuckIoOperations.build().onGraphMapper(config).create().addImplicitEdges(graph);
+        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphMapper(config).create().forBdioReadingInto(graph);
+        new BlackDuckIoOperations.AddMissingFileParentsOperation(context).run();
 
         GraphTraversalSource g = graph.traversal();
 
@@ -88,14 +90,15 @@ public class BlackDuckIoOperationsTest extends BaseTest {
     }
 
     @Test
-    public void identifyRootProject() throws IOException {
+    public void identifyRoot() throws IOException {
         // The named graph builder always includes a project node for you
         InputStream bdio = new NamedGraphBuilder().build();
 
         Consumer<GraphMapper.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
         graph.io(BlackDuckIo.build().onGraphMapper(config)).readGraph(bdio);
 
-        BlackDuckIoOperations.build().onGraphMapper(config).create().addImplicitEdges(graph);
+        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphMapper(config).create().forBdioReadingInto(graph);
+        new BlackDuckIoOperations.IdentifyRootOperation(context).run();
 
         GraphTraversalSource g = graph.traversal();
         List<Vertex> roots = g.V().hasLabel(TT.Metadata).out(TT.root).toList();
@@ -105,7 +108,7 @@ public class BlackDuckIoOperationsTest extends BaseTest {
     }
 
     @Test
-    public void directDependencies() throws IOException {
+    public void addMissingProjectDependencies() throws IOException {
         InputStream bdio = new NamedGraphBuilder()
                 .add(new Component(BdioObject.randomId()).name("test1"))
                 .add(new Component(BdioObject.randomId()).name("test2"))
@@ -114,7 +117,9 @@ public class BlackDuckIoOperationsTest extends BaseTest {
         Consumer<GraphMapper.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
         graph.io(BlackDuckIo.build().onGraphMapper(config)).readGraph(bdio);
 
-        BlackDuckIoOperations.build().onGraphMapper(config).create().addImplicitEdges(graph);
+        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphMapper(config).create().forBdioReadingInto(graph);
+        new BlackDuckIoOperations.IdentifyRootOperation(context).run();
+        new BlackDuckIoOperations.AddMissingProjectDependenciesOperation(context).run();
 
         GraphTraversalSource g = graph.traversal();
         List<String> directDependencyNames = g.V().hasLabel(TT.Metadata)
@@ -125,6 +130,28 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 .toList();
 
         assertThat(directDependencyNames).containsExactly("test1", "test2");
+    }
+
+    @Test
+    public void implyFileSystemType() throws IOException {
+        InputStream bdio = new NamedGraphBuilder()
+                // TODO Add files!
+                .build();
+
+        Consumer<GraphMapper.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
+        graph.io(BlackDuckIo.build().onGraphMapper(config)).readGraph(bdio);
+
+        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphMapper(config).create().forBdioReadingInto(graph);
+        new BlackDuckIoOperations.AddMissingFileParentsOperation(context).run();
+        new BlackDuckIoOperations.ImplyFileSystemTypeOperation(context).run();
+
+        GraphTraversalSource g = graph.traversal();
+        List<Vertex> files = g.V().has(Bdio.Class.File.name()).toList();
+        for (Vertex file : files) {
+            VertexProperty<String> fileSystemType = file.property(Bdio.DataProperty.fileSystemType.name());
+            assertThat(fileSystemType.isPresent()).isTrue();
+            // TODO Check the values
+        }
     }
 
 }
