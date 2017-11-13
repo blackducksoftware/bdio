@@ -54,7 +54,7 @@ public class BlackDuckIoReaderTest extends BaseTest {
         ZonedDateTime creationDateTime = ZonedDateTime.now();
         BdioMetadata metadata = BdioMetadata.createRandomUUID().creationDateTime(creationDateTime);
 
-        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
+        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds()))
                 .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph()));
 
         GraphTraversal<Vertex, Vertex> namedGraphs = graph.traversal().V().hasLabel(TT.Metadata);
@@ -163,7 +163,7 @@ public class BlackDuckIoReaderTest extends BaseTest {
         fileModel1.byteCount(103L);
         fileModel2.contentType(ContentType.parse("text/plain"));
 
-        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
+        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds()))
                 .readGraph(BdioTest.zipJsonBytes(
                         metadata.asNamedGraph(Lists.newArrayList(fileModel1)),
                         metadata.asNamedGraph(Lists.newArrayList(fileModel2), JsonLdConsts.ID)));
@@ -185,7 +185,7 @@ public class BlackDuckIoReaderTest extends BaseTest {
         File fileModel = new File(BdioObject.randomId());
         projectModel2.base(fileModel);
 
-        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
+        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds()))
                 .readGraph(BdioTest.zipJsonBytes(
                         metadata.asNamedGraph(Lists.newArrayList(projectModel1)),
                         metadata.asNamedGraph(Lists.newArrayList(projectModel2, fileModel), JsonLdConsts.ID)));
@@ -201,7 +201,7 @@ public class BlackDuckIoReaderTest extends BaseTest {
         Project projectModel = new Project(BdioObject.randomId());
         projectModel.put("http://example.com/gus", "testing");
 
-        graph.io(BlackDuckIo.build().onGraphMapper(b -> b.unknownKey("_unknown")))
+        graph.io(BlackDuckIo.build().onGraphTopology(b -> b.unknownKey("_unknown")))
                 .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(projectModel))));
 
         Optional<Object> unknown = graph.traversal().V().hasLabel(Bdio.Class.Project.name()).values("_unknown").tryNext();
@@ -216,7 +216,7 @@ public class BlackDuckIoReaderTest extends BaseTest {
         Project projectModel = new Project(BdioObject.randomId());
         projectModel.put("http://example.com/gus", "testing");
 
-        graph.io(BlackDuckIo.build().onGraphMapper(b -> b.unknownKey("_unknown").addDataProperty("foobar", "http://example.com/gus")))
+        graph.io(BlackDuckIo.build().onGraphTopology(b -> b.unknownKey("_unknown").addDataProperty("foobar", "http://example.com/gus")))
                 .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(projectModel))));
 
         Optional<Object> unknown = graph.traversal().V().hasLabel(Bdio.Class.Project.name()).values("_unknown").tryNext();

@@ -52,8 +52,8 @@ public class BlackDuckIoWriter implements GraphWriter {
 
         // Collect the vertex labels which should be excluded from the output
         Collection<String> excludedLabels = new LinkedHashSet<>();
-        context.mapper().metadataLabel().ifPresent(excludedLabels::add);
-        context.mapper().forEachEmbeddedLabel(excludedLabels::add);
+        context.topology().metadataLabel().ifPresent(excludedLabels::add);
+        context.topology().forEachEmbeddedType((label, id) -> excludedLabels.add(label));
 
         try {
             Flowable.fromIterable(() -> context.traversal().V()
@@ -62,7 +62,7 @@ public class BlackDuckIoWriter implements GraphWriter {
                     .hasLabel(without(excludedLabels))
 
                     // Strip out the implicit vertices since they weren't originally included
-                    .where(context.mapper().implicitKey().map(propertyKey -> hasNot(propertyKey)).orElse(identity()))
+                    .where(context.topology().implicitKey().map(propertyKey -> hasNot(propertyKey)).orElse(identity()))
 
                     // Convert to JSON-LD
                     .map(t -> createNode(t.get(), context)))
@@ -115,14 +115,14 @@ public class BlackDuckIoWriter implements GraphWriter {
 
         vertex.edges(Direction.OUT).forEachRemaining(e -> {
             // Skip implicit edges
-            if (context.mapper().implicitKey().filter(e.keys()::contains).isPresent()) {
+            if (context.topology().implicitKey().filter(e.keys()::contains).isPresent()) {
                 return;
             }
 
             // Convert the in vertex to a reference
             Vertex inVertex = e.inVertex();
             Object ref;
-            if (context.mapper().isEmbeddedLabel(inVertex.label())) {
+            if (context.topology().isEmbeddedLabel(inVertex.label())) {
                 // Recursively create the entire node (without an '@id') for embedded types
                 ref = createNode(inVertex, context);
                 ((Map<?, ?>) ref).remove(JsonLdConsts.ID);

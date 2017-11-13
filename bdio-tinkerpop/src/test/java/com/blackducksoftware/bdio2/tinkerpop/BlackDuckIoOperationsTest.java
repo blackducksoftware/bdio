@@ -53,10 +53,10 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 .add(new File(BdioObject.randomId()).path("file:///foo/bar/gus/two/more"))
                 .build();
 
-        Consumer<GraphMapper.Builder> config = b -> b.implicitKey(TT.implicit);
-        graph.io(BlackDuckIo.build().onGraphMapper(config)).readGraph(bdio);
+        Consumer<GraphTopology.Builder> config = b -> b.implicitKey(TT.implicit);
+        graph.io(BlackDuckIo.build().onGraphTopology(config)).readGraph(bdio);
 
-        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphMapper(config).create().forBdioReadingInto(graph);
+        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphTopology(config).create().forBdioReadingInto(graph);
         new BlackDuckIoOperations.AddMissingFileParentsOperation(context).run();
 
         GraphTraversalSource g = graph.traversal();
@@ -94,10 +94,10 @@ public class BlackDuckIoOperationsTest extends BaseTest {
         // The named graph builder always includes a project node for you
         InputStream bdio = new NamedGraphBuilder().build();
 
-        Consumer<GraphMapper.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
-        graph.io(BlackDuckIo.build().onGraphMapper(config)).readGraph(bdio);
+        Consumer<GraphTopology.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
+        graph.io(BlackDuckIo.build().onGraphTopology(config)).readGraph(bdio);
 
-        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphMapper(config).create().forBdioReadingInto(graph);
+        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphTopology(config).create().forBdioReadingInto(graph);
         new BlackDuckIoOperations.IdentifyRootOperation(context).run();
 
         GraphTraversalSource g = graph.traversal();
@@ -114,10 +114,10 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 .add(new Component(BdioObject.randomId()).name("test2"))
                 .build();
 
-        Consumer<GraphMapper.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
-        graph.io(BlackDuckIo.build().onGraphMapper(config)).readGraph(bdio);
+        Consumer<GraphTopology.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
+        graph.io(BlackDuckIo.build().onGraphTopology(config)).readGraph(bdio);
 
-        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphMapper(config).create().forBdioReadingInto(graph);
+        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphTopology(config).create().forBdioReadingInto(graph);
         new BlackDuckIoOperations.IdentifyRootOperation(context).run();
         new BlackDuckIoOperations.AddMissingProjectDependenciesOperation(context).run();
 
@@ -138,10 +138,10 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 // TODO Add files!
                 .build();
 
-        Consumer<GraphMapper.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
-        graph.io(BlackDuckIo.build().onGraphMapper(config)).readGraph(bdio);
+        Consumer<GraphTopology.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
+        graph.io(BlackDuckIo.build().onGraphTopology(config)).readGraph(bdio);
 
-        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphMapper(config).create().forBdioReadingInto(graph);
+        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphTopology(config).create().forBdioReadingInto(graph);
         new BlackDuckIoOperations.AddMissingFileParentsOperation(context).run();
         new BlackDuckIoOperations.ImplyFileSystemTypeOperation(context).run();
 

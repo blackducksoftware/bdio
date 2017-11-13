@@ -144,7 +144,7 @@ public final class BlackDuckIoReader implements GraphReader {
         // Add outgoing edges for object properties (if requested)
         if (attachEdgesOfThisDirection == Direction.BOTH || attachEdgesOfThisDirection == Direction.OUT) {
             for (Map.Entry<String, Object> property : node.entrySet()) {
-                if (context.mapper().isObjectPropertyKey(property.getKey())) {
+                if (context.topology().isObjectPropertyKey(property.getKey())) {
                     context.mapper().valueObjectMapper().fromReferenceValueObject(property.getValue())
                             .map(id -> starGraph.addVertex(T.id, context.generateId(id)))
                             .map(inVertex -> (StarEdge) vertex.addEdge(property.getKey(), inVertex))

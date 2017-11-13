@@ -117,11 +117,11 @@ public abstract class BaseTest {
     }
 
     /**
-     * A common "on-graph-mapper" configuration for storing graph metadata and JSON-LD identifiers.
+     * A common "on-graph-topology" configuration for storing graph metadata and JSON-LD identifiers.
      *
      * @see TT
      */
-    public Consumer<GraphMapper.Builder> storeMetadataAndIds() {
+    public Consumer<GraphTopology.Builder> storeMetadataAndIds() {
         return b -> b.metadataLabel(TT.Metadata).identifierKey(TT.id);
     }
 

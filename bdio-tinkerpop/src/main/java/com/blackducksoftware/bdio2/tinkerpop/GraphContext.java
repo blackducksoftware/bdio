@@ -31,11 +31,16 @@ abstract class GraphContext {
 
     private final GraphMapper mapper;
 
+    private final GraphTopology topology;
+
     private final boolean supportsTransactions;
 
     protected GraphContext(Graph graph, GraphMapper mapper) {
         this.graph = Objects.requireNonNull(graph);
         this.mapper = Objects.requireNonNull(mapper);
+
+        // Store extra references that will be needed frequently
+        this.topology = mapper.topology();
         this.supportsTransactions = graph.features().graph().supportsTransactions();
     }
 
@@ -44,6 +49,13 @@ abstract class GraphContext {
      */
     public final Graph graph() {
         return graph;
+    }
+
+    /**
+     * Returns the topology used in this context.
+     */
+    public final GraphTopology topology() {
+        return topology;
     }
 
     /**
@@ -58,7 +70,7 @@ abstract class GraphContext {
      */
     public GraphTraversalSource traversal() {
         GraphTraversalSource traversal = graph().traversal();
-        return mapper.partitionStrategy().map(traversal::withStrategies).orElse(traversal);
+        return topology().partitionStrategy().map(traversal::withStrategies).orElse(traversal);
     }
 
     /**

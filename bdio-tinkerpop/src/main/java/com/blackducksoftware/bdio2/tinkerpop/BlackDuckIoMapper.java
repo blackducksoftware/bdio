@@ -11,19 +11,21 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static java.util.stream.Collectors.toList;
+
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
+import java.util.stream.Collector;
+
+import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.structure.io.IoRegistry;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.javatuples.Pair;
 
-import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.datatype.DatatypeSupport;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
 
 /**
@@ -34,44 +36,71 @@ import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
 public class BlackDuckIoMapper implements Mapper<GraphMapper> {
 
     /**
-     * Strongly typed consumer used for discovery.
+     * Allows for the registration of custom datatypes or datatype handlers.
      */
-    public interface GraphMapperConfigurator extends Consumer<GraphMapper.Builder> {
+    public interface DatatypeRegistration {
+        /**
+         * Returns the IRI used to identify the datatype.
+         */
+        String iri();
+
+        /**
+         * Returns the handler used for the datatype.
+         */
+        DatatypeHandler<?> handler();
     }
 
-    private final Map<String, DatatypeHandler<?>> datatypeHandlers;
+    /**
+     * Allows for the registration of a single multi-value collector.
+     */
+    public interface MultiValueCollectorRegistration {
 
+        /**
+         * Returns the collector used when a property contains multiple values.
+         */
+        Collector<? super Object, ?, ?> collector();
+
+    }
+
+    /**
+     * Used to initialize the graph topology on each construction.
+     */
+    private final Consumer<GraphTopology.Builder> onGraphTopology;
+
+    /**
+     * Used to initialize the graph mapper on each construction.
+     */
     private final Consumer<GraphMapper.Builder> onGraphMapper;
 
     private BlackDuckIoMapper(BlackDuckIoMapper.Builder builder) {
-        // IoRegistry implementations need to register both a String (the IRI) and a DatatypeHandler
-        Map<Class<?>, String> typeMappings = builder.registries.stream()
-                .flatMap(registry -> registry.find(BlackDuckIo.class, String.class).stream())
-                .collect(Collectors.toMap(Pair::getValue0, Pair::getValue1));
+        List<DatatypeRegistration> datatypes = builder.registries.stream()
+                .flatMap(registry -> registry.find(BlackDuckIo.class, DatatypeRegistration.class).stream())
+                .map(Pair::getValue1).collect(toList());
+        Optional<MultiValueCollectorRegistration> multiValueCollector = builder.registries.stream()
+                .flatMap(registry -> registry.find(BlackDuckIo.class, MultiValueCollectorRegistration.class).stream())
+                .map(Pair::getValue1).findAny();
 
-        // Add missing type mappings
-        for (Bdio.Datatype datatype : Bdio.Datatype.values()) {
-            typeMappings.putIfAbsent(DatatypeSupport.getJavaType(datatype), datatype.toString());
-        }
+        onGraphTopology = gt -> {
+            builder.onGraphTopology.ifPresent(c -> c.accept(gt));
+        };
 
-        // Keep all the datatype handlers which have a type mapping
-        datatypeHandlers = builder.registries.stream()
-                .flatMap(registry -> registry.find(BlackDuckIo.class, DatatypeHandler.class).stream())
-                .map(p -> Pair.with(typeMappings.get(p.getValue0()), p.getValue1()))
-                .filter(p -> p.getValue0() != null)
-                .collect(Collectors.toMap(Pair::getValue0, Pair::getValue1));
+        onGraphMapper = gm -> {
+            datatypes.forEach(dr -> gm.addDatatype(dr.iri(), dr.handler()));
+            multiValueCollector.ifPresent(mvcr -> gm.multiValueCollector(mvcr.collector()));
+            builder.onGraphMapper.ifPresent(c -> c.accept(gm));
+            gm.withTopology(this::createTopology);
+        };
+    }
 
-        // Accumulate all the configurations
-        onGraphMapper = builder.registries.stream()
-                .flatMap(registry -> registry.find(BlackDuckIo.class, GraphMapperConfigurator.class).stream())
-                .map(Pair::getValue1)
-                .reduce(b -> {}, Consumer::andThen, Consumer::andThen);
+    public GraphTopology createTopology() {
+        GraphTopology.Builder topologyBuilder = GraphTopology.build();
+        onGraphTopology.accept(topologyBuilder);
+        return topologyBuilder.create();
     }
 
     @Override
     public GraphMapper createMapper() {
         GraphMapper.Builder mapperBuilder = GraphMapper.build();
-        datatypeHandlers.forEach(mapperBuilder::addDatatype);
         onGraphMapper.accept(mapperBuilder);
         return mapperBuilder.create();
     }
@@ -84,6 +113,10 @@ public class BlackDuckIoMapper implements Mapper<GraphMapper> {
 
         private final List<IoRegistry> registries = new ArrayList<>();
 
+        private Optional<Consumer<GraphTopology.Builder>> onGraphTopology = Optional.empty();
+
+        private Optional<Consumer<GraphMapper.Builder>> onGraphMapper = Optional.empty();
+
         private Builder() {
         }
 
@@ -95,6 +128,16 @@ public class BlackDuckIoMapper implements Mapper<GraphMapper> {
 
         public BlackDuckIoMapper create() {
             return new BlackDuckIoMapper(this);
+        }
+
+        public Builder onGraphTopology(@Nullable Consumer<GraphTopology.Builder> onGraphTopology) {
+            this.onGraphTopology = Optional.ofNullable(onGraphTopology);
+            return this;
+        }
+
+        public Builder onGraphMapper(@Nullable Consumer<GraphMapper.Builder> onGraphMapper) {
+            this.onGraphMapper = Optional.ofNullable(onGraphMapper);
+            return this;
         }
     }
 

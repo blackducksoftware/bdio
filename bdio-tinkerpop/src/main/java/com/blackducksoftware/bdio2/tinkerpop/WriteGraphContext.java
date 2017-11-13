@@ -48,11 +48,11 @@ class WriteGraphContext extends GraphContext {
      * If a metadata label is configured, read the vertex from the graph into a new BDIO metadata instance.
      */
     public BdioMetadata createMetadata() {
-        return mapper().metadataLabel()
+        return topology().metadataLabel()
                 .flatMap(label -> traversal().V().hasLabel(label).tryNext())
                 .map(vertex -> {
                     BdioMetadata metadata = new BdioMetadata();
-                    mapper().identifierKey().ifPresent(key -> {
+                    topology().identifierKey().ifPresent(key -> {
                         metadata.id(vertex.value(key));
                     });
                     try {
@@ -81,10 +81,10 @@ class WriteGraphContext extends GraphContext {
         result.put(JsonLdConsts.TYPE, vertex.label());
         result.put(JsonLdConsts.ID, generateId(vertex));
         vertex.properties().forEachRemaining(vp -> {
-            if (mapper().unknownKey().filter(Predicate.isEqual(vp.key())).isPresent()) {
+            if (topology().unknownKey().filter(Predicate.isEqual(vp.key())).isPresent()) {
                 // Restore unknown properties by putting them all back into the result map
                 mapper().restoreUnknownProperties(vp.value(), result::put);
-            } else if (mapper().isSpecialKey(vp.key())) {
+            } else if (topology().isSpecialKey(vp.key())) {
                 // Skip all of the "special" vertex properties used internally on the graph
                 return;
             } else {
@@ -99,7 +99,7 @@ class WriteGraphContext extends GraphContext {
      * Produces the identifier (the "@id" value) for a vertex based on the current configuration.
      */
     public String generateId(Vertex vertex) {
-        Object identifier = mapper().identifierKey()
+        Object identifier = topology().identifierKey()
                 .map(key -> vertex.property(key))
                 .orElse(VertexProperty.empty())
                 .orElseGet(() -> vertex.id());

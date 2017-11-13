@@ -47,7 +47,6 @@ import org.umlg.sqlg.util.SqlgUtil;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIo;
-import com.blackducksoftware.bdio2.tinkerpop.GraphMapper;
 import com.google.common.base.Splitter;
 import com.google.common.base.Splitter.MapSplitter;
 import com.google.common.base.Stopwatch;
@@ -211,39 +210,40 @@ public class GraphTool extends Tool {
         try {
             for (Map.Entry<URI, ByteSource> input : inputs.entrySet()) {
                 try (InputStream inputStream = input.getValue().openStream()) {
-                    // Create a configuration to handle the input file
-                    Consumer<GraphMapper.Builder> onGraphMapper = builder -> {
-                        // Set the JSON-LD context using file extensions
-                        if (input.getKey() != null && input.getKey().getPath() != null) {
-                            Bdio.ContentType contentType = Bdio.ContentType.forFileName(input.getKey().getPath());
-                            builder.forContentType(contentType, Bdio.Context.DEFAULT.toString());
-                        }
+                    BlackDuckIo.Builder bdio = BlackDuckIo.build()
+                            .onGraphMapper(builder -> {
+                                // Set the JSON-LD context using file extensions
+                                if (input.getKey() != null && input.getKey().getPath() != null) {
+                                    Bdio.ContentType contentType = Bdio.ContentType.forFileName(input.getKey().getPath());
+                                    builder.forContentType(contentType, Bdio.Context.DEFAULT.toString());
+                                }
+                            })
+                            .onGraphTopology(builder -> {
+                                // Make sure each file goes into it's own partition
+                                if (inputs.size() > 1) {
+                                    builder.partitionStrategy(partition(input.getKey()));
+                                }
 
-                        // Make sure each file goes into it's own partition
-                        if (inputs.size() > 1) {
-                            builder.partitionStrategy(partition(input.getKey()));
-                        }
+                                // If the graph does not support user identifiers, ensure we store JSON-LD identifiers
+                                if (!graph.features().vertex().supportsUserSuppliedIds()) {
+                                    builder.identifierKey(configuration.getString("bdio.identifierKey", DEFAULT_IDENTIFIER_KEY));
+                                }
 
-                        // If the graph does not support user identifiers, ensure we store JSON-LD identifiers
-                        if (!graph.features().vertex().supportsUserSuppliedIds()) {
-                            builder.identifierKey(configuration.getString("bdio.identifierKey", DEFAULT_IDENTIFIER_KEY));
-                        }
-
-                        // Add an implicit key, otherwise we won't generate implicit edges
-                        if (!skipInitialization) {
-                            builder.implicitKey(configuration.getString("bdio.implicitKey", DEFAULT_IMPLICIT_KEY));
-                        }
-                    };
+                                // Add an implicit key, otherwise we won't generate implicit edges
+                                if (!skipInitialization) {
+                                    builder.implicitKey(configuration.getString("bdio.implicitKey", DEFAULT_IMPLICIT_KEY));
+                                }
+                            });
 
                     // Import the graph
                     Stopwatch loadGraphTimer = Stopwatch.createStarted();
-                    graph.io(BlackDuckIo.build().onGraphMapper(onGraphMapper)).readGraph(inputStream);
+                    graph.io(bdio).readGraph(inputStream);
                     printDebugMessage("Time to load BDIO graph: %s%n", loadGraphTimer.stop());
 
                     // Run the extra operations
                     if (!skipInitialization) {
                         Stopwatch initGraphTimer = Stopwatch.createStarted();
-                        graph.io(BlackDuckIo.build().onGraphMapper(onGraphMapper)).applySemanticRules();
+                        graph.io(bdio).applySemanticRules();
                         printDebugMessage("Time to initialize BDIO graph: %s%n", initGraphTimer.stop());
                     }
                 }

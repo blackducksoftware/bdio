@@ -52,9 +52,9 @@ public final class BlackDuckIoOperations {
 
         private final ReadGraphContext context;
 
-        private final Predicate<GraphMapper> precondition;
+        private final Predicate<GraphTopology> precondition;
 
-        protected Operation(ReadGraphContext context, Predicate<GraphMapper> precondition) {
+        protected Operation(ReadGraphContext context, Predicate<GraphTopology> precondition) {
             this.context = Objects.requireNonNull(context);
             this.precondition = Objects.requireNonNull(precondition);
         }
@@ -62,10 +62,10 @@ public final class BlackDuckIoOperations {
         @Override
         public final void run() {
             // TODO Shouldn't we be tracking metrics internally on the timings of these steps?
-            GraphMapper mapper = context.mapper();
-            if (mapper.implicitKey().isPresent() && precondition.test(mapper)) {
+            GraphTopology topology = context.topology();
+            if (topology.implicitKey().isPresent() && precondition.test(topology)) {
                 try {
-                    execute(context.traversal(), mapper);
+                    execute(context.traversal(), topology);
                     context.commitTx();
                 } catch (RuntimeException | Error e) {
                     context.rollbackTx();
@@ -77,7 +77,7 @@ public final class BlackDuckIoOperations {
         /**
          * Execute this operation. Use the parameters instead of re-fetching them off the context.
          */
-        protected abstract void execute(GraphTraversalSource g, GraphMapper mapper);
+        protected abstract void execute(GraphTraversalSource g, GraphTopology topology);
 
         /**
          * Hopefully this isn't need too often.
@@ -123,13 +123,13 @@ public final class BlackDuckIoOperations {
     @VisibleForTesting
     protected static class IdentifyRootOperation extends Operation {
         public IdentifyRootOperation(ReadGraphContext context) {
-            super(context, m -> m.rootLabel().isPresent());
+            super(context, t -> t.rootLabel().isPresent());
         }
 
         @Override
-        protected void execute(GraphTraversalSource g, GraphMapper mapper) {
+        protected void execute(GraphTraversalSource g, GraphTopology topology) {
             // Drop any existing root edges
-            g.E().hasLabel(mapper.rootLabel().get()).drop().iterate();
+            g.E().hasLabel(topology.rootLabel().get()).drop().iterate();
 
             // Try to find the root project
             Optional<Vertex> root = g.V()
@@ -156,19 +156,19 @@ public final class BlackDuckIoOperations {
             }
 
             // Create the edge between metadata and the root (creating a root if one does not exist)
-            g.V(root.orElseGet(() -> createImplicitRootVertex(mapper))).as("root")
-                    .V().hasLabel(mapper.metadataLabel().get())
-                    .addE(mapper.rootLabel().get()).to("root")
-                    .property(mapper.implicitKey().get(), Boolean.TRUE)
+            g.V(root.orElseGet(() -> createImplicitRootVertex(topology))).as("root")
+                    .V().hasLabel(topology.metadataLabel().get())
+                    .addE(topology.rootLabel().get()).to("root")
+                    .property(topology.implicitKey().get(), Boolean.TRUE)
                     .iterate();
         }
 
         /**
          * Creates a new root vertex to use in the case that one could not be found.
          */
-        private Vertex createImplicitRootVertex(GraphMapper mapper) {
+        private Vertex createImplicitRootVertex(GraphTopology topology) {
             Vertex implicitRoot = context().graph().addVertex(Bdio.Class.Project.name());
-            implicitRoot.property(mapper.implicitKey().get(), Boolean.TRUE);
+            implicitRoot.property(topology.implicitKey().get(), Boolean.TRUE);
             return implicitRoot;
         }
     }
@@ -180,7 +180,7 @@ public final class BlackDuckIoOperations {
         }
 
         @Override
-        protected void execute(GraphTraversalSource g, GraphMapper mapper) {
+        protected void execute(GraphTraversalSource g, GraphTopology topology) {
             // With a database like Sqlg, it's faster to assume we are starting from scratch
             g.E().hasLabel(Bdio.ObjectProperty.parent.name()).drop().iterate();
             context().commitTx();
@@ -202,11 +202,11 @@ public final class BlackDuckIoOperations {
             });
 
             // Update the graph
-            createMissingFileParentVertices(mapper, files, basePaths);
-            createFileParentEdges(mapper, files, basePaths);
+            createMissingFileParentVertices(topology, files, basePaths);
+            createFileParentEdges(topology, files, basePaths);
         }
 
-        private void createMissingFileParentVertices(GraphMapper mapper, Map<String, Vertex> files, Set<String> basePaths) {
+        private void createMissingFileParentVertices(GraphTopology topology, Map<String, Vertex> files, Set<String> basePaths) {
             // Find the missing files using the HID
             Set<String> missingFilePaths = new HashSet<>();
             for (String path : files.keySet()) {
@@ -227,16 +227,16 @@ public final class BlackDuckIoOperations {
                 Stream.Builder<Object> properties = Stream.builder()
                         .add(T.label).add(Bdio.Class.File.name())
                         .add(Bdio.DataProperty.path.name()).add(path)
-                        .add(mapper.implicitKey().get()).add(Boolean.TRUE);
-                mapper.identifierKey().ifPresent(key -> properties.add(key).add(BdioObject.randomId()));
-                mapper.partitionStrategy().ifPresent(p -> properties.add(p.getPartitionKey()).add(p.getWritePartition()));
+                        .add(topology.implicitKey().get()).add(Boolean.TRUE);
+                topology.identifierKey().ifPresent(key -> properties.add(key).add(BdioObject.randomId()));
+                topology.partitionStrategy().ifPresent(p -> properties.add(p.getPartitionKey()).add(p.getWritePartition()));
                 files.put(path, context().graph().addVertex(properties.build().toArray()));
                 context().batchCommitTx();
             }
             context().commitTx();
         }
 
-        private void createFileParentEdges(GraphMapper mapper, Map<String, Vertex> files, Set<String> basePaths) {
+        private void createFileParentEdges(GraphTopology topology, Map<String, Vertex> files, Set<String> basePaths) {
             // Create parent edges
             context().startBatchTx();
             for (Map.Entry<String, Vertex> e : files.entrySet()) {
@@ -249,8 +249,8 @@ public final class BlackDuckIoOperations {
                     Vertex parent = parentPath.map(files::get)
                             .orElseThrow(illegalState("missing parent: %s", e.getKey()));
                     Stream.Builder<Object> properties = Stream.builder()
-                            .add(mapper.implicitKey().get()).add(Boolean.TRUE);
-                    mapper.partitionStrategy().ifPresent(p -> properties.add(p.getPartitionKey()).add(p.getWritePartition()));
+                            .add(topology.implicitKey().get()).add(Boolean.TRUE);
+                    topology.partitionStrategy().ifPresent(p -> properties.add(p.getPartitionKey()).add(p.getWritePartition()));
                     e.getValue().addEdge(Bdio.ObjectProperty.parent.name(), parent, properties.build().toArray());
                     context().batchCommitTx();
                 }
@@ -267,19 +267,19 @@ public final class BlackDuckIoOperations {
         }
 
         @Override
-        protected void execute(GraphTraversalSource g, GraphMapper mapper) {
-            g.E().hasLabel(mapper.rootLabel().get())
+        protected void execute(GraphTraversalSource g, GraphTopology topology) {
+            g.E().hasLabel(topology.rootLabel().get())
                     .inV().as("roots")
                     .V().hasLabel(Bdio.Class.Component.name())
                     .not(inE(Bdio.ObjectProperty.dependsOn.name()))
                     .as("directDependencies")
                     .addV(Bdio.Class.Dependency.name())
-                    .property(mapper.implicitKey().get(), Boolean.TRUE)
+                    .property(topology.implicitKey().get(), Boolean.TRUE)
                     .addE(Bdio.ObjectProperty.dependsOn.name()).to("directDependencies")
-                    .property(mapper.implicitKey().get(), Boolean.TRUE)
+                    .property(topology.implicitKey().get(), Boolean.TRUE)
                     .outV()
                     .addE(Bdio.ObjectProperty.dependency.name()).from("roots")
-                    .property(mapper.implicitKey().get(), Boolean.TRUE)
+                    .property(topology.implicitKey().get(), Boolean.TRUE)
                     .iterate();
         }
     }
@@ -291,7 +291,7 @@ public final class BlackDuckIoOperations {
         }
 
         @Override
-        protected void execute(GraphTraversalSource g, GraphMapper mapper) {
+        protected void execute(GraphTraversalSource g, GraphTopology topology) {
             g.V().hasLabel(Bdio.Class.File.name())
                     .hasNot(Bdio.DataProperty.fileSystemType.name());
             // TODO linkPath -> symlink

@@ -36,17 +36,21 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
 
     private BlackDuckIo(Builder builder) {
         graph = builder.graph.orElseThrow(nullPointer("The graph argument was not specified"));
-        onMapper = mapperBuilder -> {
-            // The direct registry addition API is deprecated by TinkerPop
-            builder.registry.ifPresent(registry -> mapperBuilder.addRegistry(registry));
+        onMapper = m -> {
+            // These fulfill the TinkerPop API (eventually the direct registry addition goes away)
+            builder.registry.ifPresent(m::addRegistry);
+            builder.onMapper.ifPresent(c -> c.accept(m));
 
-            // Allow user supplied mapper configuration
-            builder.onMapper.ifPresent(onMapper -> onMapper.accept(mapperBuilder));
-
-            // Always add the BDIO registry which customizes behavior based on the graph type
-            BlackDuckIoRegistry registry = new BlackDuckIoRegistry(graph.configuration());
-            builder.onGraphMapper.ifPresent(m -> registry.register(m::accept));
-            mapperBuilder.addRegistry(registry);
+            // These allow us to customize the BDIO behavior
+            m.addRegistry(new BlackDuckIoRegistry(graph));
+            m.onGraphTopology(gt -> {
+                gt.withConfiguration(graph.configuration().subset("bdio"));
+                builder.onGraphTopology.ifPresent(c -> c.accept(gt));
+            });
+            m.onGraphMapper(gm -> {
+                gm.withConfiguration(graph.configuration().subset("bdio"));
+                builder.onGraphMapper.ifPresent(c -> c.accept(gm));
+            });
         };
     }
 
@@ -110,6 +114,8 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
 
         private Optional<Graph> graph = Optional.empty();
 
+        private Optional<Consumer<GraphTopology.Builder>> onGraphTopology = Optional.empty();
+
         private Optional<Consumer<GraphMapper.Builder>> onGraphMapper = Optional.empty();
 
         // This is only public for IoCore.createIoBuilder
@@ -123,6 +129,7 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
             return this;
         }
 
+        // This only exposes the API for calling "add registry" multiple times
         @SuppressWarnings("rawtypes")
         @Override
         public Builder onMapper(@Nullable Consumer<Mapper.Builder> onMapper) {
@@ -139,6 +146,11 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
         @Override
         public BlackDuckIo create() {
             return new BlackDuckIo(this);
+        }
+
+        public Builder onGraphTopology(@Nullable Consumer<GraphTopology.Builder> onGraphTopology) {
+            this.onGraphTopology = Optional.ofNullable(onGraphTopology);
+            return this;
         }
 
         public Builder onGraphMapper(@Nullable Consumer<GraphMapper.Builder> onGraphMapper) {

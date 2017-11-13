@@ -123,9 +123,9 @@ class SqlgReadGraphContext extends ReadGraphContext {
     private void defineTopology() {
         sqlgGraph.tx().open();
         try {
-            mapper().metadataLabel().ifPresent(this::defineVertexLabel);
-            mapper().forEachTypeLabel(this::defineVertexLabel);
-            mapper().forEachEmbeddedLabel(this::defineVertexLabel);
+            topology().metadataLabel().ifPresent(this::defineVertexLabel);
+            topology().forEachTypeLabel(this::defineVertexLabel);
+            topology().forEachEmbeddedType((label, id) -> defineVertexLabel(label));
             defineEdgeLabels();
 
             sqlgGraph.tx().commit();
@@ -152,21 +152,21 @@ class SqlgReadGraphContext extends ReadGraphContext {
 
         // Define the initial columns used to persist this vertex label
         Map<String, PropertyType> columns = new LinkedHashMap<>();
-        mapper().partitionStrategy().map(PartitionStrategy::getPartitionKey).ifPresent(c -> columns.put(c, STRING));
-        mapper().identifierKey().ifPresent(c -> columns.put(c, STRING));
+        topology().partitionStrategy().map(PartitionStrategy::getPartitionKey).ifPresent(c -> columns.put(c, STRING));
+        topology().identifierKey().ifPresent(c -> columns.put(c, STRING));
         filePathKey.ifPresent(c -> columns.put(c, STRING));
         fileFingerprintKey.ifPresent(c -> columns.put(c, STRING_ARRAY));
-        mapper().implicitKey().ifPresent(c -> columns.put(c, BOOLEAN));
-        mapper().unknownKey().ifPresent(c -> columns.put(c, STRING)); // TODO PropertyType.JSON
+        topology().implicitKey().ifPresent(c -> columns.put(c, BOOLEAN));
+        topology().unknownKey().ifPresent(c -> columns.put(c, STRING)); // TODO PropertyType.JSON
 
         // Ensure the vertex label exists with the proper columns
         VertexLabel vertexLabel = topology.ensureVertexLabelExist(label, columns);
 
         // Add indexes
-        mapper().partitionStrategy().map(PartitionStrategy::getPartitionKey)
+        topology().partitionStrategy().map(PartitionStrategy::getPartitionKey)
                 .flatMap(vertexLabel::getProperty).map(Collections::singletonList)
                 .ifPresent(properties -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, properties));
-        mapper().identifierKey()
+        topology().identifierKey()
                 .flatMap(vertexLabel::getProperty).map(Collections::singletonList)
                 .ifPresent(properties -> vertexLabel.ensureIndexExists(IndexType.NON_UNIQUE, properties));
         filePathKey
@@ -182,8 +182,8 @@ class SqlgReadGraphContext extends ReadGraphContext {
 
         // In general we do not store BDIO information on edges, however there are a few common properties we use
         Map<String, PropertyType> properties = new LinkedHashMap<>();
-        mapper().partitionStrategy().map(PartitionStrategy::getPartitionKey).ifPresent(c -> properties.put(c, STRING));
-        mapper().implicitKey().ifPresent(c -> properties.put(c, BOOLEAN));
+        topology().partitionStrategy().map(PartitionStrategy::getPartitionKey).ifPresent(c -> properties.put(c, STRING));
+        topology().implicitKey().ifPresent(c -> properties.put(c, BOOLEAN));
 
         // Collect the vertex labels used to define edges
         VertexLabel projectVertex = topology.ensureVertexLabelExist(Bdio.Class.Project.name());

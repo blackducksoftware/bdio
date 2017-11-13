@@ -51,7 +51,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
         commit();
 
         HeapOutputStream buffer = new HeapOutputStream();
-        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
+        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds()))
                 .writeGraph(buffer);
 
         List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
@@ -95,7 +95,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
         commit();
 
         HeapOutputStream buffer = new HeapOutputStream();
-        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
+        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds()))
                 .writeGraph(buffer);
 
         List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
@@ -131,7 +131,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
         commit();
 
         HeapOutputStream buffer = new HeapOutputStream();
-        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds()))
+        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds()))
                 .writeGraph(buffer);
 
         List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
@@ -159,14 +159,14 @@ public class BlackDuckIoWriterTest extends BaseTest {
 
         // First write it out without registering the custom field and verify it doesn't show up
         HeapOutputStream nonCustomBuffer = new HeapOutputStream();
-        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds())).writeGraph(nonCustomBuffer);
+        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds())).writeGraph(nonCustomBuffer);
 
         assertThatJson(BdioTest.zipEntries(nonCustomBuffer.getInputStream()).get(1))
                 .at("/@graph/0").doesNotContainName("foobar");
 
         // Now write it out with the registered custom data property
         HeapOutputStream customBuffer = new HeapOutputStream();
-        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds().andThen(b -> {
+        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds().andThen(b -> {
             b.addDataProperty("foobar", "http://example.com/gus");
         }))).writeGraph(customBuffer);
 
@@ -191,7 +191,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
         commit();
 
         HeapOutputStream buffer = new HeapOutputStream();
-        graph.io(BlackDuckIo.build().onGraphMapper(storeMetadataAndIds())).writeGraph(buffer);
+        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds())).writeGraph(buffer);
 
         List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
 

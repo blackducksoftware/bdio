@@ -120,7 +120,7 @@ class ReadGraphContext extends GraphContext {
                     try {
                         return Optional.ofNullable(Iterators.getNext(graph().vertices(id), null));
                     } catch (InvalidIdException e) {
-                        return mapper().identifierKey().flatMap(key -> traversal().V().has(key, id.toString()).tryNext());
+                        return topology().identifierKey().flatMap(key -> traversal().V().has(key, id.toString()).tryNext());
                     }
                 })
 
@@ -160,7 +160,7 @@ class ReadGraphContext extends GraphContext {
 
                     e.properties().forEachRemaining(p -> newEdge.property(p.key(), p.value()));
 
-                    mapper().partitionStrategy().ifPresent(p -> {
+                    topology().partitionStrategy().ifPresent(p -> {
                         newEdge.property(p.getPartitionKey(), p.getWritePartition());
                     });
 
@@ -172,7 +172,7 @@ class ReadGraphContext extends GraphContext {
      * If a metadata label is configured, store the supplied BDIO metadata on a vertex in the graph.
      */
     public void createMetadata(BdioMetadata metadata) {
-        mapper().metadataLabel().ifPresent(metadataLabel -> {
+        topology().metadataLabel().ifPresent(metadataLabel -> {
             GraphTraversalSource g = traversal();
 
             // Find or create the one vertex with the metadata label
@@ -180,7 +180,7 @@ class ReadGraphContext extends GraphContext {
                     .orElseGet(() -> g.addV(metadataLabel).next());
 
             // Preserve the identifier (if configured)
-            mapper().identifierKey().ifPresent(key -> vertex.property(key, metadata.id()));
+            topology().identifierKey().ifPresent(key -> vertex.property(key, metadata.id()));
 
             try {
                 Map<String, Object> compactMetadata = mapper().compact(metadata);
@@ -209,7 +209,7 @@ class ReadGraphContext extends GraphContext {
         Stream.Builder<Map.Entry<?, ?>> properties = Stream.builder();
 
         // Unknown properties
-        mapper().unknownKey().ifPresent(key -> {
+        topology().unknownKey().ifPresent(key -> {
             mapper().preserveUnknownProperties(node)
                     .map(json -> Maps.immutableEntry(key, json))
                     .ifPresent(properties);
@@ -217,19 +217,19 @@ class ReadGraphContext extends GraphContext {
 
         // Sorted data properties
         Maps.transformEntries(node, mapper().valueObjectMapper()::fromFieldValue).entrySet().stream()
-                .filter(e -> mapper().isDataPropertyKey(e.getKey()))
+                .filter(e -> topology().isDataPropertyKey(e.getKey()))
                 .sorted(DATA_PROPERTY_ORDER)
                 .forEachOrdered(properties);
 
         // Special properties that can be optionally included
         if (includeSpecial) {
-            mapper().identifierKey().ifPresent(key -> {
+            topology().identifierKey().ifPresent(key -> {
                 Optional.ofNullable(node.get(JsonLdConsts.ID))
                         .map(id -> Maps.immutableEntry(key, id))
                         .ifPresent(properties);
             });
 
-            mapper().partitionStrategy()
+            topology().partitionStrategy()
                     .map(s -> Maps.immutableEntry(s.getPartitionKey(), s.getWritePartition()))
                     .ifPresent(properties);
 
@@ -253,11 +253,11 @@ class ReadGraphContext extends GraphContext {
         // If user supplied identifiers are not supported this value will only be used by the star graph elements
         // (for example, this is the identifier used by star vertices prior to being attached, and is later used to look
         // up the persisted identifier of the star edge incoming vertex)
-        if (vertexFeatures.supportsUserSuppliedIds() && mapper().partitionStrategy().isPresent()) {
+        if (vertexFeatures.supportsUserSuppliedIds() && topology().partitionStrategy().isPresent()) {
             // The effective identifier must include the write partition value to avoid problems where the
             // same node imported into separate partitions gets recreated instead merged
-            String partitionKey = mapper().partitionStrategy().get().getPartitionKey();
-            Object partitionValue = mapper().partitionStrategy().get().getWritePartition();
+            String partitionKey = topology().partitionStrategy().get().getPartitionKey();
+            Object partitionValue = topology().partitionStrategy().get().getWritePartition();
 
             Map<String, Object> mapId = ImmutableMap.of(JsonLdConsts.ID, id, partitionKey, partitionValue);
             if (vertexFeatures.willAllowId(mapId)) {
