@@ -48,6 +48,11 @@ import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoMapper.MultiValueCollect
 import com.blackducksoftware.common.base.ExtraFunctions;
 import com.google.common.base.Stopwatch;
 
+/**
+ * An I/O registry that provides specific configuration for supported graph implementations.
+ *
+ * @author jgustie
+ */
 public class BlackDuckIoRegistry extends AbstractIoRegistry {
 
     protected BlackDuckIoRegistry(Graph graph) {

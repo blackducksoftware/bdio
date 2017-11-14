@@ -56,14 +56,14 @@ public final class BlackDuckIoOperations {
 
         protected Operation(ReadGraphContext context, Predicate<GraphTopology> precondition) {
             this.context = Objects.requireNonNull(context);
-            this.precondition = Objects.requireNonNull(precondition);
+            this.precondition = precondition.and(t -> t.implicitKey().isPresent());
         }
 
         @Override
         public final void run() {
             // TODO Shouldn't we be tracking metrics internally on the timings of these steps?
             GraphTopology topology = context.topology();
-            if (topology.implicitKey().isPresent() && precondition.test(topology)) {
+            if (precondition.test(topology)) {
                 try {
                     execute(context.traversal(), topology);
                     context.commitTx();
@@ -80,7 +80,7 @@ public final class BlackDuckIoOperations {
         protected abstract void execute(GraphTraversalSource g, GraphTopology topology);
 
         /**
-         * Hopefully this isn't need too often.
+         * Hopefully this isn't needed too often.
          */
         protected final ReadGraphContext context() {
             return context;
@@ -120,10 +120,13 @@ public final class BlackDuckIoOperations {
         }
     }
 
+    /**
+     * Identifies the BDIO root and creates an edge from the metadata vertex.
+     */
     @VisibleForTesting
     protected static class IdentifyRootOperation extends Operation {
         public IdentifyRootOperation(ReadGraphContext context) {
-            super(context, t -> t.rootLabel().isPresent());
+            super(context, t -> t.rootLabel().isPresent() && t.metadataLabel().isPresent());
         }
 
         @Override
@@ -173,6 +176,9 @@ public final class BlackDuckIoOperations {
         }
     }
 
+    /**
+     * Adds parent edges between files based on their path values.
+     */
     @VisibleForTesting
     protected static class AddMissingFileParentsOperation extends Operation {
         public AddMissingFileParentsOperation(ReadGraphContext context) {
@@ -260,6 +266,9 @@ public final class BlackDuckIoOperations {
 
     }
 
+    /**
+     * Creates dependencies for components which are not otherwise part of the dependency graph.
+     */
     @VisibleForTesting
     protected static class AddMissingProjectDependenciesOperation extends Operation {
         public AddMissingProjectDependenciesOperation(ReadGraphContext context) {
@@ -284,6 +293,9 @@ public final class BlackDuckIoOperations {
         }
     }
 
+    /**
+     * Implies the file system type based on the available vertex data.
+     */
     @VisibleForTesting
     protected static class ImplyFileSystemTypeOperation extends Operation {
         public ImplyFileSystemTypeOperation(ReadGraphContext context) {

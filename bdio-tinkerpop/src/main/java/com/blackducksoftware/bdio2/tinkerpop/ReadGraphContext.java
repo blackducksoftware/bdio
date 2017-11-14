@@ -15,8 +15,9 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static java.util.Comparator.comparing;
+
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
@@ -54,11 +55,6 @@ import io.reactivex.plugins.RxJavaPlugins;
  * @author jgustie
  */
 class ReadGraphContext extends GraphContext {
-
-    // TODO Do we need a sort order that is stable across BDIO versions?
-    // TODO Do we need to promote the File's HID column?
-    private static Comparator<Map.Entry<String, Object>> DATA_PROPERTY_ORDER = Comparator.<Map.Entry<String, Object>, String> comparing(Map.Entry::getKey)
-            .reversed();
 
     /**
      * The number of mutations between commits.
@@ -202,11 +198,35 @@ class ReadGraphContext extends GraphContext {
      * Returns key/value pairs for the data properties of the specified BDIO node.
      */
     public Object[] getNodeProperties(Map<String, Object> node, boolean includeSpecial) {
-        // IMPORTANT: Add elements in reverse order of importance (e.g. T.id should be last!)
-        // TODO This could be a restriction from an old version of Sqlg
-        // TODO Or does it matter because Sqlg pushes them through a ConcurrentHashMap?
-        // TODO Should this just use a LinkedHashMap?
         Stream.Builder<Map.Entry<?, ?>> properties = Stream.builder();
+
+        // Special properties that can be optionally included
+        if (includeSpecial) {
+            Optional.ofNullable(node.get(JsonLdConsts.ID))
+                    .map(this::generateId)
+                    .map(id -> Maps.immutableEntry(T.id, id))
+                    .ifPresent(properties);
+
+            Optional.ofNullable(node.get(JsonLdConsts.TYPE))
+                    .map(label -> Maps.immutableEntry(T.label, label))
+                    .ifPresent(properties);
+
+            topology().partitionStrategy()
+                    .map(s -> Maps.immutableEntry(s.getPartitionKey(), s.getWritePartition()))
+                    .ifPresent(properties);
+
+            topology().identifierKey().ifPresent(key -> {
+                Optional.ofNullable(node.get(JsonLdConsts.ID))
+                        .map(id -> Maps.immutableEntry(key, id))
+                        .ifPresent(properties);
+            });
+        }
+
+        // Data properties
+        Maps.transformEntries(node, mapper().valueObjectMapper()::fromFieldValue).entrySet().stream()
+                .filter(e -> topology().isDataPropertyKey(e.getKey()))
+                .sorted(comparing(Map.Entry::getKey))
+                .forEachOrdered(properties);
 
         // Unknown properties
         topology().unknownKey().ifPresent(key -> {
@@ -214,34 +234,6 @@ class ReadGraphContext extends GraphContext {
                     .map(json -> Maps.immutableEntry(key, json))
                     .ifPresent(properties);
         });
-
-        // Sorted data properties
-        Maps.transformEntries(node, mapper().valueObjectMapper()::fromFieldValue).entrySet().stream()
-                .filter(e -> topology().isDataPropertyKey(e.getKey()))
-                .sorted(DATA_PROPERTY_ORDER)
-                .forEachOrdered(properties);
-
-        // Special properties that can be optionally included
-        if (includeSpecial) {
-            topology().identifierKey().ifPresent(key -> {
-                Optional.ofNullable(node.get(JsonLdConsts.ID))
-                        .map(id -> Maps.immutableEntry(key, id))
-                        .ifPresent(properties);
-            });
-
-            topology().partitionStrategy()
-                    .map(s -> Maps.immutableEntry(s.getPartitionKey(), s.getWritePartition()))
-                    .ifPresent(properties);
-
-            Optional.ofNullable(node.get(JsonLdConsts.TYPE))
-                    .map(label -> Maps.immutableEntry(T.label, label))
-                    .ifPresent(properties);
-
-            Optional.ofNullable(node.get(JsonLdConsts.ID))
-                    .map(this::generateId)
-                    .map(id -> Maps.immutableEntry(T.id, id))
-                    .ifPresent(properties);
-        }
 
         // Convert the whole thing into an array
         return properties.build()

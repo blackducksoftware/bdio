@@ -27,12 +27,24 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
  */
 abstract class GraphContext {
 
+    /**
+     * The graph in context.
+     */
     private final Graph graph;
 
+    /**
+     * The mapper used in this context to map between graph elements and BDIO.
+     */
     private final GraphMapper mapper;
 
+    /**
+     * A reference to the topology used by the {@link #mapper}.
+     */
     private final GraphTopology topology;
 
+    /**
+     * A reference to the transaction support flag of the {@link #graph}.
+     */
     private final boolean supportsTransactions;
 
     protected GraphContext(Graph graph, GraphMapper mapper) {
@@ -42,6 +54,8 @@ abstract class GraphContext {
         // Store extra references that will be needed frequently
         this.topology = mapper.topology();
         this.supportsTransactions = graph.features().graph().supportsTransactions();
+
+        // TODO Perform other feature validation here, e.g. user identifier support and topology.identifierKey...
     }
 
     /**
@@ -90,5 +104,7 @@ abstract class GraphContext {
             graph.tx().rollback();
         }
     }
+
+    // TODO Can we also offer a `Workload<T> submit()` that returns a dummy workload that doesn't use transactions?
 
 }

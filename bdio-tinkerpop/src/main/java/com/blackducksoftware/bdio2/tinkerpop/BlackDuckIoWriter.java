@@ -37,6 +37,11 @@ import com.github.jsonldjava.core.JsonLdConsts;
 
 import io.reactivex.Flowable;
 
+/**
+ * A {@link GraphWriter} implementation that writes a graph and it's elements to a BDIO representation.
+ *
+ * @author jgustie
+ */
 public class BlackDuckIoWriter implements GraphWriter {
 
     private final GraphContextFactory contextFactory;
@@ -45,6 +50,9 @@ public class BlackDuckIoWriter implements GraphWriter {
         contextFactory = builder.contextFactory();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void writeGraph(OutputStream outputStream, Graph graph) throws IOException {
         WriteGraphContext context = contextFactory.forBdioWritingFrom(graph);
@@ -77,31 +85,49 @@ public class BlackDuckIoWriter implements GraphWriter {
         }
     }
 
+    /**
+     * This operation is not supported by the {@code BlackDuckIoWriter}.
+     */
     @Override
     public void writeVertex(OutputStream outputStream, Vertex v, Direction direction) throws IOException {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * This operation is not supported by the {@code BlackDuckIoWriter}.
+     */
     @Override
     public void writeVertex(OutputStream outputStream, Vertex v) throws IOException {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * This operation is not supported by the {@code BlackDuckIoWriter}.
+     */
     @Override
     public void writeEdge(OutputStream outputStream, Edge e) throws IOException {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * This operation is not supported by the {@code BlackDuckIoWriter}.
+     */
     @Override
     public void writeVertexProperty(OutputStream outputStream, @SuppressWarnings("rawtypes") VertexProperty vp) throws IOException {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * This operation is not supported by the {@code BlackDuckIoWriter}.
+     */
     @Override
     public void writeProperty(OutputStream outputStream, @SuppressWarnings("rawtypes") Property p) throws IOException {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * This operation is not supported by the {@code BlackDuckIoWriter}.
+     */
     @Override
     public void writeObject(OutputStream outputStream, Object object) throws IOException {
         throw new UnsupportedOperationException();

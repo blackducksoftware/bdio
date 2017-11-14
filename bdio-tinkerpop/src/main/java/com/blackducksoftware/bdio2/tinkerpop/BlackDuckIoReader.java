@@ -40,6 +40,11 @@ import com.blackducksoftware.bdio2.tinkerpop.GraphContextFactory.AbstractContext
 
 import io.reactivex.Flowable;
 
+/**
+ * A {@link GraphReader} that constructs a graph from a BDIO repreresentation.
+ *
+ * @author jgustie
+ */
 public final class BlackDuckIoReader implements GraphReader {
 
     private final GraphContextFactory contextFactory;
@@ -48,6 +53,9 @@ public final class BlackDuckIoReader implements GraphReader {
         contextFactory = builder.contextFactory();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @SuppressWarnings("CheckReturnValue")
     @Override
     public void readGraph(InputStream inputStream, Graph graph) throws IOException {
@@ -73,7 +81,7 @@ public final class BlackDuckIoReader implements GraphReader {
 
                     // Setup batch commits
                     .doOnSubscribe(x -> context.startBatchTx())
-                    .doOnNext(x -> context.batchCommitTx()) // TODO Should this be right after attach?
+                    .doOnNext(x -> context.batchCommitTx()) // TODO Should this be right after attach also?
                     .doOnError(x -> context.rollbackTx())
                     .doOnComplete(context::commitTx)
 
@@ -86,28 +94,43 @@ public final class BlackDuckIoReader implements GraphReader {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Vertex readVertex(InputStream inputStream, Function<Attachable<Vertex>, Vertex> vertexAttachMethod) throws IOException {
         return readVertex(inputStream, vertexAttachMethod, null, null);
     }
 
+    /**
+     * This operation is not supported by the {@code BlackDuckIoReader}.
+     */
     @Override
     public Vertex readVertex(InputStream inputStream, Function<Attachable<Vertex>, Vertex> vertexAttachMethod,
             Function<Attachable<Edge>, Edge> edgeAttachMethod, Direction attachEdgesOfThisDirection) throws IOException {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * This operation is not supported by the {@code BlackDuckIoReader}.
+     */
     @Override
     public Iterator<Vertex> readVertices(InputStream inputStream, Function<Attachable<Vertex>, Vertex> vertexAttachMethod,
             Function<Attachable<Edge>, Edge> edgeAttachMethod, Direction attachEdgesOfThisDirection) throws IOException {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * This operation is not supported by the {@code BlackDuckIoReader}.
+     */
     @Override
     public Edge readEdge(InputStream inputStream, Function<Attachable<Edge>, Edge> edgeAttachMethod) throws IOException {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * This operation is not supported by the {@code BlackDuckIoReader}.
+     */
     @SuppressWarnings("rawtypes")
     @Override
     public VertexProperty readVertexProperty(InputStream inputStream, Function<Attachable<VertexProperty>, VertexProperty> vertexPropertyAttachMethod)
@@ -115,12 +138,18 @@ public final class BlackDuckIoReader implements GraphReader {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * This operation is not supported by the {@code BlackDuckIoReader}.
+     */
     @SuppressWarnings("rawtypes")
     @Override
     public Property readProperty(InputStream inputStream, Function<Attachable<Property>, Property> propertyAttachMethod) throws IOException {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * This operation is not supported by the {@code BlackDuckIoReader}.
+     */
     @Override
     public <C> C readObject(InputStream inputStream, Class<? extends C> clazz) throws IOException {
         throw new UnsupportedOperationException();
@@ -161,7 +190,13 @@ public final class BlackDuckIoReader implements GraphReader {
     }
 
     /**
-     * Mutable map keys with equality defined such that state gets lost. What joy.
+     * We use the {@code StarVertex} as a key in the map which properly handles vertex identity, however the
+     * corresponding {@code StarGraph} may contain edges which get ignored on subsequent insertion attempts. Since we
+     * eventually convert those {@code StarEdge} instances, we need to preserve them.
+     * <p>
+     * This specialized map implementation overrides {@code put} so that if a mapping already exists, the edges from the
+     * key are merged together. This turns out to very inefficient since the hash map does not offer existing keys
+     * through it's protected API: we must resort to a linear search over the key set if we detect lost edges.
      */
     private static Map<StarVertex, Vertex> vertexMap() {
         return new HashMap<StarVertex, Vertex>() {

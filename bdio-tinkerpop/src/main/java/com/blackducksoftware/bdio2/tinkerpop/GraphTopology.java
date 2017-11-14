@@ -36,6 +36,7 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.umlg.sqlg.structure.Topology;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.Bdio.Container;
@@ -153,8 +154,7 @@ public class GraphTopology {
      * Iterates over the known vertex labels.
      */
     public void forEachTypeLabel(Consumer<String> typeLabelConsumer) {
-        // TODO Do we need to exclude embedded classes?
-        classes.keySet().stream().filter(x -> !embeddedClasses.contains(x)).forEach(typeLabelConsumer);
+        classes.keySet().forEach(typeLabelConsumer);
     }
 
     /**
@@ -162,11 +162,9 @@ public class GraphTopology {
      */
     public void forEachEmbeddedType(BiConsumer<String, String> embeddedTypeConsumer) {
         classes.entrySet().stream()
-                .filter(e -> embeddedClasses.contains(e.getKey()))
+                .filter(e -> isEmbeddedLabel(e.getKey()))
                 .forEach(e -> embeddedTypeConsumer.accept(e.getKey(), e.getValue()));
     }
-
-    // public void forEachEmbeddedTypeIdentifier(Con)
 
     /**
      * Iterates over the known multi-valued data property keys.
@@ -231,14 +229,19 @@ public class GraphTopology {
         return partitionStrategy;
     }
 
+    /**
+     * Returns the JSON-LD frame {@code @type} value.
+     */
     public List<String> type() {
         List<String> type = new ArrayList<>();
         type.addAll(classes.values());
         return type;
     }
 
+    /**
+     * Returns the JSON-LD {@code @context} value.
+     */
     public Map<String, Object> context() {
-        // This must construct a new mutable structure for the JSON-LD API (and for our own use)
         Map<String, Object> context = new LinkedHashMap<>();
         context.putAll(classes);
         context.putAll(dataProperties);
@@ -246,6 +249,9 @@ public class GraphTopology {
         return context;
     }
 
+    /**
+     * Returns the application context: i.e. a context that does not describe BDIO.
+     */
     @Nullable
     public Map<String, Object> applicationContext() {
         Map<String, Object> context = context();
@@ -429,12 +435,13 @@ public class GraphTopology {
      */
     private static Optional<String> checkUserSuppliedVertexLabel(@Nullable String label, String message) {
         if (label != null) {
+            // Sqlg reserves vertex tables
+            checkArgument(!label.startsWith(Topology.VERTEX_PREFIX), message, label);
+
             // Check all of the BDIO Class names
             for (Bdio.Class bdioClass : Bdio.Class.values()) {
                 checkArgument(!label.equalsIgnoreCase(bdioClass.name()), message, label);
             }
-
-            // TODO Warn if label starts with Topology.VERTEX_PREFIX
 
             return Optional.of(label);
         } else {
@@ -447,12 +454,13 @@ public class GraphTopology {
      */
     private static Optional<String> checkUserSuppliedEdgeLabel(@Nullable String label, String message) {
         if (label != null) {
+            // Sqlg reserves edge tables
+            checkArgument(!label.startsWith(Topology.EDGE_PREFIX), message, label);
+
             // Check all of the BDIO Object Property names
             for (Bdio.ObjectProperty bdioOjectProperty : Bdio.ObjectProperty.values()) {
                 checkArgument(!label.equalsIgnoreCase(bdioOjectProperty.name()), message, label);
             }
-
-            // TODO Warn if label starts with Topology.EDGE_PREFIX
 
             return Optional.of(label);
         } else {
