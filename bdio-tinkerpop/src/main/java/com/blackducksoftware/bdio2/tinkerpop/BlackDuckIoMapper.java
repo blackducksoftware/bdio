@@ -36,7 +36,19 @@ import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
 public class BlackDuckIoMapper implements Mapper<GraphMapper> {
 
     /**
-     * Allows for the registration of custom datatypes or datatype handlers.
+     * Allows for the registration of custom graph initializers.
+     */
+    public interface GraphInitializer {
+
+        /**
+         * Initializes the graph to use the specified topology.
+         */
+        void initialize(GraphTopology graphTopology);
+
+    }
+
+    /**
+     * Allows for the registration of custom datatypes or overridden datatype handlers.
      */
     public interface DatatypeRegistration {
         /**
@@ -73,16 +85,23 @@ public class BlackDuckIoMapper implements Mapper<GraphMapper> {
     private final Consumer<GraphMapper.Builder> onGraphMapper;
 
     private BlackDuckIoMapper(BlackDuckIoMapper.Builder builder) {
+        // Configure the graph topology
+        List<GraphInitializer> initializers = builder.registries.stream()
+                .flatMap(registry -> registry.find(BlackDuckIo.class, GraphInitializer.class).stream())
+                .map(Pair::getValue1).collect(toList());
+
+        onGraphTopology = gt -> {
+            initializers.forEach(i -> gt.addInitializer(i::initialize));
+            builder.onGraphTopology.ifPresent(c -> c.accept(gt));
+        };
+
+        // Configure the graph mapper
         List<DatatypeRegistration> datatypes = builder.registries.stream()
                 .flatMap(registry -> registry.find(BlackDuckIo.class, DatatypeRegistration.class).stream())
                 .map(Pair::getValue1).collect(toList());
         Optional<MultiValueCollectorRegistration> multiValueCollector = builder.registries.stream()
                 .flatMap(registry -> registry.find(BlackDuckIo.class, MultiValueCollectorRegistration.class).stream())
                 .map(Pair::getValue1).findAny();
-
-        onGraphTopology = gt -> {
-            builder.onGraphTopology.ifPresent(c -> c.accept(gt));
-        };
 
         onGraphMapper = gm -> {
             datatypes.forEach(dr -> gm.addDatatype(dr.iri(), dr.handler()));

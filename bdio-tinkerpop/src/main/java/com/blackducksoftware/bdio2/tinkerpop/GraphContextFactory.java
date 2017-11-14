@@ -16,7 +16,6 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import java.util.Objects;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -55,6 +54,10 @@ class GraphContextFactory {
      * Returns a new context for reading BDIO into a graph.
      */
     public ReadGraphContext forBdioReadingInto(Graph graph) {
+        // Initialize the topology
+        mapper.topology().initialize();
+
+        // Subclasses for specific graph implementations provide optimization
         if (graph instanceof SqlgGraph) {
             return new SqlgReadGraphContext((SqlgGraph) graph, mapper, batchSize, EXPECTED_NODE_COUNT);
         } else {
@@ -101,30 +104,6 @@ class GraphContextFactory {
          */
         public Builder mapper(Mapper<GraphMapper> mapper) {
             return mapperFactory(mapper::createMapper);
-        }
-
-        /**
-         * Helper to generate the graph mapper using a custom configuration.
-         */
-        public Builder onGraphMapper(Consumer<GraphMapper.Builder> config) {
-            Objects.requireNonNull(config);
-            return mapperFactory(() -> {
-                GraphMapper.Builder builder = GraphMapper.build();
-                config.accept(builder);
-                return builder.create();
-            });
-        }
-
-        /**
-         * Helper to generate the graph mapper using only a custom topology.
-         */
-        public Builder onGraphTopology(Consumer<GraphTopology.Builder> config) {
-            Objects.requireNonNull(config);
-            return onGraphMapper(gm -> {
-                GraphTopology.Builder builder = GraphTopology.build();
-                config.accept(builder);
-                gm.withTopology(builder::create);
-            });
         }
 
         public Builder batchSize(int batchSize) {

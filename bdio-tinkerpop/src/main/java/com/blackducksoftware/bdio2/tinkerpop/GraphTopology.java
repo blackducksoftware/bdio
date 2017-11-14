@@ -39,6 +39,7 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.Bdio.Container;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
@@ -48,6 +49,11 @@ import com.google.common.collect.ImmutableSet;
  * @author jgustie
  */
 public class GraphTopology {
+
+    /**
+     * The list of initializers.
+     */
+    private final ImmutableList<Consumer<GraphTopology>> initializers;
 
     /**
      * The mapping of vertex labels to {@code @type} IRIs. Does not include the metadata vertex label.
@@ -106,6 +112,7 @@ public class GraphTopology {
     private final Optional<PartitionStrategy> partitionStrategy;
 
     private GraphTopology(Builder builder) {
+        initializers = ImmutableList.copyOf(builder.initializers);
         classes = ImmutableMap.copyOf(builder.classes);
         embeddedClasses = ImmutableSet.copyOf(builder.embeddedClasses);
         dataProperties = ImmutableMap.copyOf(builder.dataProperties);
@@ -128,6 +135,18 @@ public class GraphTopology {
         checkState(!unknownKey.filter(dataProperties::containsKey).isPresent(), "unknownKey conflict");
         checkState(!implicitKey.filter(dataProperties::containsKey).isPresent(), "implicitKey conflict");
         checkState(!partitionStrategy.map(PartitionStrategy::getPartitionKey).filter(dataProperties::containsKey).isPresent(), "partitionKey conflict");
+    }
+
+    /**
+     * Initializes the supplied graph for this topology. Initialization is generally performed before any long running
+     * operation that writes to the database.
+     */
+    public void initialize() {
+        // TODO Should we do this once over the life of the topology?
+        // In general, this seems to take a few hundred milliseconds. If that number grows or if that is too slow, we
+        // can optimize this, but it will require help during configuration to ensure only a single topology instance is
+        // created (we could put a log message here with the timing to make it clear how often we are initializing)
+        initializers.forEach(c -> c.accept(this));
     }
 
     /**
@@ -250,6 +269,8 @@ public class GraphTopology {
 
     public static final class Builder {
 
+        private final List<Consumer<GraphTopology>> initializers;
+
         private final Map<String, String> classes;
 
         private final Set<String> embeddedClasses;
@@ -273,6 +294,8 @@ public class GraphTopology {
         private Optional<PartitionStrategy> partitionStrategy = Optional.empty();
 
         private Builder() {
+            initializers = new ArrayList<>();
+
             classes = new LinkedHashMap<>();
             embeddedClasses = new LinkedHashSet<>();
             for (Bdio.Class bdioClass : Bdio.Class.values()) {
@@ -295,6 +318,11 @@ public class GraphTopology {
             for (Bdio.ObjectProperty bdioObjectProperty : Bdio.ObjectProperty.values()) {
                 objectProperties.put(bdioObjectProperty.name(), bdioObjectProperty.toString());
             }
+        }
+
+        public Builder addInitializer(Consumer<GraphTopology> initializer) {
+            initializers.add(Objects.requireNonNull(initializer));
+            return this;
         }
 
         public Builder addClass(String label, String iri) {

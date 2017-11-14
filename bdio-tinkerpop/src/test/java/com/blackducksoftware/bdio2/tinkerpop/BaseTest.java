@@ -68,6 +68,13 @@ public abstract class BaseTest {
         public GraphContextFactoryBuilder() {
             super(GraphContextFactoryBuilder::contextFactory);
         }
+
+        public GraphContextFactoryBuilder onGraphTopology(Consumer<GraphTopology.Builder> config) {
+            // Eager approach to builder construction is suitable for testing only
+            GraphTopology.Builder builder = GraphTopology.build();
+            config.accept(builder);
+            return mapperFactory(GraphMapper.build().withTopology(builder::create)::create);
+        }
     }
 
     /**
