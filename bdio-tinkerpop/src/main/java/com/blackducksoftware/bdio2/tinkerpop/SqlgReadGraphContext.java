@@ -79,9 +79,20 @@ class SqlgReadGraphContext extends ReadGraphContext {
         // Build the query
         StringBuilder sql = new StringBuilder()
                 .append("SELECT COUNT(1) FROM ")
-                .append('"').append(schemaTable.getSchema()).append('"')
+                .append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(schemaTable.getSchema()))
                 .append('.')
-                .append('"').append(schemaTable.getTable()).append('"');
+                .append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(schemaTable.getTable()));
+
+        // Honor the partition strategy, if configured with read partitions (assume there is probably just one)
+        topology().partitionStrategy()
+                .filter(ps -> !ps.getReadPartitions().isEmpty())
+                .ifPresent(ps -> {
+                    String field = sqlgGraph.getSqlDialect().maybeWrapInQoutes(ps.getPartitionKey());
+                    // TODO Use statement parameters
+                    sql.append(ps.getReadPartitions().stream()
+                            .collect(joining("\" OR " + field + " = \"", " WHERE " + field + " = \"", "\"")));
+                });
+
         if (sqlgGraph.getSqlDialect().needsSemicolon()) {
             sql.append(';');
         }
