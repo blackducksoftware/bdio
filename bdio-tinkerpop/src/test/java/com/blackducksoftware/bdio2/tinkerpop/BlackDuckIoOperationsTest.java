@@ -135,7 +135,12 @@ public class BlackDuckIoOperationsTest extends BaseTest {
     @Test
     public void implyFileSystemType() throws IOException {
         InputStream bdio = new NamedGraphBuilder()
-                // TODO Add files!
+                .withBaseFile(new File(BdioObject.randomId()).path("file:///foo"))
+                .add(new File(BdioObject.randomId()).path("file:///foo/bar"))
+                .add(new File(BdioObject.randomId()).path("file:///foo/gus").linkPath("file:///foo/bar"))
+                .add(new File(BdioObject.randomId()).path("file:///foo/bar/test.bin"))
+                .add(new File(BdioObject.randomId()).path("file:///foo/bar/test.zip").byteCount(1L))
+                .add(new File(BdioObject.randomId()).path("zip:file:%2F%2F%2Ffoo%2Fbar%2Ftest.zip#test.txt").encoding("UTF-8"))
                 .build();
 
         Consumer<GraphTopology.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
@@ -146,11 +151,24 @@ public class BlackDuckIoOperationsTest extends BaseTest {
         new BlackDuckIoOperations.ImplyFileSystemTypeOperation(context).run();
 
         GraphTraversalSource g = graph.traversal();
-        List<Vertex> files = g.V().has(Bdio.Class.File.name()).toList();
+        List<Vertex> files = g.V().hasLabel(Bdio.Class.File.name()).toList();
         for (Vertex file : files) {
             VertexProperty<String> fileSystemType = file.property(Bdio.DataProperty.fileSystemType.name());
             assertThat(fileSystemType.isPresent()).isTrue();
-            // TODO Check the values
+            String path = file.value(Bdio.DataProperty.path.name());
+            if (path.equals("file:///foo")) {
+                assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.DIRECTORY.toString());
+            } else if (path.equals("file:///foo/bar")) {
+                assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.DIRECTORY.toString());
+            } else if (path.equals("file:///foo/gus")) {
+                assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.SYMLINK.toString());
+            } else if (path.equals("file:///foo/bar/test.bin")) {
+                assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.REGULAR.toString());
+            } else if (path.equals("file:///foo/bar/test.zip")) {
+                assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString());
+            } else if (path.equals("zip:file:%2F%2F%2Ffoo%2Fbar%2Ftest.zip#test.txt")) {
+                assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.REGULAR_TEXT.toString());
+            }
         }
     }
 

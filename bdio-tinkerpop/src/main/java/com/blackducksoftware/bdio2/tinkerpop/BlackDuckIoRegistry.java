@@ -20,7 +20,6 @@ import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
 import static org.umlg.sqlg.structure.PropertyType.BOOLEAN;
 import static org.umlg.sqlg.structure.PropertyType.STRING;
-import static org.umlg.sqlg.structure.PropertyType.STRING_ARRAY;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -46,7 +45,6 @@ import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoMapper.DatatypeRegistrat
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoMapper.GraphInitializer;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoMapper.MultiValueCollectorRegistration;
 import com.blackducksoftware.common.base.ExtraFunctions;
-import com.google.common.base.Stopwatch;
 
 /**
  * An I/O registry that provides specific configuration for supported graph implementations.
@@ -104,7 +102,6 @@ public class BlackDuckIoRegistry extends AbstractIoRegistry {
      * Define a minimal topology to help reduce the number of dynamic topology changes.
      */
     public void defineTopology(SqlgGraph sqlgGraph, GraphTopology graphTopology) {
-        Stopwatch x = Stopwatch.createStarted();
         sqlgGraph.tx().open();
         try {
             Topology topology = sqlgGraph.getTopology();
@@ -117,8 +114,6 @@ public class BlackDuckIoRegistry extends AbstractIoRegistry {
         } catch (RuntimeException | Error e) {
             sqlgGraph.tx().rollback();
             throw e;
-        } finally {
-            System.err.println("Topology definition took " + x.stop());
         }
     }
 
@@ -130,17 +125,17 @@ public class BlackDuckIoRegistry extends AbstractIoRegistry {
         // TODO We need a unique constraint on _partition/path for files (if applicable)
 
         // This is just to help make the code look more uniform below
+        Optional<String> fileFileSystemType = Optional.of(label).filter(Predicate.isEqual(Bdio.Class.File.name()))
+                .map(x -> Bdio.DataProperty.fileSystemType.name());
         Optional<String> filePathKey = Optional.of(label).filter(Predicate.isEqual(Bdio.Class.File.name()))
                 .map(x -> Bdio.DataProperty.path.name());
-        Optional<String> fileFingerprintKey = Optional.of(label).filter(Predicate.isEqual(Bdio.Class.File.name()))
-                .map(x -> Bdio.DataProperty.fingerprint.name());
 
         // Define the initial columns used to persist this vertex label
         Map<String, PropertyType> columns = new LinkedHashMap<>();
         graphTopology.partitionStrategy().map(PartitionStrategy::getPartitionKey).ifPresent(c -> columns.put(c, STRING));
         graphTopology.identifierKey().ifPresent(c -> columns.put(c, STRING));
+        fileFileSystemType.ifPresent(c -> columns.put(c, STRING));
         filePathKey.ifPresent(c -> columns.put(c, STRING));
-        fileFingerprintKey.ifPresent(c -> columns.put(c, STRING_ARRAY));
         graphTopology.implicitKey().ifPresent(c -> columns.put(c, BOOLEAN));
         graphTopology.unknownKey().ifPresent(c -> columns.put(c, STRING)); // TODO PropertyType.JSON
 

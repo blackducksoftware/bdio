@@ -16,7 +16,10 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.has;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.or;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.property;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -302,17 +305,32 @@ public final class BlackDuckIoOperations {
             super(context, m -> true);
         }
 
+        @SuppressWarnings("unchecked")
         @Override
         protected void execute(GraphTraversalSource g, GraphTopology topology) {
+            context().startBatchTx();
+
+            g.V().out(Bdio.ObjectProperty.parent.name())
+                    .hasNot(Bdio.DataProperty.fileSystemType.name())
+                    .coalesce(
+                            or(has(Bdio.DataProperty.byteCount.name()), has(Bdio.DataProperty.contentType.name()))
+                                    .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString()),
+                            property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY.toString()))
+                    .sideEffect(t -> context().batchCommitTx())
+                    .iterate();
+
             g.V().hasLabel(Bdio.Class.File.name())
-                    .hasNot(Bdio.DataProperty.fileSystemType.name());
-            // TODO linkPath -> symlink
-            // TODO encoding -> regular/text
-            // TODO inParent && byteCount || contentType -> directory/archive
-            // TODO inParent -> directory
-            // TODO !inParent -> regular
-            // TODO Heuristics? e.g. `path.startsWith('/dev/')...`
+                    .hasNot(Bdio.DataProperty.fileSystemType.name())
+                    .coalesce(
+                            has(Bdio.DataProperty.linkPath.name())
+                                    .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.SYMLINK.toString()),
+                            has(Bdio.DataProperty.encoding.name())
+                                    .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.REGULAR_TEXT.toString()),
+                            property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.REGULAR.toString()))
+                    .sideEffect(t -> context().batchCommitTx())
+                    .iterate();
         }
+
     }
 
 }
