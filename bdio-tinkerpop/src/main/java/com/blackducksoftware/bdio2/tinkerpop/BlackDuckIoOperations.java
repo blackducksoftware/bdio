@@ -37,7 +37,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.bdio2.tinkerpop.GraphContextFactory.AbstractContextBuilder;
-import com.blackducksoftware.common.base.HID;
+import com.blackducksoftware.common.value.HID;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 

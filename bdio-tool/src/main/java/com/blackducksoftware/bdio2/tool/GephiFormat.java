@@ -37,7 +37,7 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.umlg.sqlg.structure.RecordId;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.common.base.HID;
+import com.blackducksoftware.common.value.HID;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.github.jsonldjava.utils.JsonUtils;

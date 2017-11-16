@@ -25,7 +25,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.common.base.HID;
+import com.blackducksoftware.common.value.HID;
 
 /**
  * Base class for tools that want to display file information.
