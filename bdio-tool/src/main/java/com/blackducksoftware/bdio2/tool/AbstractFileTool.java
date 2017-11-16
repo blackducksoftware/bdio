@@ -97,7 +97,7 @@ public abstract class AbstractFileTool extends AbstractGraphTool {
         graphTool().setProperty("bdio.rootLabel", FTT._root.name());
     }
 
-    protected Stream<FileNode> baseFile(GraphTraversalSource g) {
+    protected Stream<FileNode> baseFiles(GraphTraversalSource g) {
         return g.V().hasLabel(FTT._Metadata.name())
                 .out(FTT._root.name())
                 .emit().repeat(out(Bdio.ObjectProperty.subproject.name()))

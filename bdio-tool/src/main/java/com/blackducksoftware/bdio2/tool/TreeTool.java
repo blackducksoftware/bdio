@@ -153,7 +153,7 @@ public class TreeTool extends AbstractFileTool {
         Set<Integer> childrenAtDepths = new HashSet<>();
 
         // Find the base file(s) in the graph
-        baseFile(g).map(Iterators::singletonIterator).forEach(fileNodes::addFirst);
+        baseFiles(g).map(Iterators::singletonIterator).forEach(fileNodes::addFirst);
         checkState(!fileNodes.isEmpty(), "No base file found");
 
         // Do our pre-order traversal, formatting each file node
