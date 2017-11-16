@@ -33,9 +33,8 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.Test;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.BdioObject;
-import com.blackducksoftware.bdio2.model.Component;
-import com.blackducksoftware.bdio2.model.File;
+import com.blackducksoftware.bdio2.model.FileCollection;
+import com.blackducksoftware.bdio2.model.Project;
 import com.blackducksoftware.bdio2.tinkerpop.test.NamedGraphBuilder;
 
 public class BlackDuckIoOperationsTest extends BaseTest {
@@ -47,10 +46,12 @@ public class BlackDuckIoOperationsTest extends BaseTest {
     @Test
     public void addMissingFileParents() throws IOException {
         InputStream bdio = new NamedGraphBuilder()
-                .withBaseFile(new File(BdioObject.randomId()).path("file:///foo"))
-                .add(new File(BdioObject.randomId()).path("file:///foo/bar/gus/one/more"))
-                .add(new File(BdioObject.randomId()).path("file:///foo/bar"))
-                .add(new File(BdioObject.randomId()).path("file:///foo/bar/gus/two/more"))
+                .fileCollection(f -> {})
+                .file(f -> f.path("file:///foo"))
+                .relateToFirst(FileCollection.class, FileCollection::base)
+                .file(f -> f.path("file:///foo/bar/gus/one/more"))
+                .file(f -> f.path("file:///foo/bar"))
+                .file(f -> f.path("file:///foo/bar/gus/two/more"))
                 .build();
 
         Consumer<GraphTopology.Builder> config = b -> b.implicitKey(TT.implicit);
@@ -67,7 +68,7 @@ public class BlackDuckIoOperationsTest extends BaseTest {
 
         // Make sure we can traverse from the project to the leaves
         List<Object> leafPaths = g.V()
-                .hasLabel(Bdio.Class.Project.name())
+                .hasLabel(Bdio.Class.FileCollection.name())
                 .out(Bdio.ObjectProperty.base.name())
                 .repeat(in(Bdio.ObjectProperty.parent.name()))
                 .until(not(in(Bdio.ObjectProperty.parent.name())))
@@ -90,9 +91,10 @@ public class BlackDuckIoOperationsTest extends BaseTest {
     }
 
     @Test
-    public void identifyRoot() throws IOException {
-        // The named graph builder always includes a project node for you
-        InputStream bdio = new NamedGraphBuilder().build();
+    public void identifyRootProject() throws IOException {
+        InputStream bdio = new NamedGraphBuilder()
+                .project(p -> {})
+                .build();
 
         Consumer<GraphTopology.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
         graph.io(BlackDuckIo.build().onGraphTopology(config)).readGraph(bdio);
@@ -108,10 +110,36 @@ public class BlackDuckIoOperationsTest extends BaseTest {
     }
 
     @Test
+    public void identifyRootProjectWithEdges() throws IOException {
+        InputStream bdio = new NamedGraphBuilder()
+                .project(p -> p.name("project"))
+                .project(p -> p.name("subproject"))
+                .relateToFirst(Project.class, Project::subproject)
+                .project(p -> p.name("subsubproject"))
+                .relateToLast(Project.class, Project::subproject)
+                .project(p -> p.name("oldproject"))
+                .relateToFirst(Project.class, Project::previousVersion)
+                .build();
+
+        Consumer<GraphTopology.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
+        graph.io(BlackDuckIo.build().onGraphTopology(config)).readGraph(bdio);
+
+        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphTopology(config).create().forBdioReadingInto(graph);
+        new BlackDuckIoOperations.IdentifyRootOperation(context).run();
+
+        GraphTraversalSource g = graph.traversal();
+        List<Vertex> roots = g.V().hasLabel(TT.Metadata).out(TT.root).toList();
+
+        assertThat(roots).hasSize(1);
+        assertThat(roots.get(0).<String> value(Bdio.DataProperty.name.name())).isEqualTo("project");
+    }
+
+    @Test
     public void addMissingProjectDependencies() throws IOException {
         InputStream bdio = new NamedGraphBuilder()
-                .add(new Component(BdioObject.randomId()).name("test1"))
-                .add(new Component(BdioObject.randomId()).name("test2"))
+                .project(p -> {})
+                .component(c -> c.name("test1"))
+                .component(c -> c.name("test2"))
                 .build();
 
         Consumer<GraphTopology.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
@@ -135,12 +163,14 @@ public class BlackDuckIoOperationsTest extends BaseTest {
     @Test
     public void implyFileSystemType() throws IOException {
         InputStream bdio = new NamedGraphBuilder()
-                .withBaseFile(new File(BdioObject.randomId()).path("file:///foo"))
-                .add(new File(BdioObject.randomId()).path("file:///foo/bar"))
-                .add(new File(BdioObject.randomId()).path("file:///foo/gus").linkPath("file:///foo/bar"))
-                .add(new File(BdioObject.randomId()).path("file:///foo/bar/test.bin"))
-                .add(new File(BdioObject.randomId()).path("file:///foo/bar/test.zip").byteCount(1L))
-                .add(new File(BdioObject.randomId()).path("zip:file:%2F%2F%2Ffoo%2Fbar%2Ftest.zip#test.txt").encoding("UTF-8"))
+                .fileCollection(f -> {})
+                .file(f -> f.path("file:///foo"))
+                .relateToFirst(FileCollection.class, FileCollection::base)
+                .file(f -> f.path("file:///foo/bar"))
+                .file(f -> f.path("file:///foo/gus").linkPath("file:///foo/bar"))
+                .file(f -> f.path("file:///foo/bar/test.bin"))
+                .file(f -> f.path("file:///foo/bar/test.zip").byteCount(1L))
+                .file(f -> f.path("zip:file:%2F%2F%2Ffoo%2Fbar%2Ftest.zip#test.txt").encoding("UTF-8"))
                 .build();
 
         Consumer<GraphTopology.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);

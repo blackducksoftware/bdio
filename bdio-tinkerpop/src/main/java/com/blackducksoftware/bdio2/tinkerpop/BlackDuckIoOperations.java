@@ -110,8 +110,6 @@ public final class BlackDuckIoOperations {
         new ImplyFileSystemTypeOperation(context).run();
     }
 
-    // TODO Offer a way to get the base files?
-
     public static Builder build() {
         return new Builder();
     }
@@ -125,6 +123,8 @@ public final class BlackDuckIoOperations {
 
     /**
      * Identifies the BDIO root and creates an edge from the metadata vertex.
+     * <p>
+     * Note that is not currently an error to provide multiple roots.
      */
     @VisibleForTesting
     protected static class IdentifyRootOperation extends Operation {
@@ -137,46 +137,20 @@ public final class BlackDuckIoOperations {
             // Drop any existing root edges
             g.E().hasLabel(topology.rootLabel().get()).drop().iterate();
 
-            // Try to find the root project
-            Optional<Vertex> root = g.V()
-                    .hasLabel(Bdio.Class.Project.name())
+            // Recreate root edges between the root vertices and metadata vertices
+            g.V().hasLabel(Bdio.Class.Project.name(),
+                    Bdio.Class.Container.name(),
+                    Bdio.Class.Repository.name(),
+                    Bdio.Class.FileCollection.name())
                     .not(inE(Bdio.ObjectProperty.subproject.name()))
                     .not(inE(Bdio.ObjectProperty.previousVersion.name()))
-
-                    // WARNING: This is an arbitrary selection!
-                    // TODO Can we have a side effect that logs a warning?
-                    // TODO Should we just bail?
-                    .limit(1L)
-                    .tryNext();
-
-            // Try to find the root Repository
-            if (!root.isPresent()) {
-                root = g.V()
-                        .hasLabel(Bdio.Class.Repository.name())
-
-                        // WARNING: This is an arbitrary selection!
-                        // TODO Can we have a side effect that logs a warning?
-                        // TODO Should we just bail?
-                        .limit(1L)
-                        .tryNext();
-            }
-
-            // Create the edge between metadata and the root (creating a root if one does not exist)
-            g.V(root.orElseGet(() -> createImplicitRootVertex(topology))).as("root")
+                    .as("root")
                     .V().hasLabel(topology.metadataLabel().get())
                     .addE(topology.rootLabel().get()).to("root")
                     .property(topology.implicitKey().get(), Boolean.TRUE)
                     .iterate();
         }
 
-        /**
-         * Creates a new root vertex to use in the case that one could not be found.
-         */
-        private Vertex createImplicitRootVertex(GraphTopology topology) {
-            Vertex implicitRoot = context().graph().addVertex(Bdio.Class.Project.name());
-            implicitRoot.property(topology.implicitKey().get(), Boolean.TRUE);
-            return implicitRoot;
-        }
     }
 
     /**
@@ -196,7 +170,10 @@ public final class BlackDuckIoOperations {
 
             // Get the list of base paths
             Set<String> basePaths = g.V()
-                    .hasLabel(Bdio.Class.Project.name())
+                    .hasLabel(Bdio.Class.Container.name(),
+                            Bdio.Class.FileCollection.name(),
+                            Bdio.Class.Project.name(),
+                            Bdio.Class.Repository.name())
                     .out(Bdio.ObjectProperty.base.name())
                     .<String> values(Bdio.DataProperty.path.name())
                     .toSet();

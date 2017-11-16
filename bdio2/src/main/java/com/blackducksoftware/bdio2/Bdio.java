@@ -45,6 +45,11 @@ public class Bdio {
         Component("http://blackducksoftware.com/bdio#Component"),
 
         /**
+         * A container represents a stand-alone software package, including any system software needed for execution.
+         */
+        Container("http://blackducksoftware.com/bdio#Container"),
+
+        /**
          * A dependency can be added to a project or a component to indicate that it depends on another component.
          */
         Dependency("http://blackducksoftware.com/bdio#Dependency"),
@@ -57,6 +62,12 @@ public class Bdio {
          * in bytes (not blocks).
          */
         File("http://blackducksoftware.com/bdio#File"),
+
+        /**
+         * A file collection is used to describe an arbitrary group of files that cannot be better described using
+         * another more appropriate construct (like a project).
+         */
+        FileCollection("http://blackducksoftware.com/bdio#FileCollection"),
 
         /**
          * A license represents the specific terms under which the use of a particular project (or component) is
@@ -75,14 +86,13 @@ public class Bdio {
         Note("http://blackducksoftware.com/bdio#Note"),
 
         /**
-         * The project is the primary subject matter of any BDIO data, projects should be used to describe anything that
-         * was created or managed in the context of the BDIO document. For example, a BDIO project should be used to
-         * describe each Maven POM file or each Protex project. Projects convey different metadata from
-         * "components" (the later of which is just a BOM entry for a project); for example, a project may
-         * declare multiple license terms to choose from whereas a component must specify exactly which terms were
-         * selected; a project may have many versions, but a component references exactly one. It is always
-         * true that a project and component can coexist for the same entity: for example there can be only one "log4j"
-         * project while there can be many components describing the usage of "log4j" for other projects.
+         * A project represents a software package, typically in source form. For example, a BDIO project should be used
+         * to describe each Maven POM file or each Protex project. Projects convey different metadata from "components"
+         * (the later of which is just a BOM entry for a project); for example, a project may declare multiple license
+         * terms to choose from whereas a component must specify exactly which terms were selected; a project may have
+         * many versions, but a component references exactly one. It is always true that a project and component can
+         * coexist for the same entity: for example there can be only one "log4j" project while there can be many
+         * components describing the usage of "log4j" for other projects.
          */
         Project("http://blackducksoftware.com/bdio#Project"),
 
@@ -125,7 +135,7 @@ public class Bdio {
         /**
          * Points to a project's base directory.
          */
-        // AllowedOn: Project
+        // AllowedOn: Container, FileCollection, Project, Repository
         base("http://blackducksoftware.com/bdio#hasBase", Container.unordered),
 
         /**

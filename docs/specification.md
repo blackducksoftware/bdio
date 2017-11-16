@@ -17,6 +17,10 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 :
 :A component is also a useful stand-in for a project when it is known the other project exists, but only limited details are available in the current context. For example, it may be useful to create a component for every GAV encountered during processing, those components may be used for linking vulnerabilities even if the full project for that GAV does not exist in the current context.
 
+`Container`
+: `http://blackducksoftware.com/bdio#Container
+: A container represents a stand-alone software package, including any system software needed for execution.
+
 `Dependency`
 : `http://blackducksoftware.com/bdio#Dependency`
 : A dependency can be added to a project or a component to indicate that it depends on another component.
@@ -24,6 +28,10 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `File`
 : `http://blackducksoftware.com/bdio#File`
 : A file is used to represent the metadata pertaining to an entry in a (possibly virtual) file system. Files can used to represent any type of file system entry, including regular files, symlinks and directories. The inclusion of directories is optional, i.e. you do not need to include a full directory structure, if no metadata is captured for a directory, then it does not need to be included. All sizes should be represented in bytes (not blocks).
+
+`FileCollection`
+: `http://blackducksoftware.com/bdio#FileCollection`
+:  A file collection is used to describe an arbitrary group of files that cannot be better described using another more appropriate construct (like a project).
 
 `License`
 : `http://blackducksoftware.com/bdio#License`
@@ -35,7 +43,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 
 `Project`
 : `http://blackducksoftware.com/bdio#Project`
-: The project is the primary subject matter of any BDIO data, projects should be used to describe anything that was created or managed in the context of the BDIO document. For example, a BDIO project should be used to describe each Maven POM file or each Protex project. Projects convey different metadata from "components" (the later of which is just a BOM entry for a project); for example, a project may declare multiple license terms to choose from whereas a component must specify exactly which terms were selected; a project may have many versions, but a component references exactly one. It is always true that a project and component can coexist for the same entity: for example there can be only one "log4j" project while there can be many components describing the usage of "log4j" for other projects.
+:  A project represents a software package, typically in source form. For example, a BDIO project should be used to describe each Maven POM file or each Protex project. Projects convey different metadata from "components" (the later of which is just a BOM entry for a project); for example, a project may declare multiple license terms to choose from whereas a component must specify exactly which terms were selected; a project may have many versions, but a component references exactly one. It is always true that a project and component can coexist for the same entity: for example there can be only one "log4j" project while there can be many components describing the usage of "log4j" for other projects.
 
 `Repository`
 : `http://blackducksoftware.com/bdio#Repository`
@@ -238,8 +246,8 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 # Semantic Rules
 When processing the BDIO model, there are several defined behaviors that should uniformly apply to ensure interoperability. Often it is impractical for publishers to produce fully normal BDIO model, therefore several relationships are expected to be "implicit", processors MUST handle BDIO data the same regardless of their presence. The published BDIO data in conjunction with any implicit relationships constitutes a connected graph.
 
-## The root project
-The "root project" is the project which cannot be claimed as a sub-project or previous version by any other project. Publishers MUST NOT produce BDIO data with multiple root projects; processors MAY elect an arbitrary project as the root or fail outright when the root project could be ambiguous. 
+## The Root
+The "root" of the BDIO data is a top-level object (one of: "Project", "Container", "Repository" or "FileCollection"). For a project, the root project cannot be claimed as a sub-project or previous version by any other project. Publishers MUST NOT produce BDIO data with multiple roots; processors MAY elect an arbitrary object as the root or fail outright when the root could be ambiguous.
 
 ## Implicit Relationships
 

@@ -20,18 +20,13 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 
-public final class Repository extends BdioObject {
+public final class FileCollection extends BdioObject {
 
-    public Repository(String id) {
-        super(id, Bdio.Class.Repository);
+    public FileCollection(String id) {
+        super(id, Bdio.Class.FileCollection);
     }
 
-    public Repository name(@Nullable String name) {
-        putData(Bdio.DataProperty.name, name);
-        return this;
-    }
-
-    public Repository base(@Nullable File base) {
+    public FileCollection base(@Nullable File base) {
         putObject(Bdio.ObjectProperty.base, base);
         return this;
     }
