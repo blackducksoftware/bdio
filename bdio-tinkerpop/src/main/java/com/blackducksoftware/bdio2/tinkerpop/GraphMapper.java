@@ -16,7 +16,9 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.io.UncheckedIOException;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -103,6 +105,8 @@ public class GraphMapper {
         return topology;
     }
 
+    // TODO Should we have a separate VertexProperties class?
+
     /**
      * Returns a stream representing the values of the vertex property. If the value is null or not present, an empty
      * stream is returned; if the value is not a list or array then a single element stream is returned; otherwise a
@@ -126,7 +130,56 @@ public class GraphMapper {
      * like {@code orElse}, it lacks methods like {@code map}.
      */
     public static <T> Optional<T> optionalValue(VertexProperty<T> vp) {
-        return Optional.of(vp).filter(VertexProperty::isPresent).map(VertexProperty::value);
+        return vp.isPresent() ? Optional.of(vp.value()) : Optional.empty();
+    }
+
+    /**
+     * Returns a vertex property comparator that considers non-present properties to be less than present. The supplied
+     * comparator is used only when both vertex properties are present.
+     */
+    public static <T> Comparator<VertexProperty<T>> presentFirst(Comparator<T> comparator) {
+        return new PresentComparator<>(comparator, true);
+    }
+
+    /**
+     * Returns a vertex property comparator that considers non-present properties to be greater than present. The
+     * supplied comparator is used only when both vertex properties are present.
+     */
+    public static <T> Comparator<VertexProperty<T>> presentLast(Comparator<T> comparator) {
+        return new PresentComparator<>(comparator, false);
+    }
+
+    /**
+     * @see GraphMapper#presentFirst(Comparator)
+     * @see GraphMapper#presentLast(Comparator)
+     */
+    private static final class PresentComparator<T> implements Comparator<VertexProperty<T>>, Serializable {
+        private static final long serialVersionUID = 2383921724074331436L;
+
+        private final Comparator<T> delegate;
+
+        private final boolean presentFirst;
+
+        private PresentComparator(Comparator<T> delegate, boolean presentFirst) {
+            this.delegate = delegate;
+            this.presentFirst = presentFirst;
+        }
+
+        @Override
+        public int compare(VertexProperty<T> left, VertexProperty<T> right) {
+            if (!left.isPresent()) {
+                return !right.isPresent() ? 0 : (presentFirst ? -1 : 1);
+            } else if (!right.isPresent()) {
+                return presentFirst ? 1 : -1;
+            } else {
+                return delegate != null ? delegate.compare(left.value(), right.value()) : 0;
+            }
+        }
+
+        @Override
+        public Comparator<VertexProperty<T>> reversed() {
+            return new PresentComparator<>(delegate != null ? delegate.reversed() : null, !presentFirst);
+        }
     }
 
     public ValueObjectMapper valueObjectMapper() {
