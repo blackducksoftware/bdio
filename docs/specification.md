@@ -269,14 +269,12 @@ Metadata regarding how the content of a file should be (or was) interpreted is s
 
 Processors MAY imply the file system type according the following rules, publishers MUST NOT generate conflicting data and consumers SHOULD reject data containing conflicts:
 
-1. A link path implies a file system type of `symlink`
-1. An encoding implies a file system type of `regular/text`
 1. If another file references the file as a parent...
     * A byte count or content type implies a file system type of `directory/archive`
     * Otherwise the implied file system type is `directory`
-1. If no other file references the file as a parent...
-    * The implied file system type is `regular`
-1. Processors MAY apply implementation specific file path hueristics to determine the file system type
+1. A link path implies a file system type of `symlink`
+1. An encoding implies a file system type of `regular/text`
+1. Processors MAY apply implementation specific file path hueristics to determine the file system type, otherwise the implied file system type is `regular`
 
 # Document Format
 BDIO data can be transferred using one of four different formats depending on the capabilities of the parties involved and volume of data. Any JSON data being transferred MAY be pretty printed, it makes human consumption easier and has minimal impact on data size when compression is being used. BDIO data MUST be expressed as a named graph, the graph's label is used to uniquely identify the source of the data.
