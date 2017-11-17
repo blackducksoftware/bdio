@@ -57,5 +57,5 @@ specific language governing permissions and limitations
 under the License.
 
 [json-ld]: http://json-ld.org
-[bdio]: https://github.com/blackducksoftware/bdio/docs/specification.md
+[bdio]: https://blackducksoftware.github.com/bdio/specification
 [wiki]: https://github.com/blackducksoftware/bdio/wiki
