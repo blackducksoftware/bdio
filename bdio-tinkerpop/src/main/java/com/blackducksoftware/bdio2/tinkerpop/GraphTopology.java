@@ -404,8 +404,7 @@ public class GraphTopology {
                     .create());
         }
 
-        public Builder withConfiguration(Configuration configuration) {
-            Configuration config = configuration.subset("bdio");
+        public Builder withConfiguration(Configuration config) {
             ConfigurationConverter.getMap(config.subset("embeddedClass"))
                     .forEach((k, v) -> addEmbeddedClass(k.toString(), v.toString()));
             ConfigurationConverter.getMap(config.subset("class"))
