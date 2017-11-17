@@ -12,215 +12,215 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 ## Classes
 
 `Component`
-: `http://blackducksoftware.com/bdio#Component`
+: `https://blackducksoftware.github.io/bdio#Component`
 : A component may also be known as a "dependency" or "artifact". Essentially it is a single BOM entry. A component is the link between two projects (only one of which may be present in the current BDIO context). The link may not be fully defined: only partial information about linkage may be known given the evidence at hand. In addition to establishing a link between two projects, a component can contain additional metadata pertaining to the details of the link: for example, the specific licensing terms used or how a project is using another project (e.g. is linked project used for building, only at runtime or for testing).
 :
 :A component is also a useful stand-in for a project when it is known the other project exists, but only limited details are available in the current context. For example, it may be useful to create a component for every GAV encountered during processing, those components may be used for linking vulnerabilities even if the full project for that GAV does not exist in the current context.
 
 `Container`
-: `http://blackducksoftware.com/bdio#Container
+: `https://blackducksoftware.github.io/bdio#Container
 : A container represents a stand-alone software package, including any system software needed for execution.
 
 `Dependency`
-: `http://blackducksoftware.com/bdio#Dependency`
+: `https://blackducksoftware.github.io/bdio#Dependency`
 : A dependency can be added to a project or a component to indicate that it depends on another component.
 
 `File`
-: `http://blackducksoftware.com/bdio#File`
+: `https://blackducksoftware.github.io/bdio#File`
 : A file is used to represent the metadata pertaining to an entry in a (possibly virtual) file system. Files can used to represent any type of file system entry, including regular files, symlinks and directories. The inclusion of directories is optional, i.e. you do not need to include a full directory structure, if no metadata is captured for a directory, then it does not need to be included. All sizes should be represented in bytes (not blocks).
 
 `FileCollection`
-: `http://blackducksoftware.com/bdio#FileCollection`
+: `https://blackducksoftware.github.io/bdio#FileCollection`
 :  A file collection is used to describe an arbitrary group of files that cannot be better described using another more appropriate construct (like a project).
 
 `License`
-: `http://blackducksoftware.com/bdio#License`
+: `https://blackducksoftware.github.io/bdio#License`
 : A license represents the specific terms under which the use of a particular project (or component) is governed. A project may be linked to multiple licenses with complex relationships between them. A component may similarly be linked to multiple licenses, however none of the relationships may be disjunctive: this ensures that the component unambiguously references the selected license terms. Components which do not reference licenses are assumed to accept the default (and unambiguous) licensing terms of the version of the project they reference.
 
 `Note`
-: `http://blackducksoftware.com/bdio#Note`
+: `https://blackducksoftware.github.io/bdio#Note`
 : A note represents the outcome of a specific calculation on part of a file. Notes can be simple (such as inclusion of a content range), or more complex (such as the output of a processing algorithm).
 
 `Project`
-: `http://blackducksoftware.com/bdio#Project`
+: `https://blackducksoftware.github.io/bdio#Project`
 :  A project represents a software package, typically in source form. For example, a BDIO project should be used to describe each Maven POM file or each Protex project. Projects convey different metadata from "components" (the later of which is just a BOM entry for a project); for example, a project may declare multiple license terms to choose from whereas a component must specify exactly which terms were selected; a project may have many versions, but a component references exactly one. It is always true that a project and component can coexist for the same entity: for example there can be only one "log4j" project while there can be many components describing the usage of "log4j" for other projects.
 
 `Repository`
-: `http://blackducksoftware.com/bdio#Repository`
+: `https://blackducksoftware.github.io/bdio#Repository`
 : A repository is a collection of software metadata and possibly binary artifacts. Generally speaking a repository is a collection of projects, however it may be useful to enumerate contents using component objects.
 
 `Vulnerability`
-: `http://blackducksoftware.com/bdio#Vulnerability`
+: `https://blackducksoftware.github.io/bdio#Vulnerability`
 : A vulnerability represents a specific weakness in a project. It is often convenient to reference vulnerabilities from specific project versions or the components linked to those versions. Vulnerabilities may be found through simple look ups based on well know project metadata (e.g. "this version of this project is known to have this vulnerability"); however they may also be discovered through means such as static analysis of source or object code.
 
 ## Object Properties
 
 `base`
-: `http://blackducksoftware.com/bdio#hasBase`
+: `https://blackducksoftware.github.io/bdio#hasBase`
 : Points to a project's base directory.
 
 `declaredBy`
-: `http://blackducksoftware.com/bdio#declaredBy`
+: `https://blackducksoftware.github.io/bdio#declaredBy`
 : Indicates a component was declared by a specific file.
 
 `dependency`
-: `http://blackducksoftware.com/bdio#hasDependency`
+: `https://blackducksoftware.github.io/bdio#hasDependency`
 : The list of dependencies.
 
 `dependsOn`
-: `http://blackducksoftware.com/bdio#dependsOn`
+: `https://blackducksoftware.github.io/bdio#dependsOn`
 : Indicates the dependent component.
 
 `note`
-: `http://blackducksoftware.com/bdio#hasNote`
+: `https://blackducksoftware.github.io/bdio#hasNote`
 :  Lists the notes applicable to a file.
 
 `parent`
-: `http://blackducksoftware.com/bdio#hasParent`
+: `https://blackducksoftware.github.io/bdio#hasParent`
 : Points to a file's parent. Typically this relationship is implicit; producers do not need to supply it.
 
 `previousVersion`
-: `http://blackducksoftware.com/bdio#hasPreviousVersion`
+: `https://blackducksoftware.github.io/bdio#hasPreviousVersion`
 : Links a project version to it's previous version.
 
 `subproject`
-: `http://blackducksoftware.com/bdio#hasSubproject`
+: `https://blackducksoftware.github.io/bdio#hasSubproject`
 : Establishes that a project has a subproject or module relationship to another project.
 
 ## Data Properties
 
 `buildDetails`
-: `http://blackducksoftware.com/bdio#hasBuildDetails`
+: `https://blackducksoftware.github.io/bdio#hasBuildDetails`
 : The URL used to obtain additional details about the build environment.
 
 `buildNumber`
-: `http://blackducksoftware.com/bdio#hasBuildNumber`
+: `https://blackducksoftware.github.io/bdio#hasBuildNumber`
 : The build number captured from the build environment.
 
 `byteCount`
-: `http://blackducksoftware.com/bdio#hasByteCount`
+: `https://blackducksoftware.github.io/bdio#hasByteCount`
 : The size (in bytes) of a file.
 
 `contentType`
-: `http://blackducksoftware.com/bdio#hasContentType`
+: `https://blackducksoftware.github.io/bdio#hasContentType`
 : The content type of a file.
 
 `context`
-: `http://blackducksoftware.com/bdio#hasContext`
+: `https://blackducksoftware.github.io/bdio#hasContext`
 : The namespace specific base context used to resolve a locator. Typically this is just a URL, however any specification understood by the namespace specific resolver is acceptable.
 
 `copyrightYear`
-: `http://blackducksoftware.com/bdio#hasCopyrightYear`
+: `https://blackducksoftware.github.io/bdio#hasCopyrightYear`
 : The year or range of years of the applicable copyright for a specific file.
 
 `creationDateTime`
-: `http://blackducksoftware.com/bdio#hasCreationDateTime`
+: `https://blackducksoftware.github.io/bdio#hasCreationDateTime`
 : The time at which the BDIO document was created. This property should be specified for the named graph.
 
 `creator`
-: `http://blackducksoftware.com/bdio#hasCreator`
+: `https://blackducksoftware.github.io/bdio#hasCreator`
 : The user who created the BDIO document. This property should be specified for the named graph.
 
 `encoding`
-: `http://blackducksoftware.com/bdio#hasEncoding`
+: `https://blackducksoftware.github.io/bdio#hasEncoding`
 : The character encoding of a file. It is required that producers store the encoding independent of the content type's parameters.
 
 `fileSystemType`
-: `http://blackducksoftware.com/bdio#hasFileSystemType`
+: `https://blackducksoftware.github.io/bdio#hasFileSystemType`
 : The file system type of file. Represented as a content-type-like string indicating the type file.
 
 `fingerprint`
-: `http://blackducksoftware.com/bdio#hasFingerprint`
+: `https://blackducksoftware.github.io/bdio#hasFingerprint`
 : The fingerprints of a file.
 
 `homepage`
-: `http://blackducksoftware.com/bdio#hasHomepage`
+: `https://blackducksoftware.github.io/bdio#hasHomepage`
 : The homepage associated with the entity.
 
 `identifier`
-: `http://blackducksoftware.com/bdio#hasIdentifier`
+: `https://blackducksoftware.github.io/bdio#hasIdentifier`
 : The namespace specific locator for a component. Also known as an "external identifier".
 
 `license`
-: `http://blackducksoftware.com/bdio#hasLicense`
+: `https://blackducksoftware.github.io/bdio#hasLicense`
 : The license expression describing either the allowed (in the case of a project) or effective license(s) (in the case of a component).
 :
 : Note that there is not a specific object property creating a relationship between projects/components and licenses: this expression may reference an otherwise disconnected license within the BDIO document if necessary.
 
 `linkPath`
-: `http://blackducksoftware.com/bdio#hasLinkPath`
+: `https://blackducksoftware.github.io/bdio#hasLinkPath`
 : The symbolic link target of a file.
 
 `name`
-: `http://blackducksoftware.com/bdio#hasName`
+: `https://blackducksoftware.github.io/bdio#hasName`
 : The display name of the entity.
 
 `namespace`
-: `http://blackducksoftware.com/bdio#hasNamespace`
+: `https://blackducksoftware.github.io/bdio#hasNamespace`
 : The namespace a component exists in. Also known as a "forge" or "system type", this defines how many different fields should be interpreted (e.g. identifiers, versions and scopes are defined within a particular namespace).
 :
 : Note that namespace values are not part of the BDIO specification. There are BDIO recommendations, however it is ultimately up to the producer and consumer of the BDIO data to handshake on the appropriate rules.
 
 `path`
-: `http://blackducksoftware.com/bdio#hasPath`
+: `https://blackducksoftware.github.io/bdio#hasPath`
 : The hierarchical path of a file relative to the base directory.
 
 `producer`
-: `http://blackducksoftware.com/bdio#hasProducer`
+: `https://blackducksoftware.github.io/bdio#hasProducer`
 : The tool which produced the BDIO document. This property should be specified for the named graph.
 
 `range`
-: `http://blackducksoftware.com/bdio#hasRange`
+: `https://blackducksoftware.github.io/bdio#hasRange`
 : The ranges of file content a note applies to. Multiple ranges can be specified, however the units must be distinct (e.g. "bytes" and "chars").
 
 `requestedVersion`
-: `http://blackducksoftware.com/bdio#hasRequestedVersion`
+: `https://blackducksoftware.github.io/bdio#hasRequestedVersion`
 : The namespace specific version range that resulted in a component being included.
 
 `resolver`
-: `http://blackducksoftware.com/bdio#hasResolver`
+: `https://blackducksoftware.github.io/bdio#hasResolver`
 : The tool which resolved the namespace specific locator.
 
 `rightsHolder`
-: `http://blackducksoftware.com/bdio#hasRightsHolder`
+: `https://blackducksoftware.github.io/bdio#hasRightsHolder`
 : The entity or entities claiming rights over a specific file.
 
 `scope`
-: `http://blackducksoftware.com/bdio#hasScope`
+: `https://blackducksoftware.github.io/bdio#hasScope`
 : The namespace specific scope of a dependency as determined by the resolution tool used to define the dependency. For example, if a dependency came from an npm package's "devDependencies" field, then the scope should be "devDependencies".
 
 `sourceBranch`
-: `http://blackducksoftware.com/bdio#hasSourceBranch`
+: `https://blackducksoftware.github.io/bdio#hasSourceBranch`
 : The SCM branch name from the build environment.
 
 `sourceRepository`
-: `http://blackducksoftware.com/bdio#hasSourceRepository`
+: `https://blackducksoftware.github.io/bdio#hasSourceRepository`
 : The URI representing the SCM location from the build environment.
 
 `sourceRevision`
-: `http://blackducksoftware.com/bdio#hasSourceRevision`
+: `https://blackducksoftware.github.io/bdio#hasSourceRevision`
 : The SCM revision identifier from the build environment.
 
 `sourceTag`
-: `http://blackducksoftware.com/bdio#hasSourceTag`
+: `https://blackducksoftware.github.io/bdio#hasSourceTag`
 : The SCM tag name from the build environment.
 
 `vendor`
-: `http://blackducksoftware.com/bdio#hasVendor`
+: `https://blackducksoftware.github.io/bdio#hasVendor`
 : The name of the vendor who provides a project or component.
 
 `version`
-: `http://blackducksoftware.com/bdio#hasVersion`
+: `https://blackducksoftware.github.io/bdio#hasVersion`
 : The display version of the entity. Must reference a single version.
 
 ## Datatypes
 
 `ContentRange`
-: `http://blackducksoftware.com/bdio#ContentRange`
+: `https://blackducksoftware.github.io/bdio#ContentRange`
 : An HTTP Content Range string.
 
 `ContentType`
-: `http://blackducksoftware.com/bdio#ContentType`
+: `https://blackducksoftware.github.io/bdio#ContentType`
 : An Http Content Type string.
 
 `DateTime`
@@ -232,7 +232,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : Unrestricted string value.
 
 `Digest`
-: `http://blackducksoftware.com/bdio#Digest`
+: `https://blackducksoftware.github.io/bdio#Digest`
 : A string that encapsulates an algorithm name and an unrestricted digest value.
 
 `Long`
@@ -240,7 +240,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : Natural number.
 
 `Products`
-: `http://blackducksoftware.com/bdio#Products`
+: `https://blackducksoftware.github.io/bdio#Products`
 : An HTTP User Agent string.
 
 # Semantic Rules

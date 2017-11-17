@@ -44,7 +44,7 @@ public class BdioDataModelTest {
     /**
      * This string is hard coded here independent of the {@link Bdio} class for testing purposes.
      */
-    private static final String VOCAB = "http://blackducksoftware.com/bdio#";
+    private static final String VOCAB = "https://blackducksoftware.github.io/bdio#";
 
     /**
      * These enumerations are not expected to start with {@value #VOCAB}.

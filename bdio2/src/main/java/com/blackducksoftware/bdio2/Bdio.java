@@ -42,17 +42,17 @@ public class Bdio {
          * every GAV encountered during processing, those components may be used for linking vulnerabilities even if the
          * full project for that GAV does not exist in the current context.
          */
-        Component("http://blackducksoftware.com/bdio#Component"),
+        Component("https://blackducksoftware.github.io/bdio#Component"),
 
         /**
          * A container represents a stand-alone software package, including any system software needed for execution.
          */
-        Container("http://blackducksoftware.com/bdio#Container"),
+        Container("https://blackducksoftware.github.io/bdio#Container"),
 
         /**
          * A dependency can be added to a project or a component to indicate that it depends on another component.
          */
-        Dependency("http://blackducksoftware.com/bdio#Dependency"),
+        Dependency("https://blackducksoftware.github.io/bdio#Dependency"),
 
         /**
          * A file is used to represent the metadata pertaining to an entry in a (possibly virtual) file system. Files
@@ -61,13 +61,13 @@ public class Bdio {
          * metadata is captured for a directory, then it does not need to be included. All sizes should be represented
          * in bytes (not blocks).
          */
-        File("http://blackducksoftware.com/bdio#File"),
+        File("https://blackducksoftware.github.io/bdio#File"),
 
         /**
          * A file collection is used to describe an arbitrary group of files that cannot be better described using
          * another more appropriate construct (like a project).
          */
-        FileCollection("http://blackducksoftware.com/bdio#FileCollection"),
+        FileCollection("https://blackducksoftware.github.io/bdio#FileCollection"),
 
         /**
          * A license represents the specific terms under which the use of a particular project (or component) is
@@ -77,13 +77,13 @@ public class Bdio {
          * reference licenses are assumed to accept the default (and unambiguous) licensing terms of the version of the
          * project they reference.
          */
-        License("http://blackducksoftware.com/bdio#License"),
+        License("https://blackducksoftware.github.io/bdio#License"),
 
         /**
          * A note represents the outcome of a specific calculation on part of a file. Notes can be simple (such as
          * inclusion of a content range), or more complex (such as the output of a processing algorithm).
          */
-        Note("http://blackducksoftware.com/bdio#Note"),
+        Note("https://blackducksoftware.github.io/bdio#Note"),
 
         /**
          * A project represents a software package, typically in source form. For example, a BDIO project should be used
@@ -94,14 +94,14 @@ public class Bdio {
          * coexist for the same entity: for example there can be only one "log4j" project while there can be many
          * components describing the usage of "log4j" for other projects.
          */
-        Project("http://blackducksoftware.com/bdio#Project"),
+        Project("https://blackducksoftware.github.io/bdio#Project"),
 
         /**
          * A repository is a collection of software metadata and possibly binary artifacts. Generally speaking a
          * repository is a collection of projects, however it may be useful to enumerate contents using component
          * objects.
          */
-        Repository("http://blackducksoftware.com/bdio#Repository"),
+        Repository("https://blackducksoftware.github.io/bdio#Repository"),
 
         /**
          * A vulnerability represents a specific weakness in a project. It is often convenient to reference
@@ -110,7 +110,7 @@ public class Bdio {
          * "this version of this project is known to have this vulnerability"); however they may also be discovered
          * through means such as static analysis of source or object code.
          */
-        Vulnerability("http://blackducksoftware.com/bdio#Vulnerability"),
+        Vulnerability("https://blackducksoftware.github.io/bdio#Vulnerability"),
 
         ;
 
@@ -136,49 +136,49 @@ public class Bdio {
          * Points to a project's base directory.
          */
         // AllowedOn: Container, FileCollection, Project, Repository
-        base("http://blackducksoftware.com/bdio#hasBase", Container.unordered),
+        base("https://blackducksoftware.github.io/bdio#hasBase", Container.unordered),
 
         /**
          * Indicates a component was declared by a specific file.
          */
         // AllowedOn: Dependency
-        declaredBy("http://blackducksoftware.com/bdio#declaredBy", Container.unordered),
+        declaredBy("https://blackducksoftware.github.io/bdio#declaredBy", Container.unordered),
 
         /**
          * The list of dependencies.
          */
         // AllowedOn: Project, Component
-        dependency("http://blackducksoftware.com/bdio#hasDependency", Container.unordered),
+        dependency("https://blackducksoftware.github.io/bdio#hasDependency", Container.unordered),
 
         /**
          * Indicates the dependent component.
          */
         // AllowedOn: Dependency
-        dependsOn("http://blackducksoftware.com/bdio#dependsOn", Container.unordered),
+        dependsOn("https://blackducksoftware.github.io/bdio#dependsOn", Container.unordered),
 
         /**
          * Lists the notes applicable to a file.
          */
         // AllowedOn: File
-        note("http://blackducksoftware.com/bdio#hasNote", Container.ordered),
+        note("https://blackducksoftware.github.io/bdio#hasNote", Container.ordered),
 
         /**
          * Points to a file's parent. Typically this relationship is implicit; producers do not need to supply it.
          */
         // AllowedOn: File
-        parent("http://blackducksoftware.com/bdio#hasParent", Container.single),
+        parent("https://blackducksoftware.github.io/bdio#hasParent", Container.single),
 
         /**
          * Links a project version to it's previous version.
          */
         // AllowedOn: Project
-        previousVersion("http://blackducksoftware.com/bdio#hasPreviousVersion", Container.single),
+        previousVersion("https://blackducksoftware.github.io/bdio#hasPreviousVersion", Container.single),
 
         /**
          * Establishes that a project has a subproject or module relationship to another project.
          */
         // AllowedOn: Project
-        subproject("http://blackducksoftware.com/bdio#hasSubproject", Container.unordered),
+        subproject("https://blackducksoftware.github.io/bdio#hasSubproject", Container.unordered),
 
         ;
 
@@ -208,26 +208,26 @@ public class Bdio {
          */
         // AllowedOn: @Graph
         // TODO Change type to "URL"?
-        buildDetails("http://blackducksoftware.com/bdio#hasBuildDetails", Container.single, Datatype.Default),
+        buildDetails("https://blackducksoftware.github.io/bdio#hasBuildDetails", Container.single, Datatype.Default),
 
         /**
          * The build number captured from the build environment.
          */
         // AllowedOn: @Graph
-        buildNumber("http://blackducksoftware.com/bdio#hasBuildNumber", Container.single, Datatype.Default),
+        buildNumber("https://blackducksoftware.github.io/bdio#hasBuildNumber", Container.single, Datatype.Default),
 
         /**
          * The size (in bytes) of a file.
          */
         // AllowedOn: File
         // The name "byte count" does not conflict with "size" or "length" and is less ambiguous
-        byteCount("http://blackducksoftware.com/bdio#hasByteCount", Container.single, Datatype.Long),
+        byteCount("https://blackducksoftware.github.io/bdio#hasByteCount", Container.single, Datatype.Long),
 
         /**
          * The content type of a file.
          */
         // AllowedOn: File
-        contentType("http://blackducksoftware.com/bdio#hasContentType", Container.single, Datatype.ContentType),
+        contentType("https://blackducksoftware.github.io/bdio#hasContentType", Container.single, Datatype.ContentType),
 
         /**
          * The namespace specific base context used to resolve a locator. Typically this is just a URL, however any
@@ -235,34 +235,34 @@ public class Bdio {
          */
         // AllowedOn: Project, Component, License, Vulnerability
         // TODO Is this a good name? Back to repository?
-        context("http://blackducksoftware.com/bdio#hasContext", Container.single, Datatype.Default),
+        context("https://blackducksoftware.github.io/bdio#hasContext", Container.single, Datatype.Default),
 
         /**
          * The year or range of years of the applicable copyright for a specific file.
          */
         // TODO Allow this on Project as well?
         // AllowedOn: Note
-        copyrightYear("http://blackducksoftware.com/bdio#hasCopyrightYear", Container.single, Datatype.Default),
+        copyrightYear("https://blackducksoftware.github.io/bdio#hasCopyrightYear", Container.single, Datatype.Default),
 
         /**
          * The time at which the BDIO document was created. This property should be specified for the named graph.
          */
         // AllowedOn: @Graph
-        creationDateTime("http://blackducksoftware.com/bdio#hasCreationDateTime", Container.single, Datatype.DateTime),
+        creationDateTime("https://blackducksoftware.github.io/bdio#hasCreationDateTime", Container.single, Datatype.DateTime),
 
         /**
          * The user who created the BDIO document. This property should be specified for the named graph.
          */
         // AllowedOn: @Graph
         // TODO Should this be an ObjectProperty to some kind of DOAP class?
-        creator("http://blackducksoftware.com/bdio#hasCreator", Container.single, Datatype.Default),
+        creator("https://blackducksoftware.github.io/bdio#hasCreator", Container.single, Datatype.Default),
 
         /**
          * The character encoding of a file. It is required that producers store the encoding independent of the content
          * type's parameters.
          */
         // AllowedOn: File
-        encoding("http://blackducksoftware.com/bdio#hasEncoding", Container.single, Datatype.Default),
+        encoding("https://blackducksoftware.github.io/bdio#hasEncoding", Container.single, Datatype.Default),
 
         /**
          * The file system type of file. Represented as a content-type-like string indicating the type file.
@@ -270,13 +270,13 @@ public class Bdio {
          * @see Bdio.FileSystemType
          */
         // AllowedOn: File
-        fileSystemType("http://blackducksoftware.com/bdio#hasFileSystemType", Container.single, Datatype.Default),
+        fileSystemType("https://blackducksoftware.github.io/bdio#hasFileSystemType", Container.single, Datatype.Default),
 
         /**
          * The fingerprints of a file.
          */
         // AllowedOn: File
-        fingerprint("http://blackducksoftware.com/bdio#hasFingerprint", Container.unordered, Datatype.Digest),
+        fingerprint("https://blackducksoftware.github.io/bdio#hasFingerprint", Container.unordered, Datatype.Digest),
 
         /**
          * The homepage associated with the entity.
@@ -284,13 +284,13 @@ public class Bdio {
         // AllowedOn: Project, Component, License, Vulnerability
         // TODO Change type to "URL"?
         // TODO Other URLs: issues, source, wiki, etc.?
-        homepage("http://blackducksoftware.com/bdio#hasHomepage", Container.unordered, Datatype.Default),
+        homepage("https://blackducksoftware.github.io/bdio#hasHomepage", Container.unordered, Datatype.Default),
 
         /**
          * The namespace specific locator for a component. Also known as an "external identifier".
          */
         // AllowedOn: Project, Component, License, Vulnerability
-        identifier("http://blackducksoftware.com/bdio#hasIdentifier", Container.single, Datatype.Default),
+        identifier("https://blackducksoftware.github.io/bdio#hasIdentifier", Container.single, Datatype.Default),
 
         /**
          * The license expression describing either the allowed (in the case of a project) or effective license(s) (in
@@ -302,20 +302,20 @@ public class Bdio {
          */
         // AllowedOn: Project, Component
         // TODO Is there an SPDX type for the license expression?
-        license("http://blackducksoftware.com/bdio#hasLicense", Container.single, Datatype.Default),
+        license("https://blackducksoftware.github.io/bdio#hasLicense", Container.single, Datatype.Default),
 
         /**
          * The symbolic link target of a file.
          */
         // AllowedOn: File
-        linkPath("http://blackducksoftware.com/bdio#hasLinkPath", Container.single, Datatype.Default),
+        linkPath("https://blackducksoftware.github.io/bdio#hasLinkPath", Container.single, Datatype.Default),
 
         /**
          * The display name of the entity.
          */
         // TODO Use JSON-LD Container.language to support multi-language names?
         // AllowedOn: @Graph, Project, Component, License, Vulnerability, Repository
-        name("http://blackducksoftware.com/bdio#hasName", Container.single, Datatype.Default),
+        name("https://blackducksoftware.github.io/bdio#hasName", Container.single, Datatype.Default),
 
         /**
          * The namespace a component exists in. Also known as a "forge" or "system type", this defines how many
@@ -327,45 +327,45 @@ public class Bdio {
          * rules.
          */
         // AllowedOn: Project, Component, License, Vulnerability
-        namespace("http://blackducksoftware.com/bdio#hasNamespace", Container.single, Datatype.Default),
+        namespace("https://blackducksoftware.github.io/bdio#hasNamespace", Container.single, Datatype.Default),
 
         /**
          * The hierarchical path of a file relative to the base directory.
          */
         // AllowedOn: File
-        path("http://blackducksoftware.com/bdio#hasPath", Container.single, Datatype.Default),
+        path("https://blackducksoftware.github.io/bdio#hasPath", Container.single, Datatype.Default),
 
         /**
          * The tool which produced the BDIO document. This property should be specified for the named graph.
          */
         // AllowedOn: @Graph
-        producer("http://blackducksoftware.com/bdio#hasProducer", Container.single, Datatype.Products),
+        producer("https://blackducksoftware.github.io/bdio#hasProducer", Container.single, Datatype.Products),
 
         /**
          * The ranges of file content a note applies to. Multiple ranges can be specified, however the units must be
          * distinct (e.g. "bytes" and "chars").
          */
         // AllowedOn: Note
-        range("http://blackducksoftware.com/bdio#hasRange", Container.unordered, Datatype.ContentRange),
+        range("https://blackducksoftware.github.io/bdio#hasRange", Container.unordered, Datatype.ContentRange),
 
         /**
          * The namespace specific version range that resulted in a component being included.
          */
         // AllowedOn: Component
-        requestedVersion("http://blackducksoftware.com/bdio#hasRequestedVersion", Container.single, Datatype.Default),
+        requestedVersion("https://blackducksoftware.github.io/bdio#hasRequestedVersion", Container.single, Datatype.Default),
 
         /**
          * The tool which resolved the namespace specific locator.
          */
         // AllowedOn: Project, Component, License, Vulnerability
-        resolver("http://blackducksoftware.com/bdio#hasResolver", Container.single, Datatype.Products),
+        resolver("https://blackducksoftware.github.io/bdio#hasResolver", Container.single, Datatype.Products),
 
         /**
          * The entity or entities claiming rights over a specific file.
          */
         // TODO Allow this on Project as well?
         // AllowedOn: Note
-        rightsHolder("http://blackducksoftware.com/bdio#hasRightsHolder", Container.ordered, Datatype.Default),
+        rightsHolder("https://blackducksoftware.github.io/bdio#hasRightsHolder", Container.ordered, Datatype.Default),
 
         /**
          * The namespace specific scope of a dependency as determined by the resolution tool used to define the
@@ -373,43 +373,43 @@ public class Bdio {
          * scope should be "devDependencies".
          */
         // AllowedOn: Dependency
-        scope("http://blackducksoftware.com/bdio#hasScope", Container.single, Datatype.Default),
+        scope("https://blackducksoftware.github.io/bdio#hasScope", Container.single, Datatype.Default),
 
         /**
          * The SCM branch name from the build environment.
          */
         // AllowedOn: @Graph
-        sourceBranch("http://blackducksoftware.com/bdio#hasSourceBranch", Container.single, Datatype.Default),
+        sourceBranch("https://blackducksoftware.github.io/bdio#hasSourceBranch", Container.single, Datatype.Default),
 
         /**
          * The URI representing the SCM location from the build environment.
          */
         // AllowedOn: @Graph
-        sourceRepository("http://blackducksoftware.com/bdio#hasSourceRepository", Container.single, Datatype.Default),
+        sourceRepository("https://blackducksoftware.github.io/bdio#hasSourceRepository", Container.single, Datatype.Default),
 
         /**
          * The SCM revision identifier from the build environment.
          */
         // AllowedOn: @Graph
-        sourceRevision("http://blackducksoftware.com/bdio#hasSourceRevision", Container.single, Datatype.Default),
+        sourceRevision("https://blackducksoftware.github.io/bdio#hasSourceRevision", Container.single, Datatype.Default),
 
         /**
          * The SCM tag name from the build environment.
          */
         // AllowedOn: @Graph
-        sourceTag("http://blackducksoftware.com/bdio#hasSourceTag", Container.single, Datatype.Default),
+        sourceTag("https://blackducksoftware.github.io/bdio#hasSourceTag", Container.single, Datatype.Default),
 
         /**
          * The name of the vendor who provides a project or component.
          */
         // AllowedOn: Project, Component
-        vendor("http://blackducksoftware.com/bdio#hasVendor", Container.single, Datatype.Default),
+        vendor("https://blackducksoftware.github.io/bdio#hasVendor", Container.single, Datatype.Default),
 
         /**
          * The display version of the entity. Must reference a single version.
          */
         // AllowedOn: Project, Component
-        version("http://blackducksoftware.com/bdio#hasVersion", Container.single, Datatype.Default),
+        version("https://blackducksoftware.github.io/bdio#hasVersion", Container.single, Datatype.Default),
 
         // TODO Container information: repo, tag, id, etc.
 
@@ -447,12 +447,12 @@ public class Bdio {
         /**
          * An HTTP Content Range string.
          */
-        ContentRange("http://blackducksoftware.com/bdio#ContentRange"),
+        ContentRange("https://blackducksoftware.github.io/bdio#ContentRange"),
 
         /**
          * An Http Content Type string.
          */
-        ContentType("http://blackducksoftware.com/bdio#ContentType"),
+        ContentType("https://blackducksoftware.github.io/bdio#ContentType"),
 
         /**
          * ISO date/time string.
@@ -467,7 +467,7 @@ public class Bdio {
         /**
          * A string that encapsulates an algorithm name and an unrestricted digest value.
          */
-        Digest("http://blackducksoftware.com/bdio#Digest"),
+        Digest("https://blackducksoftware.github.io/bdio#Digest"),
 
         /**
          * Natural number.
