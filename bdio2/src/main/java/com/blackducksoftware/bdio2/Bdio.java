@@ -477,7 +477,7 @@ public class Bdio {
         /**
          * An HTTP User Agent string.
          */
-        Products("http://blackducksoftware.com/bdio#Products"),
+        Products("https://blackducksoftware.github.io/bdio#Products"),
 
         // TODO SPDX license expression? Do they have one already?
         // TODO URL? "@id"?

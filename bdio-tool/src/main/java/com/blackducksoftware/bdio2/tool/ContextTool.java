@@ -41,6 +41,7 @@ public class ContextTool extends Tool {
     @Override
     public void execute() throws JsonLdError {
         printJson(generateContext());
+        printOutput("%n");
     }
 
     /**
