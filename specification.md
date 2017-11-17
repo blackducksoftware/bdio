@@ -1,3 +1,5 @@
+# DRAFT 2.0 SPECIFICATION
+
 # Abstract
 Black Duck I/O defines a vocabulary and mechanism by which information about software can be transferred between solutions inside and outside of the Black Duck ecosystem.
 
@@ -18,7 +20,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 :A component is also a useful stand-in for a project when it is known the other project exists, but only limited details are available in the current context. For example, it may be useful to create a component for every GAV encountered during processing, those components may be used for linking vulnerabilities even if the full project for that GAV does not exist in the current context.
 
 `Container`
-: `https://blackducksoftware.github.io/bdio#Container
+: `https://blackducksoftware.github.io/bdio#Container`
 : A container represents a stand-alone software package, including any system software needed for execution.
 
 `Dependency`
@@ -228,7 +230,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : ISO date/time string.
 
 `Default`
-:
+: `""`
 : Unrestricted string value.
 
 `Digest`
@@ -318,15 +320,15 @@ To simplify BDIO Document processing, several restrictions are placed on the Zip
 
 BDIO Documents should be given the file extension .bdio and should be transferred as binary data using the content type `application/vnd.blackducksoftware.bdio+zip`.
 
-# Appendix A: Namespace Recommendations [appendix-a]
+# Appendix A: Namespace Recommendations
 It is impractical for this specification to absolutely define all of the available namespaces and their rules, they constantly change as new tools are introduced and as people remember how to use old tools. The following non-normative recommendations for publishers and processors serve only as a guideline to what could be implemented. These recommendations are subject to change and ultimately it is the responsibility of the publishers and processors to agree on the namespace values and the interpretation of the field values.
 This section is under development in the Proposed Namespace Values area.
 
-# Appendix B: Identifier Guidelines [appendix-b]
+# Appendix B: Identifier Guidelines
 Selection of proper identifiers is imperative to the proper construction of a BDIO data set.
 TODO Suggest identifiers to use in specific situations, include use of "mvn:" and "urn:uuid:" URIs
 
-# Appendix C: File Data [appendix-c]
+# Appendix C: File Data
 
 ## Common File Path Archive Schemes
 
@@ -366,7 +368,7 @@ NOTE: File extensions and/or compression formats are not accounted for using the
 
 NOTE: File system types are compared case-insensitively.
 
-# Appendix D: BDIO Content Types [appendix-d]
+# Appendix D: BDIO Content Types
 
 | Content Type                                  | Extension | Description |
 |-----------------------------------------------|-----------|-------------|
