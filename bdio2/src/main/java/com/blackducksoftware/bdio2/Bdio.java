@@ -541,6 +541,11 @@ public class Bdio {
         OTHER_DEVICE_CHARACTER("other/device/character"),
 
         /**
+         * A door used for interprocess communication.
+         */
+        OTHER_DOOR("other/door"),
+
+        /**
          * A named pipe.
          */
         OTHER_PIPE("other/pipe"),

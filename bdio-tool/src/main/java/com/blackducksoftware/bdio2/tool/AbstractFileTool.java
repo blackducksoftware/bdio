@@ -25,6 +25,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.tinkerpop.GraphMapper;
 import com.blackducksoftware.common.value.HID;
 
 /**
@@ -74,6 +75,19 @@ public abstract class AbstractFileTool extends AbstractGraphTool {
 
         public long size() {
             return vertex.<Number> property(Bdio.DataProperty.byteCount.name()).orElse(0).longValue();
+        }
+
+        public Bdio.FileSystemType type() {
+            return GraphMapper.optionalValue(vertex.property(Bdio.DataProperty.fileSystemType.name()))
+                    .map(type -> {
+                        for (Bdio.FileSystemType t : Bdio.FileSystemType.values()) {
+                            if (t.toString().equals(type)) {
+                                return t;
+                            }
+                        }
+                        return Bdio.FileSystemType.REGULAR;
+                    })
+                    .orElse(Bdio.FileSystemType.REGULAR);
         }
 
         public Iterator<FileNode> children(GraphTraversalSource g) {

@@ -28,6 +28,7 @@ import java.util.Set;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
+import com.blackducksoftware.bdio2.Bdio;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 
@@ -56,6 +57,11 @@ public class TreeTool extends AbstractFileTool {
      * Print the full path prefix for each file.
      */
     private boolean fullPath;
+
+    /**
+     * Classify path names with a suffix indicating their file type.
+     */
+    private boolean classifiy;
 
     /**
      * List directories only.
@@ -93,6 +99,10 @@ public class TreeTool extends AbstractFileTool {
         this.fullPath = fullPath;
     }
 
+    public void setClassify(boolean classifiy) {
+        this.classifiy = classifiy;
+    }
+
     public void setDirectoriesOnly(boolean directoriesOnly) {
         this.directoriesOnly = directoriesOnly;
     }
@@ -125,6 +135,9 @@ public class TreeTool extends AbstractFileTool {
                 args = removeFirst(arg, args);
             } else if (arg.equals("-f")) {
                 setFullPath(true);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("-F")) {
+                setClassify(true);
                 args = removeFirst(arg, args);
             } else if (arg.equals("-d")) {
                 setDirectoriesOnly(true);
@@ -222,10 +235,11 @@ public class TreeTool extends AbstractFileTool {
         } else {
             rowFormat.append("%s");
         }
-        if (fullPath) {
-            arguments.add(fileNode.path());
+        String pathname = fullPath ? fileNode.path() : fileNode.name();
+        if (classifiy) {
+            arguments.add(classify(pathname, fileNode.type()));
         } else {
-            arguments.add(fileNode.name());
+            arguments.add(pathname);
         }
 
         printOutput(rowFormat.append("%n").toString(), arguments.toArray());
@@ -241,6 +255,29 @@ public class TreeTool extends AbstractFileTool {
                 printOutput(", %d files", fileCount);
             }
             printOutput("%n");
+        }
+    }
+
+    /**
+     * Returns the classified pathname given a file system type.
+     */
+    private static String classify(String pathname, Bdio.FileSystemType fileSystemType) {
+        // TODO How do we do "*" for executable?
+        switch (fileSystemType) {
+        case DIRECTORY:
+            return pathname.equals("/") ? pathname : pathname + '/';
+        case SYMLINK:
+            return pathname + '@';
+        case OTHER_SOCKET:
+            return pathname + '=';
+        case OTHER_WHITEOUT:
+            return pathname + '%';
+        case OTHER_PIPE:
+            return pathname + '|';
+        case OTHER_DOOR:
+            return pathname + '>';
+        default:
+            return pathname;
         }
     }
 
