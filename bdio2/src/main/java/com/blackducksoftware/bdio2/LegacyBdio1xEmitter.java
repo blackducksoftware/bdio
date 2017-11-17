@@ -46,6 +46,7 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bdio2.model.Component;
 import com.blackducksoftware.bdio2.model.Dependency;
 import com.blackducksoftware.bdio2.model.File;
+import com.blackducksoftware.bdio2.model.FileCollection;
 import com.blackducksoftware.bdio2.model.License;
 import com.blackducksoftware.bdio2.model.Project;
 import com.blackducksoftware.common.base.ExtraOptionals;
@@ -90,26 +91,29 @@ class LegacyBdio1xEmitter implements Emitter {
 
         private final AtomicReference<String> projectId = new AtomicReference<>(null);
 
+        private final AtomicReference<String> fileCollectionId = new AtomicReference<>(null);
+
         private final AtomicReference<String> baseFileId = new AtomicReference<>(null);
 
         /**
-         * Records the presence of a project from a BDIO stream. Note that there are no strict requirements on how many
-         * times this can be called (with the same or different identifiers).
+         * Records each object from a BDIO stream. Note that there are no strict requirements on how many
+         * times this can be called (with the same or different identifiers on objects). Note that for files, we are
+         * really only interested in the "base file", in BDIO 1.x this means the file with the path "./" (which may not
+         * exist).
          */
-        public void accept(Project project) {
-            // Only take the first project identifier
-            projectId.compareAndSet(null, project.id());
-        }
-
-        /**
-         * Records each file from a BDIO stream. Note that we are really only interested in the "base file", in BDIO 1.x
-         * this means the file with the path "./" (which may not exist).
-         */
-        public void accept(File file) {
-            // Take the first file with a path of "./"
-            hasFiles.set(true);
-            if (Objects.equals(file.get(Bdio.DataProperty.path.toString()), "./")) {
-                baseFileId.compareAndSet(null, file.id());
+        public void accept(BdioObject obj) {
+            if (obj instanceof Project) {
+                // Only take the first project identifier
+                projectId.compareAndSet(null, obj.id());
+            } else if (obj instanceof FileCollection) {
+                // Only take the first file collection identifier
+                fileCollectionId.compareAndSet(null, obj.id());
+            } else if (obj instanceof File) {
+                // Take the first file with a path of "./"
+                hasFiles.set(true);
+                if (Objects.equals(obj.get(Bdio.DataProperty.path.toString()), "./")) {
+                    baseFileId.compareAndSet(null, obj.id());
+                }
             }
         }
 
@@ -118,21 +122,25 @@ class LegacyBdio1xEmitter implements Emitter {
          */
         public List<Object> graph() {
             String projectId = this.projectId.getAndSet(null);
-            if (projectId != null && hasFiles.get()) {
-                // Construct a missing base file if necessary
+            String fileCollectionId = this.fileCollectionId.getAndSet(null);
+            if (hasFiles.get() && (projectId != null || fileCollectionId != null)) {
+                // Construct a missing base file if necessary (include the path only if the base ID wasn't available)
                 Optional<String> baseFileId = Optional.ofNullable(this.baseFileId.getAndSet(null));
                 File baseFile = baseFileId.map(File::new).orElseGet(() -> new File("file:///").path("file:///"));
 
-                // Connect the project to the base file
                 List<Object> result = new ArrayList<>(2);
-                result.add(new Project(projectId).base(baseFile));
+                if (projectId != null) {
+                    result.add(new Project(projectId).base(baseFile));
+                }
+                if (fileCollectionId != null) {
+                    result.add(new FileCollection(fileCollectionId).base(baseFile));
+                }
                 if (!baseFileId.isPresent()) {
                     result.add(baseFile);
                 }
                 return result;
-            } else {
-                return Collections.emptyList();
             }
+            return Collections.emptyList();
         }
     }
 
@@ -491,7 +499,11 @@ class LegacyBdio1xEmitter implements Emitter {
     private void convert(Consumer<? super Map<String, Object>> graph) {
         String type = currentType();
         if (type.equals("Project")) {
-            convertProject(graph);
+            if (currentValue("name").isPresent()) {
+                convertProject(graph);
+            } else {
+                convertFileCollection(graph);
+            }
         } else if (type.equals("Component")) {
             convertComponent(graph);
         } else if (type.equals("License")) {
@@ -509,6 +521,12 @@ class LegacyBdio1xEmitter implements Emitter {
         convertRelationships(result::dependency);
         baseFile.accept(result);
         project.accept(result);
+    }
+
+    private void convertFileCollection(Consumer<? super FileCollection> fileCollection) {
+        FileCollection result = new FileCollection(currentId());
+        baseFile.accept(result);
+        fileCollection.accept(result);
     }
 
     private void convertComponent(Consumer<? super Component> component) {

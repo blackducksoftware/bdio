@@ -36,6 +36,7 @@ import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.model.File;
+import com.blackducksoftware.bdio2.model.FileCollection;
 import com.blackducksoftware.bdio2.model.Project;
 import com.blackducksoftware.common.base.ExtraStrings;
 import com.blackducksoftware.common.value.Digest;
@@ -194,14 +195,17 @@ class LegacyScanContainerEmitter implements Emitter {
         }
 
         protected Stream<Map<String, Object>> nodes() {
-            return Stream.concat(Stream.of(project()), scanNodeList.values().stream().map(this::file));
+            return Stream.concat(Stream.of(root()), scanNodeList.values().stream().map(this::file));
         }
 
-        private Project project() {
-            return new Project(toFileUri(hostName, baseDir, "project"))
-                    .name(project)
-                    .version(release)
-                    .base(new File(toFileUri(hostName, baseDir, "scanNode-0")));
+        private Map<String, Object> root() {
+            String id = toFileUri(hostName, baseDir, "project");
+            File base = new File(toFileUri(hostName, baseDir, "scanNode-0"));
+            if (project != null) {
+                return new Project(id).base(base).name(project).version(release);
+            } else {
+                return new FileCollection(id).base(base);
+            }
         }
 
         private File file(LegacyScanNode scanNode) {
