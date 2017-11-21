@@ -211,7 +211,7 @@ class LegacyScanContainerEmitter implements Emitter {
         private File file(LegacyScanNode scanNode) {
             File bdioFile = new File(toFileUri(hostName, baseDir, "scanNode-" + scanNode.id))
                     .path(path(this, scanNode))
-                    .fileSystemType(fileSystemType(scanNode.type));
+                    .fileSystemType(fileSystemType(scanNode.type, scanNode.signatures.containsKey(LegacyScanNode.SIGNATURES_CLEAN_SHA1)));
             if (scanNode.type == null
                     || scanNode.type.equals(LegacyScanNode.TYPE_FILE)
                     || scanNode.type.equals(LegacyScanNode.TYPE_ARCHIVE)) {
@@ -372,14 +372,19 @@ class LegacyScanContainerEmitter implements Emitter {
      * Returns the BDIO file system type given the legacy file type.
      */
     @Nullable
-    private static String fileSystemType(@Nullable String type) {
+    private static String fileSystemType(@Nullable String type, boolean hasCleanSha1) {
         if (type == null) {
             return null;
         }
 
         switch (type) {
         case LegacyScanNode.TYPE_FILE:
-            return Bdio.FileSystemType.REGULAR.toString();
+            if (hasCleanSha1) {
+                // We only collected clean SHA-1 on text files
+                return Bdio.FileSystemType.REGULAR_TEXT.toString();
+            } else {
+                return Bdio.FileSystemType.REGULAR.toString();
+            }
         case LegacyScanNode.TYPE_ARCHIVE:
             return Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString();
         case LegacyScanNode.TYPE_DIRECTORY:
