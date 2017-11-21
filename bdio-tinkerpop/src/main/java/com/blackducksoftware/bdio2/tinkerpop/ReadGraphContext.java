@@ -16,8 +16,10 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import static java.util.Comparator.comparing;
+import static org.apache.tinkerpop.gremlin.structure.Direction.OUT;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
@@ -152,15 +154,22 @@ class ReadGraphContext extends GraphContext {
                 .map(e -> {
                     Vertex cachedOutV = persistedVertices.get(e.outVertex());
                     Vertex cachedInV = persistedVertices.get(e.inVertex());
-                    Edge newEdge = cachedOutV.addEdge(e.label(), cachedInV);
 
-                    e.properties().forEachRemaining(p -> newEdge.property(p.key(), p.value()));
+                    // First try to find an existing edge
+                    Iterator<Edge> edges = cachedOutV.edges(OUT, e.label());
+                    while (edges.hasNext()) {
+                        Edge edge = edges.next();
+                        if (edge.inVertex().equals(cachedInV)) {
+                            return edge;
+                        }
+                    }
 
+                    // Create a new edge
+                    Edge edge = cachedOutV.addEdge(e.label(), cachedInV);
                     topology().partitionStrategy().ifPresent(p -> {
-                        newEdge.property(p.getPartitionKey(), p.getWritePartition());
+                        edge.property(p.getPartitionKey(), p.getWritePartition());
                     });
-
-                    return newEdge;
+                    return edge;
                 });
     }
 
