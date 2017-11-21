@@ -31,4 +31,9 @@ public final class FileCollection extends BdioObject {
         return this;
     }
 
+    public FileCollection dependency(Dependency dependency) {
+        putObject(Bdio.ObjectProperty.dependency, dependency);
+        return this;
+    }
+
 }

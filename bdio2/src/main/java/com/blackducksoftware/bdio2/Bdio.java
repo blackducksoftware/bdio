@@ -147,7 +147,7 @@ public class Bdio {
         /**
          * The list of dependencies.
          */
-        // AllowedOn: Project, Component
+        // AllowedOn: Container, Component, FileCollection, Project, Repository
         dependency("https://blackducksoftware.github.io/bdio#hasDependency", Container.unordered),
 
         /**

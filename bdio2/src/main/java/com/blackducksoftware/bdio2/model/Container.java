@@ -31,4 +31,9 @@ public final class Container extends BdioObject {
         return this;
     }
 
+    public Container dependency(Dependency dependency) {
+        putObject(Bdio.ObjectProperty.dependency, dependency);
+        return this;
+    }
+
 }

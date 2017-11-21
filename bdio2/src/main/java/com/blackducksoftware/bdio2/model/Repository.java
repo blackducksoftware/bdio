@@ -36,4 +36,9 @@ public final class Repository extends BdioObject {
         return this;
     }
 
+    public Repository dependency(Dependency dependency) {
+        putObject(Bdio.ObjectProperty.dependency, dependency);
+        return this;
+    }
+
 }
