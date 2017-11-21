@@ -223,11 +223,11 @@ public class ValueObjectMapper {
             // Recursively process list elements
             return ((List<?>) input).stream().flatMap(this::fromReferenceValueObject);
         } else {
-            // Find the identifier, otherwise just return the input as a string
-            // TODO Clean up in Java 9...
-            return ExtraOptionals.stream(ExtraOptionals.or(
-                    mappingOf(input, JsonLdConsts.ID),
-                    () -> Optional.ofNullable(input)).map(Objects::toString));
+            // Find the identifier or value, otherwise just return the input as a string
+            Optional<Object> value = mappingOf(input, JsonLdConsts.ID);
+            value = ExtraOptionals.or(value, () -> mappingOf(input, JsonLdConsts.VALUE));
+            value = ExtraOptionals.or(value, () -> Optional.ofNullable(input).map(Object::toString));
+            return ExtraOptionals.stream(value);
         }
     }
 
