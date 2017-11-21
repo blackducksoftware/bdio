@@ -26,7 +26,6 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,6 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -83,65 +83,119 @@ class LegacyBdio1xEmitter implements Emitter {
             + "|(?:Organization: (?<organizationName>.*))");
 
     /**
-     * A class representing the connection between the project and it's base file.
+     * Computes additional nodes need for BDIO 2.x.
      */
-    private static class BaseFile {
-
-        private final AtomicBoolean hasFiles = new AtomicBoolean(false);
-
-        private final AtomicReference<String> projectId = new AtomicReference<>(null);
-
-        private final AtomicReference<String> fileCollectionId = new AtomicReference<>(null);
-
-        private final AtomicReference<String> baseFileId = new AtomicReference<>(null);
+    private static class NodeComputer {
 
         /**
-         * Records each object from a BDIO stream. Note that there are no strict requirements on how many
-         * times this can be called (with the same or different identifiers on objects). Note that for files, we are
-         * really only interested in the "base file", in BDIO 1.x this means the file with the path "./" (which may not
-         * exist).
+         * The number of dependencies to collect before producing a node.
          */
-        public void accept(BdioObject obj) {
-            if (obj instanceof Project) {
-                // Only take the first project identifier
-                projectId.compareAndSet(null, obj.id());
-            } else if (obj instanceof FileCollection) {
-                // Only take the first file collection identifier
-                fileCollectionId.compareAndSet(null, obj.id());
-            } else if (obj instanceof File) {
-                // Take the first file with a path of "./"
-                hasFiles.set(true);
-                if (Objects.equals(obj.get(Bdio.DataProperty.path.toString()), "./")) {
-                    baseFileId.compareAndSet(null, obj.id());
+        private static final int DEPENDENCY_BATCH_SIZE = 100;
+
+        /**
+         * State indicating that this computer is finished.
+         */
+        private final AtomicBoolean finished = new AtomicBoolean();
+
+        /**
+         * Reference to a supplier that generates a new logically empty node for the root object each time it is
+         * invoked. Such a node can be included anywhere in the graph and all nodes will eventually be merged.
+         */
+        private final AtomicReference<Supplier<BdioObject>> rootObjectRef = new AtomicReference<>();
+
+        /**
+         * Reference to a supplier that generates a new node for the base file. This should be a non-null value as long
+         * as the BDIO 1.x data contains at least one file node.
+         */
+        private final AtomicReference<Supplier<File>> baseFileRef = new AtomicReference<>();
+
+        /**
+         * A buffer of dependency nodes so we don't create too many root objects.
+         */
+        private final List<Dependency> dependencyBuffer = new ArrayList<>();
+
+        /**
+         * A buffer of converted BDIO 2.x nodes.
+         */
+        private final Deque<Map<String, Object>> convertedBuffer = new ArrayDeque<>();
+
+        public void setRootProjectId(String id) {
+            rootObjectRef.compareAndSet(null, () -> new Project(id));
+        }
+
+        public void setRootFileCollectionId(String id) {
+            rootObjectRef.compareAndSet(null, () -> new FileCollection(id));
+        }
+
+        public void setBaseFile(String id, @Nullable String fileName) {
+            if (Objects.equals(fileName, "./")) {
+                baseFileRef.set(() -> new File(id));
+            } else if (baseFileRef.get() == null) {
+                // The double check is just avoid tons of unnecessary lambdas...not sure if that is a thing
+                baseFileRef.compareAndSet(null, () -> new File("file:///").path("file:///"));
+            }
+        }
+
+        public void addRootDependency(Dependency dependency) {
+            dependencyBuffer.add(LegacyUtilities.identifyDeclaredByToDependsOn(dependency));
+            if (dependencyBuffer.size() > DEPENDENCY_BATCH_SIZE) {
+                drainDependencies();
+            }
+        }
+
+        public void addFirst(Map<String, Object> node) {
+            convertedBuffer.addFirst(node);
+        }
+
+        public Map<String, Object> pollFirst() {
+            return convertedBuffer.pollFirst();
+        }
+
+        public boolean finish() {
+            if (finished.compareAndSet(false, true)) {
+                drainBaseFile();
+                drainDependencies();
+                return true;
+            }
+            return false;
+        }
+
+        private void drainBaseFile() {
+            Supplier<BdioObject> rootObjectSupplier = rootObjectRef.get();
+            Supplier<File> baseFileSupplier = baseFileRef.get();
+            if (rootObjectSupplier != null && baseFileSupplier != null) {
+                BdioObject rootObject = rootObjectSupplier.get();
+                File baseFile = baseFileSupplier.get();
+
+                if (rootObject instanceof Project) {
+                    ((Project) rootObject).base(baseFile);
+                } else if (rootObject instanceof FileCollection) {
+                    ((FileCollection) rootObject).base(baseFile);
+                }
+                addFirst(rootObject);
+
+                if (baseFile.containsKey(Bdio.DataProperty.path.toString())) {
+                    addFirst(baseFile);
                 }
             }
         }
 
-        /**
-         * Returns the graph nodes needed to associate a project to a base file.
-         */
-        public List<Object> graph() {
-            String projectId = this.projectId.getAndSet(null);
-            String fileCollectionId = this.fileCollectionId.getAndSet(null);
-            if (hasFiles.get() && (projectId != null || fileCollectionId != null)) {
-                // Construct a missing base file if necessary (include the path only if the base ID wasn't available)
-                Optional<String> baseFileId = Optional.ofNullable(this.baseFileId.getAndSet(null));
-                File baseFile = baseFileId.map(File::new).orElseGet(() -> new File("file:///").path("file:///"));
-
-                List<Object> result = new ArrayList<>(2);
-                if (projectId != null) {
-                    result.add(new Project(projectId).base(baseFile));
+        private void drainDependencies() {
+            Supplier<BdioObject> rootObjectSupplier = rootObjectRef.get();
+            if (rootObjectSupplier != null && !dependencyBuffer.isEmpty()) {
+                BdioObject rootObject = rootObjectSupplier.get();
+                for (Dependency dependency : dependencyBuffer) {
+                    if (rootObject instanceof Project) {
+                        ((Project) rootObject).dependency(dependency);
+                    } else if (rootObject instanceof FileCollection) {
+                        ((FileCollection) rootObject).dependency(dependency);
+                    }
                 }
-                if (fileCollectionId != null) {
-                    result.add(new FileCollection(fileCollectionId).base(baseFile));
-                }
-                if (!baseFileId.isPresent()) {
-                    result.add(baseFile);
-                }
-                return result;
+                dependencyBuffer.clear();
+                addFirst(rootObject);
             }
-            return Collections.emptyList();
         }
+
     }
 
     /**
@@ -288,24 +342,30 @@ class LegacyBdio1xEmitter implements Emitter {
     }
 
     /**
+     * Single use reference to the input stream. Used so we can defer touching the stream until we have an error handler
+     * that we can report the error to.
+     */
+    private final AtomicReference<InputStream> inputStream;
+
+    /**
      * The parser used to stream in the JSON.
      */
-    private final Bdio1JsonParser jp;
+    private Bdio1JsonParser jp;
 
     /**
-     * Reusable single node buffer.
+     * The logic for computing additional BDIO 2.x nodes.
+     */
+    private final NodeComputer computedNodes = new NodeComputer();
+
+    /**
+     * Buffer used to hold BDIO 1.x nodes which are not ready for being emitted.
+     */
+    private final Deque<Map<String, Object>> unconvertedNodes = new ArrayDeque<>();
+
+    /**
+     * Reusable single node buffer for BDIO 1.x data.
      */
     private final Map<String, Object> currentNode = new LinkedHashMap<>();
-
-    /**
-     * Buffer used to hold nodes which are not ready for being emitted.
-     */
-    private final Deque<Map<String, Object>> buffer = new ArrayDeque<>();
-
-    /**
-     * The base file context used to associate the project with the file hierarchy.
-     */
-    private final BaseFile baseFile = new BaseFile();
 
     /**
      * The archive nesting context use to process file paths.
@@ -318,12 +378,7 @@ class LegacyBdio1xEmitter implements Emitter {
     private BdioMetadata metadata;
 
     public LegacyBdio1xEmitter(InputStream inputStream) {
-        try {
-            this.jp = Bdio1JsonParser.create(new JsonFactory().createParser(inputStream));
-        } catch (IOException e) {
-            // TODO Should this be deferred and thrown from first call to tryAdvance?
-            throw new UncheckedIOException(e);
-        }
+        this.inputStream = new AtomicReference<>(inputStream);
     }
 
     @Override
@@ -332,13 +387,19 @@ class LegacyBdio1xEmitter implements Emitter {
         Objects.requireNonNull(onError);
         Objects.requireNonNull(onComplete);
         try {
+            if (jp == null) {
+                InputStream in = inputStream.getAndSet(null);
+                if (in != null) {
+                    jp = Bdio1JsonParser.create(new JsonFactory().createParser(in));
+                }
+            }
             if (metadata == null) {
                 if (jp.nextToken() == JsonToken.START_ARRAY && parseMetadata()) {
                     onNext.accept(metadata.asNamedGraph());
                     return;
                 }
             } else {
-                List<Object> graph = parseGraph();
+                List<Map<String, Object>> graph = parseGraph();
                 if (!graph.isEmpty()) {
                     onNext.accept(metadata.asNamedGraph(graph, JsonLdConsts.ID));
                     return;
@@ -373,7 +434,7 @@ class LegacyBdio1xEmitter implements Emitter {
                 return true;
             } else {
                 // Weren't ready for this node yet, buffer a copy for later
-                buffer.add(new LinkedHashMap<>(currentNode));
+                unconvertedNodes.add(new LinkedHashMap<>(currentNode));
             }
         }
 
@@ -384,31 +445,52 @@ class LegacyBdio1xEmitter implements Emitter {
     /**
      * Parses a graph by reading enough nodes to fill a BDIO entry.
      */
-    private List<Object> parseGraph() throws IOException {
-        List<Object> graph = new ArrayList<>(LegacyUtilities.averageEntryNodeCount());
-        AtomicInteger estimatedSize = new AtomicInteger(LegacyUtilities.estimateEntryOverhead(metadata));
-        while (estimatedSize.get() < Bdio.MAX_ENTRY_SIZE) {
-            // Look for something in the buffer, otherwise read the next node
-            Map<String, Object> bufferedNode = buffer.pollFirst();
-            if (bufferedNode != null) {
-                currentNode.clear();
-                currentNode.putAll(bufferedNode);
-            } else if (!readNode()) {
-                break;
-            }
+    private List<Map<String, Object>> parseGraph() throws IOException {
+        List<Map<String, Object>> graph = new ArrayList<>(LegacyUtilities.averageEntryNodeCount());
+        int size = fillGraphNodes(graph, LegacyUtilities.estimateEntryOverhead(metadata));
 
-            // Convert the current node from BDIO 1.x to BDIO 2.x
-            convert(node -> {
-                if (estimatedSize.addAndGet(LegacyUtilities.estimateSize(node)) < Bdio.MAX_ENTRY_SIZE) {
-                    // Add it to the result set
-                    graph.add(node);
-                } else {
-                    // Just put it back, we will have to re-convert it next time around
-                    buffer.offerFirst(new LinkedHashMap<>(currentNode));
-                }
-            });
+        // If the graph is empty, see if there are any final computed nodes we need to return
+        if (graph.isEmpty() && computedNodes.finish()) {
+            fillGraphNodes(graph, size);
         }
-        return graph.isEmpty() ? baseFile.graph() : graph;
+
+        return graph;
+    }
+
+    /**
+     * Attempts to fill the supplied list with nodes.
+     */
+    private int fillGraphNodes(List<Map<String, Object>> graph, int size) throws IOException {
+        AtomicInteger estimatedSize = new AtomicInteger(size);
+        Consumer<Map<String, Object>> addToGraph = node -> {
+            if (estimatedSize.addAndGet(LegacyUtilities.estimateSize(node)) < Bdio.MAX_ENTRY_SIZE) {
+                graph.add(node);
+            } else {
+                computedNodes.addFirst(node);
+            }
+        };
+
+        while (estimatedSize.get() < Bdio.MAX_ENTRY_SIZE) {
+            // Look for something we already computed
+            Map<String, Object> computedNode = computedNodes.pollFirst();
+            if (computedNode != null) {
+                addToGraph.accept(computedNode);
+            } else {
+                // Populate the current node from the unconverted node buffer or by reading it
+                Map<String, Object> bufferedNode = unconvertedNodes.pollFirst();
+                if (bufferedNode != null) {
+                    currentNode.clear();
+                    currentNode.putAll(bufferedNode);
+                } else if (!readNode()) {
+                    break;
+                }
+
+                // Convert the current node from BDIO 1.x to BDIO 2.x
+                convert(addToGraph);
+            }
+        }
+
+        return estimatedSize.get();
     }
 
     /**
@@ -501,15 +583,18 @@ class LegacyBdio1xEmitter implements Emitter {
         if (type.equals("Project")) {
             if (currentValue("name").isPresent()) {
                 convertProject(graph);
+                computedNodes.setRootProjectId(currentId());
             } else {
                 convertFileCollection(graph);
+                computedNodes.setRootFileCollectionId(currentId());
             }
         } else if (type.equals("Component")) {
             convertComponent(graph);
         } else if (type.equals("License")) {
             convertLicense(graph);
         } else if (type.equals("File")) {
-            convertFile(graph);
+            convertFile(graph, computedNodes::addRootDependency);
+            computedNodes.setBaseFile(currentId(), currentValue("fileName").orElse(null));
         }
     }
 
@@ -519,13 +604,11 @@ class LegacyBdio1xEmitter implements Emitter {
         currentValue("revision").ifPresent(result::version);
         convertExternalIdentifier(result::namespace, result::identifier, result::context);
         convertRelationships(result::dependency);
-        baseFile.accept(result);
         project.accept(result);
     }
 
     private void convertFileCollection(Consumer<? super FileCollection> fileCollection) {
         FileCollection result = new FileCollection(currentId());
-        baseFile.accept(result);
         fileCollection.accept(result);
     }
 
@@ -547,14 +630,17 @@ class LegacyBdio1xEmitter implements Emitter {
         license.accept(result);
     }
 
-    private void convertFile(Consumer<? super File> file) {
+    private void convertFile(Consumer<? super File> file, Consumer<? super Dependency> dependency) {
         File result = new File(currentId());
         currentValue(Number.class, "size").map(Number::longValue).ifPresent(result::byteCount);
         convertPath(result::path);
         convertFileTypes(result::fileSystemType);
         convertChecksums(result::fingerprint);
+        currentValue("artifactOf")
+                .map(component -> new Dependency().declaredBy(result).dependsOn(component))
+                .ifPresent(dependency);
         // TODO "matchDetail", ( "matchType" | "content" | "artifactOf" | "licenseConcluded" )
-        baseFile.accept(result);
+        // TODO "license"
         file.accept(result);
     }
 

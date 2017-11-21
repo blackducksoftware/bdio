@@ -15,11 +15,15 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.stream.Collectors.joining;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Spliterator;
 import java.util.Spliterators.AbstractSpliterator;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.ToIntFunction;
 import java.util.stream.Stream;
@@ -27,6 +31,9 @@ import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 
+import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
+import com.blackducksoftware.bdio2.model.Dependency;
+import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Ascii;
 
 /**
@@ -97,6 +104,23 @@ class LegacyUtilities {
     public static int estimateEntryOverhead(BdioMetadata metadata) {
         // The per-entry overhead is 20 bytes plus the size of the identifier: `{"@id":<ID>,"@graph":[<NODES>]}`
         return 20 + estimateSize(metadata.id());
+    }
+
+    /**
+     * Helper to ensure we only create a single dependency irrespective of the number of files it is declared by.
+     * Returns the supplied dependency for call chaining.
+     */
+    public static Dependency identifyDeclaredByToDependsOn(Dependency dep) {
+        if (dep.containsKey(Bdio.ObjectProperty.declaredBy.toString())) {
+            // Legacy formats always implied the dependency from the root so we only need to consider
+            // the target (dependsOn) when producing an identifier
+            dep.put(JsonLdConsts.ID, "urn:uuid:" + UUID.nameUUIDFromBytes(ValueObjectMapper.getContextValueObjectMapper()
+                    .fromReferenceValueObject(dep.get(Bdio.ObjectProperty.dependsOn.toString()))
+                    .map(Object::toString)
+                    .collect(joining())
+                    .getBytes(UTF_8)));
+        }
+        return dep;
     }
 
     /**
