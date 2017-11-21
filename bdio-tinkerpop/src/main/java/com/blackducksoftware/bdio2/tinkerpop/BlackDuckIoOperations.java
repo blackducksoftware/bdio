@@ -213,6 +213,7 @@ public final class BlackDuckIoOperations {
                 Stream.Builder<Object> properties = Stream.builder()
                         .add(T.label).add(Bdio.Class.File.name())
                         .add(Bdio.DataProperty.path.name()).add(path)
+                        .add(Bdio.DataProperty.fileSystemType.name()).add(Bdio.FileSystemType.DIRECTORY.toString())
                         .add(topology.implicitKey().get()).add(Boolean.TRUE);
                 topology.identifierKey().ifPresent(key -> properties.add(key).add(BdioObject.randomId()));
                 topology.partitionStrategy().ifPresent(p -> properties.add(p.getPartitionKey()).add(p.getWritePartition()));
