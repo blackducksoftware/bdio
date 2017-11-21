@@ -164,6 +164,7 @@ class LegacyUtilities {
                     return "tar";
                 case "a":
                 case "ar":
+                case "deb":
                 case "lib":
                     return "ar";
                 case "arj":
