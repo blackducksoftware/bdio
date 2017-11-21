@@ -337,7 +337,7 @@ class LegacyScanContainerEmitter implements Emitter {
                     ssp = new URI(scheme, scanContainer.hostName, path, null).getRawSchemeSpecificPart();
                 } else {
                     // Nest the scheme specific part
-                    ssp = new URI(scheme, ssp, fragment).toString();
+                    ssp = HID.from(new URI(scheme, ssp, fragment)).toUriString();
                     fragment = ExtraStrings.ensurePrefix("/", Objects.equals(node.name, "/") ? "" : node.path);
                     scheme = LegacyUtilities.guessScheme(ssp);
                 }
