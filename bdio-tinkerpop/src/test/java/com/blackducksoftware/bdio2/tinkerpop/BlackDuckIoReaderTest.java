@@ -14,7 +14,10 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import static com.blackducksoftware.common.test.JsonSubject.assertThatJson;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth8.assertThat;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -50,6 +53,15 @@ public class BlackDuckIoReaderTest extends BaseTest {
     }
 
     @Test
+    public void readEmpty() throws Exception {
+        InputStream in = new ByteArrayInputStream("{}".getBytes(UTF_8));
+        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds())).readGraph(in);
+
+        GraphTraversal<Vertex, Vertex> namedGraphs = graph.traversal().V().hasLabel(TT.Metadata);
+        assertThat(namedGraphs.hasNext()).isTrue();
+    }
+
+    @Test
     public void readMetadata() throws Exception {
         ZonedDateTime creationDateTime = ZonedDateTime.now();
         BdioMetadata metadata = BdioMetadata.createRandomUUID().creationDateTime(creationDateTime);
@@ -69,6 +81,20 @@ public class BlackDuckIoReaderTest extends BaseTest {
         VertexProperty<ZonedDateTime> creationProperty = namedGraph.property(Bdio.DataProperty.creationDateTime.name());
         assertThat(creationProperty.isPresent()).isTrue();
         assertThat(creationProperty.value()).isEqualTo(creationDateTime);
+    }
+
+    @Test
+    public void readMetadataPartition() throws Exception {
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+        graph.io(BlackDuckIo.build()
+                .onGraphTopology(storeMetadataAndIds()
+                        .andThen(b -> b.partitionStrategy("_partition", "abc"))))
+                .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph()));
+
+        Vertex namedGraph = graph.traversal().V().hasLabel(TT.Metadata).next();
+        VertexProperty<String> partition = namedGraph.property("_partition");
+        assertThat(partition.isPresent()).isTrue();
+        assertThat(partition.value()).isEqualTo("abc");
     }
 
     @Test

@@ -184,6 +184,11 @@ class ReadGraphContext extends GraphContext {
             Vertex vertex = g.V().hasLabel(metadataLabel).tryNext()
                     .orElseGet(() -> g.addV(metadataLabel).next());
 
+            // It is possible that we didn't accumulate any metadata
+            if (metadata.isEmpty()) {
+                return;
+            }
+
             // Preserve the identifier (if configured)
             topology().identifierKey().ifPresent(key -> vertex.property(key, metadata.id()));
 
