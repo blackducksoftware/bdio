@@ -52,6 +52,22 @@ public class BdioOptions {
     }
 
     /**
+     * Test to see if the supplied context is applicable to these options.
+     */
+    public boolean hasContext(@Nullable Object expandContext) {
+        if (expandContext instanceof List<?>) {
+            for (Object ctx : (List<?>) expandContext) {
+                if (Objects.equals(this.expandContext, ctx)) {
+                    return true;
+                }
+            }
+            return false;
+        } else {
+            return Objects.equals(this.expandContext, expandContext);
+        }
+    }
+
+    /**
      * Creates a new JSON-LD configuration.
      */
     public JsonLdOptions jsonLdOptions() throws JsonLdError {

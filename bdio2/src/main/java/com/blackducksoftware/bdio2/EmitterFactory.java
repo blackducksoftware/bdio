@@ -80,16 +80,23 @@ public class EmitterFactory {
      * Constructs a {@link BdioDocument.Builder} by looking at the contents (presumably buffered) of what could be a
      * viable BDIO input source.
      */
-    public static Emitter newEmitter(InputStream in) throws IOException {
+    public static Emitter newEmitter(BdioOptions options, InputStream in) throws IOException {
         // Make sure the input stream is buffered
         InputStream bufferedIn = ExtraIO.buffer(in);
 
-        // Buffer a chunk of the input stream without advancing it
-        byte[] buffer = new byte[SNIFF_LIMIT];
-        int len = readAndReset(bufferedIn, buffer);
+        Optional<Function<InputStream, Emitter>> emitter = Optional.empty();
 
-        // Detect which parser to use
-        return detectEmitter(buffer, len).orElse(BdioEmitter::new).apply(bufferedIn);
+        if (!emitter.isPresent()) {
+            emitter = detectEmitter(options);
+        }
+
+        if (!emitter.isPresent()) {
+            byte[] buffer = new byte[SNIFF_LIMIT];
+            int len = readAndReset(bufferedIn, buffer);
+            emitter = detectEmitter(buffer, len);
+        }
+
+        return emitter.orElse(BdioEmitter::new).apply(bufferedIn);
     }
 
     /**
@@ -102,6 +109,21 @@ public class EmitterFactory {
             return ByteStreams.read(in, buffer, 0, buffer.length);
         } finally {
             in.reset();
+        }
+    }
+
+    /**
+     * Given BDIO options, returns the BDIO parser used to process the associated data.
+     */
+    protected static Optional<Function<InputStream, Emitter>> detectEmitter(BdioOptions options) {
+        if (options.hasContext(Bdio.Context.VERSION_1_0.toString())
+                || options.hasContext(Bdio.Context.VERSION_1_1.toString())
+                || options.hasContext(Bdio.Context.VERSION_1_1_1.toString())) {
+            // If there is a 1.x context present assume we are looking 1.x data
+            return Optional.of(LegacyBdio1xEmitter::new);
+        } else {
+            // Try with the default parser
+            return Optional.empty();
         }
     }
 

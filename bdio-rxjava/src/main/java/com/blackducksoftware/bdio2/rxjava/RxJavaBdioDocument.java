@@ -45,7 +45,7 @@ public final class RxJavaBdioDocument extends BdioDocument {
     public Flowable<Object> read(InputStream in) {
         // TODO Should this happen on the I/O scheduler?
         return Flowable.generate(
-                () -> EmitterFactory.newEmitter(in),
+                () -> EmitterFactory.newEmitter(options(), in),
                 (parser, emitter) -> {
                     parser.emit(emitter::onNext, emitter::onError, emitter::onComplete);
                 },
