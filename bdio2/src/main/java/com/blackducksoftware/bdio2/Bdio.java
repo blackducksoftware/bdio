@@ -563,8 +563,38 @@ public class Bdio {
 
         private final String value;
 
+        private final boolean regularFile;
+
+        private final boolean directory;
+
+        private final boolean symbolicLink;
+
+        private final boolean other;
+
         private FileSystemType(String value) {
             this.value = Objects.requireNonNull(value);
+
+            String type = ExtraStrings.beforeFirst(value, '/');
+            regularFile = type.equals("regular");
+            directory = type.equals("directory");
+            symbolicLink = type.equals("symlink");
+            other = type.equals("other");
+        }
+
+        public boolean isRegularFile() {
+            return regularFile;
+        }
+
+        public boolean isDirectory() {
+            return directory;
+        }
+
+        public boolean isSymbolicLink() {
+            return symbolicLink;
+        }
+
+        public boolean isOther() {
+            return other;
         }
 
         public static FileSystemType forString(String value) {
