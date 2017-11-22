@@ -90,7 +90,7 @@ class SqlgReadGraphContext extends ReadGraphContext {
                     String field = sqlgGraph.getSqlDialect().maybeWrapInQoutes(ps.getPartitionKey());
                     // TODO Use statement parameters
                     sql.append(ps.getReadPartitions().stream()
-                            .collect(joining("\" OR " + field + " = \"", " WHERE " + field + " = \"", "\"")));
+                            .collect(joining("' OR " + field + " = \"", " WHERE " + field + " = '", "'")));
                 });
 
         if (sqlgGraph.getSqlDialect().needsSemicolon()) {
