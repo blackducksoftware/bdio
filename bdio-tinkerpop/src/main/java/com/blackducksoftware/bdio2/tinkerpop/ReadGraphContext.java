@@ -184,13 +184,10 @@ class ReadGraphContext extends GraphContext {
             Vertex vertex = g.V().hasLabel(metadataLabel).tryNext()
                     .orElseGet(() -> g.addV(metadataLabel).next());
 
-            // It is possible that we didn't accumulate any metadata
-            if (metadata.isEmpty()) {
-                return;
+            // Preserve the identifier (if present and configured)
+            if (metadata.id() != null) {
+                topology().identifierKey().ifPresent(key -> vertex.property(key, metadata.id()));
             }
-
-            // Preserve the identifier (if configured)
-            topology().identifierKey().ifPresent(key -> vertex.property(key, metadata.id()));
 
             try {
                 Map<String, Object> compactMetadata = mapper().compact(metadata);
