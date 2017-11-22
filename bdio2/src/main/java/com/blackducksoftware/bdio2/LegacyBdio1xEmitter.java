@@ -394,7 +394,12 @@ class LegacyBdio1xEmitter implements Emitter {
                 }
             }
             if (metadata == null) {
-                if (jp.nextToken() == JsonToken.START_ARRAY && parseMetadata()) {
+                if (jp.nextToken() != null) {
+                    if (!jp.isExpectedStartArrayToken()) {
+                        throw new IOException("expected start array:  " + jp.getCurrentToken());
+                    }
+
+                    parseMetadata();
                     onNext.accept(metadata.asNamedGraph());
                     return;
                 }
@@ -424,14 +429,14 @@ class LegacyBdio1xEmitter implements Emitter {
     /**
      * Parses the metadata from the stream by reading nodes until the {@code BillOfMaterials} node is encountered.
      */
-    private boolean parseMetadata() throws IOException {
+    private void parseMetadata() throws IOException {
         while (readNode()) {
             if (currentType().equals("BillOfMaterials")) {
                 // Convert the BillOfMaterials node into BDIO metadata
                 metadata = new BdioMetadata().id(currentId());
                 currentValue("spdx:name").ifPresent(metadata::name);
                 convertCreationInfo(metadata::creationDateTime, metadata::creator, metadata::producer);
-                return true;
+                return;
             } else {
                 // Weren't ready for this node yet, buffer a copy for later
                 unconvertedNodes.add(new LinkedHashMap<>(currentNode));
@@ -439,7 +444,7 @@ class LegacyBdio1xEmitter implements Emitter {
         }
 
         // We got to the end of the file and never found a BillOfMaterials node
-        return false;
+        metadata = BdioMetadata.createRandomUUID();
     }
 
     /**
@@ -504,6 +509,7 @@ class LegacyBdio1xEmitter implements Emitter {
                 if (fieldName == null) {
                     break;
                 } else if (fieldName.startsWith("@")) {
+                    // TODO Technically '@type' can be a list but right now we override nextTextValue to get it
                     currentNode.put(fieldName, jp.nextTextValue());
                 } else {
                     currentNode.put(fieldName, jp.nextFieldValue());
@@ -767,7 +773,6 @@ class LegacyBdio1xEmitter implements Emitter {
         if (fileType.equals("BINARY") || fileType.equals("APPLICATION")) {
             return Bdio.FileSystemType.REGULAR.toString();
         } else if (fileType.equals("TEXT") || fileType.equals("SOURCE")) {
-            // TODO We don't have encodings, should we not return this?
             return Bdio.FileSystemType.REGULAR_TEXT.toString();
         } else if (fileType.equals("DIRECTORY")) {
             return Bdio.FileSystemType.DIRECTORY.toString();

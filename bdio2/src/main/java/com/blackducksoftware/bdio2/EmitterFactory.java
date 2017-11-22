@@ -15,8 +15,11 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -29,6 +32,7 @@ import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteStreams;
+import com.google.common.primitives.Bytes;
 
 /**
  * Constructs {@link Emitter} instances by sniffing input streams.
@@ -138,6 +142,11 @@ public class EmitterFactory {
             return Optional.empty();
         }
 
+        // BDIO 1.x used a vocabulary that is distinct enough to qualify by presence
+        if (containsBdio1xVocab(buffer, len)) {
+            return Optional.of(LegacyBdio1xEmitter::new);
+        }
+
         // Use a simple streaming JSON parser to read through the buffer (keeping in mind the possibly truncated nature
         // of the data we are looking could cause a failure at any time)
         try {
@@ -169,6 +178,12 @@ public class EmitterFactory {
 
     private static boolean isZipMagic(byte[] buffer, int len) {
         return len >= 4 && buffer[0] == 0x50 && buffer[1] == 0x4b && buffer[2] == 0x03 && buffer[3] == 0x04;
+    }
+
+    private static boolean containsBdio1xVocab(byte[] buffer, int len) {
+        byte[] array = len == buffer.length ? buffer : Arrays.copyOf(buffer, len);
+        byte[] target = "http://blackducksoftware.com/rdf/terms#".getBytes(UTF_8);
+        return Bytes.indexOf(array, target) > 0;
     }
 
 }
