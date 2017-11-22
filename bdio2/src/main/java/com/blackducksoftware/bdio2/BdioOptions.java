@@ -55,9 +55,9 @@ public class BdioOptions {
      * Test to see if the supplied context is applicable to these options.
      */
     public boolean hasContext(@Nullable Object expandContext) {
-        if (expandContext instanceof List<?>) {
-            for (Object ctx : (List<?>) expandContext) {
-                if (Objects.equals(this.expandContext, ctx)) {
+        if (this.expandContext instanceof List<?>) {
+            for (Object ctx : (List<?>) this.expandContext) {
+                if (Objects.equals(ctx, expandContext)) {
                     return true;
                 }
             }
