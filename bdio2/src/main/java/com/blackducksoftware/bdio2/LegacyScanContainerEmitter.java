@@ -90,6 +90,9 @@ class LegacyScanContainerEmitter implements Emitter {
         @Nullable
         private final String path;
 
+        @Nullable
+        private final String uri;
+
         private final ImmutableMap<String, String> signatures;
 
         @Nullable
@@ -105,6 +108,7 @@ class LegacyScanContainerEmitter implements Emitter {
                 @Nullable @JsonProperty("name") String name,
                 @Nullable @JsonProperty("parentId") Long parentId,
                 @Nullable @JsonProperty("path") String path,
+                @Nullable @JsonProperty("uri") String uri,
                 @Nullable @JsonProperty("signatures") Map<String, String> signatures,
                 @Nullable @JsonProperty("size") Long size,
                 @Nullable @JsonProperty("type") String type) {
@@ -113,6 +117,7 @@ class LegacyScanContainerEmitter implements Emitter {
             this.name = name;
             this.parentId = parentId;
             this.path = path;
+            this.uri = uri;
             this.signatures = signatures != null ? ImmutableMap.copyOf(signatures) : ImmutableMap.of();
             this.size = size;
             this.type = type;
@@ -322,6 +327,11 @@ class LegacyScanContainerEmitter implements Emitter {
      * representation.
      */
     private static String path(LegacyScanContainer scanContainer, LegacyScanNode scanNode) {
+        if (scanNode.uri != null) {
+            // The URI is already computed, don't do any work
+            return scanNode.uri;
+        }
+
         try {
             String scheme = "file";
             String ssp = null;
