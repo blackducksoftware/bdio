@@ -139,6 +139,12 @@ public class Bdio {
         base("https://blackducksoftware.github.io/bdio#hasBase", Container.unordered),
 
         /**
+         * Used to indicate two objects represent the same thing and directs you to the preferred representation.
+         */
+        // AllowedOn: Project, Container, Component, License, Repository, Vulnerability
+        canonical("https://blackducksoftware.github.io/bdio#hasCanonical", Container.single),
+
+        /**
          * Indicates a component was declared by a specific file.
          */
         // AllowedOn: Dependency
@@ -326,7 +332,7 @@ public class Bdio {
          * however it is ultimately up to the producer and consumer of the BDIO data to handshake on the appropriate
          * rules.
          */
-        // AllowedOn: Project, Component, License, Vulnerability
+        // AllowedOn: Project, Container, Component, License, Repository, Vulnerability
         namespace("https://blackducksoftware.github.io/bdio#hasNamespace", Container.single, Datatype.Default),
 
         /**
