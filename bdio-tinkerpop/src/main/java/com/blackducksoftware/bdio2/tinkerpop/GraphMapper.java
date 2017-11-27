@@ -93,6 +93,7 @@ public class GraphMapper {
         BdioOptions.Builder optionsBuilder = new BdioOptions.Builder();
         optionsBuilder.forContentType(builder.contentType, builder.expandContext);
         optionsBuilder.applicationContext(topology.applicationContext());
+        builder.injectedDocuments.forEach(optionsBuilder::injectDocument);
         options = optionsBuilder.build();
 
     }
@@ -256,6 +257,8 @@ public class GraphMapper {
 
         private Object expandContext;
 
+        private final Map<String, CharSequence> injectedDocuments = new LinkedHashMap<>();
+
         private Builder() {
             topology = () -> GraphTopology.build().create();
         }
@@ -273,6 +276,11 @@ public class GraphMapper {
 
         public Builder addDatatype(String iri, DatatypeHandler<?> handler) {
             datatypes.put(Objects.requireNonNull(iri), Objects.requireNonNull(handler));
+            return this;
+        }
+
+        public Builder injectDocument(String iri, CharSequence content) {
+            injectedDocuments.put(iri, content);
             return this;
         }
 

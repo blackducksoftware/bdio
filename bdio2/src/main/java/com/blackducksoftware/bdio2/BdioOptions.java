@@ -23,6 +23,7 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,6 +33,7 @@ import javax.annotation.Nullable;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.CharSource;
 import com.google.common.io.Resources;
 
@@ -46,9 +48,12 @@ public class BdioOptions {
 
     private final Object expandContext;
 
+    private final ImmutableMap<String, CharSource> injectedDocs;
+
     private BdioOptions(Builder builder) {
         base = Objects.requireNonNull(builder.base);
         expandContext = expandContext(builder.contentTypeContext, builder.applicationContext);
+        injectedDocs = ImmutableMap.copyOf(builder.injectedDocs);
     }
 
     /**
@@ -73,12 +78,9 @@ public class BdioOptions {
     public JsonLdOptions jsonLdOptions() throws JsonLdError {
         JsonLdOptions result = new JsonLdOptions(base);
         result.setExpandContext(expandContext);
-
-        // TODO Cache this (soft ref?) so we only read it once...
-        for (Bdio.Context context : Bdio.Context.values()) {
+        for (Map.Entry<String, CharSource> injectedDoc : injectedDocs.entrySet()) {
             try {
-                CharSource doc = Resources.asCharSource(context.resourceUrl(), UTF_8);
-                result.getDocumentLoader().addInjectedDoc(context.toString(), doc.read());
+                result.getDocumentLoader().addInjectedDoc(injectedDoc.getKey(), injectedDoc.getValue().read());
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
@@ -118,9 +120,15 @@ public class BdioOptions {
 
         private Object applicationContext;
 
+        private final Map<String, CharSource> injectedDocs = new LinkedHashMap<>();
+
         public Builder() {
             base = "";
             contentTypeContext = Bdio.Context.DEFAULT.toString();
+            for (Bdio.Context context : Bdio.Context.values()) {
+                // TODO Memoize these CharSources (with a soft ref?) so we only read them once...
+                injectedDocs.put(context.toString(), Resources.asCharSource(context.resourceUrl(), UTF_8));
+            }
         }
 
         public BdioOptions build() {
@@ -220,6 +228,16 @@ public class BdioOptions {
         public Builder forBdio() {
             return forContentType(null, null);
         }
+
+        /**
+         * Injects a document at the specified URI for offline use.
+         */
+        public Builder injectDocument(String uri, CharSequence content) {
+            checkArgument(!injectedDocs.containsKey(uri), "already injected URI: %s", uri);
+            injectedDocs.put(uri, CharSource.wrap(content));
+            return this;
+        }
+
     }
 
 }
