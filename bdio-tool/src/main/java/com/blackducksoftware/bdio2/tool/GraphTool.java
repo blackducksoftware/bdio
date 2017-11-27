@@ -29,6 +29,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -82,6 +83,10 @@ public class GraphTool extends Tool {
 
     private boolean skipInitialization;
 
+    private Consumer<GraphTraversalSource> onGraphLoaded = g -> {};
+
+    private Consumer<GraphTraversalSource> onGraphCompleted = g -> {};
+
     private Consumer<Graph> onGraphComplete = graph -> {};
 
     public GraphTool(@Nullable String name) {
@@ -95,6 +100,10 @@ public class GraphTool extends Tool {
     public void addInput(File file) {
         // Use `getInput` to provide extra validation
         addInput(file.toURI(), getInput(file.getPath()));
+    }
+
+    public Map<URI, ByteSource> getInputs() {
+        return Collections.unmodifiableMap(inputs);
     }
 
     public void addConfiguration(Configuration config) {
@@ -126,19 +135,16 @@ public class GraphTool extends Tool {
         this.skipInitialization = skipInitialization;
     }
 
-    public void onGraphComplete(Consumer<Graph> listener) {
-        onGraphComplete = onGraphComplete.andThen(listener);
+    public void onGraphLoaded(Consumer<GraphTraversalSource> listener) {
+        onGraphLoaded = onGraphLoaded.andThen(listener);
     }
 
-    public void onGraphComplete(String listener) {
-        switch (listener) {
-        case "dump":
-            onGraphComplete(GraphTool::dump);
-            break;
-        default:
-            // TODO Use reflection to create a consumer?
-            throw new UnsupportedOperationException("unable to create listener: " + listener);
-        }
+    public void onGraphCompleted(Consumer<GraphTraversalSource> listener) {
+        onGraphCompleted = onGraphCompleted.andThen(listener);
+    }
+
+    public void onGraphComplete(Consumer<Graph> listener) {
+        onGraphComplete = onGraphComplete.andThen(listener);
     }
 
     @Override
@@ -187,7 +193,7 @@ public class GraphTool extends Tool {
                         .forEach(this::setProperty);
                 args = removeFirst(arg, args);
             } else if (arg.startsWith("--onGraphComplete=")) {
-                optionValue(arg).ifPresent(this::onGraphComplete);
+                optionValue(arg).map(GraphTool::listenerForString).ifPresent(this::onGraphComplete);
                 args = removeFirst(arg, args);
             }
         }
@@ -210,18 +216,16 @@ public class GraphTool extends Tool {
         try {
             for (Map.Entry<URI, ByteSource> input : inputs.entrySet()) {
                 try (InputStream inputStream = input.getValue().openStream()) {
+                    PartitionStrategy partition = partition(input.getKey());
                     BlackDuckIo.Builder bdio = BlackDuckIo.build()
                             .onGraphMapper(builder -> {
                                 // Set the JSON-LD context using file extensions
-                                if (input.getKey() != null && input.getKey().getPath() != null) {
-                                    Bdio.ContentType contentType = Bdio.ContentType.forFileName(input.getKey().getPath());
-                                    builder.forContentType(contentType, Bdio.Context.DEFAULT.toString());
-                                }
+                                setContentType(input.getKey(), builder::forContentType);
                             })
                             .onGraphTopology(builder -> {
                                 // Make sure each file goes into it's own partition
                                 if (inputs.size() > 1) {
-                                    builder.partitionStrategy(partition(input.getKey()));
+                                    builder.partitionStrategy(partition);
                                 }
 
                                 // If the graph does not support user identifiers, ensure we store JSON-LD identifiers
@@ -239,6 +243,7 @@ public class GraphTool extends Tool {
                     Stopwatch loadGraphTimer = Stopwatch.createStarted();
                     graph.io(bdio).readGraph(inputStream);
                     printDebugMessage("Time to load BDIO graph: %s%n", loadGraphTimer.stop());
+                    onGraphLoaded.accept(graph.traversal().withStrategies(partition));
 
                     // Run the extra operations
                     if (!skipInitialization) {
@@ -246,6 +251,7 @@ public class GraphTool extends Tool {
                         graph.io(bdio).applySemanticRules();
                         printDebugMessage("Time to initialize BDIO graph: %s%n", initGraphTimer.stop());
                     }
+                    onGraphCompleted.accept(graph.traversal().withStrategies(partition));
                 }
             }
 
@@ -278,6 +284,25 @@ public class GraphTool extends Tool {
         String partitionKey = configuration.getString("bdio.partitionStrategy.partitionKey", DEFAULT_PARTITION_KEY);
         String partition = Objects.toString(inputSource, DEFAULT_PARTITION);
         return PartitionStrategy.build().partitionKey(partitionKey).writePartition(partition).readPartitions(partition).create();
+    }
+
+    private static Consumer<Graph> listenerForString(String listener) {
+        switch (listener) {
+        case "dump":
+            return GraphTool::dump;
+        default:
+            // TODO Use reflection to create a consumer?
+            throw new UnsupportedOperationException("unable to create listener: " + listener);
+        }
+    }
+
+    /**
+     * Sets the content type and expansion context given the supplied identifier.
+     */
+    public static void setContentType(@Nullable URI id, BiConsumer<Bdio.ContentType, Object> contentType) {
+        if (id != null && id.getPath() != null) {
+            contentType.accept(Bdio.ContentType.forFileName(id.getPath()), Bdio.Context.DEFAULT.toString());
+        }
     }
 
     /**
