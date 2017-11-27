@@ -59,9 +59,6 @@ import com.google.common.collect.Maps;
  */
 class LegacyScanContainerEmitter implements Emitter {
 
-    // TODO New versions of the file rearranged the order of the fields so that we can stream them
-    // We should make the EmitterFactory detect this and choose either this emitter or a streaming emitter...
-
     /**
      * Internal representation of a legacy scan node used for conversion to BDIO.
      */

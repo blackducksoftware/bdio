@@ -62,7 +62,13 @@ public class EmitterFactory {
             .add("createdOn")
             .add("hostName")
 
-            // The scan container fields were re-ordered at some point so these would be first
+            .build();
+
+    /**
+     * The names of the fields the scan container indicating a new version of the data that can be streamed.
+     */
+    private static final ImmutableSet<String> STREAMABLE_SCAN_CONTAINER_FIELD_NAMES = ImmutableSet.<String> builder()
+            // These are the first three fields since the `ScanContainerView` explicitly specified serialization order
             .add("scannerVersion")
             .add("signatureVersion")
             .add("ownerEntityKeyToken")
@@ -163,8 +169,11 @@ public class EmitterFactory {
                 }
             } else if (jp.getCurrentToken() == JsonToken.START_OBJECT) {
                 // Detect scan containers using field names
-                if (SCAN_CONTAINER_FIELD_NAMES.contains(jp.nextFieldName())) {
+                String fieldName = jp.nextFieldName();
+                if (SCAN_CONTAINER_FIELD_NAMES.contains(fieldName)) {
                     return Optional.of(LegacyScanContainerEmitter::new);
+                } else if (STREAMABLE_SCAN_CONTAINER_FIELD_NAMES.contains(fieldName)) {
+                    return Optional.of(LegacyStreamingScanContainerEmitter::new);
                 }
             }
 
