@@ -61,6 +61,10 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : `https://blackducksoftware.github.io/bdio#hasBase`
 : Points to a project's base directory.
 
+`canonical`
+: `https://blackducksoftware.github.io/bdio#hasCanonical`
+: Used to indicate two objects represent the same thing and directs you to the preferred representation.
+
 `declaredBy`
 : `https://blackducksoftware.github.io/bdio#declaredBy`
 : Indicates a component was declared by a specific file.
