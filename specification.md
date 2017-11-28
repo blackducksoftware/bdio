@@ -362,6 +362,7 @@ NOTE: File extensions and/or compression formats are not accounted for using the
 | `symlink`                | A symbolic link. Should be accompanied by a link target. |
 | `other/device/block`     | A block device, like a drive. |
 | `other/device/character` | A character device, like a terminal. |
+| `other/door`             | A door used for interprocess communication. |
 | `other/pipe`             | A named pipe. |
 | `other/socket`           | A socket. |
 | `other/whiteout`         | A whiteout, or file removal in a layered file system. |
