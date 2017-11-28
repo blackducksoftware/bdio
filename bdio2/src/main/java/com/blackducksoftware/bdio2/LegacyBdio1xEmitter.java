@@ -624,7 +624,7 @@ class LegacyBdio1xEmitter implements Emitter {
         currentValue("name").ifPresent(result::name);
         currentValue("homepage").ifPresent(result::homepage);
         convertRevision(result::version, result::requestedVersion);
-        currentValue("licenseConcluded").ifPresent(result::license);
+        currentValue("license").ifPresent(result::license);
         convertExternalIdentifier(result::namespace, result::identifier, result::context);
         convertRelationships(result::dependency);
         component.accept(result);
