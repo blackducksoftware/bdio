@@ -39,6 +39,7 @@ import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 import org.umlg.sqlg.structure.SqlgExceptions.InvalidIdException;
 
 import com.blackducksoftware.bdio2.BdioMetadata;
+import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.google.common.base.Joiner;
@@ -152,8 +153,12 @@ class ReadGraphContext extends GraphContext {
 
                 // Connect the edges and store their properties
                 .map(e -> {
+                    // Look up the vertices
                     Vertex cachedOutV = persistedVertices.get(e.outVertex());
                     Vertex cachedInV = persistedVertices.get(e.inVertex());
+                    if (cachedInV == null) {
+                        throw new NodeDoesNotExistException(e.outVertex().id(), e.label(), e.inVertex().id());
+                    }
 
                     // First try to find an existing edge
                     Iterator<Edge> edges = cachedOutV.edges(OUT, e.label());
