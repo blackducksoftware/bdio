@@ -36,8 +36,9 @@ public class BdioMain extends Tool {
         dependencies("Prints a dependency tree", DependenciesTool::new, false),
         entries("Dump the JSON-LD content of a BDIO file", EntriesTool::new, true),
         graph("Import BDIO to a TinkerPop graph", GraphTool::new, false),
-        tree("List contents of files in a tree-like format", TreeTool::new, false),
+        lint("Check BDIO for common mistakes", LintTool::new, true),
         spdxdoc("Generates a BDIO document describing the standard SPDX licenses.", SpdxDocumentTool::new, false),
+        tree("List contents of files in a tree-like format", TreeTool::new, false),
         viz("View an interactive BDIO graph in a web browser", VizTool::new, false),
         ;
 
