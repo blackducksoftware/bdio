@@ -80,6 +80,11 @@ public class Bdio {
         License("https://blackducksoftware.github.io/bdio#License"),
 
         /**
+         * A grouping of licenses used when constructing complex license expressions.
+         */
+        LicenseGroup("https://blackducksoftware.github.io/bdio#LicenseGroup"),
+
+        /**
          * A note represents the outcome of a specific calculation on part of a file. Notes can be simple (such as
          * inclusion of a content range), or more complex (such as the output of a processing algorithm).
          */
@@ -121,7 +126,7 @@ public class Bdio {
         }
 
         public boolean embedded() {
-            return this == Bdio.Class.Note || this == Bdio.Class.Dependency;
+            return this == Bdio.Class.Note || this == Bdio.Class.Dependency || this == Bdio.Class.LicenseGroup;
         }
 
         @Override
@@ -161,6 +166,43 @@ public class Bdio {
          */
         // AllowedOn: Dependency
         dependsOn("https://blackducksoftware.github.io/bdio#dependsOn", Container.unordered),
+
+        /**
+         * The license being used. This can be used in with other license relationships to create complex license
+         * expressions.
+         * <p>
+         * For root objects, the license defines the terms under which the project may be licensed, for a component, the
+         * license defines the term under which usage of the component is licensed.
+         */
+        // AllowedOn: Project, Container, LicenseGroup, Component
+        license("https://blackducksoftware.github.io/bdio#hasLicense", Container.single),
+
+        /**
+         * A simultaneously required license being used. This can be used in with other license relationships to create
+         * complex license expressions.
+         */
+        // AllowedOn: Project, Container, LicenseGroup, Component
+        licenseConjunctive("https://blackducksoftware.github.io/bdio#haslicenseConjunctive", Container.ordered),
+
+        /**
+         * A choice of licenses being used. This can be used in with other license relationships to create complex
+         * license expressions.
+         */
+        // AllowedOn: Project, Container, LicenseGroup, Component
+        licenseDisjunctive("https://blackducksoftware.github.io/bdio#hasLicenseDisjunctive", Container.ordered),
+
+        /**
+         * Identifies an exception to the terms of the license.
+         */
+        // AllowedOn: License
+        licenseException("https://blackducksoftware.github.io/bdio#hasLicenseException", Container.single),
+
+        /**
+         * The minimal license being used. This can be used in with other license relationships to create complex
+         * license expressions.
+         */
+        // AllowedOn: Project, Container, LicenseGroup, Component
+        licenseOrLater("https://blackducksoftware.github.io/bdio#hasLicenseOrLater", Container.single),
 
         /**
          * Lists the notes applicable to a file.
@@ -297,18 +339,6 @@ public class Bdio {
          */
         // AllowedOn: Project, Component, License, Vulnerability
         identifier("https://blackducksoftware.github.io/bdio#hasIdentifier", Container.single, Datatype.Default),
-
-        /**
-         * The license expression describing either the allowed (in the case of a project) or effective license(s) (in
-         * the case of a component).
-         * <p>
-         * Note that there is not a specific object property creating a relationship between projects/components and
-         * licenses: this expression may reference an otherwise disconnected license within the BDIO document if
-         * necessary.
-         */
-        // AllowedOn: Project, Component
-        // TODO Is there an SPDX type for the license expression?
-        license("https://blackducksoftware.github.io/bdio#hasLicense", Container.single, Datatype.Default),
 
         /**
          * The symbolic link target of a file.

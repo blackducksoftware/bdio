@@ -27,8 +27,28 @@ public final class Component extends BdioObject {
         super(id, Bdio.Class.Component);
     }
 
-    public Component dependency(Dependency dependency) {
+    public Component dependency(@Nullable Dependency dependency) {
         putObject(Bdio.ObjectProperty.dependency, dependency);
+        return this;
+    }
+
+    public Component license(@Nullable Object license) {
+        putObject(Bdio.ObjectProperty.license, license);
+        return this;
+    }
+
+    public Component licenseConjunctive(@Nullable Object license) {
+        putObject(Bdio.ObjectProperty.licenseConjunctive, license);
+        return this;
+    }
+
+    public Component licenseDisjunctive(@Nullable Object license) {
+        putObject(Bdio.ObjectProperty.licenseDisjunctive, license);
+        return this;
+    }
+
+    public Component licenseOrLater(@Nullable Object license) {
+        putObject(Bdio.ObjectProperty.licenseOrLater, license);
         return this;
     }
 
@@ -49,11 +69,6 @@ public final class Component extends BdioObject {
 
     public Component vendor(@Nullable String vendor) {
         putData(Bdio.DataProperty.vendor, vendor);
-        return this;
-    }
-
-    public Component license(@Nullable String license) {
-        putData(Bdio.DataProperty.license, license);
         return this;
     }
 

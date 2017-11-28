@@ -27,6 +27,11 @@ public final class License extends BdioObject {
         super(id, Bdio.Class.License);
     }
 
+    public License licenseException(@Nullable License license) {
+        putObject(Bdio.ObjectProperty.licenseException, license);
+        return this;
+    }
+
     public License name(@Nullable String name) {
         putData(Bdio.DataProperty.name, name);
         return this;

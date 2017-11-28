@@ -20,38 +20,28 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 
-public final class Container extends BdioObject {
+public class LicenseGroup extends BdioObject {
 
-    public Container(String id) {
-        super(id, Bdio.Class.Container);
+    public LicenseGroup() {
+        super(Bdio.Class.LicenseGroup);
     }
 
-    public Container base(@Nullable File base) {
-        putObject(Bdio.ObjectProperty.base, base);
-        return this;
-    }
-
-    public Container dependency(Dependency dependency) {
-        putObject(Bdio.ObjectProperty.dependency, dependency);
-        return this;
-    }
-
-    public Container license(@Nullable Object license) {
+    public LicenseGroup license(@Nullable License license) {
         putObject(Bdio.ObjectProperty.license, license);
         return this;
     }
 
-    public Container licenseConjunctive(@Nullable Object license) {
+    public LicenseGroup licenseConjunctive(@Nullable License license) {
         putObject(Bdio.ObjectProperty.licenseConjunctive, license);
         return this;
     }
 
-    public Container licenseDisjunctive(@Nullable Object license) {
+    public LicenseGroup licenseDisjunctive(@Nullable License license) {
         putObject(Bdio.ObjectProperty.licenseDisjunctive, license);
         return this;
     }
 
-    public Container licenseOrLater(@Nullable Object license) {
+    public LicenseGroup licenseOrLater(@Nullable License license) {
         putObject(Bdio.ObjectProperty.licenseOrLater, license);
         return this;
     }

@@ -15,6 +15,7 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static com.blackducksoftware.common.base.ExtraOptionals.and;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -599,7 +600,7 @@ class LegacyBdio1xEmitter implements Emitter {
         } else if (type.equals("License")) {
             convertLicense(graph);
         } else if (type.equals("File")) {
-            convertFile(graph, computedNodes::addRootDependency);
+            convertFile(graph, computedNodes::addRootDependency, graph);
             computedNodes.setBaseFile(currentId(), currentValue("fileName").orElse(null));
         }
     }
@@ -623,7 +624,7 @@ class LegacyBdio1xEmitter implements Emitter {
         currentValue("name").ifPresent(result::name);
         currentValue("homepage").ifPresent(result::homepage);
         convertRevision(result::version, result::requestedVersion);
-        // TODO currentValue("license").ifPresent(result::license);
+        currentValue("licenseConcluded").ifPresent(result::license);
         convertExternalIdentifier(result::namespace, result::identifier, result::context);
         convertRelationships(result::dependency);
         component.accept(result);
@@ -636,17 +637,17 @@ class LegacyBdio1xEmitter implements Emitter {
         license.accept(result);
     }
 
-    private void convertFile(Consumer<? super File> file, Consumer<? super Dependency> dependency) {
+    private void convertFile(Consumer<? super File> file, Consumer<? super Dependency> dependency, Consumer<? super Component> component) {
         File result = new File(currentId());
         currentValue(Number.class, "size").map(Number::longValue).ifPresent(result::byteCount);
         convertPath(result::path);
         convertFileTypes(result::fileSystemType);
         convertChecksums(result::fingerprint);
-        currentValue("artifactOf")
-                .map(component -> new Dependency().declaredBy(result).dependsOn(component))
-                .ifPresent(dependency);
+        Optional<String> artifactOf = currentValue("artifactOf");
+        artifactOf.map(componentId -> new Dependency().declaredBy(result).dependsOn(componentId)).ifPresent(dependency);
+        Optional<String> licenseConcluded = currentValue("licenseConcluded");
+        and(artifactOf, licenseConcluded, (componentId, licenseId) -> new Component(componentId).license(licenseId)).ifPresent(component);
         // TODO "matchDetail", ( "matchType" | "content" | "artifactOf" | "licenseConcluded" )
-        // TODO "license"
         file.accept(result);
     }
 

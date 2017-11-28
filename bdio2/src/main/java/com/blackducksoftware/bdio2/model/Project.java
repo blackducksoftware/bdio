@@ -43,6 +43,26 @@ public final class Project extends BdioObject {
         return this;
     }
 
+    public Project license(@Nullable Object license) {
+        putObject(Bdio.ObjectProperty.license, license);
+        return this;
+    }
+
+    public Project licenseConjunctive(@Nullable Object license) {
+        putObject(Bdio.ObjectProperty.licenseConjunctive, license);
+        return this;
+    }
+
+    public Project licenseDisjunctive(@Nullable Object license) {
+        putObject(Bdio.ObjectProperty.licenseDisjunctive, license);
+        return this;
+    }
+
+    public Project licenseOrLater(@Nullable Object license) {
+        putObject(Bdio.ObjectProperty.licenseOrLater, license);
+        return this;
+    }
+
     public Project name(@Nullable String name) {
         putData(Bdio.DataProperty.name, name);
         return this;
@@ -55,11 +75,6 @@ public final class Project extends BdioObject {
 
     public Project vendor(@Nullable String vendor) {
         putData(Bdio.DataProperty.vendor, vendor);
-        return this;
-    }
-
-    public Project license(@Nullable String license) {
-        putData(Bdio.DataProperty.license, license);
         return this;
     }
 
