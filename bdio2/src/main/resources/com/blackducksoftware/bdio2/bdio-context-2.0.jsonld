@@ -7,12 +7,17 @@
     "File" : "https://blackducksoftware.github.io/bdio#File",
     "FileCollection" : "File:Collection",
     "License" : "https://blackducksoftware.github.io/bdio#License",
+    "LicenseGroup" : "License:Group",
     "Note" : "https://blackducksoftware.github.io/bdio#Note",
     "Project" : "https://blackducksoftware.github.io/bdio#Project",
     "Repository" : "https://blackducksoftware.github.io/bdio#Repository",
     "Vulnerability" : "https://blackducksoftware.github.io/bdio#Vulnerability",
     "base" : {
       "@id" : "https://blackducksoftware.github.io/bdio#hasBase",
+      "@type" : "@id"
+    },
+    "canonical" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasCanonical",
       "@type" : "@id"
     },
     "declaredBy" : {
@@ -25,6 +30,26 @@
     },
     "dependsOn" : {
       "@id" : "https://blackducksoftware.github.io/bdio#dependsOn",
+      "@type" : "@id"
+    },
+    "license" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasLicense",
+      "@type" : "@id"
+    },
+    "licenseConjunctive" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#haslicenseConjunctive",
+      "@type" : "@id"
+    },
+    "licenseDisjunctive" : {
+      "@id" : "license:Disjunctive",
+      "@type" : "@id"
+    },
+    "licenseException" : {
+      "@id" : "license:Exception",
+      "@type" : "@id"
+    },
+    "licenseOrLater" : {
+      "@id" : "license:OrLater",
       "@type" : "@id"
     },
     "note" : {
@@ -72,7 +97,6 @@
       "@container" : "@set"
     },
     "identifier" : "https://blackducksoftware.github.io/bdio#hasIdentifier",
-    "license" : "https://blackducksoftware.github.io/bdio#hasLicense",
     "linkPath" : "https://blackducksoftware.github.io/bdio#hasLinkPath",
     "name" : "https://blackducksoftware.github.io/bdio#hasName",
     "namespace" : "name:space",
