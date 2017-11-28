@@ -82,9 +82,10 @@ public class LintTool extends AbstractGraphTool {
                 GraphTool.setContentType(input.getKey(), options::forContentType);
                 RxJavaBdioDocument doc = new RxJavaBdioDocument(options.build());
                 doc.read(input.getValue().openStream())
-                        .doOnEach(this::executeWithRawEntry)
+                        .doOnNext(this::executeWithRawEntry)
                         .flatMapIterable(BdioDocument::toGraphNodes)
-                        .subscribe(this::executeWithRawNode);
+                        .doOnNext(this::executeWithRawNode)
+                        .subscribe();
             }
             printDebugMessage("Time to read BDIO input: %s%n", readTimer.stop());
         }
