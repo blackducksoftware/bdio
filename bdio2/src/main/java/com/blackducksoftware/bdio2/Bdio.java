@@ -706,11 +706,11 @@ public class Bdio {
 
     public enum Context {
 
-        VERSION_2_0("http://blackducksoftware.com/bdio/2.0.0", "bdio-context-2.0.jsonld"),
+        VERSION_2_0("https://blackducksoftware.github.io/bdio/2.0.0", "bdio-context-2.0.jsonld"),
         VERSION_1_1_1("http://blackducksoftware.com/rdf/terms/1.1.1", "bdio-context-1.1.1.jsonld"),
         VERSION_1_1("http://blackducksoftware.com/rdf/terms/1.1.0", "bdio-context-1.1.jsonld"),
         VERSION_1_0("http://blackducksoftware.com/rdf/terms/1.0.0", "bdio-context-1.0.jsonld"),
-        DEFAULT("http://blackducksoftware.com/bdio", VERSION_2_0.resourceName);
+        DEFAULT("https://blackducksoftware.github.io/bdio", VERSION_2_0.resourceName);
 
         private final String iri;
 
