@@ -1,0 +1,130 @@
+{
+  "@context" : {
+    "xsd" : "http://www.w3.org/2001/XMLSchema#",
+    "Component" : "https://blackducksoftware.github.io/bdio#Component",
+    "Container" : "https://blackducksoftware.github.io/bdio#Container",
+    "Dependency" : "https://blackducksoftware.github.io/bdio#Dependency",
+    "File" : "https://blackducksoftware.github.io/bdio#File",
+    "FileCollection" : "File:Collection",
+    "License" : "https://blackducksoftware.github.io/bdio#License",
+    "LicenseGroup" : "License:Group",
+    "Note" : "https://blackducksoftware.github.io/bdio#Note",
+    "Project" : "https://blackducksoftware.github.io/bdio#Project",
+    "Repository" : "https://blackducksoftware.github.io/bdio#Repository",
+    "Vulnerability" : "https://blackducksoftware.github.io/bdio#Vulnerability",
+    "base" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasBase",
+      "@type" : "@id"
+    },
+    "canonical" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasCanonical",
+      "@type" : "@id"
+    },
+    "declaredBy" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#declaredBy",
+      "@type" : "@id"
+    },
+    "dependency" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasDependency",
+      "@type" : "@id"
+    },
+    "dependsOn" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#dependsOn",
+      "@type" : "@id"
+    },
+    "license" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasLicense",
+      "@type" : "@id"
+    },
+    "licenseConjunctive" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#haslicenseConjunctive",
+      "@type" : "@id"
+    },
+    "licenseDisjunctive" : {
+      "@id" : "license:Disjunctive",
+      "@type" : "@id"
+    },
+    "licenseException" : {
+      "@id" : "license:Exception",
+      "@type" : "@id"
+    },
+    "licenseOrLater" : {
+      "@id" : "license:OrLater",
+      "@type" : "@id"
+    },
+    "note" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasNote",
+      "@type" : "@id"
+    },
+    "parent" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasParent",
+      "@type" : "@id"
+    },
+    "previousVersion" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasPreviousVersion",
+      "@type" : "@id"
+    },
+    "subproject" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasSubproject",
+      "@type" : "@id"
+    },
+    "buildDetails" : "https://blackducksoftware.github.io/bdio#hasBuildDetails",
+    "buildNumber" : "https://blackducksoftware.github.io/bdio#hasBuildNumber",
+    "byteCount" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasByteCount",
+      "@type" : "xsd:long"
+    },
+    "contentType" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasContentType",
+      "@type" : "https://blackducksoftware.github.io/bdio#ContentType"
+    },
+    "context" : "https://blackducksoftware.github.io/bdio#hasContext",
+    "copyrightYear" : "https://blackducksoftware.github.io/bdio#hasCopyrightYear",
+    "creationDateTime" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasCreationDateTime",
+      "@type" : "xsd:dateTime"
+    },
+    "creator" : "https://blackducksoftware.github.io/bdio#hasCreator",
+    "encoding" : "https://blackducksoftware.github.io/bdio#hasEncoding",
+    "fileSystemType" : "https://blackducksoftware.github.io/bdio#hasFileSystemType",
+    "fingerprint" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasFingerprint",
+      "@type" : "https://blackducksoftware.github.io/bdio#Digest",
+      "@container" : "@set"
+    },
+    "homepage" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasHomepage",
+      "@container" : "@set"
+    },
+    "identifier" : "https://blackducksoftware.github.io/bdio#hasIdentifier",
+    "linkPath" : "https://blackducksoftware.github.io/bdio#hasLinkPath",
+    "name" : "https://blackducksoftware.github.io/bdio#hasName",
+    "namespace" : "name:space",
+    "path" : "https://blackducksoftware.github.io/bdio#hasPath",
+    "producer" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasProducer",
+      "@type" : "https://blackducksoftware.github.io/bdio#Products"
+    },
+    "range" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasRange",
+      "@type" : "https://blackducksoftware.github.io/bdio#ContentRange",
+      "@container" : "@set"
+    },
+    "requestedVersion" : "https://blackducksoftware.github.io/bdio#hasRequestedVersion",
+    "resolver" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasResolver",
+      "@type" : "https://blackducksoftware.github.io/bdio#Products"
+    },
+    "rightsHolder" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasRightsHolder",
+      "@container" : "@list"
+    },
+    "scope" : "https://blackducksoftware.github.io/bdio#hasScope",
+    "sourceBranch" : "https://blackducksoftware.github.io/bdio#hasSourceBranch",
+    "sourceRepository" : "https://blackducksoftware.github.io/bdio#hasSourceRepository",
+    "sourceRevision" : "https://blackducksoftware.github.io/bdio#hasSourceRevision",
+    "sourceTag" : "https://blackducksoftware.github.io/bdio#hasSourceTag",
+    "vendor" : "https://blackducksoftware.github.io/bdio#hasVendor",
+    "version" : "https://blackducksoftware.github.io/bdio#hasVersion"
+  }
+}
