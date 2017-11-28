@@ -77,6 +77,28 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : `https://blackducksoftware.github.io/bdio#dependsOn`
 : Indicates the dependent component.
 
+`license`
+: `https://blackducksoftware.github.io/bdio#hasLicense`
+: The license being used. This can be used in with other license relationships to create complex license expressions.
+:
+:For root objects, the license defines the terms under which the project may be licensed, for a component, the license defines the term under which usage of the component is licensed.
+
+`licenseConjunctive`
+: `https://blackducksoftware.github.io/bdio#hasLicenseConjunctive`
+: A simultaneously required license being used. This can be used in with other license relationships to create complex license expressions.
+
+`licenseDisjunctive`
+: `https://blackducksoftware.github.io/bdio#hasLicenseDisjunctive`
+: A choice of licenses being used. This can be used in with other license relationships to create complex license expressions.
+
+`licenseException`
+: `https://blackducksoftware.github.io/bdio#hasLicenseException`
+: Identifies an exception to the terms of the license.
+
+`licenseOrLater`
+: `https://blackducksoftware.github.io/bdio#hasLicenseOrLater`
+: The minimal license being used. This can be used in with other license relationships to create complex license expressions.
+
 `note`
 : `https://blackducksoftware.github.io/bdio#hasNote`
 :  Lists the notes applicable to a file.
@@ -146,12 +168,6 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `identifier`
 : `https://blackducksoftware.github.io/bdio#hasIdentifier`
 : The namespace specific locator for a component. Also known as an "external identifier".
-
-`license`
-: `https://blackducksoftware.github.io/bdio#hasLicense`
-: The license expression describing either the allowed (in the case of a project) or effective license(s) (in the case of a component).
-:
-: Note that there is not a specific object property creating a relationship between projects/components and licenses: this expression may reference an otherwise disconnected license within the BDIO document if necessary.
 
 `linkPath`
 : `https://blackducksoftware.github.io/bdio#hasLinkPath`
