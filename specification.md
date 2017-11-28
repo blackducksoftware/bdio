@@ -101,7 +101,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 
 `note`
 : `https://blackducksoftware.github.io/bdio#hasNote`
-:  Lists the notes applicable to a file.
+: Lists the notes applicable to a file.
 
 `parent`
 : `https://blackducksoftware.github.io/bdio#hasParent`
@@ -305,6 +305,12 @@ Processors MAY imply the file system type according the following rules, publish
 1. A link path implies a file system type of `symlink`
 1. An encoding implies a file system type of `regular/text`
 1. Processors MAY apply implementation specific content type or file path hueristics to determine the file system type, otherwise the implied file system type is `regular`
+
+## License Properties
+
+The terms under which a project is licensed and the terms under which a component is used are described using the simple license relationships `license` and `licenseOrLater` or the complex license relationships `licenseDisjunction`, `licenseConjunction` and `licenseException`. Additionally, an intermediate `LicenseGroup` node may be embedded to avoid ambiguity when using several licenses.
+
+When using simple license relationships, they MUST specify a single license; multiple complex license relationships may be used, however if more then two are in use, they MUST specify the same relationship. Publishers MUST NOT mix simple and complex license relationships. If multiple complex relationships are used, exceptions are considered first and conjunction takes precedence over disjunction.
 
 # Document Format
 BDIO data can be transferred using one of four different formats depending on the capabilities of the parties involved and volume of data. Any JSON data being transferred MAY be pretty printed, it makes human consumption easier and has minimal impact on data size when compression is being used. BDIO data MUST be expressed as a named graph, the graph's label is used to uniquely identify the source of the data.
