@@ -24,6 +24,8 @@ import java.util.Objects;
  */
 public class NodeDoesNotExistException extends Exception {
 
+    private static final long serialVersionUID = 3567608177686947138L;
+
     private final Object nodeIdentifier;
 
     private final String objectPropertyName;
