@@ -15,6 +15,8 @@ import java.net.URL;
 import java.util.Objects;
 import java.util.function.Function;
 
+import javax.annotation.Nullable;
+
 import com.blackducksoftware.common.base.ExtraStrings;
 import com.google.common.io.Resources;
 import com.google.common.net.MediaType;
@@ -633,13 +635,20 @@ public class Bdio {
             return other;
         }
 
-        public static FileSystemType forString(String value) {
-            for (FileSystemType fileSystemType : values()) {
-                if (fileSystemType.value.equals(value)) {
-                    return fileSystemType;
+        /**
+         * Returns the file system type represented by the specified object.
+         */
+        public static FileSystemType from(@Nullable Object obj) {
+            if (obj instanceof FileSystemType) {
+                return (FileSystemType) obj;
+            } else {
+                for (FileSystemType fileSystemType : values()) {
+                    if (fileSystemType.value.equals(obj)) {
+                        return fileSystemType;
+                    }
                 }
+                throw new IllegalArgumentException("unknown file system type: " + obj);
             }
-            throw new IllegalArgumentException("unknown file system type: " + value);
         }
 
         @Override
