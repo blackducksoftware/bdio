@@ -22,10 +22,14 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
@@ -216,7 +220,8 @@ public class GraphTool extends Tool {
         try {
             for (Map.Entry<URI, ByteSource> input : inputs.entrySet()) {
                 try (InputStream inputStream = input.getValue().openStream()) {
-                    PartitionStrategy partition = partition(input.getKey());
+                    // Configure TinkerPop I/O
+                    Optional<PartitionStrategy> partition = partition(input.getKey());
                     BlackDuckIo.Builder bdio = BlackDuckIo.build()
                             .onGraphMapper(builder -> {
                                 // Set the JSON-LD context using file extensions
@@ -224,9 +229,7 @@ public class GraphTool extends Tool {
                             })
                             .onGraphTopology(builder -> {
                                 // Make sure each file goes into it's own partition
-                                if (inputs.size() > 1) {
-                                    builder.partitionStrategy(partition);
-                                }
+                                partition.ifPresent(builder::partitionStrategy);
 
                                 // If the graph does not support user identifiers, ensure we store JSON-LD identifiers
                                 if (!graph.features().vertex().supportsUserSuppliedIds()) {
@@ -239,11 +242,15 @@ public class GraphTool extends Tool {
                                 }
                             });
 
+                    // Get a traversal for the graph honoring the partition
+                    GraphTraversalSource g = graph.traversal();
+                    g = partition.map(g::withStrategies).orElse(g);
+
                     // Import the graph
                     Stopwatch loadGraphTimer = Stopwatch.createStarted();
                     graph.io(bdio).readGraph(inputStream);
                     printDebugMessage("Time to load BDIO graph: %s%n", loadGraphTimer.stop());
-                    onGraphLoaded.accept(graph.traversal().withStrategies(partition));
+                    onGraphLoaded.accept(g);
 
                     // Run the extra operations
                     if (!skipInitialization) {
@@ -251,7 +258,7 @@ public class GraphTool extends Tool {
                         graph.io(bdio).applySemanticRules();
                         printDebugMessage("Time to initialize BDIO graph: %s%n", initGraphTimer.stop());
                     }
-                    onGraphCompleted.accept(graph.traversal().withStrategies(partition));
+                    onGraphCompleted.accept(g);
                 }
             }
 
@@ -279,11 +286,31 @@ public class GraphTool extends Tool {
         return graph;
     }
 
-    private PartitionStrategy partition(@Nullable URI inputSource) {
-        // Since we are overriding the configuration, at least try to honor the requested partition key
-        String partitionKey = configuration.getString("bdio.partitionStrategy.partitionKey", DEFAULT_PARTITION_KEY);
-        String partition = Objects.toString(inputSource, DEFAULT_PARTITION);
-        return PartitionStrategy.build().partitionKey(partitionKey).writePartition(partition).readPartitions(partition).create();
+    private Optional<PartitionStrategy> partition(@Nullable URI inputSource) {
+        // If there is only one input and no explicit configuration, we don't need a partition
+        if (inputs.size() > 1 || configuration.containsKey("bdio.partitionStrategy.partitionKey")) {
+            String partitionKey = configuration.getString("bdio.partitionStrategy.partitionKey", DEFAULT_PARTITION_KEY);
+            String writePartition = Objects.toString(inputSource, DEFAULT_PARTITION);
+            List<String> readPartitions = Collections.singletonList(writePartition);
+
+            // Mimic `PartitionStrategy.create(Configuration)` to use configured values if we only have one input
+            if (inputs.size() == 1) {
+                writePartition = configuration.getString("bdio.partitionStrategy.writePartition", writePartition);
+                @SuppressWarnings("unchecked")
+                Collection<String> configuredReadPartitions = (Collection<String>) configuration.getProperty("bdio.partitionStrategy.readPartitions");
+                if (configuredReadPartitions != null) {
+                    readPartitions = new ArrayList<>(configuredReadPartitions);
+                }
+            }
+
+            return Optional.of(PartitionStrategy.build()
+                    .partitionKey(partitionKey)
+                    .writePartition(writePartition)
+                    .readPartitions(readPartitions)
+                    .create());
+        } else {
+            return Optional.empty();
+        }
     }
 
     private static Consumer<Graph> listenerForString(String listener) {
