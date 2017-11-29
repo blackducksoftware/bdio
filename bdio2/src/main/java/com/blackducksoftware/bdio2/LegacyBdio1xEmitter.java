@@ -16,6 +16,9 @@
 package com.blackducksoftware.bdio2;
 
 import static com.blackducksoftware.common.base.ExtraOptionals.and;
+import static com.blackducksoftware.common.base.ExtraStreams.ofType;
+import static com.blackducksoftware.common.base.ExtraStrings.beforeFirst;
+import static com.blackducksoftware.common.base.ExtraStrings.removePrefix;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -41,6 +44,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -65,6 +69,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Streams;
 import com.google.common.net.UrlEscapers;
 
 /**
@@ -73,6 +78,11 @@ import com.google.common.net.UrlEscapers;
  * @author jgustie
  */
 class LegacyBdio1xEmitter implements Emitter {
+
+    /**
+     * The BDIO 1.x {@code @vocab}.
+     */
+    private static final String VOCAB = "http://blackducksoftware.com/rdf/terms#";
 
     /**
      * Regular expression for parsing SPDX creators.
@@ -241,7 +251,11 @@ class LegacyBdio1xEmitter implements Emitter {
                 return container.nestedPath + UrlEscapers.urlFragmentEscaper().escape(path);
             } else {
                 checkArgument(fileName.startsWith("./"), "invalid BDIO 1.x fileName (must start with './'): %s", fileName);
-                return "file:///" + Joiner.on('/')
+                // TODO Where do these come from? Should we try to parse the @id (which is A Very Bad Thing)?
+                String scheme = "file";
+                String authority = "";
+                String baseDir = "/";
+                return scheme + "://" + authority + baseDir + Joiner.on('/')
                         .join(Iterables.transform(Splitter.on('/').omitEmptyStrings().split(fileName.substring(2)),
                                 UrlEscapers.urlPathSegmentEscaper().asFunction()));
             }
@@ -252,8 +266,6 @@ class LegacyBdio1xEmitter implements Emitter {
      * Extends the standard JSON parser with some useful behavior for parsing BDIO 1.x JSON.
      */
     private static class Bdio1JsonParser extends JsonParserDelegate {
-
-        private static final String VOCAB = "http://blackducksoftware.com/rdf/terms#";
 
         /**
          * The prefixes supported in BDIO 1.x.
@@ -276,15 +288,6 @@ class LegacyBdio1xEmitter implements Emitter {
         @Override
         public String nextFieldName() throws IOException {
             return applyPrefix(super.nextFieldName());
-        }
-
-        @Override
-        public String nextTextValue() throws IOException {
-            String textValue = super.nextTextValue();
-            if (Objects.equals(getCurrentName(), JsonLdConsts.TYPE)) {
-                return applyPrefix(textValue);
-            }
-            return textValue;
         }
 
         /**
@@ -507,13 +510,11 @@ class LegacyBdio1xEmitter implements Emitter {
         if (jp.nextToken() == JsonToken.START_OBJECT) {
             while (jp.nextToken() == JsonToken.FIELD_NAME) {
                 String fieldName = jp.getCurrentName();
-                if (fieldName == null) {
-                    break;
-                } else if (fieldName.startsWith("@")) {
-                    // TODO Technically '@type' can be a list but right now we override nextTextValue to get it
-                    currentNode.put(fieldName, jp.nextTextValue());
-                } else {
+                if (fieldName != null) {
                     currentNode.put(fieldName, jp.nextFieldValue());
+                } else {
+                    // TODO Is this reachable?
+                    break;
                 }
             }
             return true;
@@ -536,8 +537,12 @@ class LegacyBdio1xEmitter implements Emitter {
      */
     private String currentType() {
         Object type = currentNode.get(JsonLdConsts.TYPE);
+        if (type instanceof List<?>) {
+            // TODO Is this what we want to do?
+            type = ((List<?>) type).get(0);
+        }
         checkState(type instanceof String, "current type must be a string: %s", type);
-        return (String) type;
+        return removePrefix((String) type, VOCAB);
     }
 
     /**
@@ -547,6 +552,29 @@ class LegacyBdio1xEmitter implements Emitter {
      */
     private Optional<String> currentValue(Object... paths) {
         return currentValue(String.class, paths);
+    }
+
+    /**
+     * Helper to traverse the current node for a sequence of {@code String} values.
+     *
+     * @see #currentValues(Class, Object...)
+     */
+    private Stream<String> currentValues(Object... paths) {
+        return currentValues(String.class, paths);
+    }
+
+    /**
+     * Helper to traverse the current node for a sequence of values.
+     *
+     * @see #currentValue(Class, Object...)
+     */
+    private <T> Stream<T> currentValues(Class<T> type, Object... paths) {
+        Object value = currentValue(Object.class, paths).orElse(null);
+        if (value instanceof Iterable<?>) {
+            return Streams.stream((Iterable<?>) value).flatMap(ofType(type));
+        } else {
+            return type.isInstance(value) ? Stream.of(type.cast(value)) : Stream.empty();
+        }
     }
 
     /**
@@ -670,11 +698,11 @@ class LegacyBdio1xEmitter implements Emitter {
         creationInfo.filter(m -> m.group("personName") != null).map(m -> m.group("personName")).ifPresent(creator);
 
         ProductList.Builder producerBuilder = new ProductList.Builder();
-        // TODO "organizationName" in the comment?
         creationInfo.filter(m -> m.group("toolName") != null)
                 .map(m -> new Product.Builder()
                         .name(m.group("toolName"))
                         .version(m.group("toolVersion"))
+                        .addCommentText("bdio %s", currentValue("specVersion").orElse("1.0.0"))
                         .build())
                 .ifPresent(producerBuilder::addProduct);
         producerBuilder.addProduct(new Product.Builder()
@@ -688,7 +716,7 @@ class LegacyBdio1xEmitter implements Emitter {
      * Converts the external identifier from the current node.
      */
     // TODO This only converts a single external identifier!
-    // TODO If there are multiple external identifiers, multiple components/projects what-ever need to be created!
+    // TODO Multiple external identifiers = multiple components/projects with canonical links
     private void convertExternalIdentifier(Consumer<String> namespace, Consumer<String> identifier, Consumer<String> repository) {
         // TODO Attempt to support Black Duck Hub by converting this from an external identifier to Hub reference
         currentValue("externalIdentifier", "externalSystemTypeId").map(LegacyBdio1xEmitter::toNamespace).ifPresent(namespace);
@@ -719,8 +747,8 @@ class LegacyBdio1xEmitter implements Emitter {
     private void convertPath(Consumer<String> path) {
         currentValue("fileName").ifPresent(fileName -> {
             Archive currentArchive;
-            // TODO Leverage file systemType conversion? What about multiple values?
-            if (currentValue("fileType").filter(Predicate.isEqual("ARCHIVE")).isPresent()) {
+            if (currentValues("fileType").flatMap(LegacyBdio1xEmitter::toFileSystemType)
+                    .anyMatch(Predicate.isEqual(Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString()))) {
                 currentArchive = (archive = new Archive(archive, fileName)).container;
             } else {
                 while (archive != null && !fileName.startsWith(archive.fileName)) {
@@ -736,8 +764,11 @@ class LegacyBdio1xEmitter implements Emitter {
      * Converts the file system type from the current node.
      */
     private void convertFileTypes(Consumer<String> fileSystemType) {
-        // TODO This can have multiple values?
-        currentValue("fileType").flatMap(fileType -> Optional.ofNullable(toFileSystemType(fileType))).ifPresent(fileSystemType);
+        currentValues("fileType")
+                .flatMap(LegacyBdio1xEmitter::toFileSystemType)
+                // TODO Try to sort this? Or just take the first one?
+                .limit(1)
+                .forEach(fileSystemType);
     }
 
     /**
@@ -746,7 +777,7 @@ class LegacyBdio1xEmitter implements Emitter {
     // TODO This should take a `Consumer<List<Digest>>`
     private void convertChecksums(Consumer<Digest> fingerprint) {
         for (int index = 0, size = currentSize("checksum"); index < size; ++index) {
-            Optional<String> algorithm = currentValue("checksum", index, "algorithm").map(LegacyBdio1xEmitter::toDigestAlgorithm);
+            Optional<String> algorithm = currentValue("checksum", index, "algorithm").flatMap(LegacyBdio1xEmitter::toDigestAlgorithm);
             Optional<String> checksumValue = currentValue("checksum", index, "checksumValue");
             ExtraOptionals.and(algorithm, checksumValue, Digest::of).ifPresent(fingerprint);
         }
@@ -758,7 +789,7 @@ class LegacyBdio1xEmitter implements Emitter {
     private void convertRelationships(Consumer<Dependency> dependency) {
         for (int index = 0, size = currentSize("relationship"); index < size; ++index) {
             String relationshipType = currentValue("relationship", index, "relationshipType").orElse("");
-            if (relationshipType.equals("DYNAMIC_LINK") || relationshipType.equals("http://blackducksoftware.com/rdf/terms#relationshipType_dynamicLink")) {
+            if (checkIdentifier(relationshipType, "DYNAMIC_LINK", "http://blackducksoftware.com/rdf/terms#relationshipType_dynamicLink")) {
                 currentValue("relationship", index, "related")
                         .map(ref -> new Dependency().dependsOn(ref))
                         .ifPresent(dependency);
@@ -769,34 +800,39 @@ class LegacyBdio1xEmitter implements Emitter {
     /**
      * Returns the file system type from the BDIO 1.x file type.
      */
-    private static String toFileSystemType(String fileType) {
-        // TODO There were other SPDX types that were supported and were not in the context...
-        if (fileType.equals("BINARY") || fileType.equals("APPLICATION")) {
-            return Bdio.FileSystemType.REGULAR.toString();
-        } else if (fileType.equals("TEXT") || fileType.equals("SOURCE")) {
-            return Bdio.FileSystemType.REGULAR_TEXT.toString();
-        } else if (fileType.equals("DIRECTORY")) {
-            return Bdio.FileSystemType.DIRECTORY.toString();
-        } else if (fileType.equals("ARCHIVE")) {
-            return Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString();
+    private static Stream<String> toFileSystemType(String fileType) {
+        // TODO BDIO 1.x had "OTHER" that isn't accounted for
+        // TODO SPDX has "_documentation", "_image", "_audio", "_video", "_spdx" that aren't accounted for
+        if (checkIdentifier(fileType, "BINARY", "http://spdx.org/rdf/terms#fileType_binary")
+                || checkIdentifier(fileType, "APPLICATION", "http://spdx.org/rdf/terms#fileType_application")) {
+            return Stream.of(Bdio.FileSystemType.REGULAR.toString());
+        } else if (checkIdentifier(fileType, "TEXT", "http://spdx.org/rdf/terms#fileType_text")
+                || checkIdentifier(fileType, "SOURCE", "http://spdx.org/rdf/terms#fileType_source")) {
+            return Stream.of(Bdio.FileSystemType.REGULAR_TEXT.toString());
+        } else if (checkIdentifier(fileType, "DIRECTORY", "http://blackducksoftware.com/rdf/terms#fileType_directory")) {
+            return Stream.of(Bdio.FileSystemType.DIRECTORY.toString());
+        } else if (checkIdentifier(fileType, "ARCHIVE", "http://spdx.org/rdf/terms#fileType_archive")) {
+            return Stream.of(Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString());
         } else {
-            return null;
+            return Stream.empty();
         }
     }
 
     /**
      * Returns the digest algorithm name from the BDIO 1.x algorithm identifier.
      */
-    private static String toDigestAlgorithm(String algorithm) {
+    private static Optional<String> toDigestAlgorithm(String algorithm) {
         // Look for both the short form and fully qualified form since these were identifiers in BDIO 1.x
-        if (algorithm.equals("sha1") || algorithm.equals("http://spdx.org/rdf/terms#checksumAlgorithm_sha1")) {
-            return "sha1";
-        } else if (algorithm.equals("md5") || algorithm.equals("http://spdx.org/rdf/terms#checksumAlgorithm_md5")) {
-            return "md5";
+        if (checkIdentifier(algorithm, "sha1", "http://spdx.org/rdf/terms#checksumAlgorithm_sha1")) {
+            return Optional.of("sha1");
+        } else if (checkIdentifier(algorithm, "sha256", "http://spdx.org/rdf/terms#checksumAlgorithm_sha256")) {
+            return Optional.of("sha256");
+        } else if (checkIdentifier(algorithm, "md5", "http://spdx.org/rdf/terms#checksumAlgorithm_md5")) {
+            return Optional.of("md5");
         } else if (algorithm.indexOf(':') <= 0) {
-            return algorithm;
+            return Optional.of(algorithm);
         } else {
-            throw new IllegalArgumentException("unable to convert digest algorithm: " + algorithm);
+            return Optional.empty();
         }
     }
 
@@ -804,38 +840,58 @@ class LegacyBdio1xEmitter implements Emitter {
      * Returns the namespace name from the BDIO 1.x external system type identifier.
      */
     private static String toNamespace(String externalSystemTypeId) {
-        // Only strip off the vocab fully qualified portion of the identifier, if present
-        externalSystemTypeId = ExtraStrings.removePrefix(externalSystemTypeId, "http://blackducksoftware.com/rdf/terms#");
-
         // Look for both the short form and fully qualified form since these were identifiers in BDIO 1.x
-        if (externalSystemTypeId.equals("anaconda") || externalSystemTypeId.equals("externalIdentifier_anaconda")) {
+        if (checkIdentifier(externalSystemTypeId, "anaconda", "http://blackducksoftware.com/rdf/terms#externalIdentifier_anaconda")) {
             return "anaconda";
-        } else if (externalSystemTypeId.equals("bower") || externalSystemTypeId.equals("externalIdentifier_bower")) {
+        } else if (checkIdentifier(externalSystemTypeId, "bower", "http://blackducksoftware.com/rdf/terms#externalIdentifier_bower")) {
             return "bower";
-        } else if (externalSystemTypeId.equals("cocoapods") || externalSystemTypeId.equals("externalIdentifier_cocoapods")) {
+        } else if (checkIdentifier(externalSystemTypeId, "cocoapods", "http://blackducksoftware.com/rdf/terms#externalIdentifier_cocoapods")) {
             return "cocoapods";
-        } else if (externalSystemTypeId.equals("cpan") || externalSystemTypeId.equals("externalIdentifier_cpan")) {
+        } else if (checkIdentifier(externalSystemTypeId, "cpan", "http://blackducksoftware.com/rdf/terms#externalIdentifier_cpan")) {
             return "cpan";
-        } else if (externalSystemTypeId.equals("goget") || externalSystemTypeId.equals("externalIdentifier_goget")) {
+        } else if (checkIdentifier(externalSystemTypeId, "goget", "http://blackducksoftware.com/rdf/terms#externalIdentifier_goget")) {
             return "golang";
-        } else if (externalSystemTypeId.equals("maven") || externalSystemTypeId.equals("externalIdentifier_maven")) {
+        } else if (checkIdentifier(externalSystemTypeId, "maven", "http://blackducksoftware.com/rdf/terms#externalIdentifier_maven")) {
             return "maven";
-        } else if (externalSystemTypeId.equals("npm") || externalSystemTypeId.equals("externalIdentifier_npm")) {
+        } else if (checkIdentifier(externalSystemTypeId, "npm", "http://blackducksoftware.com/rdf/terms#externalIdentifier_npm")) {
             return "npmjs";
-        } else if (externalSystemTypeId.equals("nuget") || externalSystemTypeId.equals("externalIdentifier_nuget")) {
+        } else if (checkIdentifier(externalSystemTypeId, "nuget", "http://blackducksoftware.com/rdf/terms#externalIdentifier_nuget")) {
             return "nuget";
-        } else if (externalSystemTypeId.equals("rubygems") || externalSystemTypeId.equals("externalIdentifier_rubygems")) {
+        } else if (checkIdentifier(externalSystemTypeId, "rubygems", "http://blackducksoftware.com/rdf/terms#externalIdentifier_rubygems")) {
             return "rubygems";
-        } else if (externalSystemTypeId.equals("bdsuite") || externalSystemTypeId.equals("externalIdentifier_bdsuite")) {
+        } else if (checkIdentifier(externalSystemTypeId, "bdsuite", "http://blackducksoftware.com/rdf/terms#externalIdentifier_bdsuite")) {
             return "bdsuite";
-        } else if (externalSystemTypeId.equals("bdhub") || externalSystemTypeId.equals("externalIdentifier_bdhub")) {
+        } else if (checkIdentifier(externalSystemTypeId, "bdhub", "http://blackducksoftware.com/rdf/terms#externalIdentifier_bdhub")) {
             return "bdhub";
-        } else if (externalSystemTypeId.equals("openhub") || externalSystemTypeId.equals("externalIdentifier_openhub")) {
+        } else if (checkIdentifier(externalSystemTypeId, "openhub", "http://blackducksoftware.com/rdf/terms#externalIdentifier_openhub")) {
             return "openhub";
         } else {
             // Technically this wasn't supported, but it was still allowed
             return externalSystemTypeId;
         }
+    }
+
+    /**
+     * Check a value that was specified as an identifier in BDIO 1.x. This means we need to consider the term name, the
+     * fully qualified name and possibly some strangeness that can occur during JSON-LD compaction.
+     * <p>
+     * There are a few places where you have "iri#field" and "iri#field_value" which might compact as "field:_value" so
+     * we need to detect that case. It is also possible that you have a vocabulary match on the IRI.
+     */
+    private static boolean checkIdentifier(String value, String term, String iri) {
+        if (value.equals(term) || value.equals(iri) || value.equals(removePrefix(iri, VOCAB))) {
+            return true;
+        }
+
+        List<String> parts = Splitter.on(":_").limit(2).splitToList(value);
+        if (parts.size() == 2) {
+            String valueIri = beforeFirst(iri, '#') + '#' + parts.get(0) + '_' + parts.get(1);
+            if (valueIri.equals(iri)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
 }
