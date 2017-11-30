@@ -30,6 +30,7 @@ import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.blackducksoftware.bdio2.tool.linter.Linter;
 import com.blackducksoftware.bdio2.tool.linter.Linter.CompletedGraphRule;
+import com.blackducksoftware.bdio2.tool.linter.Linter.LT;
 import com.blackducksoftware.bdio2.tool.linter.Linter.LoadedGraphRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawEntryRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
@@ -62,14 +63,26 @@ public class LintTool extends AbstractGraphTool {
      */
     private final List<Violation> violations;
 
-    // TODO How do we configure severity levels or include/exclude rules?
-
     public LintTool(String name) {
         super(name);
         rules = Linter.loadAllRules().collect(toMap(r -> r.getClass().getSimpleName(), r -> r));
         violations = new ArrayList<>();
         graphTool().onGraphLoaded(g -> g.V().forEachRemaining(this::executeWithLoadedGraph));
         graphTool().onGraphCompleted(this::executeWithCompletedGraph);
+        graphTool().setProperty("bdio.metadataLabel", LT._Metadata.name());
+        graphTool().setProperty("bdio.rootLabel", LT._root.name());
+        graphTool().setProperty("bdio.identifierKey", LT._id.name());
+        graphTool().setProperty("bdio.unknownKey", LT._unknown.name());
+        graphTool().setProperty("bdio.implicitKey", LT._implicit.name());
+        graphTool().setProperty("bdio.partitionStrategy.partitionKey", LT._partition.name());
+    }
+
+    @Override
+    protected Tool parseArguments(String[] args) throws Exception {
+        // TODO What syntax do we use for enable/disable?
+        // javac: -Xlint/-Xlint:all -Xlint:none -Xlint:name -Xlint:-name
+
+        return super.parseArguments(args);
     }
 
     @Override

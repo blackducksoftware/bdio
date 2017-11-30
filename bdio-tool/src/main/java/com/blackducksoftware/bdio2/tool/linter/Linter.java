@@ -39,6 +39,18 @@ public final class Linter {
     // 2. Property "allowed on" validation
 
     /**
+     * (L)int (T)okens.
+     */
+    public enum LT {
+        _Metadata(),
+        _root(),
+        _id(),
+        _unknown(),
+        _implicit(),
+        _partition(),
+    }
+
+    /**
      * A violation of a linter rule.
      */
     public static class Violation {
@@ -141,6 +153,7 @@ public final class Linter {
         return Stream.<Rule<?>> builder()
                 .add(new MissingFilePath())
                 .add(new MissingProjectName())
+                .add(new SingleRoot())
                 .add(new ValidFilePath())
                 .add(new ValidIdentifier())
                 .build();
