@@ -13,11 +13,13 @@ package com.blackducksoftware.bdio2;
 
 import java.net.URL;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.common.base.ExtraStrings;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Resources;
 import com.google.common.net.MediaType;
 
@@ -143,7 +145,7 @@ public class Bdio {
          * Points to a project's base directory.
          */
         // AllowedOn: Container, FileCollection, Project, Repository
-        base("https://blackducksoftware.github.io/bdio#hasBase", Container.unordered),
+        base("https://blackducksoftware.github.io/bdio#hasBase", Container.unordered, Class.File),
 
         /**
          * Used to indicate two objects represent the same thing and directs you to the preferred representation.
@@ -155,19 +157,20 @@ public class Bdio {
          * Indicates a component was declared by a specific file.
          */
         // AllowedOn: Dependency
-        declaredBy("https://blackducksoftware.github.io/bdio#declaredBy", Container.unordered),
+        declaredBy("https://blackducksoftware.github.io/bdio#declaredBy", Container.unordered, Class.File),
 
         /**
          * The list of dependencies.
          */
         // AllowedOn: Container, Component, FileCollection, Project, Repository
-        dependency("https://blackducksoftware.github.io/bdio#hasDependency", Container.unordered),
+        dependency("https://blackducksoftware.github.io/bdio#hasDependency", Container.unordered, Class.Dependency),
 
         /**
          * Indicates the dependent component.
          */
         // AllowedOn: Dependency
-        dependsOn("https://blackducksoftware.github.io/bdio#dependsOn", Container.unordered),
+        // TODO Include Project in the range?
+        dependsOn("https://blackducksoftware.github.io/bdio#dependsOn", Container.unordered, Class.Component),
 
         /**
          * The license being used. This can be used in with other license relationships to create complex license
@@ -177,58 +180,58 @@ public class Bdio {
          * license defines the term under which usage of the component is licensed.
          */
         // AllowedOn: Project, Container, LicenseGroup, Component
-        license("https://blackducksoftware.github.io/bdio#hasLicense", Container.single),
+        license("https://blackducksoftware.github.io/bdio#hasLicense", Container.single, Class.License, Class.LicenseGroup),
 
         /**
          * A simultaneously required license being used. This can be used in with other license relationships to create
          * complex license expressions.
          */
         // AllowedOn: Project, Container, LicenseGroup, Component
-        licenseConjunctive("https://blackducksoftware.github.io/bdio#haslicenseConjunctive", Container.ordered),
+        licenseConjunctive("https://blackducksoftware.github.io/bdio#haslicenseConjunctive", Container.ordered, Class.License, Class.LicenseGroup),
 
         /**
          * A choice of licenses being used. This can be used in with other license relationships to create complex
          * license expressions.
          */
         // AllowedOn: Project, Container, LicenseGroup, Component
-        licenseDisjunctive("https://blackducksoftware.github.io/bdio#hasLicenseDisjunctive", Container.ordered),
+        licenseDisjunctive("https://blackducksoftware.github.io/bdio#hasLicenseDisjunctive", Container.ordered, Class.License, Class.LicenseGroup),
 
         /**
          * Identifies an exception to the terms of the license.
          */
         // AllowedOn: License
-        licenseException("https://blackducksoftware.github.io/bdio#hasLicenseException", Container.single),
+        licenseException("https://blackducksoftware.github.io/bdio#hasLicenseException", Container.single, Class.License),
 
         /**
          * The minimal license being used. This can be used in with other license relationships to create complex
          * license expressions.
          */
         // AllowedOn: Project, Container, LicenseGroup, Component
-        licenseOrLater("https://blackducksoftware.github.io/bdio#hasLicenseOrLater", Container.single),
+        licenseOrLater("https://blackducksoftware.github.io/bdio#hasLicenseOrLater", Container.single, Class.License),
 
         /**
          * Lists the notes applicable to a file.
          */
         // AllowedOn: File
-        note("https://blackducksoftware.github.io/bdio#hasNote", Container.ordered),
+        note("https://blackducksoftware.github.io/bdio#hasNote", Container.ordered, Class.Note),
 
         /**
          * Points to a file's parent. Typically this relationship is implicit; producers do not need to supply it.
          */
         // AllowedOn: File
-        parent("https://blackducksoftware.github.io/bdio#hasParent", Container.single),
+        parent("https://blackducksoftware.github.io/bdio#hasParent", Container.single, Class.File),
 
         /**
          * Links a project version to it's previous version.
          */
         // AllowedOn: Project
-        previousVersion("https://blackducksoftware.github.io/bdio#hasPreviousVersion", Container.single),
+        previousVersion("https://blackducksoftware.github.io/bdio#hasPreviousVersion", Container.single, Class.Project),
 
         /**
          * Establishes that a project has a subproject or module relationship to another project.
          */
         // AllowedOn: Project
-        subproject("https://blackducksoftware.github.io/bdio#hasSubproject", Container.unordered),
+        subproject("https://blackducksoftware.github.io/bdio#hasSubproject", Container.unordered, Class.Project),
 
         ;
 
@@ -236,9 +239,12 @@ public class Bdio {
 
         private final Container container;
 
-        private ObjectProperty(String iri, Container container) {
+        private final ImmutableSet<Bdio.Class> range;
+
+        private ObjectProperty(String iri, Container container, Bdio.Class... range) {
             this.iri = Objects.requireNonNull(iri);
             this.container = Objects.requireNonNull(container);
+            this.range = ImmutableSet.copyOf(range);
         }
 
         @Override
@@ -248,6 +254,10 @@ public class Bdio {
 
         public Container container() {
             return container;
+        }
+
+        public Set<Bdio.Class> range() {
+            return range;
         }
     }
 

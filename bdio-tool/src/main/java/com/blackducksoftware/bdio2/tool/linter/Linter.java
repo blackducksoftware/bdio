@@ -23,6 +23,7 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import com.github.jsonldjava.core.JsonLdConsts;
@@ -77,6 +78,8 @@ public final class Linter {
             Objects.requireNonNull(context);
             if (context instanceof Vertex) {
                 return ((Vertex) context).id();
+            } else if (context instanceof Edge) {
+                return ((Edge) context).id();
             } else if (context instanceof Map<?, ?>) {
                 return ((Map<?, ?>) context).get(JsonLdConsts.ID);
             } else {
@@ -153,6 +156,7 @@ public final class Linter {
         return Stream.<Rule<?>> builder()
                 .add(new MissingFilePath())
                 .add(new MissingProjectName())
+                .add(new ObjectPropertyRange())
                 .add(new SingleRoot())
                 .add(new ValidFilePath())
                 .add(new ValidIdentifier())
