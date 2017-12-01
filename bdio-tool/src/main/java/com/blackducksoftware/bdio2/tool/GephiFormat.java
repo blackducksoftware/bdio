@@ -167,9 +167,15 @@ public class GephiFormat {
      * Constructs the full Gephi data set in memory.
      */
     public static GephiData fromGraph(GraphTraversalSource g) {
-        return new GephiData()
-                .nodes(g.V().map(GephiNode::fromVertex).toList())
-                .edges(g.E().map(GephiEdge::fromEdge).toList());
+        try {
+            return new GephiData()
+                    .nodes(g.V().map(GephiNode::fromVertex).toList())
+                    .edges(g.E().map(GephiEdge::fromEdge).toList());
+        } finally {
+            if (g.getGraph().features().graph().supportsTransactions()) {
+                g.getGraph().tx().rollback();
+            }
+        }
     }
 
     private static String computeElementId(Element element) {

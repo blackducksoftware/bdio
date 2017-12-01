@@ -273,6 +273,10 @@ public class VizTool extends AbstractGraphTool {
         try {
             // Bind explicitly to the local host instead of all available to avoid IPv6 confusion
             HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLocalHost(), port), 0);
+            server.setExecutor(task -> {
+                setThreadName();
+                task.run();
+            });
 
             // Add the static resources
             StaticResourceHandler staticResources = new StaticResourceHandler();
@@ -312,6 +316,16 @@ public class VizTool extends AbstractGraphTool {
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * The thread gets used by Sqlg as the PostgreSQL application name, make sure it is something useful.
+     */
+    private static void setThreadName() {
+        Thread currentThread = Thread.currentThread();
+        if (currentThread.getName().equals("VizTool-http")) {
+            currentThread.setName("VizTool-http");
         }
     }
 
