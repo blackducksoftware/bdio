@@ -136,11 +136,16 @@ public class GraphMapper {
     }
 
     /**
-     * Gets a value from a vertex using an enumeration constant name as the key.
-     *
-     * @see #optionalValue(VertexProperty)
+     * Returns an optional string representing the value of the vertex property with the specified key.
      */
-    public static <K extends Enum<K>, T> Optional<T> dataValue(Vertex v, K key) {
+    public static Optional<String> stringValue(Vertex v, Enum<?> key) {
+        return optionalValue(v.property(key.name()));
+    }
+
+    /**
+     * Returns an optional object representing the value of the vertex property with the specified key.
+     */
+    public static Optional<Object> objectValue(Vertex v, Enum<?> key) {
         return optionalValue(v.property(key.name()));
     }
 
