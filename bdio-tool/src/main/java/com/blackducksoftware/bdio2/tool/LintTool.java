@@ -68,7 +68,7 @@ public class LintTool extends AbstractGraphTool {
         rules = Linter.loadAllRules().collect(toMap(r -> r.getClass().getSimpleName(), r -> r));
         violations = new ArrayList<>();
         graphTool().onGraphLoaded(g -> g.V().forEachRemaining(this::executeWithLoadedGraph));
-        graphTool().onGraphCompleted(this::executeWithCompletedGraph);
+        graphTool().onGraphInitialized(this::executeWithCompletedGraph);
         graphTool().setProperty("bdio.metadataLabel", LT._Metadata.name());
         graphTool().setProperty("bdio.rootLabel", LT._root.name());
         graphTool().setProperty("bdio.identifierKey", LT._id.name());

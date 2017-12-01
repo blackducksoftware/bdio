@@ -65,13 +65,13 @@ import com.google.common.io.ByteSource;
  */
 public class GraphTool extends Tool {
 
-    private static final String DEFAULT_IDENTIFIER_KEY = "_id";
+    static final String DEFAULT_IDENTIFIER_KEY = "_id";
 
-    private static final String DEFAULT_IMPLICIT_KEY = "_implicit";
+    static final String DEFAULT_IMPLICIT_KEY = "_implicit";
 
-    private static final String DEFAULT_PARTITION_KEY = "inputSource";
+    static final String DEFAULT_PARTITION_KEY = "inputSource";
 
-    private static final String DEFAULT_PARTITION = "<stdin>";
+    static final String DEFAULT_PARTITION = "<stdin>";
 
     private static final MapSplitter PROPERTY_SPLITTER = Splitter.on(',').limit(1).trimResults().withKeyValueSeparator('=');
 
@@ -85,11 +85,13 @@ public class GraphTool extends Tool {
 
     private boolean clean;
 
+    private boolean skipLoad;
+
     private boolean skipInitialization;
 
     private Consumer<GraphTraversalSource> onGraphLoaded = g -> {};
 
-    private Consumer<GraphTraversalSource> onGraphCompleted = g -> {};
+    private Consumer<GraphTraversalSource> onGraphInitialized = g -> {};
 
     private Consumer<Graph> onGraphComplete = graph -> {};
 
@@ -135,6 +137,10 @@ public class GraphTool extends Tool {
         this.clean = clean;
     }
 
+    public void setSkipLoad(boolean skipLoad) {
+        this.skipLoad = skipLoad;
+    }
+
     public void setSkipInitialization(boolean skipInitialization) {
         this.skipInitialization = skipInitialization;
     }
@@ -143,8 +149,8 @@ public class GraphTool extends Tool {
         onGraphLoaded = onGraphLoaded.andThen(listener);
     }
 
-    public void onGraphCompleted(Consumer<GraphTraversalSource> listener) {
-        onGraphCompleted = onGraphCompleted.andThen(listener);
+    public void onGraphInitialized(Consumer<GraphTraversalSource> listener) {
+        onGraphInitialized = onGraphInitialized.andThen(listener);
     }
 
     public void onGraphComplete(Consumer<Graph> listener) {
@@ -171,30 +177,22 @@ public class GraphTool extends Tool {
 
     @Override
     protected Set<String> optionsWithArgs() {
-        return ImmutableSet.of("--graph", "--config", "-D", "--onGraphComplete");
+        return ImmutableSet.<String> builder()
+                .addAll(graphConfigurationOptionsWithArgs())
+                .add("--onGraphComplete")
+                .build();
     }
 
     @Override
     protected Tool parseArguments(String[] args) throws Exception {
+        args = parseGraphConfigurationArguments(args, this);
+
         for (String arg : options(args)) {
             if (arg.equals("--clean")) {
                 setClean(true);
                 args = removeFirst(arg, args);
             } else if (arg.equals("--skip-init")) {
                 setSkipInitialization(true);
-                args = removeFirst(arg, args);
-            } else if (arg.startsWith("--graph=")) {
-                optionValue(arg).ifPresent(this::setGraph);
-                args = removeFirst(arg, args);
-            } else if (arg.startsWith("--config=")) {
-                String fileName = optionValue(arg).orElse(null);
-                if (fileName != null) {
-                    addConfiguration(new PropertiesConfiguration(fileName));
-                }
-                args = removeFirst(arg, args);
-            } else if (arg.startsWith("-D=")) {
-                optionValue(arg).map(PROPERTY_SPLITTER::split).orElse(Collections.emptyMap())
-                        .forEach(this::setProperty);
                 args = removeFirst(arg, args);
             } else if (arg.startsWith("--onGraphComplete=")) {
                 optionValue(arg).map(GraphTool::listenerForString).ifPresent(this::onGraphComplete);
@@ -212,9 +210,40 @@ public class GraphTool extends Tool {
         return super.parseArguments(args);
     }
 
+    /**
+     * This is a helper to configure a graph tool programmatically.
+     */
+    public static String[] parseGraphConfigurationArguments(String[] args, GraphTool graphTool) throws Exception {
+        for (String arg : options(args)) {
+            if (arg.startsWith("--graph=")) {
+                optionValue(arg).ifPresent(graphTool::setGraph);
+                args = removeFirst(arg, args);
+            } else if (arg.startsWith("--config=")) {
+                String fileName = optionValue(arg).orElse(null);
+                if (fileName != null) {
+                    graphTool.addConfiguration(new PropertiesConfiguration(fileName));
+                }
+                args = removeFirst(arg, args);
+            } else if (arg.startsWith("-D=")) {
+                optionValue(arg).map(PROPERTY_SPLITTER::split)
+                        .orElse(Collections.emptyMap())
+                        .forEach(graphTool::setProperty);
+                args = removeFirst(arg, args);
+            }
+        }
+        return args;
+    }
+
+    /**
+     * These are the options with arguments handled by {@link #parseGraphConfigurationArguments(String[], GraphTool)}.
+     */
+    public static Set<String> graphConfigurationOptionsWithArgs() {
+        return ImmutableSet.of("--graph", "--config", "-D");
+    }
+
     @Override
     protected void execute() throws Exception {
-        checkState(!inputs.isEmpty(), "no inputs");
+        checkState(!inputs.isEmpty() || (skipLoad && skipInitialization), "no inputs");
 
         Graph graph = openGraph();
         try {
@@ -247,18 +276,20 @@ public class GraphTool extends Tool {
                     g = partition.map(g::withStrategies).orElse(g);
 
                     // Import the graph
-                    Stopwatch loadGraphTimer = Stopwatch.createStarted();
-                    graph.io(bdio).readGraph(inputStream);
-                    printDebugMessage("Time to load BDIO graph: %s%n", loadGraphTimer.stop());
-                    onGraphLoaded.accept(g);
+                    if (!skipLoad) {
+                        Stopwatch loadGraphTimer = Stopwatch.createStarted();
+                        graph.io(bdio).readGraph(inputStream);
+                        printDebugMessage("Time to load BDIO graph: %s%n", loadGraphTimer.stop());
+                        onGraphLoaded.accept(g);
+                    }
 
                     // Run the extra operations
                     if (!skipInitialization) {
                         Stopwatch initGraphTimer = Stopwatch.createStarted();
                         graph.io(bdio).applySemanticRules();
                         printDebugMessage("Time to initialize BDIO graph: %s%n", initGraphTimer.stop());
+                        onGraphInitialized.accept(g);
                     }
-                    onGraphCompleted.accept(g);
                 }
             }
 
