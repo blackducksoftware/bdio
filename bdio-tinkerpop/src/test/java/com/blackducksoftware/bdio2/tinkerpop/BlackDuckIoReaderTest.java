@@ -54,6 +54,15 @@ public class BlackDuckIoReaderTest extends BaseTest {
 
     @Test
     public void readEmpty() throws Exception {
+        InputStream in = new ByteArrayInputStream(new byte[0]);
+        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds())).readGraph(in);
+
+        GraphTraversal<Vertex, Vertex> namedGraphs = graph.traversal().V().hasLabel(TT.Metadata);
+        assertThat(namedGraphs.hasNext()).isTrue();
+    }
+
+    @Test
+    public void readLogicallyEmpty() throws Exception {
         InputStream in = new ByteArrayInputStream("{}".getBytes(UTF_8));
         graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds())).readGraph(in);
 

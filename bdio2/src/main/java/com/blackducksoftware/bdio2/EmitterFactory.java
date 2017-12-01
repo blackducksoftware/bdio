@@ -143,6 +143,11 @@ public class EmitterFactory {
      */
     @VisibleForTesting
     protected static Optional<Function<InputStream, Emitter>> detectEmitter(byte[] buffer, int len) throws IOException {
+        // Optimization for empty input
+        if (isEmpty(buffer, len)) {
+            return Optional.of(x -> Emitter.empty());
+        }
+
         // If we see Zip magic, stick with the default parser
         if (isZipMagic(buffer, len)) {
             return Optional.empty();
@@ -187,6 +192,11 @@ public class EmitterFactory {
 
     private static boolean isZipMagic(byte[] buffer, int len) {
         return len >= 4 && buffer[0] == 0x50 && buffer[1] == 0x4b && buffer[2] == 0x03 && buffer[3] == 0x04;
+    }
+
+    private static boolean isEmpty(byte[] buffer, int len) {
+        // TODO Can we check for "{}" or "[]" as well (whitespace is the problem)?
+        return len == 0;
     }
 
     private static boolean containsBdio1xVocab(byte[] buffer, int len) {

@@ -59,4 +59,21 @@ public interface Emitter {
         }, false);
     }
 
+    /**
+     * Returns an emitter that does not produce any content.
+     */
+    public static Emitter empty() {
+        return new Emitter() {
+            @Override
+            public void emit(Consumer<Object> onNext, Consumer<Throwable> onError, Runnable onComplete) {
+                onComplete.run();
+            }
+
+            @Override
+            public Stream<Object> stream() {
+                return Stream.empty();
+            }
+        };
+    }
+
 }
