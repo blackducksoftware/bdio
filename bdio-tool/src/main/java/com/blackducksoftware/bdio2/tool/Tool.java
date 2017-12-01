@@ -187,6 +187,9 @@ public abstract class Tool implements Runnable {
 
         // Make sure exceptions going through RxJava are handled correctly
         RxJavaPlugins.setErrorHandler(this::handleException);
+
+        // Make sure exceptions on other threads are handled correctly
+        Thread.setDefaultUncaughtExceptionHandler((t, e) -> handleException(e));
     }
 
     @Override
@@ -226,11 +229,11 @@ public abstract class Tool implements Runnable {
                 if (optionsWithArgs.contains(arg)) {
                     if (i < args.length - 1 && !args[i + 1].startsWith("-")) {
                         // There is another arg available and it doesn't look like an option...
-                        normalizedArgs.add(arg += '=' + args[++i]);
+                        normalizedArgs.add(arg + '=' + args[++i]);
                     } else {
                         return optionRequiresArgument(arg);
                     }
-                } else if (arg.startsWith("-") && !arg.startsWith("--")) {
+                } else if (arg.startsWith("-") && !arg.startsWith("--") && (arg.length() < 3 || arg.charAt(2) != '=')) {
                     // Split ['-xyz'] into ['-x', '-y', '-z']
                     arg.substring(1).chars().mapToObj(c -> "-" + (char) c).forEach(normalizedArgs::add);
                 } else {
