@@ -32,6 +32,7 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 import org.apache.commons.configuration.Configuration;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 
 import com.blackducksoftware.bdio2.Bdio;
@@ -132,6 +133,15 @@ public class GraphMapper {
      */
     public static <T> Optional<T> optionalValue(VertexProperty<T> vp) {
         return vp.isPresent() ? Optional.of(vp.value()) : Optional.empty();
+    }
+
+    /**
+     * Gets a value from a vertex using an enumeration constant name as the key.
+     *
+     * @see #optionalValue(VertexProperty)
+     */
+    public static <K extends Enum<K>, T> Optional<T> dataValue(Vertex v, K key) {
+        return optionalValue(v.property(key.name()));
     }
 
     /**

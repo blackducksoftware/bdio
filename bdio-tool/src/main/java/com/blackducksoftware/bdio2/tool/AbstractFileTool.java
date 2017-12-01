@@ -78,7 +78,7 @@ public abstract class AbstractFileTool extends AbstractGraphTool {
         }
 
         public Bdio.FileSystemType type() {
-            return GraphMapper.optionalValue(vertex.property(Bdio.DataProperty.fileSystemType.name()))
+            return GraphMapper.dataValue(vertex, Bdio.DataProperty.fileSystemType)
                     .map(type -> {
                         for (Bdio.FileSystemType t : Bdio.FileSystemType.values()) {
                             if (t.toString().equals(type)) {
