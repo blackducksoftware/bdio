@@ -29,9 +29,9 @@ import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNullableByDefault;
 
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
-import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.umlg.sqlg.structure.RecordId;
@@ -166,10 +166,10 @@ public class GephiFormat {
     /**
      * Constructs the full Gephi data set in memory.
      */
-    public static GephiData fromGraph(Graph graph) {
+    public static GephiData fromGraph(GraphTraversalSource g) {
         return new GephiData()
-                .nodes(graph.traversal().V().map(GephiNode::fromVertex).toList())
-                .edges(graph.traversal().E().map(GephiEdge::fromEdge).toList());
+                .nodes(g.V().map(GephiNode::fromVertex).toList())
+                .edges(g.E().map(GephiEdge::fromEdge).toList());
     }
 
     private static String computeElementId(Element element) {
@@ -195,12 +195,12 @@ public class GephiFormat {
     }
 
     private static int computeNodeSize(Vertex vertex) {
-        if (vertex.label().equals(VizTool.VTT._Metadata.name())) {
-            return 20;
-        } else if (vertex.label().equals(Bdio.Class.Project.name())) {
+        if (vertex.label().equals(Bdio.Class.Project.name())) {
             return 15;
         } else if (vertex.label().equals(Bdio.Class.Component.name())) {
             return 10;
+        } else if (vertex.label().equals(vertex.graph().configuration().getString("bdio.metadataLabel", VizTool.DEFAULT_METADATA_LABEL))) {
+            return 20;
         } else {
             return 5;
         }

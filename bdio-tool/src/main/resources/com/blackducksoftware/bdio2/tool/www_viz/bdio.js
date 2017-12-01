@@ -7,7 +7,7 @@ var gephiImported;
 var detailsElement = document.getElementById('bdio-details');
 var container = document.getElementById('bdio-graph');
 
-loadJSON('data/graph.json', redrawAll, function(err) {
+loadJSON('data/graph.json' + window.location.search, redrawAll, function(err) {
   detailsElement.innerHTML = "Failed to load graph.";
 });
 
