@@ -17,6 +17,7 @@ package com.blackducksoftware.bdio2;
 
 import static com.blackducksoftware.common.base.ExtraOptionals.and;
 import static com.blackducksoftware.common.base.ExtraStreams.ofType;
+import static com.blackducksoftware.common.base.ExtraStrings.afterLast;
 import static com.blackducksoftware.common.base.ExtraStrings.beforeFirst;
 import static com.blackducksoftware.common.base.ExtraStrings.removePrefix;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -56,7 +57,6 @@ import com.blackducksoftware.bdio2.model.FileCollection;
 import com.blackducksoftware.bdio2.model.License;
 import com.blackducksoftware.bdio2.model.Project;
 import com.blackducksoftware.common.base.ExtraOptionals;
-import com.blackducksoftware.common.base.ExtraStrings;
 import com.blackducksoftware.common.value.Digest;
 import com.blackducksoftware.common.value.Product;
 import com.blackducksoftware.common.value.ProductList;
@@ -731,10 +731,11 @@ class LegacyBdio1xEmitter implements Emitter {
     // TODO Same multiple external identifier bug exists here
     private void convertRevision(Consumer<String> version, Consumer<String> requestedVersion) {
         currentValue("revision").ifPresent(revision -> {
-            String externalSystemTypeId = currentValue("externalIdentifier", "externalSystemTypeId").map(LegacyBdio1xEmitter::toNamespace).orElse("");
+            String namespace = currentValue("externalIdentifier", "externalSystemTypeId").map(LegacyBdio1xEmitter::toNamespace).orElse("");
             String externalId = currentValue("externalIdentifier", "externalId").orElse(null);
-            if (externalSystemTypeId.equals("npmjs") && externalId != null) {
-                version.accept(ExtraStrings.afterLast(externalId, '@'));
+            // TODO Did we support requested versions in Ruby Bundler as well?
+            if (namespace.equals("npmjs") && externalId != null) {
+                version.accept(afterLast(externalId, '@'));
                 requestedVersion.accept(revision);
             } else {
                 version.accept(revision);
