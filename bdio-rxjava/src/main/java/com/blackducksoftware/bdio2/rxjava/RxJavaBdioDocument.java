@@ -83,6 +83,7 @@ public final class RxJavaBdioDocument extends BdioDocument {
     public Flowable<BdioMetadata> metadata(Publisher<Object> inputs) {
         return Flowable.fromPublisher(inputs)
                 .map(BdioDocument::toGraphMetadata)
+                .onErrorResumeNext(Flowable.empty())
                 .reduce(new BdioMetadata(), BdioMetadata::merge)
                 .toFlowable();
     }
