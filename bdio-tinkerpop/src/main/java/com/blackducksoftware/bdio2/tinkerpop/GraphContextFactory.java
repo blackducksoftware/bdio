@@ -35,12 +35,6 @@ class GraphContextFactory {
      */
     private static final int DEFAULT_BATCH_SIZE = 10_000;
 
-    /**
-     * The number of expected BDIO nodes per named graph. This is a rough estimate on the upper bound used for improving
-     * the performance of "upsert" operations (by avoiding a round trip to determine node identifier existence).
-     */
-    private static final int EXPECTED_NODE_COUNT = 10_000_000;
-
     private final GraphMapper mapper;
 
     private final int batchSize;
@@ -59,7 +53,7 @@ class GraphContextFactory {
 
         // Subclasses for specific graph implementations provide optimization
         if (graph instanceof SqlgGraph) {
-            return new SqlgReadGraphContext((SqlgGraph) graph, mapper, batchSize, EXPECTED_NODE_COUNT);
+            return new SqlgReadGraphContext((SqlgGraph) graph, mapper, batchSize);
         } else {
             return new ReadGraphContext(graph, mapper, batchSize);
         }

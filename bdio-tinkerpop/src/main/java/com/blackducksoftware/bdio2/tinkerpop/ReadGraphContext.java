@@ -33,10 +33,8 @@ import org.apache.tinkerpop.gremlin.structure.Graph.Features.VertexFeatures;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
-import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
-import org.umlg.sqlg.structure.SqlgExceptions.InvalidIdException;
 
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.NodeDoesNotExistException;
@@ -44,7 +42,6 @@ import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 
 import io.reactivex.Observable;
@@ -100,45 +97,40 @@ class ReadGraphContext extends GraphContext {
     }
 
     /**
-     * Test for checking if a BDIO identifier has been seen during this read.
+     * Performs the reduction to a map.
      */
-    protected boolean isIdentifierUnique(String identifier) {
-        // Default is to return false suggesting that we might have seen the identifier before
-        return false;
-    }
+    public final Map<StarVertex, Vertex> toMap(Map<StarVertex, Vertex> map, StarVertex baseVertex) {
+        Vertex persisted = map.get(baseVertex);
+        if (persisted != null) {
+            // Update properties
+            Iterator<VertexProperty<Object>> properties = baseVertex.properties();
+            while (properties.hasNext()) {
+                VertexProperty<Object> vp = properties.next();
+                persisted.property(vertexFeatures.getCardinality(vp.key()), vp.key(), vp.value());
+            }
 
-    /**
-     * Performs an "upsert" operation against the current state of this context.
-     */
-    public final Vertex upsert(Attachable<Vertex> attachableVertex) {
-        Vertex baseVertex = attachableVertex.get();
-        return Optional.ofNullable(baseVertex.id())
-                // If this is a unique identifier, don't bother trying to look it up
-                .filter(id -> !isIdentifierUnique(id.toString()))
-                .flatMap(id -> {
-                    try {
-                        return Optional.ofNullable(Iterators.getNext(graph().vertices(id), null));
-                    } catch (InvalidIdException e) {
-                        return topology().identifierKey().flatMap(key -> traversal().V().has(key, id.toString()).tryNext());
+            // Update edges
+            Iterator<Edge> edges = baseVertex.edges(Direction.OUT);
+            if (edges.hasNext()) {
+                // Worst case scenario. We need to get the old key, which means a linear search...
+                for (StarVertex existingUnpersistedVertex : map.keySet()) {
+                    if (existingUnpersistedVertex.equals(baseVertex)) {
+                        edges.forEachRemaining(e -> {
+                            existingUnpersistedVertex.addEdge(e.label(), e.inVertex());
+                        });
+                        break;
                     }
-                })
+                }
+            }
+        } else {
+            // Create the new vertex
+            boolean includeId = vertexFeatures.willAllowId(baseVertex.id());
+            map.put(baseVertex, graph().addVertex(ElementHelper.getProperties(baseVertex, includeId, true, Collections.emptySet())));
+        }
 
-                // If we still have a vertex, update all of the properties
-                .map(vertex -> {
-                    baseVertex.properties().forEachRemaining(vp -> {
-                        VertexProperty<?> vertexProperty = graph().features().vertex().properties().willAllowId(vp.id())
-                                ? vertex.property(graph().features().vertex().getCardinality(vp.key()), vp.key(), vp.value(), T.id, vp.id())
-                                : vertex.property(graph().features().vertex().getCardinality(vp.key()), vp.key(), vp.value());
-                        vp.properties().forEachRemaining(p -> vertexProperty.property(p.key(), p.value()));
-                    });
-                    return vertex;
-                })
-
-                // If we do not have a vertex, create it
-                .orElseGet(() -> {
-                    boolean includeId = graph().features().vertex().willAllowId(baseVertex.id());
-                    return graph().addVertex(ElementHelper.getProperties(baseVertex, includeId, true, Collections.emptySet()));
-                });
+        // Batch commit update or insertion
+        batchCommitTx();
+        return map;
     }
 
     /**

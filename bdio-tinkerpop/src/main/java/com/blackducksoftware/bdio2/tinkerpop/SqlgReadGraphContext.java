@@ -27,9 +27,6 @@ import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.structure.Topology;
 
-import com.google.common.hash.BloomFilter;
-import com.google.common.hash.Funnels;
-
 /**
  * Specialization of the read graph context to use when the underlying graph is a Sqlg graph.
  *
@@ -47,16 +44,10 @@ class SqlgReadGraphContext extends ReadGraphContext {
      */
     private final boolean supportsBatchMode;
 
-    /**
-     * A bloom filter used to save a database SELECT operation.
-     */
-    private final BloomFilter<String> uniqueIdentifiers;
-
-    protected SqlgReadGraphContext(SqlgGraph sqlgGraph, GraphMapper mapper, int batchSize, int expectedNodeCount) {
+    protected SqlgReadGraphContext(SqlgGraph sqlgGraph, GraphMapper mapper, int batchSize) {
         super(sqlgGraph, mapper, batchSize);
         this.sqlgGraph = Objects.requireNonNull(sqlgGraph);
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
-        uniqueIdentifiers = BloomFilter.create(Funnels.unencodedCharsFunnel(), expectedNodeCount);
     }
 
     @Override
@@ -107,11 +98,6 @@ class SqlgReadGraphContext extends ReadGraphContext {
             // Wrapping SQLException with a RuntimeException is consistent with how Sqlg behaves
             throw new RuntimeException(e);
         }
-    }
-
-    @Override
-    protected boolean isIdentifierUnique(String identifier) {
-        return uniqueIdentifiers.put(identifier);
     }
 
 }

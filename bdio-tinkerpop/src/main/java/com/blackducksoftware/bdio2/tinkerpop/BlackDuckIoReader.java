@@ -70,18 +70,16 @@ public final class BlackDuckIoReader implements GraphReader {
                     .flatMapIterable(BdioDocument::toGraphNodes)
 
                     // Convert nodes to vertices
-                    .map(node -> createVertex(node, null, null, Direction.OUT, context))
+                    .map(node -> toVertex(node, null, null, Direction.OUT, context))
 
                     // Collect all of the vertices in a map, creating the actual vertices in the graph as we go
                     // THIS IS THE PART WHERE WE READ THE WHOLE GRAPH INTO MEMORY SO WE CAN CREATE THE EDGES
-                    // TODO Combine these two steps so it can be implemented in the context (allowing us to leverage
-                    // bulk edge creation in Sqlg)
-                    .toMap(vertex -> vertex, vertex -> vertex.attach(context::upsert), BlackDuckIoReader::vertexMap)
+                    .reduce(new HashMap<>(), context::toMap)
                     .flatMapObservable(context::createEdges)
 
                     // Setup batch commits
                     .doOnSubscribe(x -> context.startBatchTx())
-                    .doOnNext(x -> context.batchCommitTx()) // TODO Should this be right after attach also?
+                    .doOnNext(x -> context.batchCommitTx())
                     .doOnError(x -> context.rollbackTx())
                     .doOnComplete(context::commitTx)
 
@@ -158,7 +156,7 @@ public final class BlackDuckIoReader implements GraphReader {
     /**
      * Creates an in-memory vertex from the supplied node data.
      */
-    private StarVertex createVertex(Map<String, Object> node,
+    private StarVertex toVertex(Map<String, Object> node,
             @Nullable Function<Attachable<Vertex>, Vertex> vertexAttachMethod,
             @Nullable Function<Attachable<Edge>, Edge> edgeAttachMethod,
             Direction attachEdgesOfThisDirection,
@@ -187,40 +185,6 @@ public final class BlackDuckIoReader implements GraphReader {
         }
 
         return vertex;
-    }
-
-    /**
-     * We use the {@code StarVertex} as a key in the map which properly handles vertex identity, however the
-     * corresponding {@code StarGraph} may contain edges which get ignored on subsequent insertion attempts. Since we
-     * eventually convert those {@code StarEdge} instances, we need to preserve them.
-     * <p>
-     * This specialized map implementation overrides {@code put} so that if a mapping already exists, the edges from the
-     * key are merged together. This turns out to very inefficient since the hash map does not offer existing keys
-     * through it's protected API: we must resort to a linear search over the key set if we detect lost edges.
-     */
-    private static Map<StarVertex, Vertex> vertexMap() {
-        return new HashMap<StarVertex, Vertex>() {
-            @Override
-            public Vertex put(StarVertex key, Vertex value) {
-                Vertex oldValue = super.put(key, value);
-                if (oldValue != null) {
-                    // If we re-used the old key, we may need to go back and add edges from the new key
-                    Iterator<Edge> edges = key.edges(Direction.OUT);
-                    if (edges.hasNext()) {
-                        // Worst case scenario. We need to get the old key, which means a linear search...
-                        for (StarVertex oldKey : keySet()) {
-                            if (oldKey.equals(key)) {
-                                edges.forEachRemaining(e -> {
-                                    oldKey.addEdge(e.label(), e.inVertex());
-                                });
-                                break;
-                            }
-                        }
-                    }
-                }
-                return oldValue;
-            }
-        };
     }
 
     public static Builder build() {
