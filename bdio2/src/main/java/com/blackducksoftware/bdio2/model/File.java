@@ -11,6 +11,8 @@
  */
 package com.blackducksoftware.bdio2.model;
 
+import java.util.Collection;
+
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
@@ -39,7 +41,7 @@ public final class File extends BdioObject {
         return this;
     }
 
-    public File fingerprint(@Nullable Digest fingerprint) {
+    public File fingerprint(@Nullable Collection<Digest> fingerprint) {
         putData(Bdio.DataProperty.fingerprint, fingerprint);
         return this;
     }

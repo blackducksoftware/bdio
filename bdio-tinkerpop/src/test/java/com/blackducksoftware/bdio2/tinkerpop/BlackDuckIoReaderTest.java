@@ -15,6 +15,7 @@ import static com.blackducksoftware.common.test.JsonSubject.assertThatJson;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth8.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.singleton;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -111,8 +112,8 @@ public class BlackDuckIoReaderTest extends BaseTest {
         BdioMetadata metadata = BdioMetadata.createRandomUUID();
         File fileModel = new File(BdioObject.randomId());
         fileModel.byteCount(101L);
-        fileModel.fingerprint(Digest.of("sha1", "2d05a5f70ffb6fbf6fcbf65bb6f4cd48a8b2592a"));
-        fileModel.fingerprint(Digest.of("md5", "b26af8f84049e82f6a4805d68b0f178d"));
+        fileModel.fingerprint(singleton(Digest.of("sha1", "2d05a5f70ffb6fbf6fcbf65bb6f4cd48a8b2592a")));
+        fileModel.fingerprint(singleton(Digest.of("md5", "b26af8f84049e82f6a4805d68b0f178d")));
 
         graph.io(BlackDuckIo.build())
                 .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(fileModel))));
@@ -147,7 +148,7 @@ public class BlackDuckIoReaderTest extends BaseTest {
     public void readFileSingleFingerprint() throws Exception {
         BdioMetadata metadata = BdioMetadata.createRandomUUID();
         File fileModel = new File(BdioObject.randomId());
-        fileModel.fingerprint(Digest.of("sha1", "2d05a5f70ffb6fbf6fcbf65bb6f4cd48a8b2592a"));
+        fileModel.fingerprint(singleton(Digest.of("sha1", "2d05a5f70ffb6fbf6fcbf65bb6f4cd48a8b2592a")));
 
         graph.io(BlackDuckIo.build())
                 .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(fileModel))));

@@ -15,6 +15,8 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static java.util.stream.Collectors.toList;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -218,12 +220,12 @@ class LegacyScanContainerEmitter implements Emitter {
                     || scanNode.type.equals(LegacyScanNode.TYPE_FILE)
                     || scanNode.type.equals(LegacyScanNode.TYPE_ARCHIVE)) {
                 bdioFile.byteCount(scanNode.size);
-                scanNode.signatures.entrySet().stream()
+                bdioFile.fingerprint(scanNode.signatures.entrySet().stream()
                         .map(e -> new Digest.Builder()
                                 .algorithm(algorithmName(e.getKey()))
                                 .value(e.getValue())
                                 .build())
-                        .forEach(bdioFile::fingerprint);
+                        .collect(toList()));
             }
             return bdioFile;
         }

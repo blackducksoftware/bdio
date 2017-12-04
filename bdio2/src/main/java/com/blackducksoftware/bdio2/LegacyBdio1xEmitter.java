@@ -30,6 +30,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -774,12 +775,15 @@ class LegacyBdio1xEmitter implements Emitter {
     /**
      * Converts the checksums from the current node. The supplied consumer may be invoked multiple times.
      */
-    // TODO This should take a `Consumer<List<Digest>>`
-    private void convertChecksums(Consumer<Digest> fingerprint) {
+    private void convertChecksums(Consumer<Collection<Digest>> fingerprint) {
+        List<Digest> fingerprints = new ArrayList<>(currentSize("checksum"));
         for (int index = 0, size = currentSize("checksum"); index < size; ++index) {
             Optional<String> algorithm = currentValue("checksum", index, "algorithm").flatMap(LegacyBdio1xEmitter::toDigestAlgorithm);
             Optional<String> checksumValue = currentValue("checksum", index, "checksumValue");
-            ExtraOptionals.and(algorithm, checksumValue, Digest::of).ifPresent(fingerprint);
+            ExtraOptionals.and(algorithm, checksumValue, Digest::of).ifPresent(fingerprints::add);
+        }
+        if (!fingerprints.isEmpty()) {
+            fingerprint.accept(fingerprints);
         }
     }
 
