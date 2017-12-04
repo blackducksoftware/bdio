@@ -75,7 +75,7 @@ public abstract class Tool implements Runnable {
             // Do nothing
         }
 
-        // TODO Suppress warning for not calling super
+        @SuppressWarnings("MissingSuperCall")
         @Override
         protected Tool parseArguments(String[] args) {
             return this;

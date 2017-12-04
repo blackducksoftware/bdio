@@ -147,6 +147,7 @@ public class BdioMain extends Tool {
         this.commandArgs = Objects.requireNonNull(commandArgs);
     }
 
+    @SuppressWarnings("MissingSuperCall")
     @Override
     protected Tool parseArguments(String[] args) {
         commandName = Iterables.getFirst(arguments(args), Command.help.name());
