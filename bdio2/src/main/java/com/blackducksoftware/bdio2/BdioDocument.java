@@ -119,7 +119,7 @@ public abstract class BdioDocument {
     /**
      * Extracts metadata from the supplied entry.
      */
-    protected static Map<String, Object> toGraphMetadata(Object input) {
+    protected static Map<String, Object> toMetadata(Object input) {
         if (input instanceof Map<?, ?>) {
             @SuppressWarnings("unchecked")
             Map<String, Object> data = (Map<String, Object>) input;

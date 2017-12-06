@@ -11,9 +11,7 @@
  */
 package com.blackducksoftware.bdio2.rxjava;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -43,22 +41,12 @@ public final class RxJavaBdioDocument extends BdioDocument {
 
     @Override
     public Flowable<Object> read(InputStream in) {
-        // TODO Should this happen on the I/O scheduler?
         return Flowable.generate(
                 () -> EmitterFactory.newEmitter(options(), in),
                 (parser, emitter) -> {
                     parser.emit(emitter::onNext, emitter::onError, emitter::onComplete);
                 },
-                Emitter::dispose)
-
-                // Make IOExceptions unchecked
-                .onErrorResumeNext(t -> {
-                    if (t instanceof IOException) {
-                        return Flowable.error(new UncheckedIOException((IOException) t));
-                    } else {
-                        return Flowable.error(t);
-                    }
-                });
+                Emitter::dispose);
     }
 
     @Override
@@ -82,8 +70,8 @@ public final class RxJavaBdioDocument extends BdioDocument {
     @Override
     public Flowable<BdioMetadata> metadata(Publisher<Object> inputs) {
         return Flowable.fromPublisher(inputs)
-                .map(BdioDocument::toGraphMetadata)
-                .onErrorResumeNext(Flowable.empty())
+                .map(BdioDocument::toMetadata)
+                .onErrorReturn(BdioMetadata::new)
                 .reduce(new BdioMetadata(), BdioMetadata::merge)
                 .toFlowable();
     }

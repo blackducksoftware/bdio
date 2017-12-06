@@ -19,9 +19,11 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import javax.annotation.Nullable;
 
+import com.blackducksoftware.common.base.ExtraOptionals;
 import com.blackducksoftware.common.base.ExtraStrings;
 import com.blackducksoftware.common.value.ProductList;
 import com.github.jsonldjava.core.JsonLdConsts;
@@ -33,6 +35,11 @@ import com.google.common.collect.ImmutableMap;
  * @author jgustie
  */
 public final class BdioMetadata extends BdioObject {
+
+    /**
+     * The optional error that occurred while processing the entry corresponding to this metadata.
+     */
+    private Optional<Throwable> throwable = Optional.empty();
 
     /**
      * Creates a new, empty metadata instance.
@@ -49,10 +56,26 @@ public final class BdioMetadata extends BdioObject {
     }
 
     /**
+     * Creates a new metadata instance that indicates a failure to process a BDIO entry. If partial results are
+     * available (such as the identifier), they can be added to this metadata instance after construction.
+     */
+    public BdioMetadata(Throwable error) {
+        this();
+        throwable = Optional.of(error);
+    }
+
+    /**
      * Creates a new metadata instance with a random identifier.
      */
     public static BdioMetadata createRandomUUID() {
         return new BdioMetadata().id(randomId());
+    }
+
+    /**
+     * Returns the optional failure that occurred while processing the BDIO entry (or document).
+     */
+    public Optional<Throwable> getThrowable() {
+        return throwable;
     }
 
     /**
@@ -87,6 +110,15 @@ public final class BdioMetadata extends BdioObject {
      * Merges additional metadata into this metadata instance.
      */
     public BdioMetadata merge(Map<String, Object> other) {
+        // If the other instance is also metadata, merge in any failures
+        if (other instanceof BdioMetadata) {
+            throwable = ExtraOptionals.merge(throwable, ((BdioMetadata) other).throwable, (a, b) -> {
+                a.addSuppressed(b);
+                return a;
+            });
+        }
+
+        // Merge properties
         other.forEach((key, value) -> {
             // TODO Keep the first occurrence of the creation time instead of the last?
             // TODO Allow creator (username) to be multi-valued instead of overwriting?
