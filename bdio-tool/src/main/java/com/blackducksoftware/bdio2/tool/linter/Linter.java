@@ -154,6 +154,7 @@ public final class Linter {
      */
     public static Stream<Rule<?>> loadAllRules() {
         return Stream.<Rule<?>> builder()
+                .add(new DataPropertyRange())
                 .add(new MissingFilePath())
                 .add(new MissingProjectName())
                 .add(new ObjectPropertyRange())
