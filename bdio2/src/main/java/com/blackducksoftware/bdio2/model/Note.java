@@ -31,13 +31,8 @@ public final class Note extends BdioObject {
         return this;
     }
 
-    public Note copyrightYear(@Nullable String copyrightYear) {
-        putData(Bdio.DataProperty.copyrightYear, copyrightYear);
-        return this;
-    }
-
-    public Note rightsHolder(@Nullable String rightsHolder) {
-        putData(Bdio.DataProperty.rightsHolder, rightsHolder);
+    public Note rights(@Nullable String rights) {
+        putData(Bdio.DataProperty.rights, rights);
         return this;
     }
 

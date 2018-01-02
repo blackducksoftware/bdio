@@ -298,13 +298,6 @@ public class Bdio {
         context("https://blackducksoftware.github.io/bdio#hasContext", Container.single, Datatype.Default),
 
         /**
-         * The year or range of years of the applicable copyright for a specific file.
-         */
-        // TODO Allow this on Project as well?
-        // AllowedOn: Note
-        copyrightYear("https://blackducksoftware.github.io/bdio#hasCopyrightYear", Container.single, Datatype.Default),
-
-        /**
          * The time at which the BDIO document was created. This property should be specified for the named graph.
          */
         // AllowedOn: @Graph
@@ -409,11 +402,11 @@ public class Bdio {
         resolver("https://blackducksoftware.github.io/bdio#hasResolver", Container.single, Datatype.Products),
 
         /**
-         * The entity or entities claiming rights over a specific file.
+         * The statement of rights for a specific file. Generally this will be a copyright statement like "Copyright (C)
+         * 2016 Black Duck Software Inc.".
          */
-        // TODO Allow this on Project as well?
         // AllowedOn: Note
-        rightsHolder("https://blackducksoftware.github.io/bdio#hasRightsHolder", Container.ordered, Datatype.Default),
+        rights("https://blackducksoftware.github.io/bdio#hasRights", Container.single, Datatype.Default),
 
         /**
          * The namespace specific scope of a dependency as determined by the resolution tool used to define the
