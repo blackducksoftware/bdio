@@ -42,11 +42,12 @@ public class ValidFilePath implements RawNodeRule {
         if (Objects.equals(input.get(JsonLdConsts.TYPE), Bdio.Class.File.toString())) {
             Object path = input.get(Bdio.DataProperty.path.toString());
             if (path instanceof String) {
-                HID hid = HID.from((String) path);
+                HID hid = HID.from(path);
                 if (!path.equals(hid.toUriString())) {
                     result.add(new Violation(this, input, "File path should be normalized"));
                 }
 
+                @SuppressWarnings("deprecation")
                 URI baseUri = hid.getBase().toUri();
                 if (baseUri.isAbsolute()
                         && Ascii.equalsIgnoreCase(baseUri.getScheme(), "file")

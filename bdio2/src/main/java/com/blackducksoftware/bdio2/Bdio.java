@@ -267,7 +267,7 @@ public class Bdio {
          * The URL used to obtain additional details about the build environment.
          */
         // AllowedOn: @Graph
-        // TODO Change type to "URL"?
+        // TODO Change type to "AnyURI"?
         buildDetails("https://blackducksoftware.github.io/bdio#hasBuildDetails", Container.single, Datatype.Default),
 
         /**
@@ -335,7 +335,7 @@ public class Bdio {
          * The homepage associated with the entity.
          */
         // AllowedOn: Project, Component, License, Vulnerability
-        // TODO Change type to "URL"?
+        // TODO Change type to "AnyURI"?
         // TODO Other URLs: issues, source, wiki, etc.?
         homepage("https://blackducksoftware.github.io/bdio#hasHomepage", Container.unordered, Datatype.Default),
 
@@ -520,12 +520,12 @@ public class Bdio {
          */
         Products("https://blackducksoftware.github.io/bdio#Products"),
 
+        // TODO AnyURI("http://www.w3.org/2001/XMLSchema#anyURI")
+        // TODO Boolean("http://www.w3.org/2001/XMLSchema#boolean")
+        // TODO Language("http://www.w3.org/2001/XMLSchema#language")
+        // TODO UUID (or use anyURI with 'urn:uuid:')?
+        // TODO Token (like HTTP, not XML)?
         // TODO SPDX license expression? Do they have one already?
-        // TODO URL? "@id"?
-        // TODO UUID?
-        // TODO Boolean?
-        // TODO Token?
-        // TODO LanguageTag?
 
         ;
 

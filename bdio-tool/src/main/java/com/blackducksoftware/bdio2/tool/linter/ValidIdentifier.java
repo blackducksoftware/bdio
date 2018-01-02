@@ -40,6 +40,7 @@ public class ValidIdentifier implements RawNodeRule {
         Object id = input.get(JsonLdConsts.ID);
         if (id instanceof String) {
             try {
+                // TODO We want RFC 3986 parsing, not RFC 2396
                 URI uri = new URI((String) id);
                 if (!uri.isAbsolute()) {
                     // Identifier should have a scheme

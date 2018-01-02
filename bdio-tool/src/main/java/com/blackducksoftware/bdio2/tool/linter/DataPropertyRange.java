@@ -52,9 +52,8 @@ public class DataPropertyRange implements RawNodeRule {
                                 FileSystemType.from(fieldValue);
                             } else if (key.equals(Bdio.DataProperty.path.toString())
                                     || key.equals(Bdio.DataProperty.linkPath.toString())) {
-                                HID.from(fieldValue.toString()); // TODO Get rid of toString
+                                HID.from(fieldValue);
                             }
-                            // TODO Check copyrightYear
                             // TODO Check encoding (maybe warn if the encoding is valid but isn't supported)
                         }
 

@@ -83,6 +83,7 @@ abstract class GraphContext {
      * Returns a traversal source for the graph.
      */
     public GraphTraversalSource traversal() {
+        // TODO Cache this?
         GraphTraversalSource traversal = graph().traversal();
         return topology().partitionStrategy().map(traversal::withStrategies).orElse(traversal);
     }

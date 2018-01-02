@@ -96,7 +96,6 @@ public class GraphMapper {
         optionsBuilder.applicationContext(topology.applicationContext());
         builder.injectedDocuments.forEach(optionsBuilder::injectDocument);
         options = optionsBuilder.build();
-
     }
 
     /**
