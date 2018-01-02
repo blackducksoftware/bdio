@@ -79,7 +79,6 @@
       "@type" : "https://blackducksoftware.github.io/bdio#ContentType"
     },
     "context" : "https://blackducksoftware.github.io/bdio#hasContext",
-    "copyrightYear" : "https://blackducksoftware.github.io/bdio#hasCopyrightYear",
     "creationDateTime" : {
       "@id" : "https://blackducksoftware.github.io/bdio#hasCreationDateTime",
       "@type" : "xsd:dateTime"
@@ -115,10 +114,7 @@
       "@id" : "https://blackducksoftware.github.io/bdio#hasResolver",
       "@type" : "https://blackducksoftware.github.io/bdio#Products"
     },
-    "rightsHolder" : {
-      "@id" : "https://blackducksoftware.github.io/bdio#hasRightsHolder",
-      "@container" : "@list"
-    },
+    "rights" : "https://blackducksoftware.github.io/bdio#hasRights",
     "scope" : "https://blackducksoftware.github.io/bdio#hasScope",
     "sourceBranch" : "https://blackducksoftware.github.io/bdio#hasSourceBranch",
     "sourceRepository" : "https://blackducksoftware.github.io/bdio#hasSourceRepository",

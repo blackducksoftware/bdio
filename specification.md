@@ -137,10 +137,6 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : `https://blackducksoftware.github.io/bdio#hasContext`
 : The namespace specific base context used to resolve a locator. Typically this is just a URL, however any specification understood by the namespace specific resolver is acceptable.
 
-`copyrightYear`
-: `https://blackducksoftware.github.io/bdio#hasCopyrightYear`
-: The year or range of years of the applicable copyright for a specific file.
-
 `creationDateTime`
 : `https://blackducksoftware.github.io/bdio#hasCreationDateTime`
 : The time at which the BDIO document was created. This property should be specified for the named graph.
@@ -203,9 +199,9 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : `https://blackducksoftware.github.io/bdio#hasResolver`
 : The tool which resolved the namespace specific locator.
 
-`rightsHolder`
-: `https://blackducksoftware.github.io/bdio#hasRightsHolder`
-: The entity or entities claiming rights over a specific file.
+`rights`
+: `https://blackducksoftware.github.io/bdio#hasRights`
+: The statement of rights for a specific file. Generally this will be a copyright statement like "Copyright (C) 2016 Black Duck Software Inc.".
 
 `scope`
 : `https://blackducksoftware.github.io/bdio#hasScope`
