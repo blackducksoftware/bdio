@@ -17,11 +17,10 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.Bdio.Container;
-import com.blackducksoftware.bdio2.Bdio.Datatype;
 import com.github.jsonldjava.core.Context;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
+import com.google.common.base.Enums;
 
 /**
  * Tool for producing the current BDIO JSON-LD context.
@@ -73,12 +72,13 @@ public class ContextTool extends Tool {
         for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
             Map<String, Object> definition = new LinkedHashMap<>();
             definition.put(JsonLdConsts.ID, dataProperty.toString());
-            if (dataProperty.type() != Datatype.Default) {
-                definition.put(JsonLdConsts.TYPE, dataProperty.type().toString());
+            Bdio.Datatype datatype = range(dataProperty);
+            if (datatype != Bdio.Datatype.Default) {
+                definition.put(JsonLdConsts.TYPE, datatype.toString());
             }
-            if (dataProperty.container() == Container.ordered) {
+            if (dataProperty.container() == Bdio.Container.ordered) {
                 definition.put(JsonLdConsts.CONTAINER, JsonLdConsts.LIST);
-            } else if (dataProperty.container() == Container.unordered) {
+            } else if (dataProperty.container() == Bdio.Container.unordered) {
                 definition.put(JsonLdConsts.CONTAINER, JsonLdConsts.SET);
             }
             context.put(dataProperty.name(), definition);
@@ -86,6 +86,11 @@ public class ContextTool extends Tool {
 
         // Use the JSON-LD API to normalize the output
         return new Context().parse(context).serialize();
+    }
+
+    public static Bdio.Datatype range(Bdio.DataProperty dataProperty) {
+        Bdio.DataPropertyRange range = Enums.getField(dataProperty).getAnnotation(Bdio.DataPropertyRange.class);
+        return range != null ? range.value() : Bdio.Datatype.Default;
     }
 
 }

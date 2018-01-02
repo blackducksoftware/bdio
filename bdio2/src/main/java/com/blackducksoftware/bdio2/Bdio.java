@@ -11,15 +11,17 @@
  */
 package com.blackducksoftware.bdio2;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.net.URL;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.common.base.ExtraStrings;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Resources;
 import com.google.common.net.MediaType;
 
@@ -29,6 +31,44 @@ import com.google.common.net.MediaType;
  * @author jgustie
  */
 public class Bdio {
+
+    /**
+     * Annotation used to describe which class a property may be used on. This is different from a traditional linked
+     * data "domain" is that it <em>is</em> restrictive.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface AllowedOn {
+        /**
+         * The list of allowed types, if empty the annotated property can only be used for named graph metadata.
+         */
+        Bdio.Class[] value() default {};
+    }
+
+    /**
+     * Annotation used to describe the conjunctive range of an object property. That is, an object property can
+     * reference <em>any</em> of the specified types.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface ObjectPropertyRange {
+        /**
+         * The list of allowed types, if empty, there is no restriction applied to a property can references.
+         */
+        Bdio.Class[] value() default {};
+    }
+
+    /**
+     * Annotation used to describe the range of a literal data property.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface DataPropertyRange {
+        /**
+         * The literal data type for the property.
+         */
+        Bdio.Datatype value();
+    }
 
     @SuppressWarnings("JavaLangClash")
     public enum Class {
@@ -144,33 +184,37 @@ public class Bdio {
         /**
          * Points to a project's base directory.
          */
-        // AllowedOn: Container, FileCollection, Project, Repository
-        base("https://blackducksoftware.github.io/bdio#hasBase", Container.unordered, Class.File),
+        @AllowedOn({ Class.Container, Class.FileCollection, Class.Project, Class.Repository })
+        @ObjectPropertyRange({ Class.File })
+        base("https://blackducksoftware.github.io/bdio#hasBase", Container.unordered),
 
         /**
          * Used to indicate two objects represent the same thing and directs you to the preferred representation.
          */
-        // AllowedOn: Project, Container, Component, License, Repository, Vulnerability
+        @AllowedOn({ Class.Project, Class.Container, Class.Component, Class.License, Class.Repository, Class.Vulnerability })
+        @ObjectPropertyRange({})
         canonical("https://blackducksoftware.github.io/bdio#hasCanonical", Container.single),
 
         /**
          * Indicates a component was declared by a specific file.
          */
-        // AllowedOn: Dependency
-        declaredBy("https://blackducksoftware.github.io/bdio#declaredBy", Container.unordered, Class.File),
+        @AllowedOn({ Class.Dependency })
+        @ObjectPropertyRange({ Class.File })
+        declaredBy("https://blackducksoftware.github.io/bdio#declaredBy", Container.unordered),
 
         /**
          * The list of dependencies.
          */
-        // AllowedOn: Container, Component, FileCollection, Project, Repository
-        dependency("https://blackducksoftware.github.io/bdio#hasDependency", Container.unordered, Class.Dependency),
+        @AllowedOn({ Class.Container, Class.Component, Class.FileCollection, Class.Project, Class.Repository })
+        @ObjectPropertyRange({ Class.Dependency })
+        dependency("https://blackducksoftware.github.io/bdio#hasDependency", Container.unordered),
 
         /**
          * Indicates the dependent component.
          */
-        // AllowedOn: Dependency
-        // TODO Include Project in the range?
-        dependsOn("https://blackducksoftware.github.io/bdio#dependsOn", Container.unordered, Class.Component),
+        @AllowedOn({ Class.Dependency })
+        @ObjectPropertyRange({ Class.Component }) // TODO Include Project in the range?
+        dependsOn("https://blackducksoftware.github.io/bdio#dependsOn", Container.unordered),
 
         /**
          * The license being used. This can be used in with other license relationships to create complex license
@@ -179,59 +223,68 @@ public class Bdio {
          * For root objects, the license defines the terms under which the project may be licensed, for a component, the
          * license defines the term under which usage of the component is licensed.
          */
-        // AllowedOn: Project, Container, LicenseGroup, Component
-        license("https://blackducksoftware.github.io/bdio#hasLicense", Container.single, Class.License, Class.LicenseGroup),
+        @AllowedOn({ Class.Project, Class.Container, Class.LicenseGroup, Class.Component })
+        @ObjectPropertyRange({ Class.License, Class.LicenseGroup })
+        license("https://blackducksoftware.github.io/bdio#hasLicense", Container.single),
 
         /**
          * A simultaneously required license being used. This can be used in with other license relationships to create
          * complex license expressions.
          */
-        // AllowedOn: Project, Container, LicenseGroup, Component
-        licenseConjunctive("https://blackducksoftware.github.io/bdio#haslicenseConjunctive", Container.ordered, Class.License, Class.LicenseGroup),
+        @AllowedOn({ Class.Project, Class.Container, Class.LicenseGroup, Class.Component })
+        @ObjectPropertyRange({ Class.License, Class.LicenseGroup })
+        licenseConjunctive("https://blackducksoftware.github.io/bdio#haslicenseConjunctive", Container.ordered),
 
         /**
          * A choice of licenses being used. This can be used in with other license relationships to create complex
          * license expressions.
          */
-        // AllowedOn: Project, Container, LicenseGroup, Component
-        licenseDisjunctive("https://blackducksoftware.github.io/bdio#hasLicenseDisjunctive", Container.ordered, Class.License, Class.LicenseGroup),
+        @AllowedOn({ Class.Project, Class.Container, Class.LicenseGroup, Class.Component })
+        @ObjectPropertyRange({ Class.License, Class.LicenseGroup })
+        licenseDisjunctive("https://blackducksoftware.github.io/bdio#hasLicenseDisjunctive", Container.ordered),
 
         /**
          * Identifies an exception to the terms of the license.
          */
-        // AllowedOn: License
-        licenseException("https://blackducksoftware.github.io/bdio#hasLicenseException", Container.single, Class.License),
+        @AllowedOn({ Class.License })
+        @ObjectPropertyRange({ Class.License })
+        licenseException("https://blackducksoftware.github.io/bdio#hasLicenseException", Container.single),
 
         /**
          * The minimal license being used. This can be used in with other license relationships to create complex
          * license expressions.
          */
-        // AllowedOn: Project, Container, LicenseGroup, Component
-        licenseOrLater("https://blackducksoftware.github.io/bdio#hasLicenseOrLater", Container.single, Class.License),
+        @AllowedOn({ Class.Project, Class.Container, Class.LicenseGroup, Class.Component })
+        @ObjectPropertyRange({ Class.License })
+        licenseOrLater("https://blackducksoftware.github.io/bdio#hasLicenseOrLater", Container.single),
 
         /**
          * Lists the notes applicable to a file.
          */
-        // AllowedOn: File
-        note("https://blackducksoftware.github.io/bdio#hasNote", Container.ordered, Class.Note),
+        @AllowedOn({ Class.File })
+        @ObjectPropertyRange({ Class.Note })
+        note("https://blackducksoftware.github.io/bdio#hasNote", Container.ordered),
 
         /**
          * Points to a file's parent. Typically this relationship is implicit; producers do not need to supply it.
          */
-        // AllowedOn: File
-        parent("https://blackducksoftware.github.io/bdio#hasParent", Container.single, Class.File),
+        @AllowedOn({ Class.File })
+        @ObjectPropertyRange({ Class.File })
+        parent("https://blackducksoftware.github.io/bdio#hasParent", Container.single),
 
         /**
          * Links a project version to it's previous version.
          */
-        // AllowedOn: Project
-        previousVersion("https://blackducksoftware.github.io/bdio#hasPreviousVersion", Container.single, Class.Project),
+        @AllowedOn({ Class.Project })
+        @ObjectPropertyRange({ Class.Project })
+        previousVersion("https://blackducksoftware.github.io/bdio#hasPreviousVersion", Container.single),
 
         /**
          * Establishes that a project has a subproject or module relationship to another project.
          */
-        // AllowedOn: Project
-        subproject("https://blackducksoftware.github.io/bdio#hasSubproject", Container.unordered, Class.Project),
+        @AllowedOn({ Class.Project })
+        @ObjectPropertyRange({ Class.Project })
+        subproject("https://blackducksoftware.github.io/bdio#hasSubproject", Container.unordered),
 
         ;
 
@@ -239,12 +292,9 @@ public class Bdio {
 
         private final Container container;
 
-        private final ImmutableSet<Bdio.Class> range;
-
-        private ObjectProperty(String iri, Container container, Bdio.Class... range) {
+        private ObjectProperty(String iri, Container container) {
             this.iri = Objects.requireNonNull(iri);
             this.container = Objects.requireNonNull(container);
-            this.range = ImmutableSet.copyOf(range);
         }
 
         @Override
@@ -255,10 +305,6 @@ public class Bdio {
         public Container container() {
             return container;
         }
-
-        public Set<Bdio.Class> range() {
-            return range;
-        }
     }
 
     public enum DataProperty {
@@ -266,97 +312,110 @@ public class Bdio {
         /**
          * The URL used to obtain additional details about the build environment.
          */
-        // AllowedOn: @Graph
-        // TODO Change type to "AnyURI"?
-        buildDetails("https://blackducksoftware.github.io/bdio#hasBuildDetails", Container.single, Datatype.Default),
+        @AllowedOn({})
+        @DataPropertyRange(Datatype.Default) // TODO Change type to "AnyURI"?
+        buildDetails("https://blackducksoftware.github.io/bdio#hasBuildDetails", Container.single),
 
         /**
          * The build number captured from the build environment.
          */
-        // AllowedOn: @Graph
-        buildNumber("https://blackducksoftware.github.io/bdio#hasBuildNumber", Container.single, Datatype.Default),
+        @AllowedOn({})
+        @DataPropertyRange(Datatype.Default)
+        buildNumber("https://blackducksoftware.github.io/bdio#hasBuildNumber", Container.single),
 
         /**
          * The size (in bytes) of a file.
          */
-        // AllowedOn: File
+        @AllowedOn({ Class.File })
+        @DataPropertyRange(Datatype.Long)
         // The name "byte count" does not conflict with "size" or "length" and is less ambiguous
-        byteCount("https://blackducksoftware.github.io/bdio#hasByteCount", Container.single, Datatype.Long),
+        byteCount("https://blackducksoftware.github.io/bdio#hasByteCount", Container.single),
 
         /**
          * The content type of a file.
          */
-        // AllowedOn: File
-        contentType("https://blackducksoftware.github.io/bdio#hasContentType", Container.single, Datatype.ContentType),
+        @AllowedOn({ Class.File })
+        @DataPropertyRange(Datatype.ContentType)
+        contentType("https://blackducksoftware.github.io/bdio#hasContentType", Container.single),
 
         /**
          * The namespace specific base context used to resolve a locator. Typically this is just a URL, however any
          * specification understood by the namespace specific resolver is acceptable.
          */
-        // AllowedOn: Project, Component, License, Vulnerability
+        @AllowedOn({ Class.Project, Class.Component, Class.License, Class.Vulnerability })
+        @DataPropertyRange(Datatype.Default)
         // TODO Is this a good name? Back to repository?
-        context("https://blackducksoftware.github.io/bdio#hasContext", Container.single, Datatype.Default),
+        context("https://blackducksoftware.github.io/bdio#hasContext", Container.single),
 
         /**
          * The time at which the BDIO document was created. This property should be specified for the named graph.
          */
-        // AllowedOn: @Graph
-        creationDateTime("https://blackducksoftware.github.io/bdio#hasCreationDateTime", Container.single, Datatype.DateTime),
+        @AllowedOn({})
+        @DataPropertyRange(Datatype.DateTime)
+        creationDateTime("https://blackducksoftware.github.io/bdio#hasCreationDateTime", Container.single),
 
         /**
          * The user who created the BDIO document. This property should be specified for the named graph.
          */
-        // AllowedOn: @Graph
+        @AllowedOn({})
+        @DataPropertyRange(Datatype.Default)
         // TODO Should this be an ObjectProperty to some kind of DOAP class?
-        creator("https://blackducksoftware.github.io/bdio#hasCreator", Container.single, Datatype.Default),
+        creator("https://blackducksoftware.github.io/bdio#hasCreator", Container.single),
 
         /**
          * The character encoding of a file. It is required that producers store the encoding independent of the content
          * type's parameters.
          */
-        // AllowedOn: File
-        encoding("https://blackducksoftware.github.io/bdio#hasEncoding", Container.single, Datatype.Default),
+        @AllowedOn({ Class.File })
+        @DataPropertyRange(Datatype.Default)
+        encoding("https://blackducksoftware.github.io/bdio#hasEncoding", Container.single),
 
         /**
          * The file system type of file. Represented as a content-type-like string indicating the type file.
          *
          * @see Bdio.FileSystemType
          */
-        // AllowedOn: File
-        fileSystemType("https://blackducksoftware.github.io/bdio#hasFileSystemType", Container.single, Datatype.Default),
+        @AllowedOn({ Class.File })
+        @DataPropertyRange(Datatype.Default)
+        fileSystemType("https://blackducksoftware.github.io/bdio#hasFileSystemType", Container.single),
 
         /**
          * The fingerprints of a file.
          */
-        // AllowedOn: File
-        fingerprint("https://blackducksoftware.github.io/bdio#hasFingerprint", Container.unordered, Datatype.Digest),
+        @AllowedOn({ Class.File })
+        @DataPropertyRange(Datatype.Digest)
+        fingerprint("https://blackducksoftware.github.io/bdio#hasFingerprint", Container.unordered),
 
         /**
          * The homepage associated with the entity.
          */
-        // AllowedOn: Project, Component, License, Vulnerability
-        // TODO Change type to "AnyURI"?
+        @AllowedOn({ Class.Project, Class.Component, Class.License, Class.Vulnerability })
+        @DataPropertyRange(Datatype.Default) // TODO Change type to "AnyURI"?
         // TODO Other URLs: issues, source, wiki, etc.?
-        homepage("https://blackducksoftware.github.io/bdio#hasHomepage", Container.unordered, Datatype.Default),
+        homepage("https://blackducksoftware.github.io/bdio#hasHomepage", Container.unordered),
 
         /**
          * The namespace specific locator for a component. Also known as an "external identifier".
          */
-        // AllowedOn: Project, Component, License, Vulnerability
-        identifier("https://blackducksoftware.github.io/bdio#hasIdentifier", Container.single, Datatype.Default),
+        @AllowedOn({ Class.Project, Class.Component, Class.License, Class.Vulnerability })
+        @DataPropertyRange(Datatype.Default)
+        identifier("https://blackducksoftware.github.io/bdio#hasIdentifier", Container.single),
 
         /**
          * The symbolic link target of a file.
          */
-        // AllowedOn: File
-        linkPath("https://blackducksoftware.github.io/bdio#hasLinkPath", Container.single, Datatype.Default),
+        @AllowedOn({ Class.File })
+        @DataPropertyRange(Datatype.Default)
+        linkPath("https://blackducksoftware.github.io/bdio#hasLinkPath", Container.single),
 
         /**
          * The display name of the entity.
          */
         // TODO Use JSON-LD Container.language to support multi-language names?
-        // AllowedOn: @Graph, Project, Component, License, Vulnerability, Repository
-        name("https://blackducksoftware.github.io/bdio#hasName", Container.single, Datatype.Default),
+        // TODO This is also allowed on @Graph
+        @AllowedOn({ Class.Project, Class.Component, Class.License, Class.Vulnerability, Class.Repository })
+        @DataPropertyRange(Datatype.Default)
+        name("https://blackducksoftware.github.io/bdio#hasName", Container.single),
 
         /**
          * The namespace a component exists in. Also known as a "forge" or "system type", this defines how many
@@ -367,90 +426,104 @@ public class Bdio {
          * however it is ultimately up to the producer and consumer of the BDIO data to handshake on the appropriate
          * rules.
          */
-        // AllowedOn: Project, Container, Component, License, Repository, Vulnerability
-        namespace("https://blackducksoftware.github.io/bdio#hasNamespace", Container.single, Datatype.Default),
+        @AllowedOn({ Class.Project, Class.Container, Class.Component, Class.License, Class.Repository, Class.Vulnerability })
+        @DataPropertyRange(Datatype.Default)
+        namespace("https://blackducksoftware.github.io/bdio#hasNamespace", Container.single),
 
         /**
          * The hierarchical path of a file relative to the base directory.
          */
-        // AllowedOn: File
-        path("https://blackducksoftware.github.io/bdio#hasPath", Container.single, Datatype.Default),
+        @AllowedOn({ Class.File })
+        @DataPropertyRange(Datatype.Default)
+        path("https://blackducksoftware.github.io/bdio#hasPath", Container.single),
 
         /**
          * The tool which published the BDIO document. This property should be specified for the named graph.
          */
-        // AllowedOn: @Graph
-        publisher("https://blackducksoftware.github.io/bdio#hasPublisher", Container.single, Datatype.Products),
+        @AllowedOn({})
+        @DataPropertyRange(Datatype.Products)
+        publisher("https://blackducksoftware.github.io/bdio#hasPublisher", Container.single),
 
         /**
          * The ranges of file content a note applies to. Multiple ranges can be specified, however the units must be
          * distinct (e.g. "bytes" and "chars").
          */
-        // AllowedOn: Note
-        range("https://blackducksoftware.github.io/bdio#hasRange", Container.unordered, Datatype.ContentRange),
+        @AllowedOn({ Class.Note })
+        @DataPropertyRange(Datatype.ContentRange)
+        range("https://blackducksoftware.github.io/bdio#hasRange", Container.unordered),
 
         /**
          * The namespace specific version range that resulted in a component being included.
          */
-        // AllowedOn: Component
-        requestedVersion("https://blackducksoftware.github.io/bdio#hasRequestedVersion", Container.single, Datatype.Default),
+        @AllowedOn({ Class.Component })
+        @DataPropertyRange(Datatype.Default)
+        requestedVersion("https://blackducksoftware.github.io/bdio#hasRequestedVersion", Container.single),
 
         /**
          * The tool which resolved the namespace specific locator.
          */
-        // AllowedOn: Project, Component, License, Vulnerability
-        resolver("https://blackducksoftware.github.io/bdio#hasResolver", Container.single, Datatype.Products),
+        @AllowedOn({ Class.Project, Class.Component, Class.License, Class.Vulnerability })
+        @DataPropertyRange(Datatype.Products)
+        resolver("https://blackducksoftware.github.io/bdio#hasResolver", Container.single),
 
         /**
          * The statement of rights for a specific file. Generally this will be a copyright statement like "Copyright (C)
          * 2016 Black Duck Software Inc.".
          */
-        // AllowedOn: Note
-        rights("https://blackducksoftware.github.io/bdio#hasRights", Container.single, Datatype.Default),
+        @AllowedOn({ Class.Note })
+        @DataPropertyRange(Datatype.Default)
+        rights("https://blackducksoftware.github.io/bdio#hasRights", Container.single),
 
         /**
          * The namespace specific scope of a dependency as determined by the resolution tool used to define the
          * dependency. For example, if a dependency came from an npm package's "devDependencies" field, then the
          * scope should be "devDependencies".
          */
-        // AllowedOn: Dependency
-        scope("https://blackducksoftware.github.io/bdio#hasScope", Container.single, Datatype.Default),
+        @AllowedOn({ Class.Dependency })
+        @DataPropertyRange(Datatype.Default)
+        scope("https://blackducksoftware.github.io/bdio#hasScope", Container.single),
 
         /**
          * The SCM branch name from the build environment.
          */
-        // AllowedOn: @Graph
-        sourceBranch("https://blackducksoftware.github.io/bdio#hasSourceBranch", Container.single, Datatype.Default),
+        @AllowedOn({})
+        @DataPropertyRange(Datatype.Default)
+        sourceBranch("https://blackducksoftware.github.io/bdio#hasSourceBranch", Container.single),
 
         /**
          * The URI representing the SCM location from the build environment.
          */
-        // AllowedOn: @Graph
-        sourceRepository("https://blackducksoftware.github.io/bdio#hasSourceRepository", Container.single, Datatype.Default),
+        @AllowedOn({})
+        @DataPropertyRange(Datatype.Default)
+        sourceRepository("https://blackducksoftware.github.io/bdio#hasSourceRepository", Container.single),
 
         /**
          * The SCM revision identifier from the build environment.
          */
-        // AllowedOn: @Graph
-        sourceRevision("https://blackducksoftware.github.io/bdio#hasSourceRevision", Container.single, Datatype.Default),
+        @AllowedOn({})
+        @DataPropertyRange(Datatype.Default)
+        sourceRevision("https://blackducksoftware.github.io/bdio#hasSourceRevision", Container.single),
 
         /**
          * The SCM tag name from the build environment.
          */
-        // AllowedOn: @Graph
-        sourceTag("https://blackducksoftware.github.io/bdio#hasSourceTag", Container.single, Datatype.Default),
+        @AllowedOn({})
+        @DataPropertyRange(Datatype.Default)
+        sourceTag("https://blackducksoftware.github.io/bdio#hasSourceTag", Container.single),
 
         /**
          * The name of the vendor who provides a project or component.
          */
-        // AllowedOn: Project, Component
-        vendor("https://blackducksoftware.github.io/bdio#hasVendor", Container.single, Datatype.Default),
+        @AllowedOn({ Class.Project, Class.Component })
+        @DataPropertyRange(Datatype.Default)
+        vendor("https://blackducksoftware.github.io/bdio#hasVendor", Container.single),
 
         /**
          * The display version of the entity. Must reference a single version.
          */
-        // AllowedOn: Project, Component
-        version("https://blackducksoftware.github.io/bdio#hasVersion", Container.single, Datatype.Default),
+        @AllowedOn({ Class.Project, Class.Component })
+        @DataPropertyRange(Datatype.Default)
+        version("https://blackducksoftware.github.io/bdio#hasVersion", Container.single),
 
         // TODO Container information: repo, tag, id, etc.
 
@@ -458,24 +531,16 @@ public class Bdio {
 
         private final String iri;
 
-        // TODO Should this be replaced by `@Range(iri)`?
-        private final Datatype type;
-
         private final Container container;
 
-        private DataProperty(String iri, Container container, Datatype type) {
+        private DataProperty(String iri, Container container) {
             this.iri = Objects.requireNonNull(iri);
             this.container = Objects.requireNonNull(container);
-            this.type = Objects.requireNonNull(type);
         }
 
         @Override
         public String toString() {
             return iri;
-        }
-
-        public Datatype type() {
-            return type;
         }
 
         public Container container() {

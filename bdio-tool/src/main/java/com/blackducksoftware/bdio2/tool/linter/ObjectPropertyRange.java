@@ -27,6 +27,8 @@ import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.tool.linter.Linter.CompletedGraphRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Severity;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
+import com.google.common.base.Enums;
+import com.google.common.collect.ImmutableSet;
 
 public class ObjectPropertyRange implements CompletedGraphRule {
 
@@ -41,13 +43,18 @@ public class ObjectPropertyRange implements CompletedGraphRule {
 
         // Validate EVERY EDGE
         g.E().forEachRemaining(e -> {
-            Set<Bdio.Class> range = tryByName(Bdio.ObjectProperty.class, e.label()).map(Bdio.ObjectProperty::range).orElse(emptySet());
+            Set<Bdio.Class> range = tryByName(Bdio.ObjectProperty.class, e.label()).map(ObjectPropertyRange::range).orElse(emptySet());
             if (!range.isEmpty() && !tryByName(Bdio.Class.class, e.inVertex().label()).filter(range::contains).isPresent()) {
                 result.add(new Violation(this, e, "Invalid range"));
             }
         });
 
         return result.build();
+    }
+
+    public static Set<Bdio.Class> range(Bdio.ObjectProperty objectProperty) {
+        Bdio.ObjectPropertyRange range = Enums.getField(objectProperty).getAnnotation(Bdio.ObjectPropertyRange.class);
+        return range != null ? ImmutableSet.copyOf(range.value()) : ImmutableSet.of();
     }
 
 }
