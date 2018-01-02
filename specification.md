@@ -60,176 +60,260 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `base`
 : `https://blackducksoftware.github.io/bdio#hasBase`
 : Points to a project's base directory.
+: _Allowed on: `Container`, `FileCollection`, `Project`, `Repository`_
+: _Range: `File`_
 
 `canonical`
 : `https://blackducksoftware.github.io/bdio#hasCanonical`
 : Used to indicate two objects represent the same thing and directs you to the preferred representation.
+: _Allowed on: `Project`, `Container`, `Component`, `License`, `Repository`, `Vulnerability`_
+: _Range: `<any>`_
 
 `declaredBy`
 : `https://blackducksoftware.github.io/bdio#declaredBy`
 : Indicates a component was declared by a specific file.
+: _Allowed on: `Dependency`_
+: _Range: `File`_
 
 `dependency`
 : `https://blackducksoftware.github.io/bdio#hasDependency`
 : The list of dependencies.
+: _Allowed on: `Container`, `Component`, `FileCollection`, `Project`, `Repository`_
+: _Range: `Dependency`_
 
 `dependsOn`
 : `https://blackducksoftware.github.io/bdio#dependsOn`
 : Indicates the dependent component.
+: _Allowed on: `Dependency`_
+: _Range: `Component`_
 
 `license`
 : `https://blackducksoftware.github.io/bdio#hasLicense`
 : The license being used. This can be used in with other license relationships to create complex license expressions.
 :
 :For root objects, the license defines the terms under which the project may be licensed, for a component, the license defines the term under which usage of the component is licensed.
+: _Allowed on: `Project`, `Container`, `LicenseGroup`, `Component`_
+: _Range: `License`, `LicenseGroup`_
 
 `licenseConjunctive`
 : `https://blackducksoftware.github.io/bdio#hasLicenseConjunctive`
 : A simultaneously required license being used. This can be used in with other license relationships to create complex license expressions.
+: _Allowed on: `Project`, `Container`, `LicenseGroup`, `Component`_
+: _Range: `License`, `LicenseGroup`_
 
 `licenseDisjunctive`
 : `https://blackducksoftware.github.io/bdio#hasLicenseDisjunctive`
 : A choice of licenses being used. This can be used in with other license relationships to create complex license expressions.
+: _Allowed on: `Project`, `Container`, `LicenseGroup`, `Component`_
+: _Range: `License`, `LicenseGroup`_
 
 `licenseException`
 : `https://blackducksoftware.github.io/bdio#hasLicenseException`
 : Identifies an exception to the terms of the license.
+: _Allowed on: `License`_
+: _Range: `License`_
 
 `licenseOrLater`
 : `https://blackducksoftware.github.io/bdio#hasLicenseOrLater`
 : The minimal license being used. This can be used in with other license relationships to create complex license expressions.
+: _Allowed on: `Project`, `Container`, `LicenseGroup`, `Component`_
+: _Range: `License`_
 
 `note`
 : `https://blackducksoftware.github.io/bdio#hasNote`
 : Lists the notes applicable to a file.
+: _Allowed on: `File`_
+: _Range: `Note`_
 
 `parent`
 : `https://blackducksoftware.github.io/bdio#hasParent`
 : Points to a file's parent. Typically this relationship is implicit; producers do not need to supply it.
+: _Allowed on: `File`_
+: _Range: `File`_
 
 `previousVersion`
 : `https://blackducksoftware.github.io/bdio#hasPreviousVersion`
 : Links a project version to it's previous version.
+: _Allowed on: `Project`_
+: _Range: `Project`_
 
 `subproject`
 : `https://blackducksoftware.github.io/bdio#hasSubproject`
 : Establishes that a project has a subproject or module relationship to another project.
+: _Allowed on: `Project`_
+: _Range: `Project`_
 
 ## Data Properties
 
 `buildDetails`
 : `https://blackducksoftware.github.io/bdio#hasBuildDetails`
 : The URL used to obtain additional details about the build environment.
+: _Allowed on: `@graph`_
+: _Range: `Default`_
 
 `buildNumber`
 : `https://blackducksoftware.github.io/bdio#hasBuildNumber`
 : The build number captured from the build environment.
+: _Allowed on: `@graph`_
+: _Range: `Default`_
 
 `byteCount`
 : `https://blackducksoftware.github.io/bdio#hasByteCount`
 : The size (in bytes) of a file.
+: _Allowed on: `File`_
+: _Range: `Long`_
 
 `contentType`
 : `https://blackducksoftware.github.io/bdio#hasContentType`
 : The content type of a file.
+: _Allowed on: `File`_
+: _Range: `ContentType`_
 
 `context`
 : `https://blackducksoftware.github.io/bdio#hasContext`
 : The namespace specific base context used to resolve a locator. Typically this is just a URL, however any specification understood by the namespace specific resolver is acceptable.
+: _Allowed on: `Project`, `Component`, `License`, `Vulnerability`_
+: _Range: `Default`_
 
 `creationDateTime`
 : `https://blackducksoftware.github.io/bdio#hasCreationDateTime`
 : The time at which the BDIO document was created. This property should be specified for the named graph.
+: _Allowed on: ``_
+: _Range: ``_
 
 `creator`
 : `https://blackducksoftware.github.io/bdio#hasCreator`
 : The user who created the BDIO document. This property should be specified for the named graph.
+: _Allowed on: `@graph`_
+: _Range: `DateTime`_
 
 `encoding`
 : `https://blackducksoftware.github.io/bdio#hasEncoding`
 : The character encoding of a file. It is required that producers store the encoding independent of the content type's parameters.
+: _Allowed on: `File`_
+: _Range: `Default`_
 
 `fileSystemType`
 : `https://blackducksoftware.github.io/bdio#hasFileSystemType`
 : The file system type of file. Represented as a content-type-like string indicating the type file.
+: _Allowed on: `File`_
+: _Range: `Default`_
 
 `fingerprint`
 : `https://blackducksoftware.github.io/bdio#hasFingerprint`
 : The fingerprints of a file.
+: _Allowed on: `File`_
+: _Range: `Digest`_
 
 `homepage`
 : `https://blackducksoftware.github.io/bdio#hasHomepage`
 : The homepage associated with the entity.
+: _Allowed on: `Project`, `Component`, `License`, `Vulnerability`_
+: _Range: `Default`_
 
 `identifier`
 : `https://blackducksoftware.github.io/bdio#hasIdentifier`
 : The namespace specific locator for a component. Also known as an "external identifier".
+: _Allowed on: `Project`, `Component`, `License`, `Vulnerability`_
+: _Range: `Default`_
 
 `linkPath`
 : `https://blackducksoftware.github.io/bdio#hasLinkPath`
 : The symbolic link target of a file.
+: _Allowed on: `File`_
+: _Range: `Default`_
 
 `name`
 : `https://blackducksoftware.github.io/bdio#hasName`
 : The display name of the entity.
+: _Allowed on: `@graph`, `Project`, `Component`, `License`, `Vulnerability`, `Repository`_
+: _Range: `Default`_
 
 `namespace`
 : `https://blackducksoftware.github.io/bdio#hasNamespace`
 : The namespace a component exists in. Also known as a "forge" or "system type", this defines how many different fields should be interpreted (e.g. identifiers, versions and scopes are defined within a particular namespace).
 :
 : Note that namespace values are not part of the BDIO specification. There are BDIO recommendations, however it is ultimately up to the producer and consumer of the BDIO data to handshake on the appropriate rules.
+: _Allowed on: `Project`, `Container`, `Component`, `License`, `Repository`, `Vulnerability`_
+: _Range: `Default`_
 
 `path`
 : `https://blackducksoftware.github.io/bdio#hasPath`
 : The hierarchical path of a file relative to the base directory.
+: _Allowed on: `File`_
+: _Range: `Default`_
 
 `publisher`
 : `https://blackducksoftware.github.io/bdio#hasPublisher`
 : The tool which published the BDIO document. This property should be specified for the named graph.
+: _Allowed on: `@graph`_
+: _Range: `Products`_
 
 `range`
 : `https://blackducksoftware.github.io/bdio#hasRange`
 : The ranges of file content a note applies to. Multiple ranges can be specified, however the units must be distinct (e.g. "bytes" and "chars").
+: _Allowed on: `Note`_
+: _Range: `ContentRange`_
 
 `requestedVersion`
 : `https://blackducksoftware.github.io/bdio#hasRequestedVersion`
 : The namespace specific version range that resulted in a component being included.
+: _Allowed on: `Component`_
+: _Range: `Default`_
 
 `resolver`
 : `https://blackducksoftware.github.io/bdio#hasResolver`
 : The tool which resolved the namespace specific locator.
+: _Allowed on: `Project`, `Component`, `License`, `Vulnerability`_
+: _Range: `Products`_
 
 `rights`
 : `https://blackducksoftware.github.io/bdio#hasRights`
 : The statement of rights for a specific file. Generally this will be a copyright statement like "Copyright (C) 2016 Black Duck Software Inc.".
+: _Allowed on: `Note`_
+: _Range: `Default`_
 
 `scope`
 : `https://blackducksoftware.github.io/bdio#hasScope`
 : The namespace specific scope of a dependency as determined by the resolution tool used to define the dependency. For example, if a dependency came from an npm package's "devDependencies" field, then the scope should be "devDependencies".
+: _Allowed on: `Dependency`_
+: _Range: `Default`_
 
 `sourceBranch`
 : `https://blackducksoftware.github.io/bdio#hasSourceBranch`
 : The SCM branch name from the build environment.
+: _Allowed on: `@graph`_
+: _Range: `Default`_
 
 `sourceRepository`
 : `https://blackducksoftware.github.io/bdio#hasSourceRepository`
 : The URI representing the SCM location from the build environment.
+: _Allowed on: `@graph`_
+: _Range: `Default`_
 
 `sourceRevision`
 : `https://blackducksoftware.github.io/bdio#hasSourceRevision`
 : The SCM revision identifier from the build environment.
+: _Allowed on: `@graph`_
+: _Range: `Default`_
 
 `sourceTag`
 : `https://blackducksoftware.github.io/bdio#hasSourceTag`
 : The SCM tag name from the build environment.
+: _Allowed on: `@graph`_
+: _Range: `Default`_
 
 `vendor`
 : `https://blackducksoftware.github.io/bdio#hasVendor`
 : The name of the vendor who provides a project or component.
+: _Allowed on: `Project`, `Component `_
+: _Range: `Default`_
 
 `version`
 : `https://blackducksoftware.github.io/bdio#hasVersion`
 : The display version of the entity. Must reference a single version.
+: _Allowed on: `Project`, `Component `_
+: _Range: `Default`_
 
 ## Datatypes
 
