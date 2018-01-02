@@ -440,7 +440,7 @@ class LegacyBdio1xEmitter implements Emitter {
                 // Convert the BillOfMaterials node into BDIO metadata
                 metadata = new BdioMetadata().id(currentId());
                 currentValue("spdx:name").ifPresent(metadata::name);
-                convertCreationInfo(metadata::creationDateTime, metadata::creator, metadata::producer);
+                convertCreationInfo(metadata::creationDateTime, metadata::creator, metadata::publisher);
                 return;
             } else {
                 // Weren't ready for this node yet, buffer a copy for later

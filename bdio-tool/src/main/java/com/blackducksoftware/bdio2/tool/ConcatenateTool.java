@@ -115,7 +115,7 @@ public class ConcatenateTool extends Tool {
 
         BdioMetadata metadata = new BdioMetadata();
         metadata.id(id.orElseGet(BdioObject::randomId));
-        metadata.producer(ProductList.of(getProduct()));
+        metadata.publisher(ProductList.of(getProduct()));
         metadata.creationDateTime(ZonedDateTime.now());
         metadata.creator(StandardSystemProperty.USER_NAME.value());
 
@@ -136,7 +136,7 @@ public class ConcatenateTool extends Tool {
      */
     private static boolean needsMoreMetadata(Object entry) {
         if (entry instanceof Map<?, ?>) {
-            String key = Bdio.DataProperty.producer.toString();
+            String key = Bdio.DataProperty.publisher.toString();
             Object value = ((Map<?, ?>) entry).get(key);
             if (value != null) {
                 ProductList products = (ProductList) ValueObjectMapper.getContextValueObjectMapper().fromFieldValue(key, value);

@@ -185,7 +185,7 @@ class LegacyScanContainerEmitter implements Emitter {
                     .id(toFileUri(hostName, baseDir, null))
                     .name(name)
                     .creationDateTime(createdOn)
-                    .producer(new ProductList.Builder()
+                    .publisher(new ProductList.Builder()
                             .addProduct(new Product.Builder()
                                     .name("HubScanClient")
                                     .version(scannerVersion)

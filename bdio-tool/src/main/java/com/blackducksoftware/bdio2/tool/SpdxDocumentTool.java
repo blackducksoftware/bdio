@@ -120,7 +120,7 @@ public class SpdxDocumentTool extends Tool {
         LicenseList licenseList = readLicenseList();
         BdioMetadata metadata = new BdioMetadata()
                 .creationDateTime(ZonedDateTime.now())
-                .producer(new ProductList.Builder()
+                .publisher(new ProductList.Builder()
                         .addProduct(getProduct().newBuilder()
                                 .addCommentText("licenseListVersion %s", licenseList.licenseListVersion)
                                 .build())

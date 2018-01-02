@@ -377,10 +377,10 @@ public class Bdio {
         path("https://blackducksoftware.github.io/bdio#hasPath", Container.single, Datatype.Default),
 
         /**
-         * The tool which produced the BDIO document. This property should be specified for the named graph.
+         * The tool which published the BDIO document. This property should be specified for the named graph.
          */
         // AllowedOn: @Graph
-        producer("https://blackducksoftware.github.io/bdio#hasProducer", Container.single, Datatype.Products),
+        publisher("https://blackducksoftware.github.io/bdio#hasPublisher", Container.single, Datatype.Products),
 
         /**
          * The ranges of file content a note applies to. Multiple ranges can be specified, however the units must be

@@ -136,14 +136,14 @@ public final class BdioMetadata extends BdioObject {
                     // Incompatible identifiers
                     throw new IllegalArgumentException("identifier mismatch: " + value + " (was expecting " + id() + ")");
                 }
-            } else if (key.equals(Bdio.DataProperty.producer.toString())) {
-                Object producer = get(Bdio.DataProperty.producer.toString());
+            } else if (key.equals(Bdio.DataProperty.publisher.toString())) {
+                Object producer = get(Bdio.DataProperty.publisher.toString());
                 if (producer != null) {
                     // Merges to create new producer
                     ProductList.Builder builder = new ProductList.Builder();
                     ((ProductList) mapper().fromFieldValue(key, producer)).forEach(builder::addProduct);
                     ((ProductList) mapper().fromFieldValue(key, value)).forEach(builder::addProduct);
-                    putData(Bdio.DataProperty.producer, builder.build());
+                    putData(Bdio.DataProperty.publisher, builder.build());
                 } else {
                     // Establishes a new producer
                     put(key, value);
@@ -188,10 +188,10 @@ public final class BdioMetadata extends BdioObject {
     }
 
     /**
-     * Sets the producer string of the tool (or tools) that created the named graph.
+     * Sets the publisher of the tool (or tools) that created the named graph.
      */
-    public BdioMetadata producer(@Nullable ProductList producer) {
-        putData(Bdio.DataProperty.producer, producer);
+    public BdioMetadata publisher(@Nullable ProductList publisher) {
+        putData(Bdio.DataProperty.publisher, publisher);
         return this;
     }
 

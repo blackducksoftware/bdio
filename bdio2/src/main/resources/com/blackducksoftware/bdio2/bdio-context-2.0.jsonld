@@ -100,8 +100,8 @@
     "name" : "https://blackducksoftware.github.io/bdio#hasName",
     "namespace" : "name:space",
     "path" : "https://blackducksoftware.github.io/bdio#hasPath",
-    "producer" : {
-      "@id" : "https://blackducksoftware.github.io/bdio#hasProducer",
+    "publisher" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasPublisher",
       "@type" : "https://blackducksoftware.github.io/bdio#Products"
     },
     "range" : {

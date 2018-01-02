@@ -140,18 +140,18 @@ public class BdioMetadataTest {
     }
 
     /**
-     * Merging producers combines the values into a single ordered product list.
+     * Merging publishers combines the values into a single ordered product list.
      */
     @Test
-    public void mergeMetadataProducers() {
+    public void mergeMetadataPublishers() {
         BdioMetadata metadataFoo = new BdioMetadata();
-        metadataFoo.putData(Bdio.DataProperty.producer, ProductList.parse("foo"));
+        metadataFoo.putData(Bdio.DataProperty.publisher, ProductList.parse("foo"));
 
         BdioMetadata metadataBar = new BdioMetadata();
-        metadataBar.putData(Bdio.DataProperty.producer, ProductList.parse("bar"));
+        metadataBar.putData(Bdio.DataProperty.publisher, ProductList.parse("bar"));
 
         assertThat(metadataFoo.merge(metadataBar))
-                .containsEntry(Bdio.DataProperty.producer.toString(),
+                .containsEntry(Bdio.DataProperty.publisher.toString(),
                         new ValueObjectMapper.Builder().build().toValueObject(ProductList.parse("foo bar")));
     }
 
