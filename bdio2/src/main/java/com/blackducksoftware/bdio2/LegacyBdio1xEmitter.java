@@ -248,7 +248,8 @@ class LegacyBdio1xEmitter implements Emitter {
 
         public static String computePath(Archive container, String fileName) {
             if (container != null) {
-                String path = fileName.substring(container.fileName.length());
+                int endIndex = fileName.endsWith("/") ? fileName.length() - 1 : fileName.length();
+                String path = fileName.substring(container.fileName.length(), endIndex);
                 return container.nestedPath + UrlEscapers.urlFragmentEscaper().escape(path);
             } else {
                 checkArgument(fileName.startsWith("./"), "invalid BDIO 1.x fileName (must start with './'): %s", fileName);
