@@ -183,9 +183,9 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : `https://blackducksoftware.github.io/bdio#hasPath`
 : The hierarchical path of a file relative to the base directory.
 
-`producer`
-: `https://blackducksoftware.github.io/bdio#hasProducer`
-: The tool which produced the BDIO document. This property should be specified for the named graph.
+`publisher`
+: `https://blackducksoftware.github.io/bdio#hasPublisher`
+: The tool which published the BDIO document. This property should be specified for the named graph.
 
 `range`
 : `https://blackducksoftware.github.io/bdio#hasRange`
