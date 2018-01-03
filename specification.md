@@ -66,7 +66,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `canonical`
 : `https://blackducksoftware.github.io/bdio#hasCanonical`
 : Used to indicate two objects represent the same thing and directs you to the preferred representation.
-: _Allowed on: `Project`, `Container`, `Component`, `License`, `Repository`, `Vulnerability`_
+: _Allowed on: `Component`, `Container`, `License`, `Project`, `Repository`, `Vulnerability`_
 : _Range: `<any>`_
 
 `declaredBy`
@@ -78,7 +78,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `dependency`
 : `https://blackducksoftware.github.io/bdio#hasDependency`
 : The list of dependencies.
-: _Allowed on: `Container`, `Component`, `FileCollection`, `Project`, `Repository`_
+: _Allowed on: `Component`, `Container`, `FileCollection`, `Project`, `Repository`_
 : _Range: `Dependency`_
 
 `dependsOn`
@@ -92,19 +92,19 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : The license being used. This can be used in with other license relationships to create complex license expressions.
 :
 :For root objects, the license defines the terms under which the project may be licensed, for a component, the license defines the term under which usage of the component is licensed.
-: _Allowed on: `Project`, `Container`, `LicenseGroup`, `Component`_
+: _Allowed on: `Component`, `Container`, `LicenseGroup`, `Project`_
 : _Range: `License`, `LicenseGroup`_
 
 `licenseConjunctive`
 : `https://blackducksoftware.github.io/bdio#hasLicenseConjunctive`
 : A simultaneously required license being used. This can be used in with other license relationships to create complex license expressions.
-: _Allowed on: `Project`, `Container`, `LicenseGroup`, `Component`_
+: _Allowed on: `Component`, `Container`, `LicenseGroup`, `Project`_
 : _Range: `License`, `LicenseGroup`_
 
 `licenseDisjunctive`
 : `https://blackducksoftware.github.io/bdio#hasLicenseDisjunctive`
 : A choice of licenses being used. This can be used in with other license relationships to create complex license expressions.
-: _Allowed on: `Project`, `Container`, `LicenseGroup`, `Component`_
+: _Allowed on: `Component`, `Container`, `LicenseGroup`, `Project`_
 : _Range: `License`, `LicenseGroup`_
 
 `licenseException`
@@ -116,7 +116,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `licenseOrLater`
 : `https://blackducksoftware.github.io/bdio#hasLicenseOrLater`
 : The minimal license being used. This can be used in with other license relationships to create complex license expressions.
-: _Allowed on: `Project`, `Container`, `LicenseGroup`, `Component`_
+: _Allowed on: `Component`, `Container`, `LicenseGroup`, `Project`_
 : _Range: `License`_
 
 `note`
@@ -172,7 +172,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `context`
 : `https://blackducksoftware.github.io/bdio#hasContext`
 : The namespace specific base context used to resolve a locator. Typically this is just a URL, however any specification understood by the namespace specific resolver is acceptable.
-: _Allowed on: `Project`, `Component`, `License`, `Vulnerability`_
+: _Allowed on: `Component`, `License`, `Project`, `Vulnerability`_
 : _Range: `Default`_
 
 `creationDateTime`
@@ -208,13 +208,13 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `homepage`
 : `https://blackducksoftware.github.io/bdio#hasHomepage`
 : The homepage associated with the entity.
-: _Allowed on: `Project`, `Component`, `License`, `Vulnerability`_
+: _Allowed on: `Component`, `License`, `Project`, `Vulnerability`_
 : _Range: `Default`_
 
 `identifier`
 : `https://blackducksoftware.github.io/bdio#hasIdentifier`
 : The namespace specific locator for a component. Also known as an "external identifier".
-: _Allowed on: `Project`, `Component`, `License`, `Vulnerability`_
+: _Allowed on: `Component`, `License`, `Project`, `Vulnerability`_
 : _Range: `Default`_
 
 `linkPath`
@@ -226,7 +226,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `name`
 : `https://blackducksoftware.github.io/bdio#hasName`
 : The display name of the entity.
-: _Allowed on: `@graph`, `Project`, `Component`, `License`, `Vulnerability`, `Repository`_
+: _Allowed on: `@graph`, `Component`, `License`, `Project`, `Vulnerability`, `Repository`_
 : _Range: `Default`_
 
 `namespace`
@@ -234,7 +234,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : The namespace a component exists in. Also known as a "forge" or "system type", this defines how many different fields should be interpreted (e.g. identifiers, versions and scopes are defined within a particular namespace).
 :
 : Note that namespace values are not part of the BDIO specification. There are BDIO recommendations, however it is ultimately up to the producer and consumer of the BDIO data to handshake on the appropriate rules.
-: _Allowed on: `Project`, `Container`, `Component`, `License`, `Repository`, `Vulnerability`_
+: _Allowed on: `Component`, `Container`, `License`, `Project`, `Repository`, `Vulnerability`_
 : _Range: `Default`_
 
 `path`
@@ -264,7 +264,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `resolver`
 : `https://blackducksoftware.github.io/bdio#hasResolver`
 : The tool which resolved the namespace specific locator.
-: _Allowed on: `Project`, `Component`, `License`, `Vulnerability`_
+: _Allowed on: `Component`, `License`, `Project`, `Vulnerability`_
 : _Range: `Products`_
 
 `rights`
@@ -306,13 +306,13 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `vendor`
 : `https://blackducksoftware.github.io/bdio#hasVendor`
 : The name of the vendor who provides a project or component.
-: _Allowed on: `Project`, `Component `_
+: _Allowed on: `Component`, `Project`_
 : _Range: `Default`_
 
 `version`
 : `https://blackducksoftware.github.io/bdio#hasVersion`
 : The display version of the entity. Must reference a single version.
-: _Allowed on: `Project`, `Component `_
+: _Allowed on: `Component`, `Project`_
 : _Range: `Default`_
 
 ## Datatypes
