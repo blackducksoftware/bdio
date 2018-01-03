@@ -27,6 +27,11 @@ public final class Component extends BdioObject {
         super(id, Bdio.Class.Component);
     }
 
+    public Component canonical(@Nullable Component canonical) {
+        putObject(Bdio.ObjectProperty.canonical, canonical);
+        return this;
+    }
+
     public Component dependency(@Nullable Dependency dependency) {
         putObject(Bdio.ObjectProperty.dependency, dependency);
         return this;

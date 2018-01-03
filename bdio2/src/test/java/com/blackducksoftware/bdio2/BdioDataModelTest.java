@@ -15,13 +15,16 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static com.blackducksoftware.common.base.ExtraOptionals.flatMapMany;
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth8.assertThat;
 import static com.google.common.truth.TruthJUnit.assume;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -72,6 +75,18 @@ public class BdioDataModelTest {
         ExtraEnums.stream(Bdio.DataProperty.class).forEach(result);
         ExtraEnums.stream(Bdio.Datatype.class).forEach(result);
         return result.build();
+    }
+
+    /**
+     * Returns the name of the Java model type for a BDIO class.
+     */
+    private static Optional<Class<?>> modelType(Bdio.Class bdioClass) {
+        try {
+            String name = Bdio.class.getPackage().getName() + ".model." + bdioClass.name();
+            return Optional.of(Class.forName(name));
+        } catch (ClassNotFoundException e) {
+            return Optional.empty();
+        }
     }
 
     /**
@@ -177,6 +192,32 @@ public class BdioDataModelTest {
         assume().that(bdioEnum).isInstanceOf(Bdio.DataProperty.class);
         assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.AllowedOn.class)).named("@AllowedOn").isNotNull();
         assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.DataPropertyRange.class)).named("@DataPropertyRange").isNotNull();
+    }
+
+    @Test
+    public void classHasModel() throws ReflectiveOperationException {
+        assume().that(bdioEnum).isInstanceOf(Bdio.Class.class);
+        Optional<Class<?>> modelType = modelType((Bdio.Class) bdioEnum);
+        assertThat(modelType).isPresent();
+        assertThat(modelType.get()).isAssignableTo(BdioObject.class);
+
+        // Embedded types have a public no-argument constructor, everyone else has a String (identifier) constructor
+        if (((Bdio.Class) bdioEnum).embedded()) {
+            modelType.get().getConstructor();
+        } else {
+            modelType.get().getConstructor(String.class);
+        }
+    }
+
+    @Test
+    public void propertyHasModel() throws ReflectiveOperationException {
+        assume().that(bdioEnum instanceof Bdio.ObjectProperty || bdioEnum instanceof Bdio.DataProperty).isTrue();
+
+        // For each allowed class, make sure the corresponding model contains a method equal to the property name
+        Stream<Bdio.Class> modelClassesMissingProperty = Stream.of(Enums.getField(bdioEnum).getAnnotation(Bdio.AllowedOn.class).value())
+                .filter(bdioClass -> flatMapMany(modelType(bdioClass), c -> Stream.of(c.getMethods())).noneMatch(m -> m.getName().equals(bdioEnum.name())));
+
+        assertThat(modelClassesMissingProperty.map(Bdio.Class::name)).isEmpty();
     }
 
 }

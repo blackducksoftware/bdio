@@ -26,6 +26,11 @@ public final class Repository extends BdioObject {
         super(id, Bdio.Class.Repository);
     }
 
+    public Repository canonical(@Nullable Repository canonical) {
+        putObject(Bdio.ObjectProperty.canonical, canonical);
+        return this;
+    }
+
     public Repository name(@Nullable String name) {
         putData(Bdio.DataProperty.name, name);
         return this;
@@ -38,6 +43,11 @@ public final class Repository extends BdioObject {
 
     public Repository dependency(Dependency dependency) {
         putObject(Bdio.ObjectProperty.dependency, dependency);
+        return this;
+    }
+
+    public Repository namespace(@Nullable String namespace) {
+        putData(Bdio.DataProperty.namespace, namespace);
         return this;
     }
 

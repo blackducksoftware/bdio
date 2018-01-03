@@ -31,6 +31,11 @@ public final class Container extends BdioObject {
         return this;
     }
 
+    public Container canonical(@Nullable Container canonical) {
+        putObject(Bdio.ObjectProperty.canonical, canonical);
+        return this;
+    }
+
     public Container dependency(Dependency dependency) {
         putObject(Bdio.ObjectProperty.dependency, dependency);
         return this;
@@ -53,6 +58,11 @@ public final class Container extends BdioObject {
 
     public Container licenseOrLater(@Nullable Object license) {
         putObject(Bdio.ObjectProperty.licenseOrLater, license);
+        return this;
+    }
+
+    public Container namespace(@Nullable String namespace) {
+        putData(Bdio.DataProperty.namespace, namespace);
         return this;
     }
 
