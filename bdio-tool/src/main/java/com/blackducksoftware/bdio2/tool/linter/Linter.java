@@ -287,10 +287,10 @@ public final class Linter {
                     { "SingleRoot.MultipleRoots", "Multiple roots" },
                     { "SingleRoot.MissingRoot", "Missing root" },
                     { "ValidFilePath.PathNotNormalized", "File path should be normalized" },
-                    { "ValidFilePath.MissingFileAuthority", "Base path 'file:' URI should include an authority" },
                     { "ValidFilePath.String", "Path should be a string" },
                     { "ValidIdentifier.Absolute", "Node identifiers should be absolute" },
                     { "ValidIdentifier.Scheme", "Node identifier scheme is questionable" },
+                    { "ValidIdentifier.MissingFileAuthority", "When using a 'file' URI as an identifier, it should include an authority" },
                     { "ValidIdentifier.Invalid", "Node identifier is not a valid URI" },
                     { "ValidIdentifier.String", "Node identifier should be a string" },
             };

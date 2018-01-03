@@ -44,6 +44,10 @@ public class ValidIdentifier implements RawNodeRule {
                         || Ascii.equalsIgnoreCase(uri.getScheme(), "about")) {
                     // These schemes are not good identifiers to use in the graph
                     result.warning("Scheme");
+                } else if (Ascii.equalsIgnoreCase(uri.getScheme(), "file")) {
+                    if (uri.getAuthority() == null) {
+                        result.warning("MissingFileAuthority");
+                    }
                 }
             } catch (URISyntaxException e) {
                 // Identifier should be a valid URI

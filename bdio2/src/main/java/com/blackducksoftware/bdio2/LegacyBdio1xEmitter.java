@@ -253,13 +253,9 @@ class LegacyBdio1xEmitter implements Emitter {
                 return container.nestedPath + UrlEscapers.urlFragmentEscaper().escape(path);
             } else {
                 checkArgument(fileName.startsWith("./"), "invalid BDIO 1.x fileName (must start with './'): %s", fileName);
-                // TODO Where do these come from? Should we try to parse the @id (which is A Very Bad Thing)?
-                String scheme = "file";
-                String authority = "";
-                String baseDir = "/";
-                return scheme + "://" + authority + baseDir + Joiner.on('/')
-                        .join(Iterables.transform(Splitter.on('/').omitEmptyStrings().split(fileName.substring(2)),
-                                UrlEscapers.urlPathSegmentEscaper().asFunction()));
+                return "file:///" + Joiner.on('/').join(Iterables.transform(
+                        Splitter.on('/').omitEmptyStrings().split(fileName.substring(2)),
+                        UrlEscapers.urlPathSegmentEscaper().asFunction()));
             }
         }
     }

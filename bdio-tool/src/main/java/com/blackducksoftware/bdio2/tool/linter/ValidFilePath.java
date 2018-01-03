@@ -15,7 +15,6 @@
  */
 package com.blackducksoftware.bdio2.tool.linter;
 
-import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -26,7 +25,6 @@ import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
 import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 import com.blackducksoftware.common.value.HID;
 import com.github.jsonldjava.core.JsonLdConsts;
-import com.google.common.base.Ascii;
 
 public class ValidFilePath implements RawNodeRule {
 
@@ -40,14 +38,6 @@ public class ValidFilePath implements RawNodeRule {
                 HID hid = HID.from(path);
                 if (!path.equals(hid.toUriString())) {
                     result.error("PathNotNormalized");
-                }
-
-                @SuppressWarnings("deprecation")
-                URI baseUri = hid.getBase().toUri();
-                if (baseUri.isAbsolute()
-                        && Ascii.equalsIgnoreCase(baseUri.getScheme(), "file")
-                        && baseUri.getAuthority() == null) {
-                    result.error("MissingFileAuthority");
                 }
             } else if (path != null) {
                 result.error("String");

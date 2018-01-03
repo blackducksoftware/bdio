@@ -220,14 +220,18 @@ class LegacyScanContainerEmitter implements Emitter {
                     || scanNode.type.equals(LegacyScanNode.TYPE_FILE)
                     || scanNode.type.equals(LegacyScanNode.TYPE_ARCHIVE)) {
                 bdioFile.byteCount(scanNode.size);
-                bdioFile.fingerprint(scanNode.signatures.entrySet().stream()
+                bdioFile.fingerprint(emptyToNull(scanNode.signatures.entrySet().stream()
                         .map(e -> new Digest.Builder()
                                 .algorithm(algorithmName(e.getKey()))
                                 .value(e.getValue())
                                 .build())
-                        .collect(toList()));
+                        .collect(toList())));
             }
             return bdioFile;
+        }
+
+        private static <T> List<T> emptyToNull(List<T> input) {
+            return input.isEmpty() ? null : input;
         }
 
     }
@@ -341,9 +345,9 @@ class LegacyScanContainerEmitter implements Emitter {
             for (LegacyScanNode node : listArchives(scanContainer, scanNode)) {
                 // TODO Eliminating intermediate URI construction would be a significant optimization
                 if (ssp == null) {
-                    // The file system node should have the host name and base directory
+                    // Include the base directory so the hierarchy is preserved up through the base file node
                     String path = ExtraStrings.ensureDelimiter(scanContainer.baseDir, "/", node.path);
-                    ssp = new URI(scheme, scanContainer.hostName, path, null).getRawSchemeSpecificPart();
+                    ssp = new URI(scheme, null, path, null).getRawSchemeSpecificPart();
                 } else {
                     // Nest the scheme specific part
                     ssp = HID.from(new URI(scheme, ssp, fragment)).toUriString();
