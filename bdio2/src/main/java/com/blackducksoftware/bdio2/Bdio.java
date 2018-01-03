@@ -40,7 +40,12 @@ public class Bdio {
     @Target(ElementType.FIELD)
     public @interface AllowedOn {
         /**
-         * The list of allowed types, if empty the annotated property can only be used for named graph metadata.
+         * Flag indicating the property may be used for graph metadata.
+         */
+        boolean metadata() default false;
+
+        /**
+         * The list of allowed types.
          */
         Bdio.Class[] value() default {};
     }
@@ -53,9 +58,12 @@ public class Bdio {
     @Target(ElementType.FIELD)
     public @interface ObjectPropertyRange {
         /**
-         * The list of allowed types, if empty, there is no restriction applied to a property can references.
+         * The list of allowed types.
          */
         Bdio.Class[] value() default {};
+
+        // TODO Have a boolean indicating the range is the same as the domain
+        // OR Have a boolean indicating you can only reference the type the property is found on?
     }
 
     /**
@@ -312,14 +320,14 @@ public class Bdio {
         /**
          * The URL used to obtain additional details about the build environment.
          */
-        @AllowedOn({})
+        @AllowedOn(metadata = true)
         @DataPropertyRange(Datatype.Default) // TODO Change type to "AnyURI"?
         buildDetails("https://blackducksoftware.github.io/bdio#hasBuildDetails", Container.single),
 
         /**
          * The build number captured from the build environment.
          */
-        @AllowedOn({})
+        @AllowedOn(metadata = true)
         @DataPropertyRange(Datatype.Default)
         buildNumber("https://blackducksoftware.github.io/bdio#hasBuildNumber", Container.single),
 
@@ -350,14 +358,14 @@ public class Bdio {
         /**
          * The time at which the BDIO document was created. This property should be specified for the named graph.
          */
-        @AllowedOn({})
+        @AllowedOn(metadata = true)
         @DataPropertyRange(Datatype.DateTime)
         creationDateTime("https://blackducksoftware.github.io/bdio#hasCreationDateTime", Container.single),
 
         /**
          * The user who created the BDIO document. This property should be specified for the named graph.
          */
-        @AllowedOn({})
+        @AllowedOn(metadata = true)
         @DataPropertyRange(Datatype.Default)
         // TODO Should this be an ObjectProperty to some kind of DOAP class?
         creator("https://blackducksoftware.github.io/bdio#hasCreator", Container.single),
@@ -412,8 +420,7 @@ public class Bdio {
          * The display name of the entity.
          */
         // TODO Use JSON-LD Container.language to support multi-language names?
-        // TODO This is also allowed on @Graph
-        @AllowedOn({ Class.Project, Class.Component, Class.License, Class.Vulnerability, Class.Repository })
+        @AllowedOn(value = { Class.Project, Class.Component, Class.License, Class.Vulnerability, Class.Repository }, metadata = true)
         @DataPropertyRange(Datatype.Default)
         name("https://blackducksoftware.github.io/bdio#hasName", Container.single),
 
@@ -440,7 +447,7 @@ public class Bdio {
         /**
          * The tool which published the BDIO document. This property should be specified for the named graph.
          */
-        @AllowedOn({})
+        @AllowedOn(metadata = true)
         @DataPropertyRange(Datatype.Products)
         publisher("https://blackducksoftware.github.io/bdio#hasPublisher", Container.single),
 
@@ -486,28 +493,28 @@ public class Bdio {
         /**
          * The SCM branch name from the build environment.
          */
-        @AllowedOn({})
+        @AllowedOn(metadata = true)
         @DataPropertyRange(Datatype.Default)
         sourceBranch("https://blackducksoftware.github.io/bdio#hasSourceBranch", Container.single),
 
         /**
          * The URI representing the SCM location from the build environment.
          */
-        @AllowedOn({})
+        @AllowedOn(metadata = true)
         @DataPropertyRange(Datatype.Default)
         sourceRepository("https://blackducksoftware.github.io/bdio#hasSourceRepository", Container.single),
 
         /**
          * The SCM revision identifier from the build environment.
          */
-        @AllowedOn({})
+        @AllowedOn(metadata = true)
         @DataPropertyRange(Datatype.Default)
         sourceRevision("https://blackducksoftware.github.io/bdio#hasSourceRevision", Container.single),
 
         /**
          * The SCM tag name from the build environment.
          */
-        @AllowedOn({})
+        @AllowedOn(metadata = true)
         @DataPropertyRange(Datatype.Default)
         sourceTag("https://blackducksoftware.github.io/bdio#hasSourceTag", Container.single),
 
