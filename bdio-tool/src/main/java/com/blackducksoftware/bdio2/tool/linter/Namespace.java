@@ -19,23 +19,17 @@ import java.util.stream.Stream;
 
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
-import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.tool.linter.Linter.LoadedGraphRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
-import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 
-public class MissingFilePath implements LoadedGraphRule {
+public class Namespace implements LoadedGraphRule {
 
     @Override
     public Stream<Violation> validate(Vertex input) {
-        ViolationBuilder result = new ViolationBuilder(this, input);
-
-        if (input.label().equals(Bdio.Class.File.name())
-                && !input.property(Bdio.DataProperty.path.name()).isPresent()) {
-            result.error("PathNotPresent");
-        }
-
-        return result.build();
+        // TODO Use namespace rules to:
+        // 1. Ensure the namespace is known
+        // 2. Ensure the identifier, version, requestedVersion, scope are valid for the namespace
+        return Stream.empty();
     }
 
 }

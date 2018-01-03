@@ -17,25 +17,18 @@ package com.blackducksoftware.bdio2.tool.linter;
 
 import java.util.stream.Stream;
 
-import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 
-import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.tool.linter.Linter.LoadedGraphRule;
+import com.blackducksoftware.bdio2.tool.linter.Linter.CompletedGraphRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
-import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 
-public class MissingFilePath implements LoadedGraphRule {
+public class SemanticRules implements CompletedGraphRule {
 
     @Override
-    public Stream<Violation> validate(Vertex input) {
-        ViolationBuilder result = new ViolationBuilder(this, input);
-
-        if (input.label().equals(Bdio.Class.File.name())
-                && !input.property(Bdio.DataProperty.path.name()).isPresent()) {
-            result.error("PathNotPresent");
-        }
-
-        return result.build();
+    public Stream<Violation> validate(GraphTraversalSource input) {
+        // TODO Check the semantic rules from the specification
+        // e.g. if the file system type is "symlink" there needs to be a linkPath
+        return Stream.empty();
     }
 
 }

@@ -27,34 +27,29 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import com.blackducksoftware.bdio2.tool.linter.Linter.CompletedGraphRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.LT;
-import com.blackducksoftware.bdio2.tool.linter.Linter.Severity;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
+import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 
 public class SingleRoot implements CompletedGraphRule {
 
     @Override
-    public Severity severity() {
-        return Severity.error;
-    }
-
-    @Override
     public Stream<Violation> validate(GraphTraversalSource g) {
-        Stream.Builder<Violation> result = Stream.builder();
+        ViolationBuilder result = new ViolationBuilder(this);
 
         List<Vertex> metadata = g.V().hasLabel(LT._Metadata.name()).toList();
         if (metadata.isEmpty()) {
-            result.add(new Violation(this, Collections.emptyMap(), "Missing metadata"));
+            result.target(Collections.emptyMap()).error("MissingMetadata");
         } else if (metadata.size() > 1) {
-            result.add(new Violation(this, metadata.get(1), "Multiple metadata instances"));
+            result.target(metadata.get(1)).error("MultipleMetadata");
         } else {
             Iterator<Edge> roots = metadata.get(0).edges(Direction.OUT, LT._root.name());
             if (roots.hasNext()) {
                 roots.next();
                 if (roots.hasNext()) {
-                    result.add(new Violation(this, roots.next().inVertex(), "Multiple roots"));
+                    result.target(roots.next().inVertex()).error("MultipleRoots");
                 }
             } else {
-                result.add(new Violation(this, metadata.get(0), "Missing root"));
+                result.target(metadata.get(0)).error("MissingRoot");
             }
         }
 

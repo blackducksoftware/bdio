@@ -20,8 +20,8 @@ import java.util.stream.Stream;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
-import com.blackducksoftware.bdio2.tool.linter.Linter.Severity;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
+import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Enums;
 import com.google.common.collect.ImmutableMultimap;
@@ -55,19 +55,14 @@ public class AllowedOn implements RawNodeRule {
     }
 
     @Override
-    public Severity severity() {
-        return Severity.error;
-    }
-
-    @Override
     public Stream<Violation> validate(Map<String, Object> input) {
-        Stream.Builder<Violation> result = Stream.builder();
+        ViolationBuilder result = new ViolationBuilder(this, input);
 
         Object type = input.get(JsonLdConsts.TYPE);
         if (type != null) {
             for (String key : input.keySet()) {
                 if (knownProperties.contains(key) && !allowedProperties.containsEntry(type, key)) {
-                    result.add(new Violation(this, input, "The property %s is not allowed on the type %s", key, type));
+                    result.error("PropertyNotAllowed", type, key);
                 }
             }
         }

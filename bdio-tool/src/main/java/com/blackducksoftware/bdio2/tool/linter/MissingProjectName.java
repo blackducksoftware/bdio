@@ -21,26 +21,21 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.tool.linter.Linter.LoadedGraphRule;
-import com.blackducksoftware.bdio2.tool.linter.Linter.Severity;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
+import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 
 public class MissingProjectName implements LoadedGraphRule {
 
     @Override
-    public Severity severity() {
-        return Severity.error;
-    }
-
-    @Override
     public Stream<Violation> validate(Vertex input) {
-        Stream.Builder<Violation> result = Stream.builder();
+        ViolationBuilder result = new ViolationBuilder(this, input);
 
         if (input.label().equals(Bdio.Class.Project.name())
                 && !input.property(Bdio.DataProperty.name.name()).isPresent()) {
             if (input.property(Bdio.DataProperty.version.name()).isPresent()) {
-                result.add(new Violation(this, input, "Project has version but no name"));
+                result.error("HasVersion");
             } else {
-                result.add(new Violation(this, input, "Project with no name should be a FileCollection"));
+                result.error("NameNotPresent");
             }
         }
 

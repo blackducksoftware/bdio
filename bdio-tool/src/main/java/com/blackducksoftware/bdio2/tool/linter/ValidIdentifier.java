@@ -21,21 +21,16 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
-import com.blackducksoftware.bdio2.tool.linter.Linter.Severity;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
+import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Ascii;
 
 public class ValidIdentifier implements RawNodeRule {
 
     @Override
-    public Severity severity() {
-        return Severity.warning;
-    }
-
-    @Override
     public Stream<Violation> validate(Map<String, Object> input) {
-        Stream.Builder<Violation> result = Stream.builder();
+        ViolationBuilder result = new ViolationBuilder(this, input);
 
         Object id = input.get(JsonLdConsts.ID);
         if (id instanceof String) {
@@ -44,19 +39,19 @@ public class ValidIdentifier implements RawNodeRule {
                 URI uri = new URI((String) id);
                 if (!uri.isAbsolute()) {
                     // Identifier should have a scheme
-                    result.add(new Violation(this, input, "Node identifiers should be absolute"));
+                    result.warning("Absolute");
                 } else if (Ascii.equalsIgnoreCase(uri.getScheme(), "data")
                         || Ascii.equalsIgnoreCase(uri.getScheme(), "about")) {
                     // These schemes are not good identifiers to use in the graph
-                    result.add(new Violation(this, input, "Node identifier scheme is questionable"));
+                    result.warning("Scheme");
                 }
             } catch (URISyntaxException e) {
                 // Identifier should be a valid URI
-                result.add(new Violation(this, input, "Node identifier is not a valid URI"));
+                result.error("Invalid", e);
             }
         } else {
             // Identifier should be a string
-            result.add(new Violation(this, input, "Node identifier should be a string"));
+            result.error("String");
         }
 
         return result.build();

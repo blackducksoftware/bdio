@@ -22,17 +22,12 @@ import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.Bdio.FileSystemType;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
-import com.blackducksoftware.bdio2.tool.linter.Linter.Severity;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
+import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 import com.blackducksoftware.common.base.ExtraEnums;
 import com.blackducksoftware.common.value.HID;
 
 public class DataPropertyRange implements RawNodeRule {
-
-    @Override
-    public Severity severity() {
-        return Severity.error;
-    }
 
     @Override
     public Stream<Violation> validate(Map<String, Object> input) {
@@ -41,26 +36,23 @@ public class DataPropertyRange implements RawNodeRule {
                 .map(Object::toString)
                 .flatMap(key -> {
                     try {
-                        Object fieldValue = input.get(key);
-
                         // Use the value object mapper to validate data properties
-                        valueObjectMapper.fromFieldValue(key, fieldValue);
+                        Object value = valueObjectMapper.fromFieldValue(key, input.get(key));
 
                         // Check other fields which may have more restrictive rules
-                        if (fieldValue != null) {
+                        if (value != null) {
                             if (key.equals(Bdio.DataProperty.fileSystemType.toString())) {
-                                FileSystemType.from(fieldValue);
+                                FileSystemType.from(value);
                             } else if (key.equals(Bdio.DataProperty.path.toString())
                                     || key.equals(Bdio.DataProperty.linkPath.toString())) {
-                                HID.from(fieldValue);
+                                HID.from(value);
                             }
                             // TODO Check encoding (maybe warn if the encoding is valid but isn't supported)
                         }
 
                         return Stream.empty();
                     } catch (Exception e) {
-                        // TODO How do we preserve the exception and or context of the failure?
-                        return Stream.of(new Violation(this, input, "Invalid value for %s", key));
+                        return new ViolationBuilder(this, input).error("Invalid", e, key).build();
                     }
                 });
     }

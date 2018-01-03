@@ -25,27 +25,22 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.tool.linter.Linter.CompletedGraphRule;
-import com.blackducksoftware.bdio2.tool.linter.Linter.Severity;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
+import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 import com.google.common.base.Enums;
 import com.google.common.collect.ImmutableSet;
 
 public class ObjectPropertyRange implements CompletedGraphRule {
 
     @Override
-    public Severity severity() {
-        return Severity.error;
-    }
-
-    @Override
     public Stream<Violation> validate(GraphTraversalSource g) {
-        Stream.Builder<Violation> result = Stream.builder();
+        ViolationBuilder result = new ViolationBuilder(this);
 
         // Validate EVERY EDGE
         g.E().forEachRemaining(e -> {
             Set<Bdio.Class> range = tryByName(Bdio.ObjectProperty.class, e.label()).map(ObjectPropertyRange::range).orElse(emptySet());
             if (!range.isEmpty() && !tryByName(Bdio.Class.class, e.inVertex().label()).filter(range::contains).isPresent()) {
-                result.add(new Violation(this, e, "Invalid range"));
+                result.target(e).error("InvalidRange");
             }
         });
 

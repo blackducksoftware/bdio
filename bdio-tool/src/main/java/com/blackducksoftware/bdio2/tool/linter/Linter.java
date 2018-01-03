@@ -15,9 +15,15 @@
  */
 package com.blackducksoftware.bdio2.tool.linter;
 
+import static com.google.common.base.Preconditions.checkState;
+
+import java.text.MessageFormat;
+import java.util.ListResourceBundle;
 import java.util.Map;
+import java.util.MissingResourceException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.ResourceBundle;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
@@ -35,10 +41,6 @@ import com.github.jsonldjava.core.JsonLdConsts;
  */
 public final class Linter {
 
-    // Rules we still need:
-    // 1. More then two license edges that are not all the same type
-    // 2. Property "allowed on" validation
-
     /**
      * (L)int (T)okens.
      */
@@ -52,71 +54,62 @@ public final class Linter {
     }
 
     /**
+     * The severity of rule, generally used to help group and filter rules.
+     */
+    public enum Severity {
+        error,
+        warning,
+    }
+
+    /**
      * A violation of a linter rule.
      */
     public static class Violation {
+
         private final Rule<?> rule;
 
-        private final Object context;
+        private final Object target;
 
-        private final Optional<String> message;
+        private final Severity severity;
 
-        private final Object[] arguments;
+        private final String message;
 
-        Violation(Rule<?> rule, Object context) {
-            this(rule, context, null);
-        }
+        private final Optional<Throwable> throwable;
 
-        Violation(Rule<?> rule, Object context, @Nullable String message, Object... arguments) {
+        private Violation(Rule<?> rule, Object target, Severity severity, String message, Throwable throwable) {
             this.rule = Objects.requireNonNull(rule);
-            this.context = contextIdentifier(context);
-            this.message = Optional.ofNullable(message);
-            this.arguments = Objects.requireNonNull(arguments);
-        }
-
-        private static Object contextIdentifier(Object context) {
-            Objects.requireNonNull(context);
-            if (context instanceof Vertex) {
-                return ((Vertex) context).id();
-            } else if (context instanceof Edge) {
-                return ((Edge) context).id();
-            } else if (context instanceof Map<?, ?>) {
-                return ((Map<?, ?>) context).get(JsonLdConsts.ID);
-            } else {
-                throw new IllegalArgumentException("unknown context");
-            }
+            this.target = Objects.requireNonNull(target);
+            this.severity = Objects.requireNonNull(severity);
+            this.message = Objects.requireNonNull(message);
+            this.throwable = Optional.ofNullable(throwable);
         }
 
         public Rule<?> rule() {
             return rule;
         }
 
-        public Object context() {
-            return context;
+        public Object target() {
+            return target;
         }
 
-        public String formatMessage() {
-            return message.map(format -> String.format(format, arguments)).orElse("");
+        public Severity severity() {
+            return severity;
         }
 
-    }
+        public String message() {
+            return message;
+        }
 
-    /**
-     * The severity of rule, generally used to help group and filter rules.
-     */
-    public enum Severity {
-        error, warning
+        public Optional<Throwable> throwable() {
+            return throwable;
+        }
+
     }
 
     /**
      * An abstract linter rule.
      */
     public interface Rule<T> {
-
-        /**
-         * Returns the severity of this rule.
-         */
-        Severity severity();
 
         /**
          * Returns a stream of violations for the given input.
@@ -150,16 +143,178 @@ public final class Linter {
     }
 
     /**
+     * Helper for building streams of violations.
+     */
+    public static class ViolationBuilder {
+
+        private static final ResourceBundle BUNDLE = ResourceBundle.getBundle(Messages.class.getName());
+
+        private final Stream.Builder<Violation> result = Stream.builder();
+
+        private final Rule<?> rule;
+
+        private Object target;
+
+        public ViolationBuilder(Rule<?> rule, Object input) {
+            this.rule = Objects.requireNonNull(rule);
+            this.target = getInputIdentifier(Objects.requireNonNull(input));
+        }
+
+        public ViolationBuilder(CompletedGraphRule rule) {
+            this.rule = Objects.requireNonNull(rule);
+        }
+
+        public Stream<Violation> build() {
+            return result.build();
+        }
+
+        /**
+         * When using completed graph rules the input is the entire graph, this is rarely useful context as generally
+         * the violation targets a specific vertex or edge. This method allows the target to be changed, however only if
+         * the current rule is an instance of {@code CompletedGraphRule}.
+         */
+        public ViolationBuilder target(Object input) {
+            checkState(rule instanceof CompletedGraphRule, "target can only be set for CompletedGraphRule");
+            target = getInputIdentifier(input);
+            return this;
+        }
+
+        // Errors
+
+        public ViolationBuilder error(String message) {
+            return addError(formatMessage(message, null), null);
+        }
+
+        public ViolationBuilder error(String message, Object arg1, Object... args) {
+            return addError(formatMessage(message, arg1, args), null);
+        }
+
+        public ViolationBuilder error(String message, Throwable throwable) {
+            return addError(formatMessage(message, null), Objects.requireNonNull(throwable));
+        }
+
+        public ViolationBuilder error(String message, Throwable throwable, Object arg1, Object... args) {
+            return addError(formatMessage(message, arg1, args), Objects.requireNonNull(throwable));
+        }
+
+        private ViolationBuilder addError(String message, @Nullable Throwable throwable) {
+            result.add(new Violation(rule, target, Severity.error, message, throwable));
+            return this;
+        }
+
+        // Warnings
+
+        public ViolationBuilder warning(String message) {
+            return addWarning(formatMessage(message, null), null);
+        }
+
+        public ViolationBuilder warning(String message, Object arg1, Object... args) {
+            return addWarning(formatMessage(message, arg1, args), null);
+        }
+
+        public ViolationBuilder warning(String message, Throwable throwable) {
+            return addWarning(formatMessage(message, null), Objects.requireNonNull(throwable));
+        }
+
+        public ViolationBuilder warning(String message, Throwable throwable, Object arg1, Object... args) {
+            return addWarning(formatMessage(message, arg1, args), Objects.requireNonNull(throwable));
+        }
+
+        private ViolationBuilder addWarning(String message, @Nullable Throwable throwable) {
+            result.add(new Violation(rule, target, Severity.warning, message, throwable));
+            return this;
+        }
+
+        /**
+         * Formats a message by looking it up in the bundle and applying the supplied arguments.
+         */
+        private String formatMessage(String message, Object arg1, Object... args) {
+            String pattern;
+            try {
+                pattern = BUNDLE.getString(rule.getClass().getSimpleName() + "." + message);
+            } catch (MissingResourceException e) {
+                pattern = message;
+            }
+
+            Object[] arguments;
+            if (arg1 == null) {
+                arguments = new Object[0];
+            } else if (args.length == 0) {
+                arguments = new Object[] { arg1 };
+            } else {
+                arguments = new Object[1 + args.length];
+                arguments[0] = arg1;
+                System.arraycopy(args, 0, arguments, 1, args.length);
+            }
+
+            return MessageFormat.format(pattern, arguments);
+        }
+
+        /**
+         * Extracts a recognizable identifier from the supplied input.
+         */
+        private static Object getInputIdentifier(Object input) {
+            if (input instanceof Vertex) {
+                return ((Vertex) input).id();
+            } else if (input instanceof Edge) {
+                return ((Edge) input).id();
+            } else if (input instanceof Map<?, ?>) {
+                return ((Map<?, ?>) input).get(JsonLdConsts.ID);
+            } else {
+                throw new IllegalArgumentException("unknown context");
+            }
+        }
+    }
+
+    /**
+     * A resource bundle that contains all of the linter messages. By convention, messages for individual rules are
+     * prefixed with the simple name of the rule class.
+     */
+    public static class Messages extends ListResourceBundle {
+        @Override
+        protected Object[][] getContents() {
+            return new Object[][] {
+                    { "AllowedOn.PropertyNotAllowed", "Property not allowed on {}: {}" },
+                    { "DataPropertyRange.Invalid", "Invalid value for {}" },
+                    { "Metadata.DefaultNamedGraphIdentififer", "Named graph has default identifier" },
+                    { "Metadata.PropertyNotAllowed", "Property not allowed on @graph: {}" },
+                    { "MissingFilePath.PathNotPresent", "File is missing path property" },
+                    { "MissingProjectName.HasVersion", "Project has version but no name" },
+                    { "MissingProjectName.NameNotPresent", "Project with no name should be a FileCollection" },
+                    { "ObjectPropertyRange.InvalidRange", "Invalid object property range" },
+                    { "SingleRoot.MissingMetadata", "Missing metadata instance" },
+                    { "SingleRoot.MultipleMetadata", "Multiple metadata instances" },
+                    { "SingleRoot.MultipleRoots", "Multiple roots" },
+                    { "SingleRoot.MissingRoot", "Missing root" },
+                    { "ValidFilePath.PathNotNormalized", "File path should be normalized" },
+                    { "ValidFilePath.MissingFileAuthority", "Base path 'file:' URI should include an authority" },
+                    { "ValidFilePath.String", "Path should be a string" },
+                    { "ValidIdentifier.Absolute", "Node identifiers should be absolute" },
+                    { "ValidIdentifier.Scheme", "Node identifier scheme is questionable" },
+                    { "ValidIdentifier.Invalid", "Node identifier is not a valid URI" },
+                    { "ValidIdentifier.String", "Node identifier should be a string" },
+            };
+        }
+    }
+
+    /**
      * Returns a stream of all the known rules.
      */
     public static Stream<Rule<?>> loadAllRules() {
+        // TODO More then two license edges that are not all the same type
+        // TODO Multiple canonical edges (e.g. "x -c-> y -c-> z" instead of "x -c-> z")
+        // TODO Unreferenced/disconnected vertices
         return Stream.<Rule<?>> builder()
                 .add(new AllowedOn())
                 .add(new DataPropertyRange())
+                .add(new Metadata())
                 .add(new MissingFilePath())
                 .add(new MissingProjectName())
+                .add(new Namespace())
                 .add(new ObjectPropertyRange())
+                .add(new SemanticRules())
                 .add(new SingleRoot())
+                .add(new UnreferencedNode())
                 .add(new ValidFilePath())
                 .add(new ValidIdentifier())
                 .build();

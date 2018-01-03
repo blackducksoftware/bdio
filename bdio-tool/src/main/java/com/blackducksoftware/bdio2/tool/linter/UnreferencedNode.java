@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Black Duck Software, Inc.
+ * Copyright 2018 Black Duck Software, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,25 +17,17 @@ package com.blackducksoftware.bdio2.tool.linter;
 
 import java.util.stream.Stream;
 
-import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 
-import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.tool.linter.Linter.LoadedGraphRule;
+import com.blackducksoftware.bdio2.tool.linter.Linter.CompletedGraphRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
-import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 
-public class MissingFilePath implements LoadedGraphRule {
+public class UnreferencedNode implements CompletedGraphRule {
 
     @Override
-    public Stream<Violation> validate(Vertex input) {
-        ViolationBuilder result = new ViolationBuilder(this, input);
-
-        if (input.label().equals(Bdio.Class.File.name())
-                && !input.property(Bdio.DataProperty.path.name()).isPresent()) {
-            result.error("PathNotPresent");
-        }
-
-        return result.build();
+    public Stream<Violation> validate(GraphTraversalSource input) {
+        // TODO Look for vertices that are not connected to anything
+        return Stream.empty();
     }
 
 }

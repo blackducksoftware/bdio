@@ -22,8 +22,8 @@ import java.util.stream.Stream;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
-import com.blackducksoftware.bdio2.tool.linter.Linter.Severity;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
+import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 import com.blackducksoftware.common.value.HID;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Ascii;
@@ -31,20 +31,15 @@ import com.google.common.base.Ascii;
 public class ValidFilePath implements RawNodeRule {
 
     @Override
-    public Severity severity() {
-        return Severity.error;
-    }
-
-    @Override
     public Stream<Violation> validate(Map<String, Object> input) {
-        Stream.Builder<Violation> result = Stream.builder();
+        ViolationBuilder result = new ViolationBuilder(this, input);
 
         if (Objects.equals(input.get(JsonLdConsts.TYPE), Bdio.Class.File.toString())) {
             Object path = input.get(Bdio.DataProperty.path.toString());
             if (path instanceof String) {
                 HID hid = HID.from(path);
                 if (!path.equals(hid.toUriString())) {
-                    result.add(new Violation(this, input, "File path should be normalized"));
+                    result.error("PathNotNormalized");
                 }
 
                 @SuppressWarnings("deprecation")
@@ -52,10 +47,10 @@ public class ValidFilePath implements RawNodeRule {
                 if (baseUri.isAbsolute()
                         && Ascii.equalsIgnoreCase(baseUri.getScheme(), "file")
                         && baseUri.getAuthority() == null) {
-                    result.add(new Violation(this, input, "Base path 'file:' URI should include an authority"));
+                    result.error("MissingFileAuthority");
                 }
             } else if (path != null) {
-                result.add(new Violation(this, input, "Path should be a string"));
+                result.error("String");
             }
         }
 

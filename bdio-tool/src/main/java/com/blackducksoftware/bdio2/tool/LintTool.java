@@ -19,6 +19,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -37,7 +38,10 @@ import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Rule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Severity;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.HashMultiset;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.TreeMultiset;
 import com.google.common.io.ByteSource;
@@ -63,6 +67,11 @@ public class LintTool extends AbstractGraphTool {
      */
     private final List<Violation> violations;
 
+    /**
+     * The default limit of per-rule violations to report before suppressing.
+     */
+    private int maxViolations = 5;
+
     public LintTool(String name) {
         super(name);
         rules = Linter.loadAllRules().collect(toMap(r -> r.getClass().getSimpleName(), r -> r));
@@ -77,10 +86,27 @@ public class LintTool extends AbstractGraphTool {
         graphTool().setProperty("bdio.partitionStrategy.partitionKey", LT._partition.name());
     }
 
+    public void setMaxViolations(int maxViolations) {
+        Preconditions.checkArgument(maxViolations >= 0, "max violations must not be negative");
+        this.maxViolations = maxViolations;
+    }
+
+    @Override
+    protected Set<String> optionsWithArgs() {
+        return ImmutableSet.of("--max-violations");
+    }
+
     @Override
     protected Tool parseArguments(String[] args) throws Exception {
         // TODO What syntax do we use for enable/disable?
         // javac: -Xlint/-Xlint:all -Xlint:none -Xlint:name -Xlint:-name
+
+        for (String arg : options(args)) {
+            if (arg.startsWith("--max-violations=")) {
+                optionValue(arg).map(Integer::valueOf).ifPresent(this::setMaxViolations);
+                args = removeFirst(arg, args);
+            }
+        }
 
         return super.parseArguments(args);
     }
@@ -109,15 +135,21 @@ public class LintTool extends AbstractGraphTool {
         }
 
         // If we have any violations, report them
-        Multiset<Severity> violationCounts = TreeMultiset.create();
+        Multiset<Severity> severityCounts = TreeMultiset.create();
+        Multiset<Class<?>> ruleCounts = HashMultiset.create();
         for (Violation violation : violations) {
-            violationCounts.add(violation.rule().severity());
-            printOutput("%s: %s: [%s] %s%n",
-                    violation.context(), violation.rule().severity(),
-                    violation.rule().getClass().getSimpleName(), violation.formatMessage());
+            severityCounts.add(violation.severity());
+            int ruleCount = ruleCounts.add(violation.rule().getClass(), 1);
+            if (ruleCount < maxViolations) {
+                printOutput("%s: %s: [%s] %s%n",
+                        violation.target(), violation.severity(),
+                        violation.rule().getClass().getSimpleName(), violation.message());
+            } else if (ruleCount == maxViolations) {
+                printOutput("[%s] limit reached, further occurances of this volation will be suppressed%n", violation.rule().getClass().getSimpleName());
+            }
         }
-        if (!violationCounts.isEmpty()) {
-            printOutput(violationCounts.entrySet().stream()
+        if (!severityCounts.isEmpty()) {
+            printOutput(severityCounts.entrySet().stream()
                     .map(e -> MessageFormat.format("{0,choice,1#1 {1}|1<{0,number,integer} {1}s}", e.getCount(), e.getElement()))
                     .collect(Collectors.joining("%n", "", "%n")));
         }
