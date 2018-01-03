@@ -52,9 +52,8 @@ public class ObjectPropertyRange implements CompletedGraphRule {
         return result.build();
     }
 
-    public static Set<Bdio.Class> range(Bdio.ObjectProperty objectProperty) {
-        Bdio.ObjectPropertyRange range = Enums.getField(objectProperty).getAnnotation(Bdio.ObjectPropertyRange.class);
-        return range != null ? ImmutableSet.copyOf(range.value()) : ImmutableSet.of();
+    private static Set<Bdio.Class> range(Bdio.ObjectProperty objectProperty) {
+        return ImmutableSet.copyOf(Enums.getField(objectProperty).getAnnotation(Bdio.ObjectPropertyRange.class).value());
     }
 
 }

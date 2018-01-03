@@ -40,20 +40,14 @@ public class AllowedOn implements RawNodeRule {
         ImmutableSetMultimap.Builder<String, String> allowed = ImmutableSetMultimap.builder();
         for (Bdio.ObjectProperty objectProperty : Bdio.ObjectProperty.values()) {
             known.add(objectProperty.toString());
-            Bdio.AllowedOn allowedOn = Enums.getField(objectProperty).getAnnotation(Bdio.AllowedOn.class);
-            if (allowedOn != null) {
-                for (Bdio.Class allowedClass : allowedOn.value()) {
-                    allowed.put(allowedClass.toString(), objectProperty.toString());
-                }
+            for (Bdio.Class allowedOn : Enums.getField(objectProperty).getAnnotation(Bdio.AllowedOn.class).value()) {
+                allowed.put(allowedOn.toString(), objectProperty.toString());
             }
         }
         for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
             known.add(dataProperty.toString());
-            Bdio.AllowedOn allowedOn = Enums.getField(dataProperty).getAnnotation(Bdio.AllowedOn.class);
-            if (allowedOn != null) {
-                for (Bdio.Class allowedClass : allowedOn.value()) {
-                    allowed.put(allowedClass.toString(), dataProperty.toString());
-                }
+            for (Bdio.Class allowedOn : Enums.getField(dataProperty).getAnnotation(Bdio.AllowedOn.class).value()) {
+                allowed.put(allowedOn.toString(), dataProperty.toString());
             }
         }
         knownProperties = known.build();

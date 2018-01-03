@@ -31,6 +31,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import com.blackducksoftware.common.base.ExtraEnums;
+import com.google.common.base.Enums;
 import com.google.common.collect.ImmutableSet;
 
 /**
@@ -156,6 +157,26 @@ public class BdioDataModelTest {
     public void classNameConvention() {
         assume().that(bdioEnum).isInstanceOf(Bdio.Class.class);
         assertThat(bdioEnum.toString()).isEqualTo(VOCAB + bdioEnum.name());
+    }
+
+    /**
+     * Object properties must be annotated with {@link Bdio.AllowedOn} and {@link Bdio.ObjectPropertyRange}.
+     */
+    @Test
+    public void objectPropertyMetadata() {
+        assume().that(bdioEnum).isInstanceOf(Bdio.ObjectProperty.class);
+        assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.AllowedOn.class)).named("@AllowedOn").isNotNull();
+        assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.ObjectPropertyRange.class)).named("@ObjectPropertyRange").isNotNull();
+    }
+
+    /**
+     * Object properties must be annotated with {@link Bdio.AllowedOn} and {@link Bdio.DataPropertyRange}.
+     */
+    @Test
+    public void dataPropertyMetadata() {
+        assume().that(bdioEnum).isInstanceOf(Bdio.DataProperty.class);
+        assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.AllowedOn.class)).named("@AllowedOn").isNotNull();
+        assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.DataPropertyRange.class)).named("@DataPropertyRange").isNotNull();
     }
 
 }
