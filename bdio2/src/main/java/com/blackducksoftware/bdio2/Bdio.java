@@ -199,7 +199,7 @@ public class Bdio {
         /**
          * Used to indicate two objects represent the same thing and directs you to the preferred representation.
          */
-        @AllowedOn({ Class.Project, Class.Container, Class.Component, Class.License, Class.Repository, Class.Vulnerability })
+        @AllowedOn({ Class.Component, Class.Container, Class.License, Class.Project, Class.Repository, Class.Vulnerability })
         @ObjectPropertyRange({})
         canonical("https://blackducksoftware.github.io/bdio#hasCanonical", Container.single),
 
@@ -213,7 +213,7 @@ public class Bdio {
         /**
          * The list of dependencies.
          */
-        @AllowedOn({ Class.Container, Class.Component, Class.FileCollection, Class.Project, Class.Repository })
+        @AllowedOn({ Class.Component, Class.Container, Class.FileCollection, Class.Project, Class.Repository })
         @ObjectPropertyRange({ Class.Dependency })
         dependency("https://blackducksoftware.github.io/bdio#hasDependency", Container.unordered),
 
@@ -231,7 +231,7 @@ public class Bdio {
          * For root objects, the license defines the terms under which the project may be licensed, for a component, the
          * license defines the term under which usage of the component is licensed.
          */
-        @AllowedOn({ Class.Project, Class.Container, Class.LicenseGroup, Class.Component })
+        @AllowedOn({ Class.Component, Class.Container, Class.LicenseGroup, Class.Project })
         @ObjectPropertyRange({ Class.License, Class.LicenseGroup })
         license("https://blackducksoftware.github.io/bdio#hasLicense", Container.single),
 
@@ -239,7 +239,7 @@ public class Bdio {
          * A simultaneously required license being used. This can be used in with other license relationships to create
          * complex license expressions.
          */
-        @AllowedOn({ Class.Project, Class.Container, Class.LicenseGroup, Class.Component })
+        @AllowedOn({ Class.Component, Class.Container, Class.LicenseGroup, Class.Project })
         @ObjectPropertyRange({ Class.License, Class.LicenseGroup })
         licenseConjunctive("https://blackducksoftware.github.io/bdio#haslicenseConjunctive", Container.ordered),
 
@@ -247,7 +247,7 @@ public class Bdio {
          * A choice of licenses being used. This can be used in with other license relationships to create complex
          * license expressions.
          */
-        @AllowedOn({ Class.Project, Class.Container, Class.LicenseGroup, Class.Component })
+        @AllowedOn({ Class.Component, Class.Container, Class.LicenseGroup, Class.Project })
         @ObjectPropertyRange({ Class.License, Class.LicenseGroup })
         licenseDisjunctive("https://blackducksoftware.github.io/bdio#hasLicenseDisjunctive", Container.ordered),
 
@@ -262,7 +262,7 @@ public class Bdio {
          * The minimal license being used. This can be used in with other license relationships to create complex
          * license expressions.
          */
-        @AllowedOn({ Class.Project, Class.Container, Class.LicenseGroup, Class.Component })
+        @AllowedOn({ Class.Component, Class.Container, Class.LicenseGroup, Class.Project })
         @ObjectPropertyRange({ Class.License })
         licenseOrLater("https://blackducksoftware.github.io/bdio#hasLicenseOrLater", Container.single),
 
@@ -350,7 +350,7 @@ public class Bdio {
          * The namespace specific base context used to resolve a locator. Typically this is just a URL, however any
          * specification understood by the namespace specific resolver is acceptable.
          */
-        @AllowedOn({ Class.Project, Class.Component, Class.License, Class.Vulnerability })
+        @AllowedOn({ Class.Component, Class.License, Class.Project, Class.Vulnerability })
         @DataPropertyRange(Datatype.Default)
         // TODO Is this a good name? Back to repository?
         context("https://blackducksoftware.github.io/bdio#hasContext", Container.single),
@@ -397,7 +397,7 @@ public class Bdio {
         /**
          * The homepage associated with the entity.
          */
-        @AllowedOn({ Class.Project, Class.Component, Class.License, Class.Vulnerability })
+        @AllowedOn({ Class.Component, Class.License, Class.Project, Class.Vulnerability })
         @DataPropertyRange(Datatype.Default) // TODO Change type to "AnyURI"?
         // TODO Other URLs: issues, source, wiki, etc.?
         homepage("https://blackducksoftware.github.io/bdio#hasHomepage", Container.unordered),
@@ -405,7 +405,7 @@ public class Bdio {
         /**
          * The namespace specific locator for a component. Also known as an "external identifier".
          */
-        @AllowedOn({ Class.Project, Class.Component, Class.License, Class.Vulnerability })
+        @AllowedOn({ Class.Component, Class.License, Class.Project, Class.Vulnerability })
         @DataPropertyRange(Datatype.Default)
         identifier("https://blackducksoftware.github.io/bdio#hasIdentifier", Container.single),
 
@@ -420,7 +420,7 @@ public class Bdio {
          * The display name of the entity.
          */
         // TODO Use JSON-LD Container.language to support multi-language names?
-        @AllowedOn(value = { Class.Project, Class.Component, Class.License, Class.Vulnerability, Class.Repository }, metadata = true)
+        @AllowedOn(value = { Class.Component, Class.License, Class.Project, Class.Repository, Class.Vulnerability }, metadata = true)
         @DataPropertyRange(Datatype.Default)
         name("https://blackducksoftware.github.io/bdio#hasName", Container.single),
 
@@ -433,7 +433,7 @@ public class Bdio {
          * however it is ultimately up to the producer and consumer of the BDIO data to handshake on the appropriate
          * rules.
          */
-        @AllowedOn({ Class.Project, Class.Container, Class.Component, Class.License, Class.Repository, Class.Vulnerability })
+        @AllowedOn({ Class.Component, Class.Container, Class.License, Class.Project, Class.Repository, Class.Vulnerability })
         @DataPropertyRange(Datatype.Default)
         namespace("https://blackducksoftware.github.io/bdio#hasNamespace", Container.single),
 
@@ -469,7 +469,7 @@ public class Bdio {
         /**
          * The tool which resolved the namespace specific locator.
          */
-        @AllowedOn({ Class.Project, Class.Component, Class.License, Class.Vulnerability })
+        @AllowedOn({ Class.Component, Class.License, Class.Project, Class.Vulnerability })
         @DataPropertyRange(Datatype.Products)
         resolver("https://blackducksoftware.github.io/bdio#hasResolver", Container.single),
 
@@ -521,14 +521,14 @@ public class Bdio {
         /**
          * The name of the vendor who provides a project or component.
          */
-        @AllowedOn({ Class.Project, Class.Component })
+        @AllowedOn({ Class.Component, Class.Project })
         @DataPropertyRange(Datatype.Default)
         vendor("https://blackducksoftware.github.io/bdio#hasVendor", Container.single),
 
         /**
          * The display version of the entity. Must reference a single version.
          */
-        @AllowedOn({ Class.Project, Class.Component })
+        @AllowedOn({ Class.Component, Class.Project })
         @DataPropertyRange(Datatype.Default)
         version("https://blackducksoftware.github.io/bdio#hasVersion", Container.single),
 
