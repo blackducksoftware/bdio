@@ -18,7 +18,8 @@ import java.util.Objects;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bdio2.BdioEmitter;
+import com.blackducksoftware.bdio2.BdioOptions;
+import com.blackducksoftware.bdio2.EmitterFactory;
 import com.google.common.collect.Iterables;
 import com.google.common.io.ByteSource;
 
@@ -29,13 +30,14 @@ import com.google.common.io.ByteSource;
  */
 public class EntriesTool extends Tool {
 
-    // TODO Configurable per-entry delimiters?
-
     public static void main(String[] args) {
         new EntriesTool(null).parseArgs(args).run();
     }
 
     private ByteSource input;
+
+    // TODO Configurable per-entry delimiters?
+    private String entryDelimiter = "%n%n";
 
     public EntriesTool(@Nullable String name) {
         super(name);
@@ -54,7 +56,13 @@ public class EntriesTool extends Tool {
     @Override
     public void execute() throws IOException {
         checkState(input != null, "input is not set");
-        new BdioEmitter(input.openBufferedStream()).stream().forEach(this::printJson);
+        BdioOptions options = new BdioOptions.Builder().build();
+        EmitterFactory.newEmitter(options, input.openBufferedStream()).stream().forEach(this::printEntry);
+    }
+
+    protected void printEntry(Object entry) {
+        printJson(entry);
+        printOutput(entryDelimiter);
     }
 
 }
