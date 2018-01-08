@@ -410,6 +410,13 @@ public class Bdio {
         identifier("https://blackducksoftware.github.io/bdio#hasIdentifier", Container.single),
 
         /**
+         * The date and time a file was last modified.
+         */
+        @AllowedOn({ Class.File })
+        @DataPropertyRange(Datatype.DateTime)
+        lastModifiedDateTime("https://blackducksoftware.github.io/bdio#hasLastModifiedDateTime", Container.single),
+
+        /**
          * The symbolic link target of a file.
          */
         @AllowedOn({ Class.File })

@@ -11,6 +11,7 @@
  */
 package com.blackducksoftware.bdio2.model;
 
+import java.time.ZonedDateTime;
 import java.util.Collection;
 
 import javax.annotation.Nullable;
@@ -63,6 +64,11 @@ public final class File extends BdioObject {
 
     public File path(@Nullable String path) {
         putData(Bdio.DataProperty.path, path);
+        return this;
+    }
+
+    public File lastModifiedDateTime(ZonedDateTime lastModifiedDateTime) {
+        putData(Bdio.DataProperty.lastModifiedDateTime, lastModifiedDateTime);
         return this;
     }
 
