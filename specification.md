@@ -240,7 +240,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : The namespace a component exists in. Also known as a "forge" or "system type", this defines how many different fields should be interpreted (e.g. identifiers, versions and scopes are defined within a particular namespace).
 :
 : Note that namespace values are not part of the BDIO specification. There are BDIO recommendations, however it is ultimately up to the producer and consumer of the BDIO data to handshake on the appropriate rules.
-: _Allowed on: `Component`, `Container`, `License`, `Project`, `Repository`, `Vulnerability`_
+: _Allowed on: `Component`, `Container`, `Dependency`, `License`, `Project`, `Repository`, `Vulnerability`_
 : _Range: `Default`_
 
 `path`
