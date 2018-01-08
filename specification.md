@@ -177,8 +177,8 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 
 `creationDateTime`
 : `https://blackducksoftware.github.io/bdio#hasCreationDateTime`
-: The time at which the BDIO document was created. This property should be specified for the named graph.
-: _Allowed on: `@graph`_
+: The date and time creation of an entity occurred.
+: _Allowed on: `@graph`, `File`_
 : _Range: `DateTime`_
 
 `creator`
