@@ -217,6 +217,12 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : _Allowed on: `Component`, `License`, `Project`, `Vulnerability`_
 : _Range: `Default`_
 
+`lastModifiedDateTime`
+: `https://blackducksoftware.github.io/bdio#hasLastModifiedDateTime`
+: The date and time a file was last modified.
+: _Allowed on: `File`_
+: _Range: `DateTime`_
+
 `linkPath`
 : `https://blackducksoftware.github.io/bdio#hasLinkPath`
 : The symbolic link target of a file.
