@@ -356,9 +356,9 @@ public class Bdio {
         context("https://blackducksoftware.github.io/bdio#hasContext", Container.single),
 
         /**
-         * The time at which the BDIO document was created. This property should be specified for the named graph.
+         * The date and time creation of an entity occurred.
          */
-        @AllowedOn(metadata = true)
+        @AllowedOn(value = { Class.File }, metadata = true)
         @DataPropertyRange(Datatype.DateTime)
         creationDateTime("https://blackducksoftware.github.io/bdio#hasCreationDateTime", Container.single),
 

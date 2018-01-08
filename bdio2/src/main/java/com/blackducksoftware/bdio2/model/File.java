@@ -57,6 +57,11 @@ public final class File extends BdioObject {
         return this;
     }
 
+    public File creationDateTime(@Nullable ZonedDateTime creationDateTime) {
+        putData(Bdio.DataProperty.creationDateTime, creationDateTime);
+        return this;
+    }
+
     public File encoding(@Nullable String encoding) {
         putData(Bdio.DataProperty.encoding, encoding);
         return this;
