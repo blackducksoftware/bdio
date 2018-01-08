@@ -1,0 +1,19 @@
+description = 'Black Duck I/O for Project Reactor'
+
+dependencyRecommendations {
+	mavenBom module: 'io.projectreactor:reactor-bom:Aluminium-SR3'
+}
+
+dependencies {
+	compile project(':bdio2')
+	compile 'com.blackducksoftware.magpie:magpie'
+	compile 'com.github.jsonld-java:jsonld-java'
+	compile 'com.google.code.findbugs:jsr305'
+	compile 'com.google.guava:guava'
+	compile 'io.projectreactor:reactor-core'
+	compile 'org.reactivestreams:reactive-streams'
+
+	testCompile project(':bdio-test')
+	testCompile 'com.google.truth:truth'
+	testCompile 'junit:junit'
+}
