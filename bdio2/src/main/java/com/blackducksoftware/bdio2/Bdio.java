@@ -440,7 +440,7 @@ public class Bdio {
          * however it is ultimately up to the producer and consumer of the BDIO data to handshake on the appropriate
          * rules.
          */
-        @AllowedOn({ Class.Component, Class.Container, Class.License, Class.Project, Class.Repository, Class.Vulnerability })
+        @AllowedOn({ Class.Component, Class.Container, Class.Dependency, Class.License, Class.Project, Class.Repository, Class.Vulnerability })
         @DataPropertyRange(Datatype.Default)
         namespace("https://blackducksoftware.github.io/bdio#hasNamespace", Container.single),
 

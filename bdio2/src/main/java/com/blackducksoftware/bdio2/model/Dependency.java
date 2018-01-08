@@ -36,6 +36,11 @@ public final class Dependency extends BdioObject {
         return this;
     }
 
+    public Dependency namespace(@Nullable String namespace) {
+        putData(Bdio.DataProperty.namespace, namespace);
+        return this;
+    }
+
     public Dependency scope(@Nullable String scope) {
         putData(Bdio.DataProperty.scope, scope);
         return this;
