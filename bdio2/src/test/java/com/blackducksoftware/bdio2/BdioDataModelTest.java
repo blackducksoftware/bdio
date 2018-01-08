@@ -33,7 +33,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import com.blackducksoftware.common.base.ExtraEnums;
+import com.blackducksoftware.common.base.ExtraStreams;
 import com.google.common.base.Enums;
 import com.google.common.collect.ImmutableSet;
 
@@ -70,10 +70,10 @@ public class BdioDataModelTest {
      */
     private static Stream<Enum<?>> bdioEnums() {
         Stream.Builder<Enum<?>> result = Stream.builder();
-        ExtraEnums.stream(Bdio.Class.class).forEach(result);
-        ExtraEnums.stream(Bdio.ObjectProperty.class).forEach(result);
-        ExtraEnums.stream(Bdio.DataProperty.class).forEach(result);
-        ExtraEnums.stream(Bdio.Datatype.class).forEach(result);
+        ExtraStreams.stream(Bdio.Class.class).forEach(result);
+        ExtraStreams.stream(Bdio.ObjectProperty.class).forEach(result);
+        ExtraStreams.stream(Bdio.DataProperty.class).forEach(result);
+        ExtraStreams.stream(Bdio.Datatype.class).forEach(result);
         return result.build();
     }
 

@@ -40,6 +40,7 @@ import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Streams;
 
 /**
  * A mapper for converting between JSON-LD value objects and Java objects.
@@ -227,7 +228,7 @@ public class ValueObjectMapper {
             Optional<Object> value = mappingOf(input, JsonLdConsts.ID);
             value = ExtraOptionals.or(value, () -> mappingOf(input, JsonLdConsts.VALUE));
             value = ExtraOptionals.or(value, () -> Optional.ofNullable(input).map(Object::toString));
-            return ExtraOptionals.stream(value);
+            return Streams.stream(value);
         }
     }
 

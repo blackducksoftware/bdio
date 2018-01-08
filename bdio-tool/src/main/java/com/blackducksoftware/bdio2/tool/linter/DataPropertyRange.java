@@ -24,7 +24,7 @@ import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
 import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
-import com.blackducksoftware.common.base.ExtraEnums;
+import com.blackducksoftware.common.base.ExtraStreams;
 import com.blackducksoftware.common.value.HID;
 
 public class DataPropertyRange implements RawNodeRule {
@@ -32,7 +32,7 @@ public class DataPropertyRange implements RawNodeRule {
     @Override
     public Stream<Violation> validate(Map<String, Object> input) {
         ValueObjectMapper valueObjectMapper = ValueObjectMapper.getContextValueObjectMapper();
-        return ExtraEnums.stream(Bdio.DataProperty.class)
+        return ExtraStreams.stream(Bdio.DataProperty.class)
                 .map(Object::toString)
                 .flatMap(key -> {
                     try {
