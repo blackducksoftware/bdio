@@ -674,6 +674,13 @@ class LegacyBdio1xEmitter implements Emitter {
         Optional<String> licenseConcluded = currentValue("licenseConcluded");
         and(artifactOf, licenseConcluded, (componentId, licenseId) -> new Component(componentId).license(licenseId)).ifPresent(component);
         // TODO "matchDetail", ( "matchType" | "content" | "artifactOf" | "licenseConcluded" )
+
+        // Handle an edge case where the root directory might have erroneously declared a size of zero
+        if (Objects.equals(currentValue("fileName").orElse(null), "./")
+                && currentValue(Number.class, "size").orElse(-1).longValue() == 0) {
+            result.remove(Bdio.DataProperty.byteCount.toString());
+        }
+
         file.accept(result);
     }
 
