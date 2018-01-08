@@ -463,7 +463,7 @@ TODO Suggest identifiers to use in specific situations, include use of "mvn:" an
 
 NOTE: File extensions and/or compression formats are not accounted for using the scheme, e.g. a file with the extension ".tgz" or ".tar.gz" still has a scheme of "tar".
 
-## Allowed File System Types
+## File System Types
 
 | File System Type         | Description |
 |--------------------------|-------------|
