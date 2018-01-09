@@ -15,9 +15,6 @@
  */
 package com.blackducksoftware.bdio2;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.stream.Collectors.joining;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +23,7 @@ import java.util.Spliterators.AbstractSpliterator;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.ToIntFunction;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -33,8 +31,10 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.model.Dependency;
+import com.blackducksoftware.bdio2.model.File;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Ascii;
+import com.google.common.collect.Multimap;
 
 /**
  * Utilities used to aid in the conversion of legacy formats.
@@ -106,21 +106,44 @@ class LegacyUtilities {
         return 20 + estimateSize(metadata.id());
     }
 
+    @Nullable
+    private static String dependencyIdentifier(ValueObjectMapper valueObjectMapper, Dependency dep) {
+        Stream<Object> dependsOn = valueObjectMapper.fromReferenceValueObject(dep.get(Bdio.ObjectProperty.dependsOn.toString()));
+        Stream<Object> license = valueObjectMapper.fromReferenceValueObject(dep.get(Bdio.ObjectProperty.license.toString()));
+        byte[] name = Stream.concat(dependsOn, license).map(Object::toString).collect(Collectors.joining("><", "<", ">")).getBytes();
+        return "urn:uuid:" + UUID.nameUUIDFromBytes(name);
+    }
+
     /**
-     * Helper to ensure we only create a single dependency irrespective of the number of files it is declared by.
-     * Returns the supplied dependency for call chaining.
+     * Helper to merge a dependency into a map of dependencies. This is used to reduce the overall number of dependency
+     * objects created for similar declarations.
      */
-    public static Dependency identifyDeclaredByToDependsOn(Dependency dep) {
-        if (dep.containsKey(Bdio.ObjectProperty.declaredBy.toString())) {
-            // Legacy formats always implied the dependency from the root so we only need to consider
-            // the target (dependsOn) when producing an identifier
-            dep.put(JsonLdConsts.ID, "urn:uuid:" + UUID.nameUUIDFromBytes(ValueObjectMapper.getContextValueObjectMapper()
-                    .fromReferenceValueObject(dep.get(Bdio.ObjectProperty.dependsOn.toString()))
-                    .map(Object::toString)
-                    .collect(joining())
-                    .getBytes(UTF_8)));
+    public static void mergeDependency(Multimap<String, Dependency> dependencies, Dependency dependency) {
+        ValueObjectMapper valueObjectMapper = ValueObjectMapper.getContextValueObjectMapper();
+        String id = dependencyIdentifier(valueObjectMapper, dependency);
+        dependency.put(JsonLdConsts.ID, id);
+
+        // Look for an dependency we can add this to
+        for (Dependency dep : dependencies.get(id)) {
+            if (dep.keySet().equals(dependency.keySet())) {
+                if (dep.containsKey(Bdio.ObjectProperty.declaredBy.toString())) {
+                    valueObjectMapper.fromReferenceValueObject(dependency.get(Bdio.ObjectProperty.declaredBy.toString()))
+                            .map(Object::toString)
+                            .map(File::new)
+                            .forEach(dep::declaredBy);
+                    return;
+                } else if (dep.containsKey(Bdio.ObjectProperty.evidence.toString())) {
+                    valueObjectMapper.fromReferenceValueObject(dependency.get(Bdio.ObjectProperty.evidence.toString()))
+                            .map(Object::toString)
+                            .map(File::new)
+                            .forEach(dep::evidence);
+                    return;
+                }
+            }
         }
-        return dep;
+
+        // If we fell through, just add the dependency
+        dependencies.put(id, dependency);
     }
 
     /**

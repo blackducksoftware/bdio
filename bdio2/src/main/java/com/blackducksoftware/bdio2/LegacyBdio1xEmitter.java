@@ -15,7 +15,6 @@
  */
 package com.blackducksoftware.bdio2;
 
-import static com.blackducksoftware.common.base.ExtraOptionals.and;
 import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static com.blackducksoftware.common.base.ExtraStrings.afterLast;
 import static com.blackducksoftware.common.base.ExtraStrings.beforeFirst;
@@ -70,6 +69,8 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.LinkedHashMultimap;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Streams;
 import com.google.common.net.UrlEscapers;
 
@@ -110,6 +111,11 @@ class LegacyBdio1xEmitter implements Emitter {
         private final AtomicBoolean finished = new AtomicBoolean();
 
         /**
+         * State indicating that we have seen at least one file.
+         */
+        private final AtomicBoolean hasFile = new AtomicBoolean();
+
+        /**
          * Reference to a supplier that generates a new logically empty node for the root object each time it is
          * invoked. Such a node can be included anywhere in the graph and all nodes will eventually be merged.
          */
@@ -124,7 +130,7 @@ class LegacyBdio1xEmitter implements Emitter {
         /**
          * A buffer of dependency nodes so we don't create too many root objects.
          */
-        private final List<Dependency> dependencyBuffer = new ArrayList<>();
+        private final Multimap<String, Dependency> dependencyBuffer = LinkedHashMultimap.create();
 
         /**
          * A buffer of converted BDIO 2.x nodes.
@@ -139,17 +145,16 @@ class LegacyBdio1xEmitter implements Emitter {
             rootObjectRef.compareAndSet(null, () -> new FileCollection(id));
         }
 
-        public void setBaseFile(String id, @Nullable String fileName) {
+        public void addFile(String id, @Nullable String fileName) {
+            hasFile.set(true);
             if (Objects.equals(fileName, "./")) {
                 baseFileRef.set(() -> new File(id));
-            } else if (baseFileRef.get() == null) {
-                // The double check is just avoid tons of unnecessary lambdas...not sure if that is a thing
-                baseFileRef.compareAndSet(null, () -> new File("file:///").path("file:///"));
             }
         }
 
         public void addRootDependency(Dependency dependency) {
-            dependencyBuffer.add(LegacyUtilities.identifyDeclaredByToDependsOn(dependency));
+            LegacyUtilities.mergeDependency(dependencyBuffer, dependency);
+            // TODO We might need to drain more frequently if the number of files on each dependency is too large
             if (dependencyBuffer.size() > DEPENDENCY_BATCH_SIZE) {
                 drainDependencies();
             }
@@ -175,18 +180,24 @@ class LegacyBdio1xEmitter implements Emitter {
         private void drainBaseFile() {
             Supplier<BdioObject> rootObjectSupplier = rootObjectRef.get();
             Supplier<File> baseFileSupplier = baseFileRef.get();
-            if (rootObjectSupplier != null && baseFileSupplier != null) {
-                BdioObject rootObject = rootObjectSupplier.get();
-                File baseFile = baseFileSupplier.get();
+            if (rootObjectSupplier != null && (baseFileSupplier != null || hasFile.get())) {
+                File baseFile;
+                if (baseFileSupplier != null) {
+                    baseFile = baseFileSupplier.get();
+                } else {
+                    baseFile = new File("file:///").path("file:///");
+                }
 
+                BdioObject rootObject = rootObjectSupplier.get();
                 if (rootObject instanceof Project) {
                     ((Project) rootObject).base(baseFile);
                 } else if (rootObject instanceof FileCollection) {
                     ((FileCollection) rootObject).base(baseFile);
                 }
-                addFirst(rootObject);
 
-                if (baseFile.containsKey(Bdio.DataProperty.path.toString())) {
+                // Add the computed nodes to the graph
+                addFirst(rootObject);
+                if (baseFileSupplier == null) {
                     addFirst(baseFile);
                 }
             }
@@ -196,7 +207,7 @@ class LegacyBdio1xEmitter implements Emitter {
             Supplier<BdioObject> rootObjectSupplier = rootObjectRef.get();
             if (rootObjectSupplier != null && !dependencyBuffer.isEmpty()) {
                 BdioObject rootObject = rootObjectSupplier.get();
-                for (Dependency dependency : dependencyBuffer) {
+                for (Dependency dependency : dependencyBuffer.values()) {
                     if (rootObject instanceof Project) {
                         ((Project) rootObject).dependency(dependency);
                     } else if (rootObject instanceof FileCollection) {
@@ -608,8 +619,7 @@ class LegacyBdio1xEmitter implements Emitter {
     }
 
     /**
-     * Converts the current node from BDIO 1.x to BDIO 2.x. If the current node should not be included in the final
-     * result, this method returns {@code null}.
+     * Converts the current node from BDIO 1.x to BDIO 2.x.
      */
     private void convert(Consumer<? super Map<String, Object>> graph) {
         String type = currentType();
@@ -626,8 +636,8 @@ class LegacyBdio1xEmitter implements Emitter {
         } else if (type.equals("License")) {
             convertLicense(graph);
         } else if (type.equals("File")) {
-            convertFile(graph, computedNodes::addRootDependency, graph);
-            computedNodes.setBaseFile(currentId(), currentValue("fileName").orElse(null));
+            convertFile(graph, computedNodes::addRootDependency);
+            computedNodes.addFile(currentId(), currentValue("fileName").orElse(null));
         }
     }
 
@@ -663,17 +673,19 @@ class LegacyBdio1xEmitter implements Emitter {
         license.accept(result);
     }
 
-    private void convertFile(Consumer<? super File> file, Consumer<? super Dependency> dependency, Consumer<? super Component> component) {
+    private void convertFile(Consumer<? super File> file, Consumer<? super Dependency> dependency) {
         File result = new File(currentId());
         currentValue(Number.class, "size").map(Number::longValue).ifPresent(result::byteCount);
         convertPath(result::path);
         convertFileTypes(result::fileSystemType);
         convertChecksums(result::fingerprint);
-        Optional<String> artifactOf = currentValue("artifactOf");
-        artifactOf.map(componentId -> new Dependency().declaredBy(result).dependsOn(componentId)).ifPresent(dependency);
-        Optional<String> licenseConcluded = currentValue("licenseConcluded");
-        and(artifactOf, licenseConcluded, (componentId, licenseId) -> new Component(componentId).license(licenseId)).ifPresent(component);
-        // TODO "matchDetail", ( "matchType" | "content" | "artifactOf" | "licenseConcluded" )
+        convertMatchDetail(result, dependency);
+
+        currentValue("artifactOf").map(dependsOn -> {
+            Dependency dep = new Dependency().dependsOn(dependsOn).evidence(result);
+            currentValue("licenseConcluded").ifPresent(dep::license);
+            return dep;
+        }).ifPresent(dependency);
 
         // Handle an edge case where the root directory might have erroneously declared a size of zero
         if (Objects.equals(currentValue("fileName").orElse(null), "./")
@@ -681,7 +693,12 @@ class LegacyBdio1xEmitter implements Emitter {
             result.remove(Bdio.DataProperty.byteCount.toString());
         }
 
-        file.accept(result);
+        // The current node did not contain enough meaningful file data to be included. This assumption is only safe for
+        // files because somewhere there must be an association between the file identifier and the path which would
+        // result in a size of at least 3.
+        if (result.size() > 2) {
+            file.accept(result);
+        }
     }
 
     /**
@@ -790,6 +807,32 @@ class LegacyBdio1xEmitter implements Emitter {
         if (!fingerprints.isEmpty()) {
             fingerprint.accept(fingerprints);
         }
+    }
+
+    /**
+     * Converts the match detail for a file from the current node.
+     */
+    private void convertMatchDetail(File file, Consumer<? super Dependency> dependency) {
+        currentValue("matchDetail", "artifactOf").flatMap(dependsOn -> {
+            Dependency dep = new Dependency().dependsOn(dependsOn);
+            currentValue("matchDetail", "licenseConcluded").ifPresent(dep::license);
+            String matchType = currentValue("matchDetail", "matchType").orElse(null);
+            if (matchType == null) {
+                // Treat this like an exact match (i.e. as if the "artifactOf" was directly on the file)
+                dep.evidence(file);
+            } else if (checkIdentifier(matchType, "PARTIAL", "http://blackducksoftware.com/rdf/terms#matchType_partial")) {
+                // We don't know the actual range but we need it to differentiate from an exact match
+                dep.evidence(file);
+                dep.range("bytes */0"); // TODO What range do we use?
+            } else if (checkIdentifier(matchType, "DEPENDENCY", "http://blackducksoftware.com/rdf/terms#matchType_dependency")) {
+                // Ignore content, we don't have enough context to do anything useful with it
+                dep.declaredBy(file);
+            } else {
+                // Unsupported match type
+                return Optional.empty();
+            }
+            return Optional.of(dep);
+        }).ifPresent(dependency);
     }
 
     /**
