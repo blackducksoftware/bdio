@@ -225,6 +225,13 @@ public class Bdio {
         dependsOn("https://blackducksoftware.github.io/bdio#dependsOn", Container.unordered),
 
         /**
+         * Indicates a component was discovered using evidence from a specific file.
+         */
+        @AllowedOn({ Class.Dependency })
+        @ObjectPropertyRange({ Class.File })
+        evidence("https://blackducksoftware.github.io/bdio#hasEvidence", Container.unordered),
+
+        /**
          * The license being used. This can be used in with other license relationships to create complex license
          * expressions.
          * <p>
@@ -471,7 +478,7 @@ public class Bdio {
          * The ranges of file content a note applies to. Multiple ranges can be specified, however the units must be
          * distinct (e.g. "bytes" and "chars").
          */
-        @AllowedOn({ Class.Note })
+        @AllowedOn({ Class.Dependency, Class.Note })
         @DataPropertyRange(Datatype.ContentRange)
         range("https://blackducksoftware.github.io/bdio#hasRange", Container.unordered),
 

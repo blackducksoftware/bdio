@@ -36,6 +36,11 @@ public final class Dependency extends BdioObject {
         return this;
     }
 
+    public Dependency evidence(@Nullable File file) {
+        putObject(Bdio.ObjectProperty.evidence, file);
+        return this;
+    }
+
     public Dependency license(@Nullable Object license) {
         putObject(Bdio.ObjectProperty.license, license);
         return this;
@@ -58,6 +63,11 @@ public final class Dependency extends BdioObject {
 
     public Dependency namespace(@Nullable String namespace) {
         putData(Bdio.DataProperty.namespace, namespace);
+        return this;
+    }
+
+    public Dependency range(@Nullable String range) {
+        putData(Bdio.DataProperty.range, range);
         return this;
     }
 
