@@ -32,6 +32,10 @@
       "@id" : "https://blackducksoftware.github.io/bdio#dependsOn",
       "@type" : "@id"
     },
+    "evidence" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasEvidence",
+      "@type" : "@id"
+    },
     "license" : {
       "@id" : "https://blackducksoftware.github.io/bdio#hasLicense",
       "@type" : "@id"
@@ -96,10 +100,18 @@
       "@container" : "@set"
     },
     "identifier" : "https://blackducksoftware.github.io/bdio#hasIdentifier",
+    "lastModifiedDateTime" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasLastModifiedDateTime",
+      "@type" : "xsd:dateTime"
+    },
     "linkPath" : "https://blackducksoftware.github.io/bdio#hasLinkPath",
     "name" : "https://blackducksoftware.github.io/bdio#hasName",
     "namespace" : "name:space",
     "path" : "https://blackducksoftware.github.io/bdio#hasPath",
+    "platform" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasPlatform",
+      "@type" : "https://blackducksoftware.github.io/bdio#Products"
+    },
     "publisher" : {
       "@id" : "https://blackducksoftware.github.io/bdio#hasPublisher",
       "@type" : "https://blackducksoftware.github.io/bdio#Products"
