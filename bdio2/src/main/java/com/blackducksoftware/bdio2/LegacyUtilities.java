@@ -15,6 +15,8 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -110,7 +112,7 @@ class LegacyUtilities {
     private static String dependencyIdentifier(ValueObjectMapper valueObjectMapper, Dependency dep) {
         Stream<Object> dependsOn = valueObjectMapper.fromReferenceValueObject(dep.get(Bdio.ObjectProperty.dependsOn.toString()));
         Stream<Object> license = valueObjectMapper.fromReferenceValueObject(dep.get(Bdio.ObjectProperty.license.toString()));
-        byte[] name = Stream.concat(dependsOn, license).map(Object::toString).collect(Collectors.joining("><", "<", ">")).getBytes();
+        byte[] name = Stream.concat(dependsOn, license).map(Object::toString).collect(Collectors.joining("><", "<", ">")).getBytes(UTF_8);
         return "urn:uuid:" + UUID.nameUUIDFromBytes(name);
     }
 
