@@ -92,19 +92,19 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : The license being used. This can be used in with other license relationships to create complex license expressions.
 :
 :For root objects, the license defines the terms under which the project may be licensed, for a component, the license defines the term under which usage of the component is licensed.
-: _Allowed on: `Component`, `Container`, `LicenseGroup`, `Project`_
+: _Allowed on: `Component`, `Container`, `Dependency`, `LicenseGroup`, `Project`_
 : _Range: `License`, `LicenseGroup`_
 
 `licenseConjunctive`
 : `https://blackducksoftware.github.io/bdio#hasLicenseConjunctive`
 : A simultaneously required license being used. This can be used in with other license relationships to create complex license expressions.
-: _Allowed on: `Component`, `Container`, `LicenseGroup`, `Project`_
+: _Allowed on: `Component`, `Container`, `Dependency`, `LicenseGroup`, `Project`_
 : _Range: `License`, `LicenseGroup`_
 
 `licenseDisjunctive`
 : `https://blackducksoftware.github.io/bdio#hasLicenseDisjunctive`
 : A choice of licenses being used. This can be used in with other license relationships to create complex license expressions.
-: _Allowed on: `Component`, `Container`, `LicenseGroup`, `Project`_
+: _Allowed on: `Component`, `Container`, `Dependency`, `LicenseGroup`, `Project`_
 : _Range: `License`, `LicenseGroup`_
 
 `licenseException`
@@ -116,7 +116,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `licenseOrLater`
 : `https://blackducksoftware.github.io/bdio#hasLicenseOrLater`
 : The minimal license being used. This can be used in with other license relationships to create complex license expressions.
-: _Allowed on: `Component`, `Container`, `LicenseGroup`, `Project`_
+: _Allowed on: `Component`, `Container`, `Dependency`, `LicenseGroup`, `Project`_
 : _Range: `License`_
 
 `note`
