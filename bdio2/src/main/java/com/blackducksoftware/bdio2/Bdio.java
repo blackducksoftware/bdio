@@ -231,7 +231,7 @@ public class Bdio {
          * For root objects, the license defines the terms under which the project may be licensed, for a component, the
          * license defines the term under which usage of the component is licensed.
          */
-        @AllowedOn({ Class.Component, Class.Container, Class.LicenseGroup, Class.Project })
+        @AllowedOn({ Class.Component, Class.Container, Class.Dependency, Class.LicenseGroup, Class.Project })
         @ObjectPropertyRange({ Class.License, Class.LicenseGroup })
         license("https://blackducksoftware.github.io/bdio#hasLicense", Container.single),
 
@@ -239,7 +239,7 @@ public class Bdio {
          * A simultaneously required license being used. This can be used in with other license relationships to create
          * complex license expressions.
          */
-        @AllowedOn({ Class.Component, Class.Container, Class.LicenseGroup, Class.Project })
+        @AllowedOn({ Class.Component, Class.Container, Class.Dependency, Class.LicenseGroup, Class.Project })
         @ObjectPropertyRange({ Class.License, Class.LicenseGroup })
         licenseConjunctive("https://blackducksoftware.github.io/bdio#haslicenseConjunctive", Container.ordered),
 
@@ -247,7 +247,7 @@ public class Bdio {
          * A choice of licenses being used. This can be used in with other license relationships to create complex
          * license expressions.
          */
-        @AllowedOn({ Class.Component, Class.Container, Class.LicenseGroup, Class.Project })
+        @AllowedOn({ Class.Component, Class.Container, Class.Dependency, Class.LicenseGroup, Class.Project })
         @ObjectPropertyRange({ Class.License, Class.LicenseGroup })
         licenseDisjunctive("https://blackducksoftware.github.io/bdio#hasLicenseDisjunctive", Container.ordered),
 
@@ -262,7 +262,7 @@ public class Bdio {
          * The minimal license being used. This can be used in with other license relationships to create complex
          * license expressions.
          */
-        @AllowedOn({ Class.Component, Class.Container, Class.LicenseGroup, Class.Project })
+        @AllowedOn({ Class.Component, Class.Container, Class.Dependency, Class.LicenseGroup, Class.Project })
         @ObjectPropertyRange({ Class.License })
         licenseOrLater("https://blackducksoftware.github.io/bdio#hasLicenseOrLater", Container.single),
 

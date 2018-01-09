@@ -36,6 +36,26 @@ public final class Dependency extends BdioObject {
         return this;
     }
 
+    public Dependency license(@Nullable Object license) {
+        putObject(Bdio.ObjectProperty.license, license);
+        return this;
+    }
+
+    public Dependency licenseConjunctive(@Nullable Object license) {
+        putObject(Bdio.ObjectProperty.licenseConjunctive, license);
+        return this;
+    }
+
+    public Dependency licenseDisjunctive(@Nullable Object license) {
+        putObject(Bdio.ObjectProperty.licenseDisjunctive, license);
+        return this;
+    }
+
+    public Dependency licenseOrLater(@Nullable Object license) {
+        putObject(Bdio.ObjectProperty.licenseOrLater, license);
+        return this;
+    }
+
     public Dependency namespace(@Nullable String namespace) {
         putData(Bdio.DataProperty.namespace, namespace);
         return this;
