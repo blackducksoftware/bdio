@@ -19,6 +19,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.common.value.ProductList;
 
 public final class Container extends BdioObject {
 
@@ -63,6 +64,11 @@ public final class Container extends BdioObject {
 
     public Container namespace(@Nullable String namespace) {
         putData(Bdio.DataProperty.namespace, namespace);
+        return this;
+    }
+
+    public Container platform(@Nullable ProductList platform) {
+        putData(Bdio.DataProperty.platform, platform);
         return this;
     }
 
