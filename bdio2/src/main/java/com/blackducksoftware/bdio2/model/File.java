@@ -20,6 +20,7 @@ import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.common.value.ContentType;
 import com.blackducksoftware.common.value.Digest;
+import com.blackducksoftware.common.value.ProductList;
 
 public final class File extends BdioObject {
 
@@ -69,6 +70,11 @@ public final class File extends BdioObject {
 
     public File path(@Nullable String path) {
         putData(Bdio.DataProperty.path, path);
+        return this;
+    }
+
+    public File platform(@Nullable ProductList platform) {
+        putData(Bdio.DataProperty.platform, platform);
         return this;
     }
 

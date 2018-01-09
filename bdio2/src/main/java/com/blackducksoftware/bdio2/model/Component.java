@@ -97,6 +97,11 @@ public final class Component extends BdioObject {
         return this;
     }
 
+    public Component platform(@Nullable ProductList platform) {
+        putData(Bdio.DataProperty.platform, platform);
+        return this;
+    }
+
     public Component homepage(@Nullable String homepage) {
         putData(Bdio.DataProperty.homepage, homepage);
         return this;

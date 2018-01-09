@@ -103,6 +103,11 @@ public final class Project extends BdioObject {
         return this;
     }
 
+    public Project platform(@Nullable ProductList platform) {
+        putData(Bdio.DataProperty.platform, platform);
+        return this;
+    }
+
     public Project homepage(@Nullable String homepage) {
         putData(Bdio.DataProperty.homepage, homepage);
         return this;

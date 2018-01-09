@@ -452,6 +452,15 @@ public class Bdio {
         path("https://blackducksoftware.github.io/bdio#hasPath", Container.single),
 
         /**
+         * The platform (e.g. operating system) the data was captured for. This is generally lower level information
+         * then can be found in the resolver, e.g. while the resolve might contain tool specific specifiers, the
+         * platform would be used to describe the operating system running the tool.
+         */
+        @AllowedOn(value = { Class.Component, Class.File, Class.Project, Class.Vulnerability }, metadata = true)
+        @DataPropertyRange(Datatype.Products)
+        platform("https://blackducksoftware.github.io/bdio#hasPlatform", Container.single),
+
+        /**
          * The tool which published the BDIO document. This property should be specified for the named graph.
          */
         @AllowedOn(metadata = true)
