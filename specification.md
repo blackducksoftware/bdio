@@ -87,6 +87,12 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : _Allowed on: `Dependency`_
 : _Range: `Component`_
 
+`evidence`
+: `https://blackducksoftware.github.io/bdio#hasEvidence`
+: Indicates a component was discovered using evidence from a specific file.
+: _Allowed on: `Dependency`_
+: _Range: `File`_
+
 `license`
 : `https://blackducksoftware.github.io/bdio#hasLicense`
 : The license being used. This can be used in with other license relationships to create complex license expressions.
@@ -264,7 +270,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `range`
 : `https://blackducksoftware.github.io/bdio#hasRange`
 : The ranges of file content a note applies to. Multiple ranges can be specified, however the units must be distinct (e.g. "bytes" and "chars").
-: _Allowed on: `Note`_
+: _Allowed on: `Dependency`, `Note`_
 : _Range: `ContentRange`_
 
 `requestedVersion`
