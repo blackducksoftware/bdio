@@ -249,6 +249,12 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : _Allowed on: `File`_
 : _Range: `Default`_
 
+`platform`
+: `https://blackducksoftware.github.io/bdio#hasPlatform`
+: The platform (e.g. operating system) the data was captured for. This is generally lower  level information then can be found in the resolver, e.g. while the resolve might contain tool specific specifiers, the platform would be used to describe the operating system running the tool.
+: _Allowed on: `Component`, `File`, `Project`, `Vulnerability`_
+: _Range: `Products`_
+
 `publisher`
 : `https://blackducksoftware.github.io/bdio#hasPublisher`
 : The tool which published the BDIO document. This property should be specified for the named graph.
