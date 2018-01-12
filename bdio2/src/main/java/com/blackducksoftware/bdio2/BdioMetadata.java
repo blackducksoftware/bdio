@@ -188,6 +188,14 @@ public final class BdioMetadata extends BdioObject {
     }
 
     /**
+     * Sets the platform (e.g. operating system) this named graph was captured from.
+     */
+    public BdioMetadata platform(@Nullable ProductList platform) {
+        putData(Bdio.DataProperty.platform, platform);
+        return this;
+    }
+
+    /**
      * Sets the publisher of the tool (or tools) that created the named graph.
      */
     public BdioMetadata publisher(@Nullable ProductList publisher) {

@@ -20,6 +20,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth8.assertThat;
 import static com.google.common.truth.TruthJUnit.assume;
 
+import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
@@ -90,6 +91,13 @@ public class BdioDataModelTest {
     }
 
     /**
+     * Return the public methods of the model corresponding to the supplied {@code Bdio.Class}.
+     */
+    private static Stream<Method> modelTypeMethods(Bdio.Class bdioClass) {
+        return flatMapMany(modelType(bdioClass), c -> Stream.of(c.getMethods()));
+    }
+
+    /**
      * Returns all of the BDIO enumerations as parameters for this test. This includes a useful name at index 0 so test
      * results are more readable; the actual enumeration will be a index 1.
      */
@@ -107,6 +115,13 @@ public class BdioDataModelTest {
 
     public BdioDataModelTest(String name, Enum<?> bdioEnum) {
         this.bdioEnum = Objects.requireNonNull(bdioEnum);
+    }
+
+    /**
+     * Predicate to check if the supplied Java method has the same name as the current enumeration.
+     */
+    private boolean methodName(Method method) {
+        return method.getName().equals(bdioEnum.name());
     }
 
     /**
@@ -182,6 +197,9 @@ public class BdioDataModelTest {
         assume().that(bdioEnum).isInstanceOf(Bdio.ObjectProperty.class);
         assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.AllowedOn.class)).named("@AllowedOn").isNotNull();
         assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.ObjectPropertyRange.class)).named("@ObjectPropertyRange").isNotNull();
+
+        // BDIO object properties are not allowed in named graph metadata
+        assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.AllowedOn.class).metadata()).named("@AllowedOn.metadata").isFalse();
     }
 
     /**
@@ -194,6 +212,9 @@ public class BdioDataModelTest {
         assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.DataPropertyRange.class)).named("@DataPropertyRange").isNotNull();
     }
 
+    /**
+     * Use reflection to validate the Java model.
+     */
     @Test
     public void classHasModel() throws ReflectiveOperationException {
         assume().that(bdioEnum).isInstanceOf(Bdio.Class.class);
@@ -209,15 +230,27 @@ public class BdioDataModelTest {
         }
     }
 
+    /**
+     * Use reflection to validate the Java model.
+     */
     @Test
     public void propertyHasModel() throws ReflectiveOperationException {
         assume().that(bdioEnum instanceof Bdio.ObjectProperty || bdioEnum instanceof Bdio.DataProperty).isTrue();
 
-        // For each allowed class, make sure the corresponding model contains a method equal to the property name
-        Stream<Bdio.Class> modelClassesMissingProperty = Stream.of(Enums.getField(bdioEnum).getAnnotation(Bdio.AllowedOn.class).value())
-                .filter(bdioClass -> flatMapMany(modelType(bdioClass), c -> Stream.of(c.getMethods())).noneMatch(m -> m.getName().equals(bdioEnum.name())));
+        Bdio.AllowedOn allowedOn = Enums.getField(bdioEnum).getAnnotation(Bdio.AllowedOn.class);
 
-        assertThat(modelClassesMissingProperty.map(Bdio.Class::name)).isEmpty();
+        // Check the BdioMetadata class for metadata properties
+        if (allowedOn.metadata()) {
+            assertThat(Stream.of(BdioMetadata.class.getMethods())
+                    .anyMatch(this::methodName))
+                            .named("BdioMetadata").isTrue();
+        }
+
+        // Check the model type for other domain assignments
+        assertThat(Stream.of(allowedOn.value())
+                .filter(bdioClass -> modelTypeMethods(bdioClass).noneMatch(this::methodName))
+                .map(Bdio.Class::name))
+                        .isEmpty();
     }
 
 }
