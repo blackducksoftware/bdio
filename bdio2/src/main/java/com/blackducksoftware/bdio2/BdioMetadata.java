@@ -12,6 +12,7 @@
 package com.blackducksoftware.bdio2;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Strings.nullToEmpty;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -180,11 +181,24 @@ public final class BdioMetadata extends BdioObject {
     }
 
     /**
-     * Sets the identifier of the user who created the named graph.
+     * Sets the identifier of the user and/or host who created the named graph.
      */
     public BdioMetadata creator(@Nullable String creator) {
         putData(Bdio.DataProperty.creator, creator);
         return this;
+    }
+
+    /**
+     * Helper method to set the creator using individual user and host parts.
+     * 
+     * @see #creator(String)
+     */
+    public BdioMetadata creator(@Nullable String user, @Nullable String host) {
+        if (user != null || host != null) {
+            return creator(nullToEmpty(user) + Optional.ofNullable(host).map(h -> "@" + h).orElse(""));
+        } else {
+            return creator(null);
+        }
     }
 
     /**

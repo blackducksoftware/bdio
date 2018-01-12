@@ -370,11 +370,10 @@ public class Bdio {
         creationDateTime("https://blackducksoftware.github.io/bdio#hasCreationDateTime", Container.single),
 
         /**
-         * The user who created the BDIO document. This property should be specified for the named graph.
+         * The user and/or host who created the BDIO document. The host portion must be prefixed with an "@" sign.
          */
         @AllowedOn(metadata = true)
         @DataPropertyRange(Datatype.Default)
-        // TODO Should this be an ObjectProperty to some kind of DOAP class?
         creator("https://blackducksoftware.github.io/bdio#hasCreator", Container.single),
 
         /**
@@ -468,7 +467,7 @@ public class Bdio {
         platform("https://blackducksoftware.github.io/bdio#hasPlatform", Container.single),
 
         /**
-         * The tool which published the BDIO document. This property should be specified for the named graph.
+         * The tool which published the BDIO document.
          */
         @AllowedOn(metadata = true)
         @DataPropertyRange(Datatype.Products)

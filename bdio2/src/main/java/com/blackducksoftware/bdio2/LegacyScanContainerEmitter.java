@@ -184,6 +184,7 @@ class LegacyScanContainerEmitter implements Emitter {
             return new BdioMetadata()
                     .id(toFileUri(hostName, baseDir, null))
                     .name(name)
+                    .creator(null, hostName)
                     .creationDateTime(createdOn)
                     .publisher(new ProductList.Builder()
                             .addProduct(new Product.Builder()
