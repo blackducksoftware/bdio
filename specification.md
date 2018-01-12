@@ -189,7 +189,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 
 `creator`
 : `https://blackducksoftware.github.io/bdio#hasCreator`
-: The user who created the BDIO document. This property should be specified for the named graph.
+: The user and/or host who created the BDIO document. The host portion must be prefixed with an "@" sign.
 : _Allowed on: `@graph`_
 : _Range: `Default`_
 
@@ -263,7 +263,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 
 `publisher`
 : `https://blackducksoftware.github.io/bdio#hasPublisher`
-: The tool which published the BDIO document. This property should be specified for the named graph.
+: The tool which published the BDIO document.
 : _Allowed on: `@graph`_
 : _Range: `Products`_
 
