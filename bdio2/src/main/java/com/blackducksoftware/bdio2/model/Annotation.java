@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Black Duck Software, Inc.
+ * Copyright 2018 Black Duck Software, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,29 +15,31 @@
  */
 package com.blackducksoftware.bdio2.model;
 
+import java.time.ZonedDateTime;
+
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 
-public final class FileCollection extends BdioObject {
+public class Annotation extends BdioObject {
 
-    public FileCollection(String id) {
-        super(id, Bdio.Class.FileCollection);
+    public Annotation() {
+        super(Bdio.Class.Annotation);
     }
 
-    public FileCollection base(@Nullable File base) {
-        putObject(Bdio.ObjectProperty.base, base);
+    public Annotation comment(@Nullable String comment) {
+        putData(Bdio.DataProperty.comment, comment);
         return this;
     }
 
-    public FileCollection dependency(Dependency dependency) {
-        putObject(Bdio.ObjectProperty.dependency, dependency);
+    public Annotation creator(@Nullable String creator) {
+        putData(Bdio.DataProperty.creator, creator);
         return this;
     }
 
-    public FileCollection description(@Nullable Annotation description) {
-        putObject(Bdio.ObjectProperty.description, description);
+    public Annotation creationDateTime(@Nullable ZonedDateTime creationDateTime) {
+        putData(Bdio.DataProperty.creationDateTime, creationDateTime);
         return this;
     }
 

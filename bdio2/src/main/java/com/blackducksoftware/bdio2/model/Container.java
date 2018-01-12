@@ -42,6 +42,11 @@ public final class Container extends BdioObject {
         return this;
     }
 
+    public Container description(@Nullable Annotation description) {
+        putObject(Bdio.ObjectProperty.description, description);
+        return this;
+    }
+
     public Container license(@Nullable Object license) {
         putObject(Bdio.ObjectProperty.license, license);
         return this;

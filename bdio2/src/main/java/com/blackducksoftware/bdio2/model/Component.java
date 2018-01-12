@@ -37,6 +37,11 @@ public final class Component extends BdioObject {
         return this;
     }
 
+    public Component description(@Nullable Annotation description) {
+        putObject(Bdio.ObjectProperty.description, description);
+        return this;
+    }
+
     public Component license(@Nullable Object license) {
         putObject(Bdio.ObjectProperty.license, license);
         return this;

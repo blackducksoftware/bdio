@@ -36,6 +36,11 @@ public final class Dependency extends BdioObject {
         return this;
     }
 
+    public Dependency description(@Nullable Annotation description) {
+        putObject(Bdio.ObjectProperty.description, description);
+        return this;
+    }
+
     public Dependency evidence(@Nullable File file) {
         putObject(Bdio.ObjectProperty.evidence, file);
         return this;

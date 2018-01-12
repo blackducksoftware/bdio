@@ -28,6 +28,11 @@ public final class File extends BdioObject {
         super(id, Bdio.Class.File);
     }
 
+    public File description(@Nullable Annotation description) {
+        putObject(Bdio.ObjectProperty.description, description);
+        return this;
+    }
+
     public File parent(File parent) {
         putObject(Bdio.ObjectProperty.parent, parent);
         return this;

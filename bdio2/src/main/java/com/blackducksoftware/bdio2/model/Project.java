@@ -28,6 +28,11 @@ public final class Project extends BdioObject {
         return this;
     }
 
+    public Project description(@Nullable Annotation description) {
+        putObject(Bdio.ObjectProperty.description, description);
+        return this;
+    }
+
     public Project subproject(@Nullable Project subproject) {
         putObject(Bdio.ObjectProperty.subproject, subproject);
         return this;

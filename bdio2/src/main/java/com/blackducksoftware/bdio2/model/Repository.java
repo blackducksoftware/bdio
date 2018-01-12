@@ -31,6 +31,11 @@ public final class Repository extends BdioObject {
         return this;
     }
 
+    public Repository description(@Nullable Annotation description) {
+        putObject(Bdio.ObjectProperty.description, description);
+        return this;
+    }
+
     public Repository name(@Nullable String name) {
         putData(Bdio.DataProperty.name, name);
         return this;

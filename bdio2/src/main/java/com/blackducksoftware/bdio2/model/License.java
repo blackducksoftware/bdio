@@ -32,6 +32,11 @@ public final class License extends BdioObject {
         return this;
     }
 
+    public License description(@Nullable Annotation description) {
+        putObject(Bdio.ObjectProperty.description, description);
+        return this;
+    }
+
     public License licenseException(@Nullable License license) {
         putObject(Bdio.ObjectProperty.licenseException, license);
         return this;

@@ -82,6 +82,11 @@ public class Bdio {
     public enum Class {
 
         /**
+         * A descriptor for a BDIO entity.
+         */
+        Annotation("https://blackducksoftware.github.io/bdio#Annotation"),
+
+        /**
          * A component may also be known as a "dependency" or "artifact". Essentially it is a single BOM entry. A
          * component is the link between two projects (only one of which may be present in the current BDIO context).
          * The link may not be fully defined: only partial information about linkage may be known given the evidence at
@@ -178,7 +183,10 @@ public class Bdio {
         }
 
         public boolean embedded() {
-            return this == Bdio.Class.Note || this == Bdio.Class.Dependency || this == Bdio.Class.LicenseGroup;
+            return this == Class.Annotation
+                    || this == Class.Dependency
+                    || this == Class.LicenseGroup
+                    || this == Class.Note;
         }
 
         @Override
@@ -223,6 +231,13 @@ public class Bdio {
         @AllowedOn({ Class.Dependency })
         @ObjectPropertyRange({ Class.Component }) // TODO Include Project in the range?
         dependsOn("https://blackducksoftware.github.io/bdio#dependsOn", Container.unordered),
+
+        /**
+         * Allows association of arbitrary comments and descriptions.
+         */
+        @AllowedOn({ Class.Component, Class.Container, Class.Dependency, Class.File, Class.FileCollection, Class.License, Class.LicenseGroup, Class.Project, Class.Repository, Class.Vulnerability })
+        @ObjectPropertyRange({ Class.Annotation })
+        description("https://blackducksoftware.github.io/bdio#hasDescription", Container.unordered),
 
         /**
          * Indicates a component was discovered using evidence from a specific file.
@@ -347,6 +362,13 @@ public class Bdio {
         byteCount("https://blackducksoftware.github.io/bdio#hasByteCount", Container.single),
 
         /**
+         * A comment used to annotate a BDIO entity.
+         */
+        @AllowedOn({ Class.Annotation })
+        @DataPropertyRange(Datatype.Default)
+        comment("https://blackducksoftware.github.io/bdio#hasComment", Container.single),
+
+        /**
          * The content type of a file.
          */
         @AllowedOn({ Class.File })
@@ -365,14 +387,14 @@ public class Bdio {
         /**
          * The date and time creation of an entity occurred.
          */
-        @AllowedOn(value = { Class.File }, metadata = true)
+        @AllowedOn(value = { Class.Annotation, Class.File }, metadata = true)
         @DataPropertyRange(Datatype.DateTime)
         creationDateTime("https://blackducksoftware.github.io/bdio#hasCreationDateTime", Container.single),
 
         /**
          * The user and/or host who created the BDIO document. The host portion must be prefixed with an "@" sign.
          */
-        @AllowedOn(metadata = true)
+        @AllowedOn(value = { Class.Annotation }, metadata = true)
         @DataPropertyRange(Datatype.Default)
         creator("https://blackducksoftware.github.io/bdio#hasCreator", Container.single),
 

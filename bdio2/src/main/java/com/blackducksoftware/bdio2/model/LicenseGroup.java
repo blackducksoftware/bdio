@@ -26,6 +26,11 @@ public class LicenseGroup extends BdioObject {
         super(Bdio.Class.LicenseGroup);
     }
 
+    public LicenseGroup description(@Nullable Annotation description) {
+        putObject(Bdio.ObjectProperty.description, description);
+        return this;
+    }
+
     public LicenseGroup license(@Nullable License license) {
         putObject(Bdio.ObjectProperty.license, license);
         return this;
