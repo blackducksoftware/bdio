@@ -13,6 +13,10 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 
 ## Classes
 
+`Annotation`
+: `https://blackducksoftware.github.io/bdio#Annotation`
+: A descriptor for a BDIO entity.
+
 `Component`
 : `https://blackducksoftware.github.io/bdio#Component`
 : A component may also be known as a "dependency" or "artifact". Essentially it is a single BOM entry. A component is the link between two projects (only one of which may be present in the current BDIO context). The link may not be fully defined: only partial information about linkage may be known given the evidence at hand. In addition to establishing a link between two projects, a component can contain additional metadata pertaining to the details of the link: for example, the specific licensing terms used or how a project is using another project (e.g. is linked project used for building, only at runtime or for testing).
@@ -86,6 +90,12 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : Indicates the dependent component.
 : _Allowed on: `Dependency`_
 : _Range: `Component`_
+
+`description`
+: `https://blackducksoftware.github.io/bdio#hasDescription`
+: Allows association of arbitrary comments and descriptions.
+: _Allowed on: `Component`, `Container`, `Dependency`, `File`, `FileCollection`, `License`, `LicenseGroup`, `Project`, `Repository`, `Vulnerability`_
+: _Range: `Annotation`_
 
 `evidence`
 : `https://blackducksoftware.github.io/bdio#hasEvidence`
@@ -169,6 +179,12 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : _Allowed on: `File`_
 : _Range: `Long`_
 
+`comment`
+: `https://blackducksoftware.github.io/bdio#hasComment`
+: A comment used to annotate a BDIO entity.
+: _Allowed on: `Annotation`_
+: _Range: `Default`_
+
 `contentType`
 : `https://blackducksoftware.github.io/bdio#hasContentType`
 : The content type of a file.
@@ -184,13 +200,13 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `creationDateTime`
 : `https://blackducksoftware.github.io/bdio#hasCreationDateTime`
 : The date and time creation of an entity occurred.
-: _Allowed on: `@graph`, `File`_
+: _Allowed on: `@graph`, `Annotation`, `File`_
 : _Range: `DateTime`_
 
 `creator`
 : `https://blackducksoftware.github.io/bdio#hasCreator`
 : The user and/or host who created the BDIO document. The host portion must be prefixed with an "@" sign.
-: _Allowed on: `@graph`_
+: _Allowed on: `@graph`, `Annotation`_
 : _Range: `Default`_
 
 `encoding`
