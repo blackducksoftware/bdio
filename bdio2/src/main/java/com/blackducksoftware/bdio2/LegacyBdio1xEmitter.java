@@ -49,6 +49,7 @@ import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
+import com.blackducksoftware.bdio2.model.Annotation;
 import com.blackducksoftware.bdio2.model.Component;
 import com.blackducksoftware.bdio2.model.Dependency;
 import com.blackducksoftware.bdio2.model.File;
@@ -647,11 +648,13 @@ class LegacyBdio1xEmitter implements Emitter {
         currentValue("revision").ifPresent(result::version);
         convertExternalIdentifier(result::namespace, result::identifier, result::context);
         convertRelationships(result::dependency);
+        convertComment(result::description);
         project.accept(result);
     }
 
     private void convertFileCollection(Consumer<? super FileCollection> fileCollection) {
         FileCollection result = new FileCollection(currentId());
+        convertComment(result::description);
         fileCollection.accept(result);
     }
 
@@ -663,6 +666,7 @@ class LegacyBdio1xEmitter implements Emitter {
         currentValue("license").ifPresent(result::license);
         convertExternalIdentifier(result::namespace, result::identifier, result::context);
         convertRelationships(result::dependency);
+        convertComment(result::description);
         component.accept(result);
     }
 
@@ -670,6 +674,7 @@ class LegacyBdio1xEmitter implements Emitter {
         License result = new License(currentId());
         currentValue("spdx:name").ifPresent(result::name);
         convertExternalIdentifier(result::namespace, result::identifier, result::context);
+        convertComment(result::description);
         license.accept(result);
     }
 
@@ -680,6 +685,7 @@ class LegacyBdio1xEmitter implements Emitter {
         convertFileTypes(result::fileSystemType);
         convertChecksums(result::fingerprint);
         convertMatchDetail(result, dependency);
+        convertComment(result::description);
 
         currentValue("artifactOf").map(dependsOn -> {
             Dependency dep = new Dependency().dependsOn(dependsOn).evidence(result);
@@ -699,6 +705,10 @@ class LegacyBdio1xEmitter implements Emitter {
         if (result.size() > 2) {
             file.accept(result);
         }
+    }
+
+    private void convertComment(Consumer<Annotation> annotation) {
+        currentValue("rdfs:comment").map(comment -> new Annotation().comment(comment)).ifPresent(annotation);
     }
 
     /**
