@@ -61,6 +61,12 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 
 ## Object Properties
 
+`affected`
+: `https://blackducksoftware.github.io/bdio#hasAffected`
+: Indicates a component or project is affected by a particular vulnerability.
+: _Allowed on: `Vulnerability`_
+: _Range: `Component`, `Project`_
+
 `base`
 : `https://blackducksoftware.github.io/bdio#hasBase`
 : Points to a project's base directory.
@@ -200,7 +206,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `creationDateTime`
 : `https://blackducksoftware.github.io/bdio#hasCreationDateTime`
 : The date and time creation of an entity occurred.
-: _Allowed on: `@graph`, `Annotation`, `File`_
+: _Allowed on: `@graph`, `Annotation`, `File`, `Vulnerability`_
 : _Range: `DateTime`_
 
 `creator`
@@ -242,7 +248,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `lastModifiedDateTime`
 : `https://blackducksoftware.github.io/bdio#hasLastModifiedDateTime`
 : The date and time a file was last modified.
-: _Allowed on: `File`_
+: _Allowed on: `File`, `Vulnerability`_
 : _Range: `DateTime`_
 
 `linkPath`
