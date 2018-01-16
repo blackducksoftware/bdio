@@ -198,6 +198,13 @@ public class Bdio {
     public enum ObjectProperty {
 
         /**
+         * Indicates a component or project is affected by a particular vulnerability.
+         */
+        @AllowedOn({ Class.Vulnerability })
+        @ObjectPropertyRange({ Class.Component, Class.Project })
+        affected("https://blackducksoftware.github.io/bdio#hasAffected", Container.unordered),
+
+        /**
          * Points to a project's base directory.
          */
         @AllowedOn({ Class.Container, Class.FileCollection, Class.Project, Class.Repository })
@@ -387,7 +394,7 @@ public class Bdio {
         /**
          * The date and time creation of an entity occurred.
          */
-        @AllowedOn(value = { Class.Annotation, Class.File }, metadata = true)
+        @AllowedOn(value = { Class.Annotation, Class.File, Class.Vulnerability }, metadata = true)
         @DataPropertyRange(Datatype.DateTime)
         creationDateTime("https://blackducksoftware.github.io/bdio#hasCreationDateTime", Container.single),
 
@@ -440,7 +447,7 @@ public class Bdio {
         /**
          * The date and time a file was last modified.
          */
-        @AllowedOn({ Class.File })
+        @AllowedOn({ Class.File, Class.Vulnerability })
         @DataPropertyRange(Datatype.DateTime)
         lastModifiedDateTime("https://blackducksoftware.github.io/bdio#hasLastModifiedDateTime", Container.single),
 
