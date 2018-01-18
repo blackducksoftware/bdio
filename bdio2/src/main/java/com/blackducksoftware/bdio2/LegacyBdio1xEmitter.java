@@ -459,6 +459,7 @@ class LegacyBdio1xEmitter implements Emitter {
 
         // We got to the end of the file and never found a BillOfMaterials node
         metadata = BdioMetadata.createRandomUUID();
+        metadata.publisher(ProductList.of(product()));
     }
 
     /**
@@ -745,11 +746,7 @@ class LegacyBdio1xEmitter implements Emitter {
                         .addCommentText("bdio %s", currentValue("specVersion").orElse("1.0.0"))
                         .build())
                 .ifPresent(producerBuilder::addProduct);
-        producerBuilder.addProduct(new Product.Builder()
-                .simpleName(LegacyBdio1xEmitter.class)
-                .implementationVersion(LegacyBdio1xEmitter.class)
-                .build());
-        producer.accept(producerBuilder.build());
+        producer.accept(producerBuilder.addProduct(product()).build());
     }
 
     /**
@@ -962,6 +959,16 @@ class LegacyBdio1xEmitter implements Emitter {
         }
 
         return false;
+    }
+
+    /**
+     * Returns the product identifying this code.
+     */
+    private static Product product() {
+        return new Product.Builder()
+                .simpleName(LegacyBdio1xEmitter.class)
+                .implementationVersion(LegacyBdio1xEmitter.class)
+                .build();
     }
 
 }
