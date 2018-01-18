@@ -48,10 +48,12 @@ public class EmitterFactory {
 
     /**
      * The names of fields on the scan container. Note that this isn't the full set as we are only concerned with field
-     * names which will appear first; included are first three field names, both in declaration order and
-     * lexicographical order.
+     * names which will appear in the first {@value #SNIFF_LIMIT} bytes; included are first three field names, both in
+     * original declaration order (which was used prior to assignment of an explicit field order) and lexicographical
+     * order (which is used by some pretty printers).
      */
-    private static final ImmutableSet<String> SCAN_CONTAINER_FIELD_NAMES = ImmutableSet.<String> builder()
+    @VisibleForTesting
+    static final ImmutableSet<String> SCAN_CONTAINER_FIELD_NAMES = ImmutableSet.<String> builder()
             // These are the first three fields declared in the `ScanContainerView`
             .add("scanProblem")
             .add("scanProblemList")
@@ -67,7 +69,8 @@ public class EmitterFactory {
     /**
      * The names of the fields the scan container indicating a new version of the data that can be streamed.
      */
-    private static final ImmutableSet<String> STREAMABLE_SCAN_CONTAINER_FIELD_NAMES = ImmutableSet.<String> builder()
+    @VisibleForTesting
+    static final ImmutableSet<String> STREAMABLE_SCAN_CONTAINER_FIELD_NAMES = ImmutableSet.<String> builder()
             // These are the first three fields since the `ScanContainerView` explicitly specified serialization order
             .add("scannerVersion")
             .add("signatureVersion")
@@ -81,9 +84,47 @@ public class EmitterFactory {
      * names <em>should</em> be unqualified. That said, there is overlap between versions so we cannot consider
      * something that is in multiple versions of the specification.
      */
-    private static final ImmutableSet<String> BDIO_1X_TYPE_NAMES = ImmutableSet.<String> builder()
+    @VisibleForTesting
+    static final ImmutableSet<String> BDIO_1X_TYPE_NAMES = ImmutableSet.<String> builder()
+            // These are the unqualified names that do not conflict
             .add("BillOfMaterials")
+            .add("ExternalIdentifier")
+            .add("MatchDetail")
+
+            // These are the fully qualified names
             .add("http://blackducksoftware.com/rdf/terms#BillOfMaterials")
+            .add("http://blackducksoftware.com/rdf/terms#Component")
+            .add("http://blackducksoftware.com/rdf/terms#File")
+            .add("http://blackducksoftware.com/rdf/terms#License")
+            .add("http://blackducksoftware.com/rdf/terms#Project")
+            .add("http://blackducksoftware.com/rdf/terms#Vulnerability")
+            .add("http://blackducksoftware.com/rdf/terms#ExternalIdentifier")
+            .add("http://blackducksoftware.com/rdf/terms#MatchDetail")
+
+            .build();
+
+    /**
+     * The names of fields in BDIO 1.x. As with type names, this is not a full set, just the distinct parts.
+     */
+    static final ImmutableSet<String> BDIO_1X_FIELD_NAMES = ImmutableSet.<String> builder()
+            // These are the unqualified names that do not conflict
+            .add("specVersion")
+            .add("externalIdentifier")
+            .add("externalSystemTypeId")
+            .add("externalId")
+            .add("externalRepositoryLocation")
+            .add("matchDetail")
+            .add("matchType")
+
+            // There are the fully qualified names
+            .add("http://blackducksoftware.com/rdf/terms#specVersion")
+            .add("http://blackducksoftware.com/rdf/terms#externalIdentifier")
+            .add("http://blackducksoftware.com/rdf/terms#externalSystemTypeId")
+            .add("http://blackducksoftware.com/rdf/terms#externalId")
+            .add("http://blackducksoftware.com/rdf/terms#externalRepositoryLocation")
+            .add("http://blackducksoftware.com/rdf/terms#matchDetail")
+            .add("http://blackducksoftware.com/rdf/terms#matchType")
+
             .build();
 
     /**
@@ -167,7 +208,8 @@ public class EmitterFactory {
                 // Iterate through the array looking for BDIO 1.x "@type" values until we hit the end (or fail)
                 while (jp.nextToken() == JsonToken.START_OBJECT) {
                     while (jp.nextValue() != JsonToken.END_OBJECT) {
-                        if (JsonLdConsts.TYPE.equals(jp.getCurrentName()) && BDIO_1X_TYPE_NAMES.contains(jp.getText())) {
+                        if (BDIO_1X_FIELD_NAMES.contains(jp.getCurrentName())
+                                || (JsonLdConsts.TYPE.equals(jp.getCurrentName()) && BDIO_1X_TYPE_NAMES.contains(jp.getText()))) {
                             return Optional.of(LegacyBdio1xEmitter::new);
                         }
                     }

@@ -538,6 +538,11 @@ class LegacyBdio1xEmitter implements Emitter {
      */
     private String currentId() {
         Object id = currentNode.get(JsonLdConsts.ID);
+        if (id == null) {
+            // BDIO 1.x used blank node identifiers (e.g. "_:b0", which is an invalid URI) when the ID was absent
+            id = BdioObject.randomId();
+            currentNode.put(JsonLdConsts.ID, id);
+        }
         checkState(id instanceof String, "current identifier must be a string: %s", id);
         return (String) id;
     }
@@ -707,6 +712,9 @@ class LegacyBdio1xEmitter implements Emitter {
         }
     }
 
+    /**
+     * Converts a generic comment.
+     */
     private void convertComment(Consumer<Annotation> annotation) {
         currentValue("rdfs:comment").map(comment -> new Annotation().comment(comment)).ifPresent(annotation);
     }

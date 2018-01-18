@@ -253,4 +253,21 @@ public class BdioDataModelTest {
                         .isEmpty();
     }
 
+    /**
+     * Make sure we do not use any fields are being used for the detection of legacy formats.
+     */
+    @Test
+    public void legacyFormatConflict() {
+        // Technically we should make sure the BDIO 1.x vocabulary doesn't appear either
+        if (bdioEnum instanceof Bdio.Class) {
+            assertThat(bdioEnum.name()).isNotIn(EmitterFactory.BDIO_1X_TYPE_NAMES);
+            assertThat(bdioEnum.toString()).isNotIn(EmitterFactory.BDIO_1X_TYPE_NAMES);
+        } else if (bdioEnum instanceof Bdio.ObjectProperty || bdioEnum instanceof Bdio.DataProperty) {
+            assertThat(bdioEnum.name()).isNotIn(EmitterFactory.SCAN_CONTAINER_FIELD_NAMES);
+            assertThat(bdioEnum.name()).isNotIn(EmitterFactory.STREAMABLE_SCAN_CONTAINER_FIELD_NAMES);
+            assertThat(bdioEnum.name()).isNotIn(EmitterFactory.BDIO_1X_FIELD_NAMES);
+            assertThat(bdioEnum.toString()).isNotIn(EmitterFactory.BDIO_1X_FIELD_NAMES);
+        }
+    }
+
 }
