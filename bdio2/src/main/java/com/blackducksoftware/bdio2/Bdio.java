@@ -386,7 +386,7 @@ public class Bdio {
          * The namespace specific base context used to resolve a locator. Typically this is just a URL, however any
          * specification understood by the namespace specific resolver is acceptable.
          */
-        @Domain({ Class.Component, Class.License, Class.Project, Class.Vulnerability })
+        @Domain({ Class.Component, Class.License, Class.Project, Class.Repository, Class.Vulnerability })
         @DataPropertyRange(Datatype.Default)
         // TODO Is this a good name? Back to repository?
         context("https://blackducksoftware.github.io/bdio#hasContext", Container.single),
@@ -491,7 +491,7 @@ public class Bdio {
          * then can be found in the resolver, e.g. while the resolve might contain tool specific specifiers, the
          * platform would be used to describe the operating system running the tool.
          */
-        @Domain(value = { Class.Component, Class.Container, Class.File, Class.Project, Class.Vulnerability }, metadata = true)
+        @Domain(value = { Class.Component, Class.Container, Class.File, Class.Project, Class.Repository, Class.Vulnerability }, metadata = true)
         @DataPropertyRange(Datatype.Products)
         platform("https://blackducksoftware.github.io/bdio#hasPlatform", Container.single),
 
@@ -520,7 +520,7 @@ public class Bdio {
         /**
          * The tool which resolved the namespace specific locator.
          */
-        @Domain({ Class.Component, Class.License, Class.Project, Class.Vulnerability })
+        @Domain({ Class.Component, Class.License, Class.Project, Class.Repository, Class.Vulnerability })
         @DataPropertyRange(Datatype.Products)
         resolver("https://blackducksoftware.github.io/bdio#hasResolver", Container.single),
 

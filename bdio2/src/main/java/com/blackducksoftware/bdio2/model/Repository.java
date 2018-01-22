@@ -19,6 +19,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.common.value.ProductList;
 
 public final class Repository extends BdioObject {
 
@@ -48,6 +49,21 @@ public final class Repository extends BdioObject {
 
     public Repository namespace(@Nullable String namespace) {
         putData(Bdio.DataProperty.namespace, namespace);
+        return this;
+    }
+
+    public Repository context(@Nullable String context) {
+        putData(Bdio.DataProperty.context, context);
+        return this;
+    }
+
+    public Repository resolver(@Nullable ProductList resolver) {
+        putData(Bdio.DataProperty.resolver, resolver);
+        return this;
+    }
+
+    public Repository platform(@Nullable ProductList platform) {
+        putData(Bdio.DataProperty.platform, platform);
         return this;
     }
 
