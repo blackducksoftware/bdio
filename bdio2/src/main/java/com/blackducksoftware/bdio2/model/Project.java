@@ -23,11 +23,6 @@ public final class Project extends BdioObject {
         super(id, Bdio.Class.Project);
     }
 
-    public Project canonical(@Nullable Project canonical) {
-        putObject(Bdio.ObjectProperty.canonical, canonical);
-        return this;
-    }
-
     public Project description(@Nullable Annotation description) {
         putObject(Bdio.ObjectProperty.description, description);
         return this;

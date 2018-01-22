@@ -26,11 +26,6 @@ public final class Repository extends BdioObject {
         super(id, Bdio.Class.Repository);
     }
 
-    public Repository canonical(@Nullable Repository canonical) {
-        putObject(Bdio.ObjectProperty.canonical, canonical);
-        return this;
-    }
-
     public Repository description(@Nullable Annotation description) {
         putObject(Bdio.ObjectProperty.description, description);
         return this;

@@ -214,7 +214,7 @@ public class Bdio {
         /**
          * Used to indicate two objects represent the same thing and directs you to the preferred representation.
          */
-        @Domain({ Class.Component, Class.Container, Class.License, Class.Project, Class.Repository, Class.Vulnerability })
+        @Domain({ Class.Component, Class.License, Class.Vulnerability })
         @ObjectPropertyRange({})
         canonical("https://blackducksoftware.github.io/bdio#hasCanonical", Container.single),
 
