@@ -200,7 +200,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `context`
 : `https://blackducksoftware.github.io/bdio#hasContext`
 : The namespace specific base context used to resolve a locator. Typically this is just a URL, however any specification understood by the namespace specific resolver is acceptable.
-: _Domain: `Component`, `License`, `Project`, `Vulnerability`_
+: _Domain: `Component`, `License`, `Project`, `Repository`, `Vulnerability`_
 : _Range: `Default`_
 
 `creationDateTime`
@@ -280,7 +280,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `platform`
 : `https://blackducksoftware.github.io/bdio#hasPlatform`
 : The platform (e.g. operating system) the data was captured for. This is generally lower  level information then can be found in the resolver, e.g. while the resolve might contain tool specific specifiers, the platform would be used to describe the operating system running the tool.
-: _Domain: `Component`, `Container`, `File`, `Project`, `Vulnerability`_
+: _Domain: `Component`, `Container`, `File`, `Project`, `Repository`, `Vulnerability`_
 : _Range: `Products`_
 
 `publisher`
@@ -304,7 +304,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `resolver`
 : `https://blackducksoftware.github.io/bdio#hasResolver`
 : The tool which resolved the namespace specific locator.
-: _Domain: `Component`, `License`, `Project`, `Vulnerability`_
+: _Domain: `Component`, `License`, `Project`, `Repository`, `Vulnerability`_
 : _Range: `Products`_
 
 `rights`
