@@ -23,6 +23,8 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
 import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
+import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
+import com.blackducksoftware.common.value.ProductList;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.google.common.collect.ImmutableMap;
@@ -128,6 +130,24 @@ public abstract class BdioDocument {
             }
         }
         return ImmutableMap.of();
+    }
+
+    /**
+     * We can stop processing metadata if we are looking at a legacy format because we only write metadata to the first
+     * entry when we are converting.
+     */
+    public static boolean needsMoreMetadata(Object entry) {
+        if (entry instanceof Map<?, ?>) {
+            String key = Bdio.DataProperty.publisher.toString();
+            Object value = ((Map<?, ?>) entry).get(key);
+            if (value != null) {
+                ProductList products = (ProductList) ValueObjectMapper.getContextValueObjectMapper().fromFieldValue(key, value);
+                if (products.tryFind(p -> p.name().equals("LegacyScanContainerEmitter") || p.name().equals("LegacyBdio1xEmitter")).isPresent()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

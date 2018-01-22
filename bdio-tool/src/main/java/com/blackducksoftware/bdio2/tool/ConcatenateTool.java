@@ -21,20 +21,18 @@ import java.io.InputStream;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.BdioWriter;
 import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.blackducksoftware.common.value.ProductList;
 import com.google.common.base.StandardSystemProperty;
@@ -114,7 +112,7 @@ public class ConcatenateTool extends Tool {
         StreamSupplier out = new BdioWriter.BdioFile(output.openStream());
 
         BdioMetadata metadata = new BdioMetadata();
-        metadata.id(id.orElseGet(BdioObject::randomId));
+        metadata.id(id.orElseGet(BdioObject::randomId)); // TODO Instead should we take the first ID?
         metadata.publisher(ProductList.of(getProduct()));
         metadata.creationDateTime(ZonedDateTime.now());
         metadata.creator(StandardSystemProperty.USER_NAME.value());
@@ -123,29 +121,12 @@ public class ConcatenateTool extends Tool {
         Flowable<InputStream> data = Flowable.fromIterable(inputs).map(ByteSource::openStream);
 
         // Only collect limited entries for metadata if possible
-        document.metadata(data.flatMap(in -> document.read(in).takeUntil((Predicate<Object>) ConcatenateTool::needsMoreMetadata)))
+        document.metadata(data.flatMap(in -> document.read(in).takeUntil((Predicate<Object>) BdioDocument::needsMoreMetadata)))
                 .subscribe(m -> combineMetadata(metadata, m))
                 .isDisposed();
 
         // Write the all the entries back out using the new metadata
         data.flatMap(document::read).subscribe(document.write(metadata, out));
-    }
-
-    /**
-     * We can stop processing metadata if we are looking at a legacy format.
-     */
-    private static boolean needsMoreMetadata(Object entry) {
-        if (entry instanceof Map<?, ?>) {
-            String key = Bdio.DataProperty.publisher.toString();
-            Object value = ((Map<?, ?>) entry).get(key);
-            if (value != null) {
-                ProductList products = (ProductList) ValueObjectMapper.getContextValueObjectMapper().fromFieldValue(key, value);
-                if (products.tryFind(p -> p.name().equals("LegacyScanContainerEmitter") || p.name().equals("LegacyBdio1xEmitter")).isPresent()) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private void combineMetadata(BdioMetadata catMetadata, BdioMetadata otherMetadata) {
