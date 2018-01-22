@@ -45,7 +45,7 @@ public class Metadata implements RawEntryRule {
 
             for (Bdio.ObjectProperty objectProperty : Bdio.ObjectProperty.values()) {
                 if (bdioEntry.containsKey(objectProperty.toString())) {
-                    if (!Enums.getField(objectProperty).getAnnotation(Bdio.AllowedOn.class).metadata()) {
+                    if (!Enums.getField(objectProperty).getAnnotation(Bdio.Domain.class).metadata()) {
                         result.error("PropertyNotAllowed", objectProperty.name());
                     }
                 }
@@ -53,7 +53,7 @@ public class Metadata implements RawEntryRule {
 
             for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
                 if (bdioEntry.containsKey(dataProperty.toString())) {
-                    if (!Enums.getField(dataProperty).getAnnotation(Bdio.AllowedOn.class).metadata()) {
+                    if (!Enums.getField(dataProperty).getAnnotation(Bdio.Domain.class).metadata()) {
                         result.error("PropertyNotAllowed", dataProperty.name());
                     }
                 }

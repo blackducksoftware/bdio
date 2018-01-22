@@ -274,8 +274,8 @@ public final class Linter {
         @Override
         protected Object[][] getContents() {
             return new Object[][] {
-                    { "AllowedOn.PropertyNotAllowed", "Property not allowed on {}: {}" },
                     { "DataPropertyRange.Invalid", "Invalid value for {}" },
+                    { "Domain.PropertyNotAllowed", "Property not allowed on {}: {}" },
                     { "Metadata.DefaultNamedGraphIdentififer", "Named graph has default identifier" },
                     { "Metadata.PropertyNotAllowed", "Property not allowed on @graph: {}" },
                     { "MissingFilePath.PathNotPresent", "File is missing path property" },
@@ -304,9 +304,10 @@ public final class Linter {
         // TODO More then two license edges that are not all the same type
         // TODO Multiple canonical edges (e.g. "x -c-> y -c-> z" instead of "x -c-> z")
         // TODO Unreferenced/disconnected vertices
+        // TODO Unsupported "range" values (e.g. using "chars" without an encoding)
         return Stream.<Rule<?>> builder()
-                .add(new AllowedOn())
                 .add(new DataPropertyRange())
+                .add(new Domain())
                 .add(new Metadata())
                 .add(new MissingFilePath())
                 .add(new MissingProjectName())

@@ -190,25 +190,25 @@ public class BdioDataModelTest {
     }
 
     /**
-     * Object properties must be annotated with {@link Bdio.AllowedOn} and {@link Bdio.ObjectPropertyRange}.
+     * Object properties must be annotated with {@link Bdio.Domain} and {@link Bdio.ObjectPropertyRange}.
      */
     @Test
     public void objectPropertyMetadata() {
         assume().that(bdioEnum).isInstanceOf(Bdio.ObjectProperty.class);
-        assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.AllowedOn.class)).named("@AllowedOn").isNotNull();
+        assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.Domain.class)).named("@Domain").isNotNull();
         assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.ObjectPropertyRange.class)).named("@ObjectPropertyRange").isNotNull();
 
         // BDIO object properties are not allowed in named graph metadata
-        assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.AllowedOn.class).metadata()).named("@AllowedOn.metadata").isFalse();
+        assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.Domain.class).metadata()).named("@Domain.metadata").isFalse();
     }
 
     /**
-     * Object properties must be annotated with {@link Bdio.AllowedOn} and {@link Bdio.DataPropertyRange}.
+     * Object properties must be annotated with {@link Bdio.Domain} and {@link Bdio.DataPropertyRange}.
      */
     @Test
     public void dataPropertyMetadata() {
         assume().that(bdioEnum).isInstanceOf(Bdio.DataProperty.class);
-        assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.AllowedOn.class)).named("@AllowedOn").isNotNull();
+        assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.Domain.class)).named("@Domain").isNotNull();
         assertThat(Enums.getField(bdioEnum).getAnnotation(Bdio.DataPropertyRange.class)).named("@DataPropertyRange").isNotNull();
     }
 
@@ -237,17 +237,17 @@ public class BdioDataModelTest {
     public void propertyHasModel() throws ReflectiveOperationException {
         assume().that(bdioEnum instanceof Bdio.ObjectProperty || bdioEnum instanceof Bdio.DataProperty).isTrue();
 
-        Bdio.AllowedOn allowedOn = Enums.getField(bdioEnum).getAnnotation(Bdio.AllowedOn.class);
+        Bdio.Domain domain = Enums.getField(bdioEnum).getAnnotation(Bdio.Domain.class);
 
         // Check the BdioMetadata class for metadata properties
-        if (allowedOn.metadata()) {
+        if (domain.metadata()) {
             assertThat(Stream.of(BdioMetadata.class.getMethods())
                     .anyMatch(this::methodName))
                             .named("BdioMetadata").isTrue();
         }
 
         // Check the model type for other domain assignments
-        assertThat(Stream.of(allowedOn.value())
+        assertThat(Stream.of(domain.value())
                 .filter(bdioClass -> modelTypeMethods(bdioClass).noneMatch(this::methodName))
                 .map(Bdio.Class::name))
                         .isEmpty();

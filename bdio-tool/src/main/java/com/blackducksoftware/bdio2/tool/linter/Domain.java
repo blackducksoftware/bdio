@@ -28,26 +28,26 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSetMultimap;
 
-public class AllowedOn implements RawNodeRule {
+public class Domain implements RawNodeRule {
 
     private final ImmutableSet<String> knownProperties;
 
     private final ImmutableMultimap<String, String> allowedProperties;
 
-    public AllowedOn() {
+    public Domain() {
         // Build a map of type strings to property keys
         ImmutableSet.Builder<String> known = ImmutableSet.builder();
         ImmutableSetMultimap.Builder<String, String> allowed = ImmutableSetMultimap.builder();
         for (Bdio.ObjectProperty objectProperty : Bdio.ObjectProperty.values()) {
             known.add(objectProperty.toString());
-            for (Bdio.Class allowedOn : Enums.getField(objectProperty).getAnnotation(Bdio.AllowedOn.class).value()) {
-                allowed.put(allowedOn.toString(), objectProperty.toString());
+            for (Bdio.Class domain : Enums.getField(objectProperty).getAnnotation(Bdio.Domain.class).value()) {
+                allowed.put(domain.toString(), objectProperty.toString());
             }
         }
         for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
             known.add(dataProperty.toString());
-            for (Bdio.Class allowedOn : Enums.getField(dataProperty).getAnnotation(Bdio.AllowedOn.class).value()) {
-                allowed.put(allowedOn.toString(), dataProperty.toString());
+            for (Bdio.Class domain : Enums.getField(dataProperty).getAnnotation(Bdio.Domain.class).value()) {
+                allowed.put(domain.toString(), dataProperty.toString());
             }
         }
         knownProperties = known.build();
