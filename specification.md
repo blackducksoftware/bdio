@@ -76,7 +76,7 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 `canonical`
 : `https://blackducksoftware.github.io/bdio#hasCanonical`
 : Used to indicate two objects represent the same thing and directs you to the preferred representation.
-: _Domain: `Component`, `Container`, `License`, `Project`, `Repository`, `Vulnerability`_
+: _Domain: `Component`, `License`, `Vulnerability`_
 : _Range: `<any>`_
 
 `declaredBy`
