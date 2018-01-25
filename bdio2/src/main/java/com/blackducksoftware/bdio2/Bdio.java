@@ -670,9 +670,14 @@ public class Bdio {
 
     public enum FileSystemType {
         /**
-         * A regular file, typically of unknown or binary content.
+         * A regular file, typically of unknown content.
          */
         REGULAR("regular"),
+
+        /**
+         * A regular file with executable content.
+         */
+        REGULAR_BINARY("regular/binary"),
 
         /**
          * A regular file with known text content. Should be accompanied by an encoding.
