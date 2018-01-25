@@ -85,7 +85,8 @@ public class HeadTool extends Tool {
                 .map(ByteSource::openStream)
                 .map(in -> document.metadata(document.read(in).takeUntil((Predicate<Object>) BdioDocument::needsMoreMetadata))
                         .reduceWith(BdioMetadata::new, BdioMetadata::merge).blockingGet())
-                .subscribe(this::printMetadata);
+                .subscribe(this::printMetadata)
+                .isDisposed();
     }
 
     protected void printMetadata(BdioMetadata metadata) {
