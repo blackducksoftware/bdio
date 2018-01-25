@@ -501,7 +501,8 @@ NOTE: File extensions and/or compression formats are not accounted for using the
 
 | File System Type         | Description |
 |--------------------------|-------------|
-| `regular`                | A regular file, typically of unknown or binary content. |
+| `regular`                | A regular file, typically of unknown content. |
+| `regular/binary`         | A regular file with executable content. |
 | `regular/text`           | A regular file with known text content. Should be accompanied by an encoding. |
 | `directory`              | A directory entry which may or may not contain children. |
 | `directory/archive`      | An archive which may or may not contain children. Can also be treated as a regular file. |
