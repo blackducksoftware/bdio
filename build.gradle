@@ -1,7 +1,7 @@
 buildscript {
 	repositories { maven { url 'https://plugins.gradle.org/m2/' } }
-	dependencies { classpath 'com.netflix.nebula:nebula-dependency-recommender:5.0.0' }
-	dependencies { classpath 'com.netflix.nebula:nebula-publishing-plugin:5.1.1' }
+	dependencies { classpath 'com.netflix.nebula:nebula-dependency-recommender:5.1.0' }
+	dependencies { classpath 'com.netflix.nebula:nebula-publishing-plugin:5.1.5' }
 	dependencies { classpath 'net.ltgt.gradle:gradle-errorprone-plugin:0.0.13' }
 }
 
@@ -34,15 +34,6 @@ subprojects {
 
 	tasks.withType(JavaCompile) {
 		options.compilerArgs << '-Xlint:all'
-	}
-	
-	// Force Jackson back to 2.7.8 for compatibility reasons
-	configurations.all {
-		resolutionStrategy {
-			force 'com.fasterxml.jackson.core:jackson-annotations:2.7.0'
-			force 'com.fasterxml.jackson.core:jackson-core:2.7.8'
-			force 'com.fasterxml.jackson.core:jackson-databind:2.7.8'
-		}
 	}
 
 	jar {
