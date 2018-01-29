@@ -32,14 +32,14 @@ public class BdioMain extends Tool {
     private enum Command {
         help("Display help information about BDIO", HelpTool::new, false),
         cat("Concatenate and convert BDIO files", ConcatenateTool::new, false),
-        context("Print the BDIO JSON-LD context", ContextTool::new, true),
-        dependencies("Prints a dependency tree", DependenciesTool::new, false),
+        context("Print the BDIO JSON-LD context", ContextTool::new, false),
+        dependencies("Prints a dependency tree", DependenciesTool::new, true),
         entries("Dump the JSON-LD content of a BDIO file", EntriesTool::new, true),
         graph("Import BDIO to a TinkerPop graph", GraphTool::new, false),
         head("Print metadata for BDIO files", HeadTool::new, true),
         lint("Check BDIO for common mistakes", LintTool::new, true),
         spdxdoc("Generates a BDIO document describing the standard SPDX licenses.", SpdxDocumentTool::new, false),
-        tree("List contents of files in a tree-like format", TreeTool::new, false),
+        tree("List contents of files in a tree-like format", TreeTool::new, true),
         viz("View an interactive BDIO graph in a web browser", VizTool::new, false),
         ;
 
