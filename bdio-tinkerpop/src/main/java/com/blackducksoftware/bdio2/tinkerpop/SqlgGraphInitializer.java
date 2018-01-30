@@ -25,7 +25,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.Function;
@@ -55,30 +54,25 @@ import com.google.common.collect.Streams;
  *
  * @author jgustie
  */
-class SqlgGraphInitializer implements GraphInitializer {
+class SqlgGraphInitializer extends GraphInitializer {
 
     // TODO Switch this to JSON and store JSON natively
     private static final PropertyType JSON = PropertyType.STRING;
 
-    private final SqlgGraph graph;
-
     protected SqlgGraphInitializer(SqlgGraph graph) {
-        this.graph = Objects.requireNonNull(graph);
+        super(graph);
     }
 
     @Override
-    public void initialize(GraphTopology graphTopology) {
-        graph.tx().open();
-        try {
-            graphTopology.metadataLabel().ifPresent(label -> defineMetadata(label, graphTopology));
-            graphTopology.forEachTypeLabel(label -> defineLabel(label, graphTopology));
-            defineEdgeLabels(graphTopology);
+    protected SqlgGraph graph() {
+        return (SqlgGraph) super.graph();
+    }
 
-            graph.tx().commit();
-        } catch (RuntimeException | Error e) {
-            graph.tx().rollback();
-            throw e;
-        }
+    @Override
+    protected void initialize(GraphTopology graphTopology) {
+        graphTopology.metadataLabel().ifPresent(label -> defineMetadata(label, graphTopology));
+        graphTopology.forEachTypeLabel(label -> defineLabel(label, graphTopology));
+        defineEdgeLabels(graphTopology);
     }
 
     private void defineMetadata(String label, GraphTopology graphTopology) {
@@ -138,7 +132,7 @@ class SqlgGraphInitializer implements GraphInitializer {
         });
 
         // Create the table and indexes
-        VertexLabel vertexLabel = graph.getTopology().ensureVertexLabelExist(label, columns);
+        VertexLabel vertexLabel = graph().getTopology().ensureVertexLabelExist(label, columns);
         nonUniqueIndexNames.stream()
                 .flatMap(((Function<String, Optional<PropertyColumn>>) vertexLabel::getProperty).andThen(Streams::stream))
                 .map(Collections::singletonList)
@@ -156,7 +150,7 @@ class SqlgGraphInitializer implements GraphInitializer {
         graphTopology.partitionStrategy().map(PartitionStrategy::getPartitionKey).ifPresent(c -> properties.put(c, STRING));
         graphTopology.implicitKey().ifPresent(c -> properties.put(c, BOOLEAN));
 
-        Topology topology = graph.getTopology();
+        Topology topology = graph().getTopology();
         for (Bdio.ObjectProperty objectProperty : Bdio.ObjectProperty.values()) {
             List<VertexLabel> range = objectRange(objectProperty)
                     .flatMap(p -> Arrays.stream(p.value()))

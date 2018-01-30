@@ -22,6 +22,7 @@ import java.util.stream.Collector;
 
 import javax.annotation.Nullable;
 
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.io.IoRegistry;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.javatuples.Pair;
@@ -38,13 +39,47 @@ public class BlackDuckIoMapper implements Mapper<GraphMapper> {
     /**
      * Allows for the registration of custom graph initializers.
      */
-    public interface GraphInitializer {
+    public static abstract class GraphInitializer implements Consumer<GraphTopology> {
 
         /**
-         * Initializes the graph to use the specified topology.
+         * The graph being initialized.
          */
-        void initialize(GraphTopology graphTopology);
+        private Graph graph;
 
+        protected GraphInitializer(Graph graph) {
+            this.graph = Objects.requireNonNull(graph);
+        }
+
+        /**
+         * Initializes the graph using the specified topology.
+         */
+        protected abstract void initialize(GraphTopology graphTopology);
+
+        /**
+         * Returns a reference to the graph being initialized.
+         */
+        protected Graph graph() {
+            return graph;
+        }
+
+        /**
+         * Accepts the topology for initialization, creating a transaction if necessary.
+         */
+        @Override
+        public final void accept(GraphTopology graphTopology) {
+            if (graph.features().graph().supportsTransactions()) {
+                graph.tx().open();
+                try {
+                    initialize(graphTopology);
+                    graph.tx().commit();
+                } catch (RuntimeException | Error e) {
+                    graph.tx().rollback();
+                    throw e;
+                }
+            } else {
+                initialize(graphTopology);
+            }
+        }
     }
 
     /**
@@ -93,7 +128,7 @@ public class BlackDuckIoMapper implements Mapper<GraphMapper> {
                 .map(Pair::getValue1).collect(toList());
 
         onGraphTopology = gt -> {
-            initializers.forEach(i -> gt.addInitializer(i::initialize));
+            initializers.forEach(gt::addInitializer);
             builder.onGraphTopology.ifPresent(c -> c.accept(gt));
         };
 
