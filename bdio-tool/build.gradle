@@ -15,6 +15,12 @@ dependencies {
 	testCompile 'junit:junit'
 }
 
+jar {
+    from("${rootDir}/docs/spec.txt") {
+        into "com/blackducksoftware/bdio2/tool/specification"
+    }
+}
+
 distributions {
 	main {
 		contents {
