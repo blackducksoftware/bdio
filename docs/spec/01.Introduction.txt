@@ -1,0 +1,5 @@
+# Introduction
+TODO
+
+## Actors
+The actors in a BDIO system are the "producers", "publishers", "consumers" and "processors". Producers and consumers are concerned with the syntactical structure (e.g. "is the document well formatted according to the specification?"); while publishers and processors are concerned with the semantics of the data itself (e.g. "are all the file nodes connected to a project?").

@@ -1,0 +1,4 @@
+# Appendix B: Identifier Guidelines
+Selection of proper identifiers is imperative to the proper construction of a BDIO data set.
+
+TODO Suggest identifiers to use in specific situations, include use of "mvn:" and "urn:uuid:" URIs; avoid "data:" and "about:"...

@@ -1,0 +1,37 @@
+# Document Format
+BDIO data can be transferred using one of four different formats depending on the capabilities of the parties involved and volume of data. Any JSON data being transferred MAY be pretty printed, it makes human consumption easier and has minimal impact on data size when compression is being used. BDIO data MUST be expressed as a named graph, the graph's label is used to uniquely identify the source of the data.
+
+For all supported formats, characters MUST be encoded using UTF-8. Consumers MUST NOT accept alternate character encodings.
+
+## JSON-LD
+The default format for BDIO data is [JSON-LD 1.0][jsonld].
+
+Producers MAY use remote JSON-LD contexts. Compliant consumers MAY operate in "offline mode", restricting access to remote JSON-LD context documents. When operating in this mode, an offline cached copy of the following JSON-LD context documents MUST be made available during processing: `https://blackducksoftware.com/bdio`
+
+Both compliant consumers and producers SHOULD use GZIP content encoding when transferring JSON-LD data. Note that content encoding support for HTTP requests is often not offered by default. Producers MUST create JSON-LD data whose content is strictly less then 16MB; consumers SHOULD fail when presented with a JSON-LD file in excess of this limit. The size limit is applied on presentation and MUST NOT account for effects of JSON-LD normalization though the application of compaction or expansion algorithms.
+
+JSON-LD data should be given the file extension `.jsonld` and should be transferred using the content type application/ld+json (only in [accordance][jsonld-json] with the [JSON-LD Specification][jsonld-iana]).
+
+## JSON
+While all JSON-LD is technically JSON, it is often convenient to simplify the syntax using JSON-LD compaction. The default context for BDIO documents may be referenced as a remote context using the IRI `https://blackducksoftware.com/bdio`. Compliant consumers SHOULD include an offline copy of this context to avoid network traffic when processing JSON-LD data.
+
+The `Link` header should be honored on both requests and responses per the [JSON-LD specification][jsonld-iana].
+
+As with JSON-LD, GZIP content encoding SHOULD be used when transferring JSON data. Furthermore, the same 16MB size limit applies to the JSON data as presented to the consumer.
+
+JSON data should be given the file extension `.json` and should be transferred using either the content type `application/json` (preferred when using explicit links to context data) or `application/vnd.blackducksoftware.bdio+json` (when the use of the default BDIO context is implied).
+
+## BDIO Document
+In addition to transferring raw JSON-LD or a JSON representation of linked data, there are some limitations for which a separate format makes sense. For example, server support for `Content-Encoding` and `Link` request headers cannot always be guaranteed. The BDIO Document format is intended to overcome some of these limitations in a non-invasive manor.
+
+A "BDIO Document" is a Zip file consisting of any number of JSON-LD files, or "entries". Entries are individually compressed per the Zip specification, BDIO Document producers SHOULD use the DEFLATE compression method. The uncompressed size of each entry MUST be strictly less then 16MB. Compliant consumers SHOULD process entries in "appearance order", that is, the order in which they were added to the Zip archive. Entry names MUST have a ".jsonld" suffix and SHOULD NOT contain the "/" character. Additional non-JSON-LD files MAY be included in the archive.
+
+Each JSON-LD entry MUST be self-contained; producers SHOULD use the "expanded" form but may use other forms so long as full context information is included. Additionally, the same named graph label MUST be used for every entry. Unlike the other formats, compliant consumers are not required to provide any online connectivity or cached context content when processing BDIO Documents. Linked data nodes which span multiple JSON-LD entries MUST have an `@id` and `@type` specification in every JSON-LD node.
+
+To simplify BDIO Document processing, several restrictions are placed on the Zip format used as the primary container. BDIO Documents MUST NOT contain header or footer data, that is the file should begin with a local file header and end with the Zip end of central directory record. Additionally BDIO Documents MUST NOT contain entries which are not listed in the central directory, this restriction allows BDIO Documents to be processed using stream based tools.
+
+BDIO Documents should be given the file extension .bdio and should be transferred as binary data using the content type `application/vnd.blackducksoftware.bdio+zip`.
+
+[jsonld]: https://www.w3.org/TR/2014/REC-json-ld-20140116/
+[jsonld-json]: http://www.w3.org/TR/json-ld/#interpreting-json-as-json-ld "Interpreting JSON as JSON-LD"
+[jsonld-iana]: http://www.w3.org/TR/json-ld/#iana-considerations "IANA Considerations"

@@ -17,6 +17,10 @@ package com.blackducksoftware.bdio2.tool;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
 
 /**
@@ -26,13 +30,26 @@ import com.google.common.io.Resources;
  */
 public class SpecificationTool extends Tool {
 
+    // TODO How do we generate this list dynamically?
+    private static ImmutableList<String> SECTIONS = ImmutableList.<String> builder()
+            .add("00.Abstract.txt")
+            .add("01.Introduction.txt")
+            .add("02.Model.txt")
+            .add("03.SemanticRules.txt")
+            .add("04.DocumentFormat.txt")
+            .add("AA.NamespaceRecommendations.txt")
+            .add("AB.IdentifierGuidelines.txt")
+            .add("AC.FileData.txt")
+            .add("AD.ContentTypes.txt")
+            .build();
+
     public static void main(String[] args) {
         new SpecificationTool(null).parseArgs(args).run();
     }
 
     // TODO Multiple version support (e.g. old wiki content?)
     // TODO How can we generate the specification using Javadoc comments?
-    // TODO Split specification into multiple documents by chapter so we can stitch them together with a TOC?
+    // TODO Generate a TOC between sections 00 and 01?
     // TODO Can we have a separate "sample" tool that generates the sample output?
     // TODO Offer an HTML output version that formats the Markdown
 
@@ -42,8 +59,13 @@ public class SpecificationTool extends Tool {
 
     @Override
     protected void execute() throws Exception {
-        // For now, the specification is just packaged in the JAR file, just echo it out
-        printOutput("%s", Resources.toString(Resources.getResource("specification/spec.txt"), UTF_8));
+        SECTIONS.stream().sorted().map(resourceName -> {
+            try {
+                return Resources.toString(Resources.getResource(SpecificationTool.class, "spec/" + resourceName), UTF_8);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }).forEachOrdered(section -> printOutput("%s%n", section));
     }
 
 }

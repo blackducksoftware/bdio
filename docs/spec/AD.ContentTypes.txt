@@ -1,0 +1,8 @@
+# Appendix D: Content Types
+
+| Content Type                                  | Extension | Description |
+|-----------------------------------------------|-----------|-------------|
+| `application/ld+json`                         | `jsonld`  | The content type used when BDIO data is represented using JSON-LD. The context will either be referenced as a remote document or will be explicitly included in the content body. Note that only UTF-8 character encoding is allowed. |
+| `application/json`                            | `json`    | The content type used when BDIO data is represented using plain JSON and the context is specified externally (e.g. using the `Link` header). Note that only UTF-8 character encoding is allowed. |
+| `application/vnd.blackducksoftware.bdio+json` | `json`    | The content type used when BDIO data is represented using plain JSON that should be interpreted using the default BDIO context. |
+| `application/vnd.blackducksoftware.bdio+zip`  | `bdio`    | The content type used when BDIO data is represented as self-contained JSON-LD stored in a ZIP archive. |

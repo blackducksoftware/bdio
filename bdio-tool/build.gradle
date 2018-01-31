@@ -16,8 +16,10 @@ dependencies {
 }
 
 jar {
-    from("${rootDir}/docs/spec.txt") {
-        into "com/blackducksoftware/bdio2/tool/specification"
+    from("${rootDir}/docs/spec") {
+        include '0*'
+        include 'A*'
+        into 'com/blackducksoftware/bdio2/tool/spec'
     }
 }
 

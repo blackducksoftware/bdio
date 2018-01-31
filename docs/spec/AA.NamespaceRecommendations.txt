@@ -1,0 +1,4 @@
+# Appendix A: Namespace Recommendations
+It is impractical for this specification to absolutely define all of the available namespaces and their rules, they constantly change as new tools are introduced and as people remember how to use old tools. The following non-normative recommendations for publishers and processors serve only as a guideline to what could be implemented. These recommendations are subject to change and ultimately it is the responsibility of the publishers and processors to agree on the namespace values and the interpretation of the field values.
+
+TODO This section is under development in the Proposed Namespace Values area.
