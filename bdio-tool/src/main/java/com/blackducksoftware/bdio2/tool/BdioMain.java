@@ -32,7 +32,7 @@ public class BdioMain extends Tool {
     private enum Command {
         help("Display help information about BDIO", HelpTool::new, false),
         cat("Concatenate and convert BDIO files", ConcatenateTool::new, false),
-        context("Print the BDIO JSON-LD context", ContextTool::new, false),
+        context("Print a BDIO JSON-LD context", ContextTool::new, false),
         dependencies("Prints a dependency tree", DependenciesTool::new, true),
         entries("Dump the JSON-LD content of a BDIO file", EntriesTool::new, true),
         graph("Import BDIO to a TinkerPop graph", GraphTool::new, false),
