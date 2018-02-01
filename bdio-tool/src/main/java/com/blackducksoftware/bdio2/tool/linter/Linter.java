@@ -15,6 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tool.linter;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.text.MessageFormat;
@@ -255,12 +256,13 @@ public final class Linter {
          */
         private static Object getInputIdentifier(Object input) {
             if (input instanceof Vertex) {
-                Object id = ((Vertex) input).id();
+                Vertex v = (Vertex) input;
+                Object id = v.property(LT._id.name()).orElse(v.label() + "[" + v.id() + "]");
                 return id instanceof Map<?, ?> ? getInputIdentifier(id) : id;
             } else if (input instanceof Edge) {
-                return ((Edge) input).id();
+                return getInputIdentifier(((Edge) input).outVertex());
             } else if (input instanceof Map<?, ?>) {
-                return ((Map<?, ?>) input).get(JsonLdConsts.ID);
+                return firstNonNull(((Map<?, ?>) input).get(JsonLdConsts.ID), JsonLdConsts.DEFAULT);
             } else {
                 throw new IllegalArgumentException("unknown context");
             }
