@@ -1,6 +1,7 @@
 {
   "@context" : {
     "xsd" : "http://www.w3.org/2001/XMLSchema#",
+    "Annotation" : "https://blackducksoftware.github.io/bdio#Annotation",
     "Component" : "https://blackducksoftware.github.io/bdio#Component",
     "Container" : "https://blackducksoftware.github.io/bdio#Container",
     "Dependency" : "https://blackducksoftware.github.io/bdio#Dependency",
@@ -12,6 +13,10 @@
     "Project" : "https://blackducksoftware.github.io/bdio#Project",
     "Repository" : "https://blackducksoftware.github.io/bdio#Repository",
     "Vulnerability" : "https://blackducksoftware.github.io/bdio#Vulnerability",
+    "affected" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasAffected",
+      "@type" : "@id"
+    },
     "base" : {
       "@id" : "https://blackducksoftware.github.io/bdio#hasBase",
       "@type" : "@id"
@@ -30,6 +35,10 @@
     },
     "dependsOn" : {
       "@id" : "https://blackducksoftware.github.io/bdio#dependsOn",
+      "@type" : "@id"
+    },
+    "description" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasDescription",
       "@type" : "@id"
     },
     "evidence" : {
@@ -78,6 +87,7 @@
       "@id" : "https://blackducksoftware.github.io/bdio#hasByteCount",
       "@type" : "xsd:long"
     },
+    "comment" : "https://blackducksoftware.github.io/bdio#hasComment",
     "contentType" : {
       "@id" : "https://blackducksoftware.github.io/bdio#hasContentType",
       "@type" : "https://blackducksoftware.github.io/bdio#ContentType"
