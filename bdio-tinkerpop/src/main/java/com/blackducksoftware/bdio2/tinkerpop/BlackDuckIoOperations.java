@@ -183,7 +183,7 @@ public final class BlackDuckIoOperations {
             // TODO Can we reduce the footprint somehow? We only need ID and path...
             int fileCount = Math.toIntExact(context().countVerticesByLabel(Bdio.Class.File.name()));
             Map<String, Vertex> files = Maps.newHashMapWithExpectedSize(fileCount);
-            g.V().hasLabel(Bdio.Class.File.name()).forEachRemaining(v -> {
+            g.V().hasLabel(Bdio.Class.File.name()).has(Bdio.DataProperty.path.name()).forEachRemaining(v -> {
                 files.put(v.value(Bdio.DataProperty.path.name()), v);
             });
 
