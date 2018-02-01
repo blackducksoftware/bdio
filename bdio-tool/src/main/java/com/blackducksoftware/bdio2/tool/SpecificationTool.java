@@ -19,6 +19,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
@@ -59,13 +62,29 @@ public class SpecificationTool extends Tool {
 
     @Override
     protected void execute() throws Exception {
+        Deque<String> references = new ArrayDeque<>();
         SECTIONS.stream().sorted().map(resourceName -> {
-            try {
-                return Resources.toString(Resources.getResource(SpecificationTool.class, "spec/" + resourceName), UTF_8);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
+            String section = loadResource(resourceName);
+
+            int start = section.lastIndexOf("\n[");
+            while (start >= 0) {
+                references.push(section.substring(start + 1));
+                section = section.substring(0, start);
+                start = section.lastIndexOf("\n[");
             }
+
+            return section;
         }).forEachOrdered(section -> printOutput("%s%n", section));
+
+        printOutput("%s", references.stream().collect(Collectors.joining(System.lineSeparator(), System.lineSeparator(), "")));
+    }
+
+    private static String loadResource(String resourceName) {
+        try {
+            return Resources.toString(Resources.getResource(SpecificationTool.class, "spec/" + resourceName), UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
 }
