@@ -12,6 +12,7 @@
 package com.blackducksoftware.bdio2.tool;
 
 import static com.blackducksoftware.common.base.ExtraStreams.ofType;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 
 import java.net.URI;
@@ -20,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -124,7 +124,8 @@ public class LintTool extends AbstractGraphTool {
                         .doOnNext(this::executeWithRawEntry)
                         .flatMapIterable(BdioDocument::toGraphNodes)
                         .doOnNext(this::executeWithRawNode)
-                        .subscribe();
+                        .ignoreElements()
+                        .blockingAwait();
             }
             printDebugMessage("Time to read BDIO input: %s%n", readTimer.stop());
         }
@@ -133,6 +134,9 @@ public class LintTool extends AbstractGraphTool {
         if (rules.values().stream().anyMatch(r -> r instanceof LoadedGraphRule || r instanceof CompletedGraphRule)) {
             super.execute();
         }
+
+        // Report the number of rules that were executed
+        printDebugMessage("%d rules executed%n", rules.size());
 
         // If we have any violations, report them
         Multiset<Severity> severityCounts = TreeMultiset.create();
@@ -148,12 +152,16 @@ public class LintTool extends AbstractGraphTool {
                 printOutput("[%s] limit reached, further occurances of this volation will be suppressed%n", violation.rule().getClass().getSimpleName());
             }
         }
-        if (!severityCounts.isEmpty()) {
-            printOutput(severityCounts.entrySet().stream()
-                    .map(e -> MessageFormat.format("{0,choice,1#1 {1}|1<{0,number,integer} {1}s}", e.getCount(), e.getElement()))
-                    .collect(Collectors.joining("%n", "", "%n")));
+
+        // Print the summary count
+        printOutput("%s%n", severityCounts.entrySet().stream()
+                .map(e -> MessageFormat.format("{0,choice,1#1 {1}|1<{0,number,integer} {1}s}", e.getCount(), e.getElement()))
+                .collect(joining(String.format("%n"))));
+
+        // Any errors should force a non-success exit status
+        if (severityCounts.contains(Severity.error)) {
+            throw new ExitException(1);
         }
-        printDebugMessage("%d rules executed%n", rules.size());
     }
 
     @Override

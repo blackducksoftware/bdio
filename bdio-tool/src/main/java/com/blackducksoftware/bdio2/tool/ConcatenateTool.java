@@ -86,7 +86,7 @@ public class ConcatenateTool extends Tool {
     protected Tool parseArguments(String[] args) throws Exception {
         for (String option : options(args)) {
             if (option.startsWith("--output=")) {
-                optionValue(option).map(Tool::getOutput).ifPresent(this::setOutput);
+                optionValue(option).map(this::getOutput).ifPresent(this::setOutput);
                 args = removeFirst(option, args);
             }
         }

@@ -12,10 +12,10 @@
 package com.blackducksoftware.bdio2.tool;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,13 +30,14 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
+import java.util.function.IntConsumer;
 
 import javax.annotation.Nullable;
 import javax.annotation.OverridingMethodsMustInvokeSuper;
 
 import com.blackducksoftware.common.io.ExtraIO;
 import com.blackducksoftware.common.value.Product;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
@@ -83,64 +84,20 @@ public abstract class Tool implements Runnable {
     }
 
     /**
-     * This is a strange input stream that wraps {@link System#in} and watches for interactions; if nothing happens
-     * after 5 seconds, the program is terminated. The idea is that users may inadvertently ask the program to read from
-     * standard input and the program just appears to be hung reading.
+     * Thrown to force the tool to halt using the currently configured exit routine.
      */
-    private static final class StandardInputStream extends FilterInputStream {
+    protected static final class ExitException extends Exception {
+        private static final long serialVersionUID = 1L;
 
-        private final Thread monitor;
+        private final int status;
 
-        private StandardInputStream() {
-            super(System.in);
-            monitor = new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        // Under normal circumstances, this sleep will be interrupted and will throw past the exit
-                        sleep(TimeUnit.SECONDS.toMillis(5L));
-                        System.err.println("No interaction on stdin, aborting.");
-                        System.exit(66);
-                    } catch (InterruptedException e) {
-                        interrupt();
-                    }
-                }
-            };
-            monitor.setName("stdin-monitor");
-            monitor.setDaemon(true);
-            monitor.start();
+        protected ExitException(int status) {
+            this.status = status;
         }
 
-        @Override
-        public int read() throws IOException {
-            try {
-                return super.read();
-            } finally {
-                monitor.interrupt();
-            }
-        }
-
-        @Override
-        public int read(byte[] b, int off, int len) throws IOException {
-            try {
-                return super.read(b, off, len);
-            } finally {
-                monitor.interrupt();
-            }
-        }
-
-        @Override
-        public long skip(long n) throws IOException {
-            try {
-                return super.skip(n);
-            } finally {
-                monitor.interrupt();
-            }
-        }
-
-        @Override
-        public void close() throws IOException {
-            // Don't close the system stream
+        protected ExitException(int status, Throwable cause) {
+            super(cause);
+            this.status = status;
         }
     }
 
@@ -157,6 +114,11 @@ public abstract class Tool implements Runnable {
     private final String name;
 
     /**
+     * The input stream to use for standard input.
+     */
+    private final InputStream stdin;
+
+    /**
      * The print stream to use for standard output.
      */
     private final PrintStream stdout;
@@ -165,6 +127,11 @@ public abstract class Tool implements Runnable {
      * The print stream to use for standard errors.
      */
     private final PrintStream stderr;
+
+    /**
+     * The system exit function.
+     */
+    private final IntConsumer sysexit;
 
     /**
      * The verbosity level of the error messages produced by the tool.
@@ -177,13 +144,15 @@ public abstract class Tool implements Runnable {
     private boolean pretty;
 
     protected Tool(@Nullable String name) {
-        this(name, System.out, System.err);
+        this(name, System.in, System.out, System.err, System::exit);
     }
 
-    protected Tool(@Nullable String name, PrintStream sysout, PrintStream syserr) {
+    protected Tool(@Nullable String name, InputStream stdin, PrintStream stdout, PrintStream stderr, IntConsumer sysexit) {
         this.name = Optional.ofNullable(name).orElse(getClass().getSimpleName());
-        this.stdout = Objects.requireNonNull(sysout);
-        this.stderr = Objects.requireNonNull(syserr);
+        this.stdin = Objects.requireNonNull(stdin);
+        this.stdout = Objects.requireNonNull(stdout);
+        this.stderr = Objects.requireNonNull(stderr);
+        this.sysexit = Objects.requireNonNull(sysexit);
 
         // Make sure exceptions going through RxJava are handled correctly
         RxJavaPlugins.setErrorHandler(this::handleException);
@@ -196,8 +165,9 @@ public abstract class Tool implements Runnable {
     public final void run() {
         try {
             execute();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             handleException(e);
+            sysexit.accept(1);
         }
     }
 
@@ -252,13 +222,20 @@ public abstract class Tool implements Runnable {
      * Internal method for handling an exception based on the current verbosity level.
      */
     private void handleException(Throwable e) {
-        stderr.print("bdio: "); // TODO Should this be configurable?
-        if (Level.DEBUG.compareTo(verbosity) <= 0) {
-            e.printStackTrace(stderr);
-        } else if (Level.VERBOSE.compareTo(verbosity) <= 0) {
-            stderr.println(e.toString());
-        } else if (Level.DEFAULT.compareTo(verbosity) <= 0) {
-            stderr.println(formatException(e));
+        if (e instanceof ExitException) {
+            if (e.getCause() != null) {
+                handleException(e.getCause());
+            }
+            sysexit.accept(((ExitException) e).status);
+        } else if (Level.QUIET.compareTo(verbosity) < 0) {
+            stderr.print("bdio: "); // TODO Should this be configurable (e.g. generally this comes from BdioMain)?
+            if (Level.DEBUG.compareTo(verbosity) <= 0) {
+                e.printStackTrace(stderr);
+            } else if (Level.VERBOSE.compareTo(verbosity) <= 0) {
+                stderr.println(e.toString());
+            } else if (Level.DEFAULT.compareTo(verbosity) <= 0) {
+                stderr.println(formatException(e));
+            }
         }
     }
 
@@ -352,6 +329,10 @@ public abstract class Tool implements Runnable {
         Throwable rootCause = Throwables.getRootCause(failure);
         if (rootCause instanceof FileNotFoundException || rootCause instanceof NoSuchFileException) {
             return rootCause.getMessage() + ": No such file or directory";
+        } else if (rootCause instanceof JsonParseException) {
+            JsonParseException parseException = (JsonParseException) rootCause;
+            return String.format("%s at line %d, column %d", parseException.getOriginalMessage(),
+                    parseException.getLocation().getLineNr(), parseException.getLocation().getColumnNr());
         } else {
             return failure.getLocalizedMessage();
         }
@@ -424,6 +405,68 @@ public abstract class Tool implements Runnable {
     }
 
     /**
+     * Returns a byte source for accessing input. If the name is "-" then bytes will come from the standard input
+     * stream, otherwise name is taken as a file path relative to the current working directory.
+     */
+    protected final ByteSource getInput(String name) {
+        try {
+            if (name.equals("-")) {
+                return new ByteSource() {
+                    @Override
+                    public InputStream openStream() {
+                        return ExtraIO.onIdle(stdin, 5, SECONDS, () -> {
+                            stderr.println("No interaction on stdin, aborting.");
+                            sysexit.accept(66);
+                        });
+                    }
+                };
+            } else {
+                File file = new File(name);
+                if (!file.exists()) {
+                    throw new FileNotFoundException(name);
+                } else if (file.isDirectory()) {
+                    throw new IOException(name); // TODO Message? Exception?
+                } else if (!file.canRead()) {
+                    throw new IOException(name); // TODO Message? Exception?
+                } else {
+                    return Files.asByteSource(file);
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Returns a byte sink for generating output. If the name is "-" then bytes will go to the standard output
+     * stream, otherwise name is taken as a file path relative to the current working directory.
+     */
+    protected final ByteSink getOutput(String name) {
+        try {
+            if (name.equals("-")) {
+                return new ByteSink() {
+                    @Override
+                    public OutputStream openStream() throws IOException {
+                        // TODO Block closing?
+                        return stdout;
+                    }
+                };
+            } else {
+                File file = new File(name);
+                if (file.isDirectory()) {
+                    throw new IOException(name); // TODO Message? Exception?
+                } else if (file.exists() && !file.canWrite()) {
+                    throw new IOException(name); // TODO Message? Exception?
+                } else {
+                    return Files.asByteSink(file);
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
      * Removes the first occurrence of a string from an array of strings.
      */
     protected static String[] removeFirst(String value, String... values) {
@@ -479,65 +522,6 @@ public abstract class Tool implements Runnable {
             }
         }
         return arguments;
-    }
-
-    /**
-     * Returns a byte source for accessing input. If the name is "-" then bytes will come from the standard input
-     * stream, otherwise name is taken as a file path relative to the current working directory.
-     */
-    protected static ByteSource getInput(String name) {
-        try {
-            if (name.equals("-")) {
-                return new ByteSource() {
-                    @Override
-                    public InputStream openStream() {
-                        return new StandardInputStream();
-                    }
-                };
-            } else {
-                File file = new File(name);
-                if (!file.exists()) {
-                    throw new FileNotFoundException(name);
-                } else if (file.isDirectory()) {
-                    throw new IOException(name); // TODO Message? Exception?
-                } else if (!file.canRead()) {
-                    throw new IOException(name); // TODO Message? Exception?
-                } else {
-                    return Files.asByteSource(file);
-                }
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    /**
-     * Returns a byte sink for generating output. If the name is "-" then bytes will go to the standard output
-     * stream, otherwise name is taken as a file path relative to the current working directory.
-     */
-    protected static ByteSink getOutput(String name) {
-        try {
-            if (name.equals("-")) {
-                return new ByteSink() {
-                    @Override
-                    public OutputStream openStream() throws IOException {
-                        // TODO Block closing?
-                        return System.out;
-                    }
-                };
-            } else {
-                File file = new File(name);
-                if (file.isDirectory()) {
-                    throw new IOException(name); // TODO Message? Exception?
-                } else if (file.exists() && !file.canWrite()) {
-                    throw new IOException(name); // TODO Message? Exception?
-                } else {
-                    return Files.asByteSink(file);
-                }
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     /**

@@ -255,7 +255,8 @@ public final class Linter {
          */
         private static Object getInputIdentifier(Object input) {
             if (input instanceof Vertex) {
-                return ((Vertex) input).id();
+                Object id = ((Vertex) input).id();
+                return id instanceof Map<?, ?> ? getInputIdentifier(id) : id;
             } else if (input instanceof Edge) {
                 return ((Edge) input).id();
             } else if (input instanceof Map<?, ?>) {
