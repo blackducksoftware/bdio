@@ -11,6 +11,7 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static com.blackducksoftware.common.base.ExtraStrings.ensurePrefix;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.nullToEmpty;
 
@@ -190,12 +191,12 @@ public final class BdioMetadata extends BdioObject {
 
     /**
      * Helper method to set the creator using individual user and host parts.
-     * 
+     *
      * @see #creator(String)
      */
     public BdioMetadata creator(@Nullable String user, @Nullable String host) {
         if (user != null || host != null) {
-            return creator(nullToEmpty(user) + Optional.ofNullable(host).map(h -> "@" + h).orElse(""));
+            return creator(nullToEmpty(user) + nullToEmpty(ensurePrefix("@", host)));
         } else {
             return creator(null);
         }
