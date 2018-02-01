@@ -119,6 +119,7 @@ public class SpdxDocumentTool extends Tool {
     public Object describeSpdx() throws IOException {
         LicenseList licenseList = readLicenseList();
         BdioMetadata metadata = new BdioMetadata()
+                .id("http://spdx.org/licenses")
                 .creationDateTime(ZonedDateTime.now())
                 .publisher(new ProductList.Builder()
                         .addProduct(getProduct().newBuilder()
@@ -126,6 +127,7 @@ public class SpdxDocumentTool extends Tool {
                                 .build())
                         .build());
 
+        // TODO This needs a Repository as a root object
         return metadata.asNamedGraph(licenseList.licenses.stream()
                 .filter(this::includeLicense)
                 .map(this::convertToBdio)
