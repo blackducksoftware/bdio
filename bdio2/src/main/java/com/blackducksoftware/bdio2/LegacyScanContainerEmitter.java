@@ -205,7 +205,7 @@ class LegacyScanContainerEmitter implements Emitter {
 
         private Map<String, Object> root() {
             String id = toFileUri(hostName, baseDir, "project");
-            File base = new File(toFileUri(hostName, baseDir, "scanNode-0"));
+            File base = scanNodeList.isEmpty() ? null : new File(toFileUri(hostName, baseDir, "scanNode-0"));
             if (project != null) {
                 return new Project(id).base(base).name(project).version(release);
             } else {
