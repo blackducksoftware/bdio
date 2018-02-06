@@ -28,6 +28,11 @@ import com.google.common.base.Enums;
 
 public class Metadata implements RawEntryRule {
 
+    /**
+     * Track the identifier used across metadata validations.
+     */
+    private Object id;
+
     @Override
     public Stream<Violation> validate(Object input) {
         ViolationBuilder result = new ViolationBuilder(this, input);
@@ -37,10 +42,18 @@ public class Metadata implements RawEntryRule {
             Map<?, ?> bdioEntry = (Map<?, ?>) input;
 
             // TODO The bdioEntry map should run through the DataPropertyRange validation
+            // How do we pass the violation builder to another validator?
 
             // The identifier should always be present
             if (!bdioEntry.containsKey(JsonLdConsts.ID) || Objects.equals(bdioEntry.get(JsonLdConsts.ID), JsonLdConsts.DEFAULT)) {
                 result.error("DefaultNamedGraphIdentififer");
+            } else {
+                Object id = bdioEntry.get(JsonLdConsts.ID);
+                if (this.id == null) {
+                    this.id = id;
+                } else if (!this.id.equals(id)) {
+                    result.error("MismatchedGraphLabel");
+                }
             }
 
             for (Bdio.ObjectProperty objectProperty : Bdio.ObjectProperty.values()) {

@@ -15,6 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tool.linter;
 
+import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -24,37 +25,44 @@ import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
 import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
-import com.blackducksoftware.common.base.ExtraStreams;
 import com.blackducksoftware.common.value.HID;
 
 public class DataPropertyRange implements RawNodeRule {
 
     @Override
     public Stream<Violation> validate(Map<String, Object> input) {
+        ViolationBuilder result = new ViolationBuilder(this, input);
+
         ValueObjectMapper valueObjectMapper = ValueObjectMapper.getContextValueObjectMapper();
-        return ExtraStreams.stream(Bdio.DataProperty.class)
-                .map(Object::toString)
-                .flatMap(key -> {
-                    try {
-                        // Use the value object mapper to validate data properties
-                        Object value = valueObjectMapper.fromFieldValue(key, input.get(key));
+        for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
+            String key = dataProperty.toString();
+            try {
+                // Use the value object mapper to validate data properties
+                Object value = valueObjectMapper.fromFieldValue(key, input.get(key));
 
-                        // Check other fields which may have more restrictive rules
-                        if (value != null) {
-                            if (key.equals(Bdio.DataProperty.fileSystemType.toString())) {
-                                FileSystemType.from(value);
-                            } else if (key.equals(Bdio.DataProperty.path.toString())
-                                    || key.equals(Bdio.DataProperty.linkPath.toString())) {
-                                HID.from(value);
-                            }
-                            // TODO Check encoding (maybe warn if the encoding is valid but isn't supported)
+                // TODO How do we detect invalid reference or embedded objects?
+
+                // Check other fields which may have more restrictive rules
+                if (value != null) {
+                    if (key.equals(Bdio.DataProperty.fileSystemType.toString())) {
+                        FileSystemType.from(value);
+                    } else if (key.equals(Bdio.DataProperty.path.toString())
+                            || key.equals(Bdio.DataProperty.linkPath.toString())) {
+                        HID.from(value);
+                    } else if (key.equals(Bdio.DataProperty.encoding.toString())) {
+                        if (value instanceof String && !Charset.isSupported((String) value)) {
+                            result.warning("UnsupportedCharset");
                         }
-
-                        return Stream.empty();
-                    } catch (Exception e) {
-                        return new ViolationBuilder(this, input).error("Invalid", e, key).build();
                     }
-                });
+                }
+            } catch (Exception e) {
+                result.error("Invalid", e, key);
+            }
+        }
+
+        // TODO Can we detect object properties used as data properties (e.g. "description")
+
+        return result.build();
     }
 
 }

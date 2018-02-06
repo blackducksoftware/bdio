@@ -15,19 +15,25 @@
  */
 package com.blackducksoftware.bdio2.tool.linter;
 
+import static org.apache.tinkerpop.gremlin.process.traversal.P.neq;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.in;
+
 import java.util.stream.Stream;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 
 import com.blackducksoftware.bdio2.tool.linter.Linter.CompletedGraphRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
+import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 
 public class UnreferencedNode implements CompletedGraphRule {
 
     @Override
     public Stream<Violation> validate(GraphTraversalSource input) {
-        // TODO Look for vertices that are not connected to anything
-        return Stream.empty();
+        ViolationBuilder result = new ViolationBuilder(this);
+        input.V().hasLabel(neq(Linter.LT._Metadata.name())).not(in())
+                .forEachRemaining(v -> result.target(v).warning("UnreferencedNode"));
+        return result.build();
     }
 
 }

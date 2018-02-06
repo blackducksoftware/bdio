@@ -278,8 +278,14 @@ public final class Linter {
         protected Object[][] getContents() {
             return new Object[][] {
                     { "DataPropertyRange.Invalid", "Invalid value for {}" },
+                    { "DataPropertyRange.UnsupportedCharset", "Unsupported encoding" },
                     { "Domain.PropertyNotAllowed", "Property not allowed on {}: {}" },
+                    { "ImpliedFileSystemTypeConflict.Parent", "Files with children should have a directory type" },
+                    { "ImpliedFileSystemTypeConflict.ByteCount", "Files with sizes should have a regular type" },
+                    { "ImpliedFileSystemTypeConflict.LinkPath", "Files with link paths should have symbolic link type" },
+                    { "ImpliedFileSystemTypeConflict.Encoding", "Files with encodings should have text type" },
                     { "Metadata.DefaultNamedGraphIdentififer", "Named graph has default identifier" },
+                    { "Metadata.MismatchedGraphLabel", "BDIO entries have different labels" },
                     { "Metadata.PropertyNotAllowed", "Property not allowed on @graph: {}" },
                     { "MissingFilePath.PathNotPresent", "File is missing path property" },
                     { "MissingProjectName.HasVersion", "Project has version but no name" },
@@ -289,6 +295,7 @@ public final class Linter {
                     { "SingleRoot.MultipleMetadata", "Multiple metadata instances" },
                     { "SingleRoot.MultipleRoots", "Multiple roots" },
                     { "SingleRoot.MissingRoot", "Missing root" },
+                    { "UnreferencedNode.UnreferencedNode", "Unreferenced node" },
                     { "ValidFilePath.PathNotNormalized", "File path should be normalized" },
                     { "ValidFilePath.String", "Path should be a string" },
                     { "ValidIdentifier.Absolute", "Node identifiers should be absolute" },
@@ -311,6 +318,7 @@ public final class Linter {
         return Stream.<Rule<?>> builder()
                 .add(new DataPropertyRange())
                 .add(new Domain())
+                .add(new ImpliedFileSystemTypeConflict())
                 .add(new Metadata())
                 .add(new MissingFilePath())
                 .add(new MissingProjectName())

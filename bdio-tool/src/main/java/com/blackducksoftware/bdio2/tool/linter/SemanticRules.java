@@ -21,14 +21,16 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 
 import com.blackducksoftware.bdio2.tool.linter.Linter.CompletedGraphRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
+import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 
 public class SemanticRules implements CompletedGraphRule {
 
     @Override
     public Stream<Violation> validate(GraphTraversalSource input) {
         // TODO Check the semantic rules from the specification
-        // e.g. if the file system type is "symlink" there needs to be a linkPath
-        return Stream.empty();
+        ViolationBuilder result = new ViolationBuilder(this);
+
+        return result.build();
     }
 
 }
