@@ -47,6 +47,11 @@ public class EmitterFactory {
     private static final int SNIFF_LIMIT = 512;
 
     /**
+     * The JSON factory used to create parsers.
+     */
+    private static final JsonFactory JSON_FACTORY = new JsonFactory();
+
+    /**
      * The names of fields on the scan container. Note that this isn't the full set as we are only concerned with field
      * names which will appear in the first {@value #SNIFF_LIMIT} bytes; included are first three field names, both in
      * original declaration order (which was used prior to assignment of an explicit field order) and lexicographical
@@ -202,7 +207,7 @@ public class EmitterFactory {
         // Use a simple streaming JSON parser to read through the buffer (keeping in mind the possibly truncated nature
         // of the data we are looking could cause a failure at any time)
         try {
-            JsonParser jp = new JsonFactory().createParser(buffer, 0, len);
+            JsonParser jp = JSON_FACTORY.createParser(buffer, 0, len);
             jp.nextToken();
             if (jp.getCurrentToken() == JsonToken.START_ARRAY) {
                 // Iterate through the array looking for BDIO 1.x "@type" values until we hit the end (or fail)
@@ -237,8 +242,17 @@ public class EmitterFactory {
     }
 
     private static boolean isEmpty(byte[] buffer, int len) {
-        // TODO Can we check for "{}" or "[]" as well (whitespace is the problem)?
-        return len == 0;
+        if (len == 0) {
+            return true;
+        }
+
+        // Test for "logically empty" (e.g. "{}" or "[]")
+        try {
+            JsonParser jp = JSON_FACTORY.createParser(buffer, 0, len);
+            return jp.nextToken().isStructStart() && jp.nextToken().isStructEnd();
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     private static boolean containsBdio1xVocab(byte[] buffer, int len) {
