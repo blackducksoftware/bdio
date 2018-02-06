@@ -118,8 +118,10 @@ public class SpdxDocumentTool extends Tool {
 
     public Object describeSpdx() throws IOException {
         LicenseList licenseList = readLicenseList();
+
+        // We cannot include an identifier on this document or it will cause metadata merge conflicts
+        // when included in a BDIO document as a stand alone entry
         BdioMetadata metadata = new BdioMetadata()
-                .id("http://spdx.org/licenses")
                 .creationDateTime(ZonedDateTime.now())
                 .publisher(new ProductList.Builder()
                         .addProduct(getProduct().newBuilder()
