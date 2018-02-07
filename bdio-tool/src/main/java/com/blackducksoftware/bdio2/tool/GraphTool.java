@@ -158,10 +158,14 @@ public class GraphTool extends Tool {
     }
 
     @Override
-    protected void printHelp() {
+    protected void printUsage() {
         printOutput("usage: %s [--graph=tinkergraph|sqlg|<class>] [--clean] [--skip-init]%n", name());
         printOutput("          [--config=<file>] [-D=<key>=<value>]%n");
         printOutput("          [--onGraphComplete=dump|<class>]%n%n");
+    }
+
+    @Override
+    protected void printHelp() {
         printOutput("Some common properties are:%n");
         printOutput("   gremlin.tinkergraph.graphFormat - Format used to persist TinkerGraph:%n");
         printOutput("       graphml, graphson, gryo, %s%n", BlackDuckIo.Builder.class.getName());

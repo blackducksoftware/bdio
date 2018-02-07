@@ -120,7 +120,9 @@ public class BdioMain extends Tool {
 
         @Override
         protected void execute() throws Exception {
-            Command.named(commandName).factory.apply(toolName + " " + commandName).printHelp();
+            Tool tool = Command.named(commandName).factory.apply(toolName + " " + commandName);
+            tool.printUsage();
+            tool.printHelp();
         }
     }
 

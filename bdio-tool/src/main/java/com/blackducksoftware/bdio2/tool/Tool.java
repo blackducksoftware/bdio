@@ -31,6 +31,7 @@ import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -255,7 +256,8 @@ public abstract class Tool implements Runnable {
      * Internal method for reporting an unknown option.
      */
     private Tool unknownOption(String option) {
-        stderr.format("unknown option: '%s'%n", option);
+        printOutput("unknown option: '%s'%n", option);
+        printUsage();
         return doNothing();
     }
 
@@ -357,6 +359,15 @@ public abstract class Tool implements Runnable {
     }
 
     /**
+     * Prints the usage for this tool.
+     * <p>
+     * When overriding this method, use {@link printOutput}: e.g. {@code printOutput("usage: %s%n", name())}.
+     */
+    protected void printUsage() {
+        printOutput("usage: %s%n", name());
+    }
+
+    /**
      * Prints the help page for this tool.
      * <p>
      * When overriding this method, use {@link printOutput} to ensure help is not filtered out by
@@ -364,6 +375,20 @@ public abstract class Tool implements Runnable {
      */
     protected void printHelp() {
         printOutput("No help is available for '%s'.%n", name());
+    }
+
+    /**
+     * Prints the option descriptions from the supplied map.
+     */
+    protected final void printOptionHelp(Map<String, String> optionDescriptions) {
+        int maxOptionLength = optionDescriptions.entrySet().stream().mapToInt(e -> e.getValue() != null ? e.getKey().length() : 0).max().orElse(0);
+        optionDescriptions.forEach((option, description) -> {
+            if (description != null) {
+                printOutput("  %-" + maxOptionLength + "s  %s%n", option, description);
+            } else {
+                printOutput("  ------- %s -------%n", option);
+            }
+        });
     }
 
     /**
