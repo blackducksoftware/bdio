@@ -146,7 +146,8 @@ public abstract class BdioDocument {
             Object value = ((Map<?, ?>) entry).get(key);
             if (value != null) {
                 ProductList products = (ProductList) ValueObjectMapper.getContextValueObjectMapper().fromFieldValue(key, value);
-                if (products.tryFind(p -> p.name().equals("LegacyScanContainerEmitter") || p.name().equals("LegacyBdio1xEmitter")).isPresent()) {
+                if (products.tryFind(p -> p.name().equals(LegacyScanContainerEmitter.class.getSimpleName())
+                        || p.name().equals(LegacyBdio1xEmitter.class.getSimpleName())).isPresent()) {
                     return true;
                 }
             }

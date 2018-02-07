@@ -188,7 +188,7 @@ class LegacyScanContainerEmitter implements Emitter {
                     .creationDateTime(createdOn)
                     .publisher(new ProductList.Builder()
                             .addProduct(new Product.Builder()
-                                    .name("HubScanClient")
+                                    .name("ScanClient")
                                     .version(scannerVersion)
                                     .comment("(signature " + signatureVersion + ")")
                                     .build())
