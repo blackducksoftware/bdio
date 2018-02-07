@@ -16,13 +16,19 @@
 package com.blackducksoftware.bdio2.tool;
 
 import static com.google.common.base.Preconditions.checkState;
+import static java.util.stream.Collectors.joining;
 
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -42,6 +48,12 @@ public class TreeTool extends AbstractFileTool {
     public static void main(String[] args) {
         new TreeTool(null).parseArgs(args).run();
     }
+
+    // TODO -p Print the protections for each file.
+    // TODO -u Displays file owner or UID number.
+    // TODO -g Displays file group owner or GID number.
+    // TODO -h Print the size in a more human readable way.
+    // TODO --si Like -h, but use in SI units (powers of 1000).
 
     /**
      * Descend only level directories deep.
@@ -77,6 +89,11 @@ public class TreeTool extends AbstractFileTool {
      * Print the size in bytes of each file.
      */
     private boolean showSize;
+
+    /**
+     * Print the last modified time of each file;
+     */
+    private boolean showLastModified;
 
     /**
      * Quote filenames with double quotes.
@@ -115,8 +132,35 @@ public class TreeTool extends AbstractFileTool {
         this.showSize = showSize;
     }
 
+    public void setShowLastModified(boolean showLastModified) {
+        this.showLastModified = showLastModified;
+    }
+
     public void setQuoteFilenames(boolean quoteFilenames) {
         this.quoteFilenames = quoteFilenames;
+    }
+
+    @Override
+    protected void printUsage() {
+        printOutput("usage: %s [-dfisDFQ] [-L level] [--noreport]%n", name());
+    }
+
+    @Override
+    protected void printHelp() {
+        Map<String, String> options = new LinkedHashMap<>();
+        options.put("Listing options", null);
+        options.put("-d", "List directories only.");
+        options.put("-f", "Print the full path for each file.");
+        options.put("-L level", "Descend only level directories deep.");
+        options.put("--noreport", "Turn off file/directory count at end of tree listing.");
+        options.put("File options", null);
+        options.put("-s", "Print the size in bytes of each file.");
+        options.put("-D", "Print the date of last modification.");
+        options.put("-F", "Appends '/', '=', '@', '%', '|' or '>' as per ls -F.");
+        options.put("-Q", "Quote filenames with double quotes.");
+        options.put("Graphics options", null);
+        options.put("-i", "Don't print indentation lines.");
+        printOptionHelp(options);
     }
 
     @Override
@@ -147,6 +191,9 @@ public class TreeTool extends AbstractFileTool {
                 args = removeFirst(arg, args);
             } else if (arg.equals("-s")) {
                 setShowSize(true);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("-D")) {
+                setShowLastModified(true);
                 args = removeFirst(arg, args);
             } else if (arg.equals("-Q")) {
                 setQuoteFilenames(true);
@@ -219,15 +266,31 @@ public class TreeTool extends AbstractFileTool {
             TreeFormat.appendAsciiIndent(rowFormat, fileNode.depth(), childrenAtDepths::contains, hasMoreSiblings);
         }
 
+        List<String> details = new ArrayList<>();
+        // TODO if (showProtections) details.add("%s") // e.g. lrwxrwxrwx
+        // TODO if (showUser) details.add("%-8s")
+        // TODO if (showGroup) details.add("%-8s")
         if (showSize) {
-            rowFormat.append('[');
-            // TODO UID/GID are "%-8s"
-            if (showSize) {
-                // TODO Human sizes are "%4s" (big K or --si is little k)
-                rowFormat.append("%11d");
-                arguments.add(fileNode.size());
+            // TODO Human sizes are "%4s" (big K or --si is little k)
+            details.add("%11d");
+            arguments.add(fileNode.size());
+        }
+        if (showLastModified) {
+            ZonedDateTime lastModified = fileNode.lastModified().orElse(ZonedDateTime.ofInstant(Instant.EPOCH, ZoneOffset.UTC));
+            details.add("%tb %2te");
+            arguments.add(lastModified);
+            arguments.add(lastModified);
+            if (lastModified.getYear() == ZonedDateTime.now().getYear()) {
+                details.add("%2tk:%tM");
+                arguments.add(lastModified);
+                arguments.add(lastModified);
+            } else {
+                details.add(" %tY");
+                arguments.add(lastModified);
             }
-            rowFormat.append("]  ");
+        }
+        if (!details.isEmpty()) {
+            rowFormat.append(details.stream().collect(joining(" ", "[", "]  ")));
         }
 
         if (quoteFilenames) {

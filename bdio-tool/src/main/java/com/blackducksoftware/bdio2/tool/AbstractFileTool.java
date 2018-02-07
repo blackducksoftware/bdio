@@ -17,8 +17,10 @@ package com.blackducksoftware.bdio2.tool;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 
+import java.time.ZonedDateTime;
 import java.util.Iterator;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -75,6 +77,10 @@ public abstract class AbstractFileTool extends AbstractGraphTool {
 
         public long size() {
             return vertex.<Number> property(Bdio.DataProperty.byteCount.name()).orElse(0).longValue();
+        }
+
+        public Optional<ZonedDateTime> lastModified() {
+            return Optional.ofNullable(vertex.<ZonedDateTime> property(Bdio.DataProperty.lastModifiedDateTime.name()).orElse(null));
         }
 
         public Bdio.FileSystemType type() {
