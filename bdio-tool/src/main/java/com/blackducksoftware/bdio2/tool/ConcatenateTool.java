@@ -16,6 +16,7 @@
 package com.blackducksoftware.bdio2.tool;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.StandardSystemProperty.USER_NAME;
 
 import java.io.InputStream;
 import java.time.ZonedDateTime;
@@ -34,8 +35,8 @@ import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.BdioWriter;
 import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
+import com.blackducksoftware.common.net.Hostname;
 import com.blackducksoftware.common.value.ProductList;
-import com.google.common.base.StandardSystemProperty;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteSink;
 import com.google.common.io.ByteSource;
@@ -59,7 +60,7 @@ public class ConcatenateTool extends Tool {
     private List<ByteSource> inputs = new ArrayList<>();
 
     // TODO Allow the ID to customized
-    private Optional<String> id = Optional.empty();
+    private Optional<String> identifierOverride = Optional.empty();
 
     public ConcatenateTool(@Nullable String name) {
         super(name);
@@ -78,8 +79,8 @@ public class ConcatenateTool extends Tool {
         inputs.add(Objects.requireNonNull(input));
     }
 
-    public void setId(@Nullable String id) {
-        this.id = Optional.ofNullable(id);
+    public void setIdentifierOverride(@Nullable String identifierOverride) {
+        this.identifierOverride = Optional.ofNullable(identifierOverride);
     }
 
     @Override
@@ -111,26 +112,34 @@ public class ConcatenateTool extends Tool {
         RxJavaBdioDocument document = new RxJavaBdioDocument(new BdioOptions.Builder().build());
         StreamSupplier out = new BdioWriter.BdioFile(output.openStream());
 
-        BdioMetadata metadata = new BdioMetadata();
-        metadata.id(id.orElseGet(BdioObject::randomId)); // TODO Instead should we take the first ID?
-        metadata.publisher(ProductList.of(getProduct()));
-        metadata.creationDateTime(ZonedDateTime.now());
-        metadata.creator(StandardSystemProperty.USER_NAME.value());
-
         // Read all the configured inputs into a single sequence of entries
         Flowable<InputStream> data = Flowable.fromIterable(inputs).map(ByteSource::openStream);
 
         // Only collect limited entries for metadata if possible
-        document.metadata(data.flatMap(in -> document.read(in).takeUntil((Predicate<Object>) BdioDocument::needsMoreMetadata)))
-                .subscribe(m -> combineMetadata(metadata, m))
-                .isDisposed();
+        BdioMetadata metadata = document.metadata(data.flatMap(in -> document.read(in).takeUntil((Predicate<Object>) BdioDocument::needsMoreMetadata)))
+                .blockingSingle(new BdioMetadata());
+        completeMetadata(metadata);
 
         // Write the all the entries back out using the new metadata
         data.flatMap(document::read).subscribe(document.write(metadata, out));
     }
 
-    private void combineMetadata(BdioMetadata catMetadata, BdioMetadata otherMetadata) {
-        // TODO Merge other into cat (can't use BdioMetadata.merge because of @id conflicts)
+    private void completeMetadata(BdioMetadata metadata) {
+        // Generate metadata specific to the operation we just performed
+        BdioMetadata catMetadata = new BdioMetadata();
+        catMetadata.creator(USER_NAME.value(), Hostname.get());
+        catMetadata.creationDateTime(ZonedDateTime.now());
+        catMetadata.publisher(ProductList.of(getProduct()));
+
+        // Cross merge so we don't loose anything
+        catMetadata.merge(metadata);
+        metadata.merge(catMetadata);
+
+        // Ensure we have an identifier
+        identifierOverride.ifPresent(metadata::id);
+        if (metadata.id() == null) {
+            metadata.id(BdioObject.randomId());
+        }
     }
 
 }

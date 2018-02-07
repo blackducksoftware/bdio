@@ -15,8 +15,11 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static com.blackducksoftware.common.base.ExtraStrings.ensureDelimiter;
 import static com.blackducksoftware.common.base.ExtraStrings.ensurePrefix;
+import static com.blackducksoftware.common.base.ExtraStrings.splitOnFirst;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.base.Strings.nullToEmpty;
 
 import java.time.ZonedDateTime;
@@ -127,7 +130,7 @@ public final class BdioMetadata extends BdioObject {
         // Merge properties
         other.forEach((key, value) -> {
             // TODO Keep the first occurrence of the creation time instead of the last?
-            // TODO Allow creator (username) to be multi-valued instead of overwriting?
+            // TODO Merge creator username/hostname if one is missing
             if (key.equals(JsonLdConsts.ID)) {
                 checkArgument(value instanceof String, "identifier must be mapped to a string");
                 if (id() == null) {
@@ -143,15 +146,27 @@ public final class BdioMetadata extends BdioObject {
                     throw new IllegalArgumentException("identifier mismatch: " + value + " (was expecting " + id() + ")");
                 }
             } else if (key.equals(Bdio.DataProperty.publisher.toString())) {
-                Object producer = get(Bdio.DataProperty.publisher.toString());
+                Object producer = get(key);
                 if (producer != null) {
                     // Merges to create new producer
                     ProductList.Builder builder = new ProductList.Builder();
-                    ((ProductList) mapper().fromFieldValue(key, producer)).forEach(builder::addProduct);
-                    ((ProductList) mapper().fromFieldValue(key, value)).forEach(builder::addProduct);
+                    ((ProductList) mapper().fromFieldValue(key, producer)).forEach(builder::mergeProduct);
+                    ((ProductList) mapper().fromFieldValue(key, value)).forEach(builder::mergeProduct);
                     putData(Bdio.DataProperty.publisher, builder.build());
                 } else {
                     // Establishes a new producer
+                    put(key, value);
+                }
+            } else if (key.equals(Bdio.DataProperty.creator.toString())) {
+                Object creator = get(key);
+                if (creator != null) {
+                    // Merges to create a new creator
+                    put(key, splitOnFirst((String) mapper().fromFieldValue(key, creator), '@',
+                            (user1, host1) -> splitOnFirst((String) mapper().fromFieldValue(key, value), '@', (user2, host2) -> {
+                                return ensureDelimiter(isNullOrEmpty(user1) ? user2 : user1, "@", isNullOrEmpty(host1) ? host2 : host1);
+                            })));
+                } else {
+                    // Establishes a new creator
                     put(key, value);
                 }
             } else {
