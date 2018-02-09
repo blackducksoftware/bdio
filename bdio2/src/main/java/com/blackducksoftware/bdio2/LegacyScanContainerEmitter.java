@@ -15,6 +15,9 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static com.blackducksoftware.bdio2.LegacyUtilities.scanContainerObjectMapper;
+import static com.blackducksoftware.bdio2.LegacyUtilities.toFileUri;
+import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.toList;
 
 import java.io.IOException;
@@ -47,9 +50,6 @@ import com.blackducksoftware.common.value.Product;
 import com.blackducksoftware.common.value.ProductList;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -71,6 +71,10 @@ class LegacyScanContainerEmitter implements Emitter {
         private static final String TYPE_ARCHIVE = "ARCHIVE";
 
         private static final String TYPE_FILE = "FILE";
+
+        private static final String TYPE_PLACEHOLDER = "PLACEHOLDER";
+
+        private static final String TYPE_DECLARED_COMPONENT = "DECLARED_COMPONENT";
 
         private static final String SIGNATURES_SHA1 = "FILE_SHA1";
 
@@ -125,6 +129,51 @@ class LegacyScanContainerEmitter implements Emitter {
             this.type = type;
         }
 
+        /**
+         * Returns the BDIO file system type given the legacy file type.
+         */
+        @Nullable
+        public String fileSystemType() {
+            if (type == null) {
+                return null;
+            }
+
+            switch (type) {
+            case TYPE_FILE:
+                if (signatures.containsKey(SIGNATURES_CLEAN_SHA1)) {
+                    // We only collected clean SHA-1 on text files
+                    return Bdio.FileSystemType.REGULAR_TEXT.toString();
+                } else {
+                    return Bdio.FileSystemType.REGULAR.toString();
+                }
+            case TYPE_ARCHIVE:
+                return Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString();
+            case TYPE_DIRECTORY:
+                return Bdio.FileSystemType.DIRECTORY.toString();
+            case TYPE_PLACEHOLDER:
+            case TYPE_DECLARED_COMPONENT:
+                // This is a real edge case
+                return null;
+            default:
+                throw new IllegalArgumentException("invalid file type: " + type);
+            }
+        }
+
+        /**
+         * Returns the BDIO fingerprint algorithm name given the legacy signature type.
+         */
+        public static String algorithmName(String signatureType) {
+            switch (signatureType) {
+            case SIGNATURES_SHA1:
+                return "sha1";
+            case SIGNATURES_MD5:
+                return "md5";
+            case SIGNATURES_CLEAN_SHA1:
+                return "sha1-ascii";
+            default:
+                return "unknown";
+            }
+        }
     }
 
     /**
@@ -216,50 +265,19 @@ class LegacyScanContainerEmitter implements Emitter {
         private File file(LegacyScanNode scanNode) {
             File bdioFile = new File(toFileUri(hostName, baseDir, "scanNode-" + scanNode.id))
                     .path(path(this, scanNode))
-                    .fileSystemType(fileSystemType(scanNode.type, scanNode.signatures.containsKey(LegacyScanNode.SIGNATURES_CLEAN_SHA1)));
+                    .fileSystemType(scanNode.fileSystemType());
             if (scanNode.type == null
                     || scanNode.type.equals(LegacyScanNode.TYPE_FILE)
                     || scanNode.type.equals(LegacyScanNode.TYPE_ARCHIVE)) {
                 bdioFile.byteCount(scanNode.size);
-                bdioFile.fingerprint(emptyToNull(scanNode.signatures.entrySet().stream()
+                bdioFile.fingerprint(scanNode.signatures.entrySet().stream()
                         .map(e -> new Digest.Builder()
-                                .algorithm(algorithmName(e.getKey()))
+                                .algorithm(LegacyScanNode.algorithmName(e.getKey()))
                                 .value(e.getValue())
                                 .build())
-                        .collect(toList())));
+                        .collect(collectingAndThen(toList(), l -> l.isEmpty() ? null : l)));
             }
             return bdioFile;
-        }
-
-        private static <T> List<T> emptyToNull(List<T> input) {
-            return input.isEmpty() ? null : input;
-        }
-
-    }
-
-    /**
-     * This module makes the configured object mapper behave like the one used to parse legacy scan container objects.
-     */
-    public static final class LegacyScanContainerModule extends Module {
-        public static final LegacyScanContainerModule INSTANCE = new LegacyScanContainerModule();
-
-        private LegacyScanContainerModule() {
-        }
-
-        @Override
-        public String getModuleName() {
-            return getClass().getSimpleName();
-        }
-
-        @Override
-        public com.fasterxml.jackson.core.Version version() {
-            return com.fasterxml.jackson.core.Version.unknownVersion();
-        }
-
-        @Override
-        public void setupModule(SetupContext context) {
-            ((ObjectMapper) context.getOwner()).enable(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE);
-            ((ObjectMapper) context.getOwner()).disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         }
     }
 
@@ -272,9 +290,7 @@ class LegacyScanContainerEmitter implements Emitter {
         this.entries = Stream.of(inputStream)
                 .map(in -> {
                     try {
-                        return new ObjectMapper()
-                                .registerModule(LegacyScanContainerModule.INSTANCE)
-                                .readValue(in, LegacyScanContainer.class);
+                        return scanContainerObjectMapper().readValue(in, LegacyScanContainer.class);
                     } catch (IOException e) {
                         throw new UncheckedIOException(e);
                     }
@@ -316,17 +332,6 @@ class LegacyScanContainerEmitter implements Emitter {
         return Stream.concat(
                 Stream.of(metadata.asNamedGraph()),
                 graphNodes.map(graph -> metadata.asNamedGraph(graph, JsonLdConsts.ID)));
-    }
-
-    /**
-     * Attempt to construct a file URI using the supplied parts, falling back to the base directory.
-     */
-    private static String toFileUri(@Nullable String hostName, @Nullable String baseDir, @Nullable String fragment) {
-        try {
-            return new URI("file", hostName, baseDir, fragment).toString();
-        } catch (URISyntaxException e) {
-            return fragment != null ? baseDir + '#' + fragment : baseDir;
-        }
     }
 
     /**
@@ -380,52 +385,6 @@ class LegacyScanContainerEmitter implements Emitter {
             parent = scanContainer.scanNodeList.get(parent.parentId);
         }
         return result;
-    }
-
-    /**
-     * Returns the BDIO file system type given the legacy file type.
-     */
-    @Nullable
-    private static String fileSystemType(@Nullable String type, boolean hasCleanSha1) {
-        if (type == null) {
-            return null;
-        }
-
-        switch (type) {
-        case LegacyScanNode.TYPE_FILE:
-            if (hasCleanSha1) {
-                // We only collected clean SHA-1 on text files
-                return Bdio.FileSystemType.REGULAR_TEXT.toString();
-            } else {
-                return Bdio.FileSystemType.REGULAR.toString();
-            }
-        case LegacyScanNode.TYPE_ARCHIVE:
-            return Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString();
-        case LegacyScanNode.TYPE_DIRECTORY:
-            return Bdio.FileSystemType.DIRECTORY.toString();
-        case "PLACEHOLDER":
-        case "DECLARED_COMPONENT":
-            // This is a real edge case
-            return null;
-        default:
-            throw new IllegalArgumentException("invalid file type: " + type);
-        }
-    }
-
-    /**
-     * Returns the BDIO fingerprint algorithm name given the legacy signature type.
-     */
-    private static String algorithmName(String signatureType) {
-        switch (signatureType) {
-        case LegacyScanNode.SIGNATURES_SHA1:
-            return "sha1";
-        case LegacyScanNode.SIGNATURES_MD5:
-            return "md5";
-        case LegacyScanNode.SIGNATURES_CLEAN_SHA1:
-            return "sha1-ascii";
-        default:
-            return "unknown";
-        }
     }
 
 }

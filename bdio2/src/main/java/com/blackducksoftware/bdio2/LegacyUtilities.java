@@ -17,6 +17,8 @@ package com.blackducksoftware.bdio2;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +36,9 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.model.Dependency;
 import com.blackducksoftware.bdio2.model.File;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Ascii;
 import com.google.common.collect.Multimap;
@@ -46,6 +51,32 @@ import com.google.common.collect.Multimap;
 class LegacyUtilities {
 
     /**
+     * This module makes the configured object mapper behave like the one used to parse legacy scan container objects.
+     */
+    public static final class LegacyScanContainerModule extends Module {
+        public static final LegacyScanContainerModule INSTANCE = new LegacyScanContainerModule();
+
+        private LegacyScanContainerModule() {
+        }
+
+        @Override
+        public String getModuleName() {
+            return getClass().getSimpleName();
+        }
+
+        @Override
+        public com.fasterxml.jackson.core.Version version() {
+            return com.fasterxml.jackson.core.Version.unknownVersion();
+        }
+
+        @Override
+        public void setupModule(SetupContext context) {
+            ((ObjectMapper) context.getOwner()).enable(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE);
+            ((ObjectMapper) context.getOwner()).disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        }
+    }
+
+    /**
      * Estimation of the size in bytes of each node translated from a legacy format. This estimate is based largely on
      * Protex BOM Tool output where each legacy "file" node only contains a few (less then 3) properties.
      * <p>
@@ -53,6 +84,18 @@ class LegacyUtilities {
      * single array list expansion.
      */
     private static final int ESTIMATED_NODE_SIZE = 400;
+
+    /**
+     * Object mapper used for parsing legacy scan container objects.
+     */
+    private static final ObjectMapper SCAN_CONTAINER_OBJECT_MAPPER = new ObjectMapper().registerModule(LegacyScanContainerModule.INSTANCE);
+
+    /**
+     * Returns a Jackson object mapper configured to parse legacy scan container objects.
+     */
+    public static ObjectMapper scanContainerObjectMapper() {
+        return SCAN_CONTAINER_OBJECT_MAPPER;
+    }
 
     /**
      * Provides an estimate for the number of nodes that will fit in an entry.
@@ -67,7 +110,7 @@ class LegacyUtilities {
      */
     public static Stream<List<Map<String, Object>>> partitionNodes(BdioMetadata metadata, Stream<Map<String, Object>> nodes) {
         int maxSize = Bdio.MAX_ENTRY_SIZE - estimateEntryOverhead(metadata);
-        int averageSize = Bdio.MAX_ENTRY_SIZE / ESTIMATED_NODE_SIZE; // TODO Is this right?
+        int averageSize = Bdio.MAX_ENTRY_SIZE / ESTIMATED_NODE_SIZE;
         return StreamSupport.stream(partition(nodes.spliterator(), averageSize, maxSize, LegacyUtilities::estimateSize), false);
     }
 
@@ -108,14 +151,6 @@ class LegacyUtilities {
         return 20 + estimateSize(metadata.id());
     }
 
-    @Nullable
-    private static String dependencyIdentifier(ValueObjectMapper valueObjectMapper, Dependency dep) {
-        Stream<Object> dependsOn = valueObjectMapper.fromReferenceValueObject(dep.get(Bdio.ObjectProperty.dependsOn.toString()));
-        Stream<Object> license = valueObjectMapper.fromReferenceValueObject(dep.get(Bdio.ObjectProperty.license.toString()));
-        byte[] name = Stream.concat(dependsOn, license).map(Object::toString).collect(Collectors.joining("><", "<", ">")).getBytes(UTF_8);
-        return "urn:uuid:" + UUID.nameUUIDFromBytes(name);
-    }
-
     /**
      * Helper to merge a dependency into a map of dependencies. This is used to reduce the overall number of dependency
      * objects created for similar declarations.
@@ -152,59 +187,72 @@ class LegacyUtilities {
      * Guesses a scheme based on a file name. We need to attempt this mapping because the original scheme is lost in the
      * legacy encoding, our only chance of reconstructing it is through extension matching.
      */
-    public static String guessScheme(String filename) {
-        // Scan backwards through the file name trying to match extensions (case-insensitively)
-        // NOTE: we do not differentiate the extension from the base name, e.g. "zip.foo" WILL match as "zip"
-        int start, end;
-        start = end = filename.length();
-        while (start > 0) {
-            char c = filename.charAt(--start);
-            if (c == '/') {
-                // We've hit the end of the filename
-                break;
-            } else if (c == '.') {
-                switch (Ascii.toLowerCase(filename.substring(start + 1, end))) {
-                // This list was taken from the old-old legacy code which used to only match extensions
-                case "zip":
-                case "bz":
-                case "z":
-                case "nupg":
-                case "xpi":
-                case "egg":
-                case "jar":
-                case "war":
-                case "rar":
-                case "apk":
-                case "ear":
-                case "car":
-                case "nbm":
-                    return "zip";
-                case "rpm":
-                    return "rpm";
-                case "tar":
-                case "tgz":
-                case "txz":
-                case "tbz":
-                case "tbz2":
-                    return "tar";
-                case "a":
-                case "ar":
-                case "deb":
-                case "lib":
-                    return "ar";
-                case "arj":
-                    return "arj";
-                case "7z":
-                    return "sevenZ";
-                default:
-                    // Keep looking
-                    end = start;
+    public static String guessScheme(@Nullable String filename) {
+        if (filename != null) {
+            // Scan backwards through the file name trying to match extensions (case-insensitively)
+            // NOTE: we do not differentiate the extension from the base name, e.g. "zip.foo" WILL match as "zip"
+            int start, end;
+            start = end = filename.length();
+            while (start > 0) {
+                char c = filename.charAt(--start);
+                if (c == '/') {
+                    // We've hit the end of the filename
+                    break;
+                } else if (c == '.') {
+                    switch (Ascii.toLowerCase(filename.substring(start + 1, end))) {
+                    // This list was taken from the old-old legacy code which used to only match extensions
+                    case "zip":
+                    case "bz":
+                    case "z":
+                    case "nupg":
+                    case "xpi":
+                    case "egg":
+                    case "jar":
+                    case "war":
+                    case "rar":
+                    case "apk":
+                    case "ear":
+                    case "car":
+                    case "nbm":
+                        return "zip";
+                    case "rpm":
+                        return "rpm";
+                    case "tar":
+                    case "tgz":
+                    case "txz":
+                    case "tbz":
+                    case "tbz2":
+                        return "tar";
+                    case "a":
+                    case "ar":
+                    case "deb":
+                    case "lib":
+                        return "ar";
+                    case "arj":
+                        return "arj";
+                    case "7z":
+                        return "sevenZ";
+                    default:
+                        // Keep looking
+                        end = start;
+                    }
                 }
             }
         }
 
         // Hopefully this won't break anything downstream that is depending on a specific scheme...
         return "unknown";
+    }
+
+    /**
+     * Attempt to construct a file URI using the supplied parts, falling back to the base directory.
+     */
+    public static String toFileUri(@Nullable String hostName, @Nullable String baseDir, @Nullable String fragment) {
+        try {
+            return new URI("file", hostName, baseDir, fragment).toString();
+        } catch (URISyntaxException e) {
+            return fragment != null ? baseDir + '#' + fragment : baseDir;
+        }
     }
 
     /**
@@ -245,6 +293,14 @@ class LegacyUtilities {
                 }
             }
         };
+    }
+
+    @Nullable
+    private static String dependencyIdentifier(ValueObjectMapper valueObjectMapper, Dependency dep) {
+        Stream<Object> dependsOn = valueObjectMapper.fromReferenceValueObject(dep.get(Bdio.ObjectProperty.dependsOn.toString()));
+        Stream<Object> license = valueObjectMapper.fromReferenceValueObject(dep.get(Bdio.ObjectProperty.license.toString()));
+        byte[] name = Stream.concat(dependsOn, license).map(Object::toString).collect(Collectors.joining("><", "<", ">")).getBytes(UTF_8);
+        return "urn:uuid:" + UUID.nameUUIDFromBytes(name);
     }
 
 }
