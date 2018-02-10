@@ -15,16 +15,18 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static com.blackducksoftware.bdio2.LegacyUtilities.guessScheme;
+import static com.blackducksoftware.bdio2.LegacyUtilities.partitionNodes;
 import static com.blackducksoftware.bdio2.LegacyUtilities.scanContainerObjectMapper;
 import static com.blackducksoftware.bdio2.LegacyUtilities.toFileUri;
+import static com.blackducksoftware.common.base.ExtraStrings.ensureDelimiter;
+import static com.blackducksoftware.common.base.ExtraStrings.ensurePrefix;
 import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.toList;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayDeque;
@@ -43,7 +45,6 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.FileCollection;
 import com.blackducksoftware.bdio2.model.Project;
-import com.blackducksoftware.common.base.ExtraStrings;
 import com.blackducksoftware.common.value.Digest;
 import com.blackducksoftware.common.value.HID;
 import com.blackducksoftware.common.value.Product;
@@ -129,9 +130,17 @@ class LegacyScanContainerEmitter implements Emitter {
             this.type = type;
         }
 
-        /**
-         * Returns the BDIO file system type given the legacy file type.
-         */
+        @Override
+        public String toString() {
+            return "scanNode-" + id;
+        }
+
+        @Nullable
+        public String path() {
+            // New versions of the scan client include a BDIO 2 compatible definition of the path
+            return uri;
+        }
+
         @Nullable
         public String fileSystemType() {
             if (type == null) {
@@ -159,10 +168,28 @@ class LegacyScanContainerEmitter implements Emitter {
             }
         }
 
+        @Nullable
+        public Long byteCount() {
+            // Only report file sizes (if available) for files and archives
+            return type == null || type.equals(TYPE_FILE) || type.equals(TYPE_ARCHIVE) ? size : null;
+        }
+
+        @Nullable
+        public List<Digest> fingerprint() {
+            if (signatures.isEmpty()) {
+                return null;
+            }
+
+            // Be sure to return null instead of empty here because we don't want to serialize the empty list
+            return signatures.entrySet().stream()
+                    .map(e -> new Digest.Builder().algorithm(algorithmName(e.getKey())).value(e.getValue()).build())
+                    .collect(collectingAndThen(toList(), l -> l.isEmpty() ? null : l));
+        }
+
         /**
          * Returns the BDIO fingerprint algorithm name given the legacy signature type.
          */
-        public static String algorithmName(String signatureType) {
+        private static String algorithmName(String signatureType) {
             switch (signatureType) {
             case SIGNATURES_SHA1:
                 return "sha1";
@@ -229,7 +256,7 @@ class LegacyScanContainerEmitter implements Emitter {
             this.signatureVersion = signatureVersion;
         }
 
-        protected BdioMetadata metadata() {
+        public BdioMetadata metadata() {
             return new BdioMetadata()
                     .id(toFileUri(hostName, baseDir, null))
                     .name(name)
@@ -248,36 +275,46 @@ class LegacyScanContainerEmitter implements Emitter {
                             .build());
         }
 
-        protected Stream<Map<String, Object>> nodes() {
-            return Stream.concat(Stream.of(root()), scanNodeList.values().stream().map(this::file));
-        }
-
-        private Map<String, Object> root() {
-            String id = toFileUri(hostName, baseDir, "project");
+        public Map<String, Object> rootObject() {
+            String id = toFileUri(hostName, baseDir, "root");
             File base = scanNodeList.isEmpty() ? null : new File(toFileUri(hostName, baseDir, "scanNode-0"));
             if (project != null) {
-                return new Project(id).base(base).name(project).version(release);
+                return new Project(id)
+                        .name(project)
+                        .version(release)
+                        .base(base);
             } else {
-                return new FileCollection(id).base(base);
+                return new FileCollection(id)
+                        .base(base);
             }
         }
 
-        private File file(LegacyScanNode scanNode) {
-            File bdioFile = new File(toFileUri(hostName, baseDir, "scanNode-" + scanNode.id))
-                    .path(path(this, scanNode))
-                    .fileSystemType(scanNode.fileSystemType());
-            if (scanNode.type == null
-                    || scanNode.type.equals(LegacyScanNode.TYPE_FILE)
-                    || scanNode.type.equals(LegacyScanNode.TYPE_ARCHIVE)) {
-                bdioFile.byteCount(scanNode.size);
-                bdioFile.fingerprint(scanNode.signatures.entrySet().stream()
-                        .map(e -> new Digest.Builder()
-                                .algorithm(LegacyScanNode.algorithmName(e.getKey()))
-                                .value(e.getValue())
-                                .build())
-                        .collect(collectingAndThen(toList(), l -> l.isEmpty() ? null : l)));
+        public Stream<Map<String, Object>> files() {
+            return scanNodeList.values().stream().map(scanNode -> new File(toFileUri(hostName, baseDir, scanNode.toString()))
+                    .fileSystemType(scanNode.fileSystemType())
+                    .path(computePath(scanNode))
+                    .byteCount(scanNode.byteCount())
+                    .fingerprint(scanNode.fingerprint()));
+        }
+
+        private String computePath(LegacyScanNode scanNode) {
+            String path = scanNode.path();
+            if (path == null) {
+                // Recreate the HID using the ancestor archives
+                Deque<LegacyScanNode> scanNodes = new ArrayDeque<>();
+                while (scanNode != null) {
+                    if (Objects.equals(scanNode.type, LegacyScanNode.TYPE_ARCHIVE) || scanNodes.isEmpty()) {
+                        scanNodes.push(scanNode);
+                    }
+                    scanNode = scanNodeList.get(scanNode.parentId);
+                }
+
+                HID.Builder builder = new HID.Builder().push("file", ensureDelimiter(baseDir, "/", scanNodes.poll().path));
+                scanNodes.forEach(node -> builder.push(guessScheme(builder.peekFilename()),
+                        ensurePrefix("/", Objects.equals(node.name, "/") ? "" : node.path)));
+                path = builder.build().toUriString();
             }
-            return bdioFile;
+            return path;
         }
     }
 
@@ -288,13 +325,7 @@ class LegacyScanContainerEmitter implements Emitter {
 
     public LegacyScanContainerEmitter(InputStream inputStream) {
         this.entries = Stream.of(inputStream)
-                .map(in -> {
-                    try {
-                        return scanContainerObjectMapper().readValue(in, LegacyScanContainer.class);
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                })
+                .map(LegacyScanContainerEmitter::parseScanContainer)
                 .flatMap(LegacyScanContainerEmitter::toBdioEntries)
                 .spliterator();
     }
@@ -321,70 +352,26 @@ class LegacyScanContainerEmitter implements Emitter {
     }
 
     /**
+     * Parses a legacy scan container object from the supplied input stream.
+     */
+    private static LegacyScanContainer parseScanContainer(InputStream in) {
+        try {
+            return scanContainerObjectMapper().readValue(in, LegacyScanContainer.class);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
      * Converts a scan container in BDIO entries. The first entry in the stream will be a "header" entry, the remaining
      * entries will produced as necessary to stay below the serialization size limit.
      */
     private static Stream<Object> toBdioEntries(LegacyScanContainer scanContainer) {
-        // Extract the metadata once, we will reuse it for every entry
         BdioMetadata metadata = scanContainer.metadata();
-
-        Stream<List<Map<String, Object>>> graphNodes = LegacyUtilities.partitionNodes(metadata, scanContainer.nodes());
+        Stream<Map<String, Object>> nodes = Stream.concat(Stream.of(scanContainer.rootObject()), scanContainer.files());
         return Stream.concat(
                 Stream.of(metadata.asNamedGraph()),
-                graphNodes.map(graph -> metadata.asNamedGraph(graph, JsonLdConsts.ID)));
-    }
-
-    /**
-     * Attempts to reconstruct a HID from the supplied scan node. The archive type is lost in the legacy
-     * representation.
-     */
-    private static String path(LegacyScanContainer scanContainer, LegacyScanNode scanNode) {
-        if (scanNode.uri != null) {
-            // The URI is already computed, don't do any work
-            return scanNode.uri;
-        }
-
-        try {
-            String scheme = "file";
-            String ssp = null;
-            String fragment = null;
-            for (LegacyScanNode node : listArchives(scanContainer, scanNode)) {
-                // TODO Eliminating intermediate URI construction would be a significant optimization
-                if (ssp == null) {
-                    // Include the base directory so the hierarchy is preserved up through the base file node
-                    String path = ExtraStrings.ensureDelimiter(scanContainer.baseDir, "/", node.path);
-                    ssp = new URI(scheme, null, path, null).getRawSchemeSpecificPart();
-                } else {
-                    // Nest the scheme specific part
-                    ssp = HID.from(new URI(scheme, ssp, fragment)).toUriString();
-                    fragment = ExtraStrings.ensurePrefix("/", Objects.equals(node.name, "/") ? "" : node.path);
-                    scheme = LegacyUtilities.guessScheme(ssp);
-                }
-            }
-            return HID.from(new URI(scheme, ssp, fragment)).toUriString();
-        } catch (URISyntaxException e) {
-            throw new IllegalArgumentException(e);
-        }
-    }
-
-    /**
-     * Returns a sequence of nesting archive nodes leading up to (and including) the supplied scan node.
-     */
-    private static Iterable<LegacyScanNode> listArchives(LegacyScanContainer scanContainer, LegacyScanNode scanNode) {
-        Deque<LegacyScanNode> result = new ArrayDeque<>();
-
-        // Follow the scan nodes up to root
-        LegacyScanNode parent = scanNode;
-        while (parent != null) {
-            // Add the parent (to the front) if the type is archive
-            if (Objects.equals(parent.type, LegacyScanNode.TYPE_ARCHIVE) || result.isEmpty()) {
-                result.addFirst(parent);
-            }
-
-            // This is why we store the scan nodes in a map
-            parent = scanContainer.scanNodeList.get(parent.parentId);
-        }
-        return result;
+                partitionNodes(metadata, nodes).map(graph -> metadata.asNamedGraph(graph, JsonLdConsts.ID)));
     }
 
 }

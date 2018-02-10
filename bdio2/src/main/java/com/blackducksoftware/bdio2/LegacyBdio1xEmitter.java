@@ -24,7 +24,6 @@ import static com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
@@ -64,6 +63,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.io.IOContext;
 import com.fasterxml.jackson.core.util.JsonParserDelegate;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Joiner;
@@ -80,7 +80,7 @@ import com.google.common.net.UrlEscapers;
  *
  * @author jgustie
  */
-class LegacyBdio1xEmitter implements Emitter {
+class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
 
     /**
      * The BDIO 1.x {@code @vocab}.
@@ -273,6 +273,18 @@ class LegacyBdio1xEmitter implements Emitter {
     }
 
     /**
+     * Factory instance to create the specialized JSON parser.
+     */
+    private static class Bdio1JsonFactory extends JsonFactory {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        protected JsonParser _createParser(InputStream in, IOContext ctxt) throws IOException {
+            return new Bdio1JsonParser(super._createParser(in, ctxt));
+        }
+    }
+
+    /**
      * Extends the standard JSON parser with some useful behavior for parsing BDIO 1.x JSON.
      */
     private static class Bdio1JsonParser extends JsonParserDelegate {
@@ -356,17 +368,6 @@ class LegacyBdio1xEmitter implements Emitter {
     }
 
     /**
-     * Single use reference to the input stream. Used so we can defer touching the stream until we have an error handler
-     * that we can report the error to.
-     */
-    private final AtomicReference<InputStream> inputStream;
-
-    /**
-     * The parser used to stream in the JSON.
-     */
-    private Bdio1JsonParser jp;
-
-    /**
      * The logic for computing additional BDIO 2.x nodes.
      */
     private final NodeComputer computedNodes = new NodeComputer();
@@ -392,59 +393,35 @@ class LegacyBdio1xEmitter implements Emitter {
     private BdioMetadata metadata;
 
     public LegacyBdio1xEmitter(InputStream inputStream) {
-        this.inputStream = new AtomicReference<>(inputStream);
+        super(new Bdio1JsonFactory(), inputStream);
     }
 
     @Override
-    public void emit(Consumer<Object> onNext, Consumer<Throwable> onError, Runnable onComplete) {
-        Objects.requireNonNull(onNext);
-        Objects.requireNonNull(onError);
-        Objects.requireNonNull(onComplete);
-        try {
-            if (jp == null) {
-                InputStream in = inputStream.getAndSet(null);
-                if (in != null) {
-                    jp = Bdio1JsonParser.create(new JsonFactory().createParser(in));
+    protected Object next(JsonParser jsonParser) throws IOException {
+        Bdio1JsonParser jp = Bdio1JsonParser.create(jsonParser);
+        if (metadata == null) {
+            if (jp.nextToken() != null) {
+                if (!jp.isExpectedStartArrayToken()) {
+                    throw new IOException("expected start array:  " + jp.getCurrentToken());
                 }
+
+                parseMetadata(jp);
+                return metadata.asNamedGraph();
             }
-            if (metadata == null) {
-                if (jp.nextToken() != null) {
-                    if (!jp.isExpectedStartArrayToken()) {
-                        throw new IOException("expected start array:  " + jp.getCurrentToken());
-                    }
-
-                    parseMetadata();
-                    onNext.accept(metadata.asNamedGraph());
-                    return;
-                }
-            } else {
-                List<Map<String, Object>> graph = parseGraph();
-                if (!graph.isEmpty()) {
-                    onNext.accept(metadata.asNamedGraph(graph, JsonLdConsts.ID));
-                    return;
-                }
+        } else {
+            List<Map<String, Object>> graph = parseGraph(jp);
+            if (!graph.isEmpty()) {
+                return metadata.asNamedGraph(graph, JsonLdConsts.ID);
             }
-
-            onComplete.run();
-        } catch (IOException e) {
-            onError.accept(e);
         }
-    }
-
-    @Override
-    public void dispose() {
-        try {
-            jp.close();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        return null;
     }
 
     /**
      * Parses the metadata from the stream by reading nodes until the {@code BillOfMaterials} node is encountered.
      */
-    private void parseMetadata() throws IOException {
-        while (readNode()) {
+    private void parseMetadata(Bdio1JsonParser jp) throws IOException {
+        while (readNode(jp)) {
             if (currentType().equals("BillOfMaterials")) {
                 // Convert the BillOfMaterials node into BDIO metadata
                 metadata = new BdioMetadata().id(currentId());
@@ -465,13 +442,13 @@ class LegacyBdio1xEmitter implements Emitter {
     /**
      * Parses a graph by reading enough nodes to fill a BDIO entry.
      */
-    private List<Map<String, Object>> parseGraph() throws IOException {
+    private List<Map<String, Object>> parseGraph(Bdio1JsonParser jp) throws IOException {
         List<Map<String, Object>> graph = new ArrayList<>(LegacyUtilities.averageEntryNodeCount());
-        int size = fillGraphNodes(graph, LegacyUtilities.estimateEntryOverhead(metadata));
+        int size = fillGraphNodes(jp, graph, LegacyUtilities.estimateEntryOverhead(metadata));
 
         // If the graph is empty, see if there are any final computed nodes we need to return
         if (graph.isEmpty() && computedNodes.finish()) {
-            fillGraphNodes(graph, size);
+            fillGraphNodes(jp, graph, size);
         }
 
         return graph;
@@ -480,7 +457,7 @@ class LegacyBdio1xEmitter implements Emitter {
     /**
      * Attempts to fill the supplied list with nodes.
      */
-    private int fillGraphNodes(List<Map<String, Object>> graph, int size) throws IOException {
+    private int fillGraphNodes(Bdio1JsonParser jp, List<Map<String, Object>> graph, int size) throws IOException {
         AtomicInteger estimatedSize = new AtomicInteger(size);
         Consumer<Map<String, Object>> addToGraph = node -> {
             if (estimatedSize.addAndGet(LegacyUtilities.estimateSize(node)) < Bdio.MAX_ENTRY_SIZE) {
@@ -501,7 +478,7 @@ class LegacyBdio1xEmitter implements Emitter {
                 if (bufferedNode != null) {
                     currentNode.clear();
                     currentNode.putAll(bufferedNode);
-                } else if (!readNode()) {
+                } else if (!readNode(jp)) {
                     break;
                 }
 
@@ -516,7 +493,7 @@ class LegacyBdio1xEmitter implements Emitter {
     /**
      * Populates the {@code currentNode} from the JSON stream.
      */
-    private boolean readNode() throws IOException {
+    private boolean readNode(Bdio1JsonParser jp) throws IOException {
         currentNode.clear();
         if (jp.nextToken() == JsonToken.START_OBJECT) {
             while (jp.nextToken() == JsonToken.FIELD_NAME) {
