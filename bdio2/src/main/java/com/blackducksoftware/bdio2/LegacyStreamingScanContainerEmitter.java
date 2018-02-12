@@ -15,7 +15,33 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static com.blackducksoftware.bdio2.LegacyUtilities.averageEntryNodeCount;
+import static com.blackducksoftware.bdio2.LegacyUtilities.estimateEntryOverhead;
+import static com.blackducksoftware.bdio2.LegacyUtilities.estimateSize;
+import static com.blackducksoftware.bdio2.LegacyUtilities.scanContainerObjectMapper;
+import static com.blackducksoftware.bdio2.LegacyUtilities.toFileUri;
+
+import java.io.IOException;
 import java.io.InputStream;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Nullable;
+
+import com.blackducksoftware.bdio2.LegacyScanContainerEmitter.LegacyScanNode;
+import com.blackducksoftware.bdio2.model.File;
+import com.blackducksoftware.bdio2.model.FileCollection;
+import com.blackducksoftware.bdio2.model.Project;
+import com.blackducksoftware.common.value.Product;
+import com.blackducksoftware.common.value.ProductList;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.github.jsonldjava.core.JsonLdConsts;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * An emitter that leverages more recent changes to the serialization order of scan container fields to stream the data
@@ -23,12 +49,183 @@ import java.io.InputStream;
  *
  * @author jgustie
  */
-class LegacyStreamingScanContainerEmitter extends LegacyScanContainerEmitter {
+class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
 
-    // TODO Until this gets implemented, detect the streamable data and just re-use the same implementation
+    private BdioMetadata metadata;
+
+    private String hostName;
+
+    private String baseDir;
+
+    private List<Map<String, Object>> graph;
+
+    private int estimatedSize;
 
     public LegacyStreamingScanContainerEmitter(InputStream inputStream) {
-        super(inputStream);
+        super(scanContainerObjectMapper().getFactory(), inputStream);
+    }
+
+    @Override
+    protected Object next(JsonParser jp) throws IOException {
+        if (metadata == null) {
+            if (jp.nextToken() != null) {
+                if (!jp.isExpectedStartObjectToken()) {
+                    throw new IOException("expected start object:  " + jp.getCurrentToken());
+                }
+
+                parseMetadata(jp);
+                return metadata.asNamedGraph();
+            }
+        } else if (graph != null) {
+            List<Map<String, Object>> graph = parseGraph(jp);
+            if (!graph.isEmpty()) {
+                return metadata.asNamedGraph(graph, JsonLdConsts.ID);
+            }
+        }
+        return null;
+    }
+
+    private void parseMetadata(JsonParser jp) throws IOException {
+        metadata = new BdioMetadata();
+        String project = null;
+        String release = null;
+        String fieldName = jp.nextFieldName();
+        while (fieldName != null) {
+            switch (fieldName) {
+            case "scanNodeList":
+                finishMetadata(jp, metadata, project, release);
+                return;
+            case "hostName":
+                hostName = jp.nextTextValue();
+                metadata.creator(null, hostName);
+                break;
+            case "baseDir":
+                baseDir = jp.nextTextValue();
+                break;
+            case "scannerVersion":
+                metadata.merge(publisher(scanClient().version(jp.nextTextValue()).build()));
+                break;
+            case "signatureVersion":
+                metadata.merge(publisher(scanClient().addCommentText("signature %s", jp.nextTextValue()).build()));
+                break;
+            case "name":
+                metadata.name(jp.nextTextValue());
+                break;
+            case "createdOn":
+                jp.nextToken();
+                metadata.creationDateTime(jp.readValueAs(Date.class).toInstant().atZone(ZoneOffset.UTC));
+                break;
+            case "project":
+                project = jp.nextTextValue();
+                break;
+            case "release":
+                release = jp.nextTextValue();
+                break;
+            default:
+                if (jp.nextToken().isStructStart()) {
+                    jp.skipChildren();
+                }
+                break;
+            }
+            fieldName = jp.nextFieldName();
+        }
+    }
+
+    private void finishMetadata(JsonParser jp, BdioMetadata metadata, @Nullable String project, @Nullable String release) throws IOException {
+        // Add the metadata identifier and product information
+        metadata.id(toFileUri(hostName, baseDir, null));
+        metadata.merge(publisher(new Product.Builder()
+                .simpleName(LegacyScanContainerEmitter.class)
+                .implementationVersion(LegacyScanContainerEmitter.class)
+                .build()));
+
+        // Make sure we are actually looking at a "list"
+        if (jp.nextToken() == null || !jp.isExpectedStartArrayToken()) {
+            throw new IOException("expected start array: " + jp.getCurrentToken());
+        }
+
+        // Do not define a base file if the scan node list is empty
+        File base = null;
+        if (jp.nextToken() != null && jp.isExpectedStartObjectToken()) {
+            base = new File(toFileUri(hostName, baseDir, "scanNode-0"));
+        }
+
+        // Add the root object to the graph
+        String rootId = toFileUri(hostName, baseDir, "root");
+        if (project != null) {
+            offer(new Project(rootId).name(project).version(release).base(base));
+        } else {
+            offer(new FileCollection(rootId).base(base));
+        }
+    }
+
+    private List<Map<String, Object>> parseGraph(JsonParser jp) throws IOException {
+        do {
+            if (jp.isExpectedStartObjectToken()) {
+                // Read a scan node and convert it into a BDIO file
+                LegacyScanNode scanNode = jp.readValueAs(LegacyScanNode.class);
+                File file = new File(toFileUri(hostName, baseDir, scanNode.toString()))
+                        .fileSystemType(scanNode.fileSystemType())
+                        .path(scanNode.path(baseDir, null))
+                        .byteCount(scanNode.byteCount())
+                        .fingerprint(scanNode.fingerprint());
+
+                if (!offer(file)) {
+                    // The entry is full, finish the current entry and start a new one by re-offering the file
+                    List<Map<String, Object>> result = finishEntry();
+                    offer(file);
+                    return result;
+                }
+            } else if (jp.hasToken(JsonToken.END_ARRAY)) {
+                // This is end of the scan node list, we can ignore the result of the file
+                return finishEntry();
+            }
+        } while (jp.nextToken() != null);
+
+        // We should hit the end of the array before we run out of tokens
+        throw new IOException("Unexpected end of stream");
+    }
+
+    /**
+     * Attempts to add the specified node to the current graph buffer. Returns {@code true} if the node was added,
+     * {@code false} if the buffer is full.
+     */
+    private boolean offer(Map<String, Object> node) {
+        // Create a new buffer to hold BDIO nodes
+        if (graph == null) {
+            graph = new ArrayList<>(averageEntryNodeCount());
+            estimatedSize = estimateEntryOverhead(metadata);
+        }
+
+        // Add the node if it fits
+        int nodeSize = estimateSize(node);
+        if (estimatedSize + nodeSize < Bdio.MAX_ENTRY_SIZE) {
+            estimatedSize += nodeSize;
+            return graph.add(node);
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Resets and returns the current graph buffer.
+     */
+    private List<Map<String, Object>> finishEntry() {
+        if (graph != null && !graph.isEmpty()) {
+            List<Map<String, Object>> result = graph;
+            graph = null;
+            return result;
+        } else {
+            return Collections.emptyList();
+        }
+    }
+
+    private static Map<String, Object> publisher(Product product) {
+        return ImmutableMap.of(Bdio.DataProperty.publisher.toString(), ProductList.of(product));
+    }
+
+    private static Product.Builder scanClient() {
+        return new Product.Builder().name("ScanClient");
     }
 
 }

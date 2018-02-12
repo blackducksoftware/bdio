@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Spliterator;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -52,6 +53,7 @@ import com.blackducksoftware.common.value.ProductList;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.jsonldjava.core.JsonLdConsts;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
@@ -135,10 +137,51 @@ class LegacyScanContainerEmitter implements Emitter {
             return "scanNode-" + id;
         }
 
-        @Nullable
-        public String path() {
-            // New versions of the scan client include a BDIO 2 compatible definition of the path
-            return uri;
+        public String path(String baseDir, @Nullable Function<Long, LegacyScanNode> lookup) {
+            if (uri != null) {
+                // New versions of the scan client include a BDIO 2 compatible definition of the path
+                return uri;
+            } else {
+                // We need to recreate the path, this will not be 100% accurate:
+                // 1. We need to resort to filename matching to determine the archive scheme
+                // 2. If we fall back to the archive URI, it is ambiguous if any path segment ended with "!"
+                HID.Builder builder = new HID.Builder();
+                String scheme = "file";
+                if (lookup != null) {
+                    // Recreate by looking up ancestor archive nodes
+                    Deque<LegacyScanNode> scanNodes = new ArrayDeque<>();
+                    LegacyScanNode scanNode = this;
+                    while (scanNode != null) {
+                        if (Objects.equals(scanNode.type, TYPE_ARCHIVE) || scanNodes.isEmpty()) {
+                            scanNodes.push(scanNode);
+                        }
+                        scanNode = lookup.apply(scanNode.parentId);
+                    }
+
+                    builder.push(scheme, ensureDelimiter(baseDir, "/", scanNodes.poll().path));
+                    scanNodes.forEach(node -> builder.push(guessScheme(builder.peekFilename()), node.nodePath()));
+                } else {
+                    // Recreate using the archive URI
+                    if (id == 0L) {
+                        builder.push(scheme, baseDir);
+                    } else if (archiveUri.isEmpty()) {
+                        builder.push(scheme, ensureDelimiter(baseDir, "/", path));
+                    } else {
+                        for (String archive : Splitter.on("!/").omitEmptyStrings().split(ensureDelimiter(baseDir, "/", archiveUri))) {
+                            builder.push(scheme, archive);
+                            scheme = LegacyUtilities.guessScheme(archive);
+                        }
+                        if (!Objects.equals(type, TYPE_ARCHIVE)) {
+                            builder.push(scheme, nodePath());
+                        }
+                    }
+                }
+                return builder.build().toUriString();
+            }
+        }
+
+        private String nodePath() {
+            return ensurePrefix("/", Objects.equals(name, "/") ? name : path);
         }
 
         @Nullable
@@ -292,29 +335,9 @@ class LegacyScanContainerEmitter implements Emitter {
         public Stream<Map<String, Object>> files() {
             return scanNodeList.values().stream().map(scanNode -> new File(toFileUri(hostName, baseDir, scanNode.toString()))
                     .fileSystemType(scanNode.fileSystemType())
-                    .path(computePath(scanNode))
+                    .path(scanNode.path(baseDir, scanNodeList::get))
                     .byteCount(scanNode.byteCount())
                     .fingerprint(scanNode.fingerprint()));
-        }
-
-        private String computePath(LegacyScanNode scanNode) {
-            String path = scanNode.path();
-            if (path == null) {
-                // Recreate the HID using the ancestor archives
-                Deque<LegacyScanNode> scanNodes = new ArrayDeque<>();
-                while (scanNode != null) {
-                    if (Objects.equals(scanNode.type, LegacyScanNode.TYPE_ARCHIVE) || scanNodes.isEmpty()) {
-                        scanNodes.push(scanNode);
-                    }
-                    scanNode = scanNodeList.get(scanNode.parentId);
-                }
-
-                HID.Builder builder = new HID.Builder().push("file", ensureDelimiter(baseDir, "/", scanNodes.poll().path));
-                scanNodes.forEach(node -> builder.push(guessScheme(builder.peekFilename()),
-                        ensurePrefix("/", Objects.equals(node.name, "/") ? "" : node.path)));
-                path = builder.build().toUriString();
-            }
-            return path;
         }
     }
 
