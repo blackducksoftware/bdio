@@ -36,7 +36,7 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.umlg.sqlg.structure.Topology;
+import org.umlg.sqlg.structure.topology.Topology;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.Bdio.Container;

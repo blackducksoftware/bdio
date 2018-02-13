@@ -15,9 +15,9 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import static org.umlg.sqlg.structure.IndexType.NON_UNIQUE;
 import static org.umlg.sqlg.structure.PropertyType.BOOLEAN;
 import static org.umlg.sqlg.structure.PropertyType.STRING;
+import static org.umlg.sqlg.structure.topology.IndexType.NON_UNIQUE;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,11 +33,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
-import org.umlg.sqlg.structure.PropertyColumn;
 import org.umlg.sqlg.structure.PropertyType;
 import org.umlg.sqlg.structure.SqlgGraph;
-import org.umlg.sqlg.structure.Topology;
-import org.umlg.sqlg.structure.VertexLabel;
+import org.umlg.sqlg.structure.topology.PropertyColumn;
+import org.umlg.sqlg.structure.topology.Topology;
+import org.umlg.sqlg.structure.topology.VertexLabel;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoMapper.GraphInitializer;

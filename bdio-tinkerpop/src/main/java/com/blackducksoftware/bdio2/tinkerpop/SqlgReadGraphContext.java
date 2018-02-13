@@ -25,7 +25,7 @@ import java.util.Objects;
 
 import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
-import org.umlg.sqlg.structure.Topology;
+import org.umlg.sqlg.structure.topology.Topology;
 
 /**
  * Specialization of the read graph context to use when the underlying graph is a Sqlg graph.

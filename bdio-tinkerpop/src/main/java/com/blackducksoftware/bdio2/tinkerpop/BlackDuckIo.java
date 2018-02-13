@@ -30,7 +30,6 @@ import javax.annotation.Nullable;
 import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.io.Io;
-import org.apache.tinkerpop.gremlin.structure.io.IoRegistry;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 
 /**
@@ -67,8 +66,7 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
             // The BDIO registry MUST be first as it provides the default schema and other graph specific features
             m.addRegistry(new BlackDuckIoRegistry(graph));
 
-            // These registrations are required by the TinkerPop API
-            builder.registry.ifPresent(m::addRegistry);
+            // This registration is required by the TinkerPop API
             builder.onMapper.ifPresent(c -> c.accept(m));
         };
     }
@@ -177,9 +175,6 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
 
     public final static class Builder implements Io.Builder<BlackDuckIo> {
 
-        @Deprecated
-        private Optional<IoRegistry> registry = Optional.empty();
-
         private Optional<Consumer<Mapper.Builder<?>>> onMapper = Optional.empty();
 
         private Optional<Graph> graph = Optional.empty();
@@ -196,13 +191,6 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
         public Builder() {
         }
 
-        @Deprecated
-        @Override
-        public Builder registry(@Nullable IoRegistry registry) {
-            this.registry = Optional.ofNullable(registry);
-            return this;
-        }
-
         // This exposes the API for calling "add registry" multiple times
         @SuppressWarnings("rawtypes")
         @Override
@@ -215,6 +203,11 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
         public Builder graph(Graph graph) {
             this.graph = Optional.of(graph);
             return this;
+        }
+
+        @Override
+        public <V> boolean requiresVersion(V version) {
+            return false;
         }
 
         @Override
