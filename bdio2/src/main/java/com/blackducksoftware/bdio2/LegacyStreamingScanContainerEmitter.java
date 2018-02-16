@@ -137,6 +137,7 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
         metadata.merge(publisher(new Product.Builder()
                 .simpleName(LegacyScanContainerEmitter.class)
                 .implementationVersion(LegacyScanContainerEmitter.class)
+                .addComment("(streaming)")
                 .build()));
 
         // Make sure we are actually looking at a "list"
