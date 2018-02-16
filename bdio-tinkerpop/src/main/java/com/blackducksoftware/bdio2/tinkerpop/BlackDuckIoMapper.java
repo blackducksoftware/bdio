@@ -21,17 +21,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.stream.Collector;
 
 import javax.annotation.Nullable;
 
-import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.io.IoRegistry;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.javatuples.Pair;
 
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
+import com.blackducksoftware.bdio2.Bdio;
 
 /**
  * Creates a BDIO to graph mapper implementation.
@@ -40,125 +37,28 @@ import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
  */
 public class BlackDuckIoMapper implements Mapper<GraphMapper> {
 
-    /**
-     * Allows for the registration of custom graph initializers.
-     */
-    public static abstract class GraphInitializer implements Consumer<GraphTopology> {
+    @Nullable
+    private final Bdio.ContentType contentType;
 
-        /**
-         * The graph being initialized.
-         */
-        private Graph graph;
+    @Nullable
+    private final Object expandContext;
 
-        protected GraphInitializer(Graph graph) {
-            this.graph = Objects.requireNonNull(graph);
-        }
+    private final Optional<BlackDuckIoTokens> tokens;
 
-        /**
-         * Initializes the graph using the specified topology.
-         */
-        protected abstract void initialize(GraphTopology graphTopology);
+    private final List<DatatypeRegistration> datatypes;
 
-        /**
-         * Returns a reference to the graph being initialized.
-         */
-        protected Graph graph() {
-            return graph;
-        }
-
-        /**
-         * Accepts the topology for initialization, creating a transaction if necessary.
-         */
-        @Override
-        public final void accept(GraphTopology graphTopology) {
-            if (graph.features().graph().supportsTransactions()) {
-                graph.tx().open();
-                try {
-                    initialize(graphTopology);
-                    graph.tx().commit();
-                } catch (RuntimeException | Error e) {
-                    graph.tx().rollback();
-                    throw e;
-                }
-            } else {
-                initialize(graphTopology);
-            }
-        }
-    }
-
-    /**
-     * Allows for the registration of custom datatypes or overridden datatype handlers.
-     */
-    public interface DatatypeRegistration {
-
-        /**
-         * Returns the IRI used to identify the datatype.
-         */
-        String iri();
-
-        /**
-         * Returns the handler used for the datatype.
-         */
-        DatatypeHandler<?> handler();
-
-    }
-
-    /**
-     * Allows for the registration of a multi-value collector.
-     */
-    public interface MultiValueCollectorRegistration {
-
-        /**
-         * Returns the collector used when a property contains multiple values.
-         */
-        Collector<? super Object, ?, ?> collector();
-
-    }
-
-    /**
-     * The graph topology configuration represented as an initialization callback.
-     */
-    private final Consumer<GraphTopology.Builder> onGraphTopology;
-
-    /**
-     * The graph mapper configuration represented as an initialization callback.
-     */
-    private final Consumer<GraphMapper.Builder> onGraphMapper;
+    private final Optional<MultiValueCollectorRegistration> multiValueCollector;
 
     private BlackDuckIoMapper(BlackDuckIoMapper.Builder builder) {
-        // Configure the graph topology
-        List<GraphInitializer> initializers = builder.registries.stream()
-                .flatMap(registry -> registry.find(BlackDuckIo.class, GraphInitializer.class).stream())
-                .map(Pair::getValue1).collect(toList());
-
-        onGraphTopology = gt -> {
-            initializers.forEach(gt::addInitializer);
-            builder.onGraphTopology.ifPresent(c -> c.accept(gt));
-        };
-
-        // Configure the graph mapper
-        List<DatatypeRegistration> datatypes = builder.registries.stream()
+        contentType = builder.version.contentType(builder.contentType);
+        expandContext = builder.version.expandContext(builder.expandContext);
+        tokens = Optional.ofNullable(builder.tokens);
+        datatypes = builder.registries.stream()
                 .flatMap(registry -> registry.find(BlackDuckIo.class, DatatypeRegistration.class).stream())
                 .map(Pair::getValue1).collect(toList());
-        Optional<MultiValueCollectorRegistration> multiValueCollector = builder.registries.stream()
+        multiValueCollector = builder.registries.stream()
                 .flatMap(registry -> registry.find(BlackDuckIo.class, MultiValueCollectorRegistration.class).stream())
                 .map(Pair::getValue1).findAny();
-
-        onGraphMapper = gm -> {
-            datatypes.forEach(d -> gm.addDatatype(d.iri(), d.handler()));
-            multiValueCollector.ifPresent(m -> gm.multiValueCollector(m.collector()));
-            builder.onGraphMapper.ifPresent(c -> c.accept(gm));
-        };
-    }
-
-    /**
-     * Create a new topology instance. The topology is configured using {@code IoRegistry} provided
-     * {@link GraphInitializer} instances and any user supplied configuration from when this mapper was created.
-     */
-    public GraphTopology createTopology() {
-        GraphTopology.Builder topologyBuilder = GraphTopology.build();
-        onGraphTopology.accept(topologyBuilder);
-        return topologyBuilder.create();
     }
 
     /**
@@ -166,9 +66,11 @@ public class BlackDuckIoMapper implements Mapper<GraphMapper> {
      */
     @Override
     public GraphMapper createMapper() {
-        GraphMapper.Builder mapperBuilder = GraphMapper.build();
-        onGraphMapper.accept(mapperBuilder);
-        return mapperBuilder.withTopology(this::createTopology).create();
+        GraphMapper.Builder mapperBuilder = GraphMapper.build().forContentType(contentType, expandContext);
+        tokens.ifPresent(mapperBuilder::tokens);
+        datatypes.forEach(r -> mapperBuilder.addDatatype(r.iri(), r.handler()));
+        multiValueCollector.ifPresent(r -> mapperBuilder.multiValueCollector(r.collector()));
+        return mapperBuilder.create();
     }
 
     public static Builder build() {
@@ -179,11 +81,19 @@ public class BlackDuckIoMapper implements Mapper<GraphMapper> {
 
         private final List<IoRegistry> registries = new ArrayList<>();
 
-        private Optional<Consumer<GraphTopology.Builder>> onGraphTopology = Optional.empty();
+        private BlackDuckIoVersion version;
 
-        private Optional<Consumer<GraphMapper.Builder>> onGraphMapper = Optional.empty();
+        @Nullable
+        private Bdio.ContentType contentType;
+
+        @Nullable
+        private Object expandContext;
+
+        @Nullable
+        private BlackDuckIoTokens tokens;
 
         private Builder() {
+            version = BlackDuckIoVersion.defaultVersion();
         }
 
         /**
@@ -195,24 +105,27 @@ public class BlackDuckIoMapper implements Mapper<GraphMapper> {
             return this;
         }
 
+        // TODO If you set version to 1.x clear the contentType/expandContext
+        // TODO If you set the contentType/expandContext set the version to 2.0 (or default)
+
+        public Builder version(BlackDuckIoVersion version) {
+            this.version = Objects.requireNonNull(version);
+            return this;
+        }
+
+        public Builder contentType(Bdio.ContentType contentType, Object expandContext) {
+            this.contentType = contentType;
+            this.expandContext = expandContext;
+            return this;
+        }
+
+        public Builder tokens(@Nullable BlackDuckIoTokens tokens) {
+            this.tokens = tokens;
+            return this;
+        }
+
         public BlackDuckIoMapper create() {
             return new BlackDuckIoMapper(this);
-        }
-
-        /**
-         * Sets or replaces the topology configuration callback.
-         */
-        public Builder onGraphTopology(@Nullable Consumer<GraphTopology.Builder> onGraphTopology) {
-            this.onGraphTopology = Optional.ofNullable(onGraphTopology);
-            return this;
-        }
-
-        /**
-         * Sets or replaces the mapper configuration callback.
-         */
-        public Builder onGraphMapper(@Nullable Consumer<GraphMapper.Builder> onGraphMapper) {
-            this.onGraphMapper = Optional.ofNullable(onGraphMapper);
-            return this;
         }
 
     }

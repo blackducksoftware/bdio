@@ -33,6 +33,7 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.io.GraphReader;
+import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarEdge;
@@ -40,7 +41,6 @@ import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 
 import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
-import com.blackducksoftware.bdio2.tinkerpop.GraphContextFactory.AbstractContextBuilder;
 
 import io.reactivex.Flowable;
 
@@ -51,10 +51,13 @@ import io.reactivex.Flowable;
  */
 public final class BlackDuckIoReader implements GraphReader {
 
-    private final GraphContextFactory contextFactory;
+    /**
+     * Function that applies a graph wrapper.
+     */
+    private final Function<Graph, GraphReaderWrapper> graphWrapper;
 
     private BlackDuckIoReader(Builder builder) {
-        contextFactory = builder.contextFactory();
+        graphWrapper = builder.wrapperFactory::wrapReader;
     }
 
     /**
@@ -63,29 +66,30 @@ public final class BlackDuckIoReader implements GraphReader {
     @SuppressWarnings("CheckReturnValue")
     @Override
     public void readGraph(InputStream inputStream, Graph graph) throws IOException {
-        ReadGraphContext context = contextFactory.forBdioReadingInto(graph);
+        GraphReaderWrapper wrapper = graphWrapper.apply(graph);
+        RxJavaBdioDocument doc = wrapper.mapper().newDocument();
+
         try {
-            RxJavaBdioDocument doc = context.mapper().newBdioDocument();
             Flowable<Object> entries = doc.read(inputStream).publish().autoConnect(2);
-            doc.metadata(entries).singleOrError().subscribe(context::createMetadata);
+            doc.metadata(entries).singleOrError().subscribe(wrapper::createMetadata);
             doc.jsonLd(entries)
                     // Convert entries to individual nodes
-                    .frame(context.mapper().frame())
+                    .frame(wrapper.mapper().frame())
                     .flatMapIterable(BdioDocument::toGraphNodes)
 
                     // Convert nodes to vertices
-                    .map(node -> toVertex(node, null, null, Direction.OUT, context))
+                    .map(node -> toVertex(node, null, null, Direction.OUT, wrapper))
 
                     // Collect all of the vertices in a map, creating the actual vertices in the graph as we go
                     // THIS IS THE PART WHERE WE READ THE WHOLE GRAPH INTO MEMORY SO WE CAN CREATE THE EDGES
-                    .reduce(new HashMap<>(), context::toMap)
-                    .flatMapObservable(context::createEdges)
+                    .reduce(new HashMap<>(), wrapper::toMap)
+                    .flatMapObservable(wrapper::createEdges)
 
                     // Setup batch commits
-                    .doOnSubscribe(x -> context.startBatchTx())
-                    .doOnNext(x -> context.batchCommitTx())
-                    .doOnError(x -> context.rollbackTx())
-                    .doOnComplete(context::commitTx)
+                    .doOnSubscribe(x -> wrapper.startBatchTx())
+                    .doOnNext(x -> wrapper.batchCommitTx())
+                    .doOnError(x -> wrapper.rollbackTx())
+                    .doOnComplete(wrapper::commitTx)
 
                     // Ignore values, propagate errors
                     .blockingSubscribe();
@@ -164,10 +168,10 @@ public final class BlackDuckIoReader implements GraphReader {
             @Nullable Function<Attachable<Vertex>, Vertex> vertexAttachMethod,
             @Nullable Function<Attachable<Edge>, Edge> edgeAttachMethod,
             Direction attachEdgesOfThisDirection,
-            ReadGraphContext context) {
+            GraphReaderWrapper wrapper) {
         // Create a new StarGraph whose primary vertex is the converted node
         StarGraph starGraph = StarGraph.open();
-        StarVertex vertex = (StarVertex) starGraph.addVertex(context.getNodeProperties(node, true));
+        StarVertex vertex = (StarVertex) starGraph.addVertex(wrapper.getNodeProperties(node, true));
         if (vertexAttachMethod != null) {
             vertex.attach(vertexAttachMethod);
         }
@@ -175,9 +179,9 @@ public final class BlackDuckIoReader implements GraphReader {
         // Add outgoing edges for object properties (if requested)
         if (attachEdgesOfThisDirection == Direction.BOTH || attachEdgesOfThisDirection == Direction.OUT) {
             for (Map.Entry<String, Object> property : node.entrySet()) {
-                if (context.topology().isObjectPropertyKey(property.getKey())) {
-                    context.mapper().valueObjectMapper().fromReferenceValueObject(property.getValue())
-                            .map(id -> starGraph.addVertex(T.id, context.generateId(id)))
+                if (wrapper.mapper().isObjectPropertyKey(property.getKey())) {
+                    wrapper.mapper().valueObjectMapper().fromReferenceValueObject(property.getValue())
+                            .map(id -> starGraph.addVertex(T.id, wrapper.generateId(id)))
                             .map(inVertex -> (StarEdge) vertex.addEdge(property.getKey(), inVertex))
                             .forEach(edge -> {
                                 if (edgeAttachMethod != null) {
@@ -195,11 +199,32 @@ public final class BlackDuckIoReader implements GraphReader {
         return new Builder();
     }
 
-    public static final class Builder
-            extends AbstractContextBuilder<BlackDuckIoReader, Builder>
-            implements ReaderBuilder<BlackDuckIoReader> {
+    public static final class Builder implements ReaderBuilder<BlackDuckIoReader> {
+
+        private final GraphIoWrapperFactory wrapperFactory;
+
         private Builder() {
-            super(BlackDuckIoReader::new);
+            wrapperFactory = new GraphIoWrapperFactory();
+        }
+
+        public Builder mapper(Mapper<GraphMapper> mapper) {
+            wrapperFactory.mapper(mapper::createMapper);
+            return this;
+        }
+
+        public Builder batchSize(int batchSize) {
+            wrapperFactory.batchSize(batchSize);
+            return this;
+        }
+
+        public Builder partition(@Nullable String partition) {
+            wrapperFactory.writePartition(partition);
+            return this;
+        }
+
+        @Override
+        public BlackDuckIoReader create() {
+            return new BlackDuckIoReader(this);
         }
     }
 

@@ -22,9 +22,8 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identi
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
-import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.function.Function;
 
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
@@ -33,10 +32,10 @@ import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.io.GraphWriter;
+import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 
 import com.blackducksoftware.bdio2.BdioWriter;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
-import com.blackducksoftware.bdio2.tinkerpop.GraphContextFactory.AbstractContextBuilder;
 import com.github.jsonldjava.core.JsonLdConsts;
 
 import io.reactivex.Flowable;
@@ -48,10 +47,19 @@ import io.reactivex.Flowable;
  */
 public class BlackDuckIoWriter implements GraphWriter {
 
-    private final GraphContextFactory contextFactory;
+    /**
+     * Function that applies a graph wrapper.
+     */
+    private final Function<Graph, GraphWriterWrapper> graphWrapper;
+
+    /**
+     * The number of nodes to generate before batching to the output stream.
+     */
+    private final int batchSize;
 
     private BlackDuckIoWriter(Builder builder) {
-        contextFactory = builder.contextFactory();
+        graphWrapper = builder.wrapperFactory::wrapWriter;
+        batchSize = 1000;
     }
 
     /**
@@ -59,30 +67,24 @@ public class BlackDuckIoWriter implements GraphWriter {
      */
     @Override
     public void writeGraph(OutputStream outputStream, Graph graph) throws IOException {
-        WriteGraphContext context = contextFactory.forBdioWritingFrom(graph);
-        RxJavaBdioDocument document = context.mapper().newBdioDocument();
-
-        // Collect the vertex labels which should be excluded from the output
-        Collection<String> excludedLabels = new LinkedHashSet<>();
-        context.topology().metadataLabel().ifPresent(excludedLabels::add);
-        context.topology().forEachEmbeddedType((label, id) -> excludedLabels.add(label));
+        GraphWriterWrapper wrapper = graphWrapper.apply(graph);
+        RxJavaBdioDocument document = wrapper.mapper().newDocument();
 
         try {
-            Flowable.fromIterable(() -> context.traversal().V()
-
-                    // Strip out the exclude labels
-                    .hasLabel(without(excludedLabels))
+            Flowable.fromIterable(() -> wrapper.traversal().V()
+                    // Strip out the excluded labels
+                    .hasLabel(without(wrapper.mapper().excludedLabels()))
 
                     // Strip out the implicit vertices since they weren't originally included
-                    .where(context.topology().implicitKey().map(propertyKey -> hasNot(propertyKey)).orElse(identity()))
+                    .where(wrapper.mapper().implicitKey().map(propertyKey -> hasNot(propertyKey)).orElse(identity()))
 
                     // Convert to JSON-LD
-                    .map(t -> createNode(t.get(), context)))
-                    .doOnTerminate(context::rollbackTx)
+                    .map(t -> createNode(t.get(), wrapper)))
+                    .doOnTerminate(wrapper::rollbackTx)
 
                     // TODO How do exceptions come through here?
-                    .buffer(1000)
-                    .blockingSubscribe(document.write(context.createMetadata(), new BdioWriter.BdioFile(outputStream)));
+                    .buffer(batchSize)
+                    .blockingSubscribe(document.write(wrapper.createMetadata(), new BdioWriter.BdioFile(outputStream)));
         } catch (UncheckedIOException e) {
             // TODO We loose the stack of the unchecked wrapper: `e.getCause().addSuppressed(e)`?
             throw e.getCause();
@@ -140,31 +142,32 @@ public class BlackDuckIoWriter implements GraphWriter {
     /**
      * Creates a JSON-LD node from a vertex (or multiple vertices in the case of embedded objects).
      */
-    private Map<String, Object> createNode(Vertex vertex, WriteGraphContext context) {
-        Map<String, Object> result = context.getNodeProperties(vertex);
+    private Map<String, Object> createNode(Vertex vertex, GraphWriterWrapper wrapper) {
+        GraphMapper mapper = wrapper.mapper();
+        Map<String, Object> result = wrapper.getNodeProperties(vertex);
 
         vertex.edges(Direction.OUT).forEachRemaining(e -> {
             // Skip implicit edges
-            if (context.topology().implicitKey().filter(e.keys()::contains).isPresent()) {
+            if (e.keys().stream().anyMatch(mapper::isImplicitKey)) {
                 return;
             }
 
             // Convert the in vertex to a reference
             Vertex inVertex = e.inVertex();
             Object ref;
-            if (context.topology().isEmbeddedLabel(inVertex.label())) {
+            if (mapper.isEmbeddedLabel(inVertex.label())) {
                 // Recursively create the entire node (without an '@id') for embedded types
-                ref = createNode(inVertex, context);
+                ref = createNode(inVertex, wrapper);
                 ((Map<?, ?>) ref).remove(JsonLdConsts.ID);
             } else {
                 // For non-embedded types we just need the identifier
-                ref = context.generateId(inVertex);
+                ref = wrapper.generateId(inVertex);
             }
 
             // Store the result as a reference value object
-            Object valueObject = context.mapper().valueObjectMapper().toReferenceValueObject(ref);
+            Object valueObject = mapper.valueObjectMapper().toReferenceValueObject(ref);
             if (valueObject != null) {
-                result.merge(e.label(), valueObject, context::combine);
+                result.merge(e.label(), valueObject, wrapper::combine);
             }
         });
 
@@ -175,11 +178,24 @@ public class BlackDuckIoWriter implements GraphWriter {
         return new Builder();
     }
 
-    public static final class Builder
-            extends AbstractContextBuilder<BlackDuckIoWriter, Builder>
-            implements WriterBuilder<BlackDuckIoWriter> {
+    public static final class Builder implements WriterBuilder<BlackDuckIoWriter> {
+
+        private final GraphIoWrapperFactory wrapperFactory;
+
         private Builder() {
-            super(BlackDuckIoWriter::new);
+            wrapperFactory = new GraphIoWrapperFactory();
+        }
+
+        public Builder mapper(Mapper<GraphMapper> mapper) {
+            wrapperFactory.mapper(mapper::createMapper);
+            return this;
+        }
+
+        // TODO Batch size and partitions?
+
+        @Override
+        public BlackDuckIoWriter create() {
+            return new BlackDuckIoWriter(this);
         }
     }
 

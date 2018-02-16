@@ -15,22 +15,23 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import static com.blackducksoftware.common.base.ExtraThrowables.nullPointer;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
-import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.io.Io;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
+import org.umlg.sqlg.structure.SqlgGraph;
 
 /**
  * Constructs BDIO I/O implementations given a {@link Graph} and some optional configuration.
@@ -39,36 +40,16 @@ import org.apache.tinkerpop.gremlin.structure.io.Mapper;
  */
 public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWriter.Builder, BlackDuckIoMapper.Builder> {
 
-    /**
-     * The graph to apply I/O operations to.
-     */
     private final Graph graph;
 
-    /**
-     * The BDIO configuration represented as {@link BlackDuckIoMapper} initialization callback.
-     */
-    private final Consumer<BlackDuckIoMapper.Builder> onMapper;
+    private final BlackDuckIoVersion version;
+
+    private final Optional<Consumer<Mapper.Builder<?>>> onMapper;
 
     private BlackDuckIo(Builder builder) {
-        graph = builder.graph.orElseThrow(nullPointer("The graph argument was not specified"));
-        onMapper = m -> {
-            // Extract settings from the graph's configuration and user supplied callbacks on the builder
-            Configuration configuration = graph.configuration().subset("bdio");
-            m.onGraphTopology(gt -> {
-                gt.withConfiguration(configuration);
-                builder.onGraphTopology.ifPresent(c -> c.accept(gt));
-            });
-            m.onGraphMapper(gm -> {
-                gm.withConfiguration(configuration);
-                builder.onGraphMapper.ifPresent(c -> c.accept(gm));
-            });
-
-            // The BDIO registry MUST be first as it provides the default schema and other graph specific features
-            m.addRegistry(new BlackDuckIoRegistry(graph));
-
-            // This registration is required by the TinkerPop API
-            builder.onMapper.ifPresent(c -> c.accept(m));
-        };
+        graph = Objects.requireNonNull(builder.graph);
+        version = Objects.requireNonNull(builder.version);
+        onMapper = Optional.ofNullable(builder.onMapper);
     }
 
     /**
@@ -76,14 +57,13 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
      */
     @Override
     public BlackDuckIoMapper.Builder mapper() {
-        BlackDuckIoMapper.Builder builder = BlackDuckIoMapper.build();
-        onMapper.accept(builder);
+        BlackDuckIoMapper.Builder builder = BlackDuckIoMapper.build().version(version);
+        if (graph instanceof SqlgGraph) {
+            builder.addRegistry(SqlgIoRegistryBdio.instance());
+        }
+        onMapper.ifPresent(c -> c.accept(builder));
         return builder;
     }
-
-    // #########
-    // # Input #
-    // #########
 
     /**
      * {@inheritDoc}
@@ -94,26 +74,14 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
     }
 
     /**
-     * Read a {@link Graph} from an arbitrary input stream using the default configuration of the {@link #reader()} and
-     * its supplied {@link #mapper()}.
-     */
-    public void readGraph(InputStream inputStream) throws IOException {
-        reader().create().readGraph(inputStream, graph);
-    }
-
-    /**
      * {@inheritDoc}
      */
     @Override
     public void readGraph(String file) throws IOException {
         try (InputStream in = new FileInputStream(file)) {
-            readGraph(in);
+            reader().create().readGraph(in, graph);
         }
     }
-
-    // ##########
-    // # Output #
-    // ##########
 
     /**
      * {@inheritDoc}
@@ -124,64 +92,36 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
     }
 
     /**
-     * Write a {@link Graph} to an arbitrary output stream using the default configuration of the {@link #writer()} and
-     * its supplied {@link #mapper()}.
-     */
-    public void writeGraph(OutputStream outputStream) throws IOException {
-        writer().create().writeGraph(outputStream, graph);
-    }
-
-    /**
      * {@inheritDoc}
      */
     @Override
     public void writeGraph(String file) throws IOException {
         try (OutputStream out = new FileOutputStream(file)) {
-            writeGraph(out);
+            writer().create().writeGraph(out, graph);
         }
     }
 
-    // #################
-    // # Normalization #
-    // #################
-
     /**
-     * Creates a {@link BlackDuckIoOperations.Builder} implementation with the default configuration of the
-     * {@link #mapper()}. While operations are do not directly read or write, they may be required as a post operation
-     * to normalize data after a read and before a write.
-     */
-    public BlackDuckIoOperations.Builder operations() {
-        return BlackDuckIoOperations.build().mapper(mapper().create());
-    }
-
-    /**
-     * Apply BDIO semantic rules to a {@link Graph} using the default configuration of the {@link #operations()} and
-     * its supplied {@link #mapper()}.
-     */
-    public void applySemanticRules() {
-        operations().create().applySemanticRules(graph);
-    }
-
-    // #########
-    // # Setup #
-    // #########
-
-    /**
-     * Create a new builder.
+     * Create a new builder using the default version of BDIO.
      */
     public static Builder build() {
-        return new Builder();
+        return build(BlackDuckIoVersion.defaultVersion());
+    }
+
+    /**
+     * Create a new builder using the specified version of BDIO.
+     */
+    public static Builder build(BlackDuckIoVersion version) {
+        return new Builder(version);
     }
 
     public final static class Builder implements Io.Builder<BlackDuckIo> {
 
-        private Optional<Consumer<Mapper.Builder<?>>> onMapper = Optional.empty();
+        private final BlackDuckIoVersion version;
 
-        private Optional<Graph> graph = Optional.empty();
+        private Graph graph;
 
-        private Optional<Consumer<GraphTopology.Builder>> onGraphTopology = Optional.empty();
-
-        private Optional<Consumer<GraphMapper.Builder>> onGraphMapper = Optional.empty();
+        private Consumer<Mapper.Builder<?>> onMapper;
 
         /**
          * Intended for reflective use only, call {@link BlackDuckIo#build()} instead.
@@ -189,48 +129,39 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
          * @see org.apache.tinkerpop.gremlin.structure.io.IoCore#createIoBuilder(String)
          */
         public Builder() {
+            this(BlackDuckIoVersion.defaultVersion());
         }
 
-        // This exposes the API for calling "add registry" multiple times
+        private Builder(BlackDuckIoVersion version) {
+            this.version = Objects.requireNonNull(version);
+        }
+
+        /**
+         * Graph implementation provider use only.
+         */
         @SuppressWarnings("rawtypes")
         @Override
         public Builder onMapper(@Nullable Consumer<Mapper.Builder> onMapper) {
-            this.onMapper = onMapper != null ? Optional.of(onMapper::accept) : Optional.empty();
+            this.onMapper = onMapper != null ? onMapper::accept : null;
             return this;
         }
 
         @Override
-        public Builder graph(Graph graph) {
-            this.graph = Optional.of(graph);
+        public Builder graph(@Nullable Graph graph) {
+            this.graph = graph;
             return this;
         }
 
         @Override
         public <V> boolean requiresVersion(V version) {
-            return false;
+            return this.version == version;
         }
 
         @Override
         public BlackDuckIo create() {
+            checkArgument(graph != null, "The graph argument was not specified");
             return new BlackDuckIo(this);
         }
-
-        /**
-         * Sets or replaces the topology configuration callback on this I/O builder.
-         */
-        public Builder onGraphTopology(@Nullable Consumer<GraphTopology.Builder> onGraphTopology) {
-            this.onGraphTopology = Optional.ofNullable(onGraphTopology);
-            return this;
-        }
-
-        /**
-         * Sets or replaces the mapper configuration callback on this I/O builder.
-         */
-        public Builder onGraphMapper(@Nullable Consumer<GraphMapper.Builder> onGraphMapper) {
-            this.onGraphMapper = Optional.ofNullable(onGraphMapper);
-            return this;
-        }
-
     }
 
 }

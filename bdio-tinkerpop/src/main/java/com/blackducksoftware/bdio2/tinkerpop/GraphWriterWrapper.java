@@ -18,7 +18,6 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
 
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -38,9 +37,9 @@ import com.google.common.collect.Lists;
  *
  * @author jgustie
  */
-class WriteGraphContext extends GraphContext {
+class GraphWriterWrapper extends GraphIoWrapper {
 
-    protected WriteGraphContext(Graph graph, GraphMapper mapper) {
+    protected GraphWriterWrapper(Graph graph, GraphMapper mapper) {
         super(graph, mapper);
     }
 
@@ -48,11 +47,11 @@ class WriteGraphContext extends GraphContext {
      * If a metadata label is configured, read the vertex from the graph into a new BDIO metadata instance.
      */
     public BdioMetadata createMetadata() {
-        return topology().metadataLabel()
+        return mapper().metadataLabel()
                 .flatMap(label -> traversal().V().hasLabel(label).tryNext())
                 .map(vertex -> {
                     BdioMetadata metadata = new BdioMetadata();
-                    topology().identifierKey().ifPresent(key -> {
+                    mapper().identifierKey().ifPresent(key -> {
                         metadata.id(vertex.value(key));
                     });
                     try {
@@ -81,10 +80,10 @@ class WriteGraphContext extends GraphContext {
         result.put(JsonLdConsts.TYPE, vertex.label());
         result.put(JsonLdConsts.ID, generateId(vertex));
         vertex.properties().forEachRemaining(vp -> {
-            if (topology().unknownKey().filter(Predicate.isEqual(vp.key())).isPresent()) {
+            if (mapper().isUnknownKey(vp.key())) {
                 // Restore unknown properties by putting them all back into the result map
                 mapper().restoreUnknownProperties(vp.value(), result::put);
-            } else if (topology().isSpecialKey(vp.key())) {
+            } else if (mapper().isSpecialKey(vp.key())) {
                 // Skip all of the "special" vertex properties used internally on the graph
                 return;
             } else {
@@ -99,7 +98,7 @@ class WriteGraphContext extends GraphContext {
      * Produces the identifier (the "@id" value) for a vertex based on the current configuration.
      */
     public String generateId(Vertex vertex) {
-        Object identifier = topology().identifierKey()
+        Object identifier = mapper().identifierKey()
                 .map(key -> vertex.property(key))
                 .orElse(VertexProperty.empty())
                 .orElseGet(() -> vertex.id());

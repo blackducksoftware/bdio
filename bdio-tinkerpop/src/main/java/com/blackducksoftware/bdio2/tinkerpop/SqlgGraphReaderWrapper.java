@@ -15,13 +15,12 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import static java.util.stream.Collectors.joining;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Objects;
+
+import javax.annotation.Nullable;
 
 import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
@@ -32,22 +31,21 @@ import org.umlg.sqlg.structure.topology.Topology;
  *
  * @author jgustie
  */
-class SqlgReadGraphContext extends ReadGraphContext {
-
-    /**
-     * Typed reference to the Sqlg graph.
-     */
-    private final SqlgGraph sqlgGraph;
+class SqlgGraphReaderWrapper extends GraphReaderWrapper {
 
     /**
      * Flag indicating if the graph supports batch mode or not.
      */
     private final boolean supportsBatchMode;
 
-    protected SqlgReadGraphContext(SqlgGraph sqlgGraph, GraphMapper mapper, int batchSize) {
-        super(sqlgGraph, mapper, batchSize);
-        this.sqlgGraph = Objects.requireNonNull(sqlgGraph);
+    protected SqlgGraphReaderWrapper(SqlgGraph sqlgGraph, GraphMapper mapper, int batchSize, @Nullable String partition) {
+        super(sqlgGraph, mapper, batchSize, partition);
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
+    }
+
+    @Override
+    public SqlgGraph graph() {
+        return (SqlgGraph) super.graph();
     }
 
     @Override
@@ -55,7 +53,7 @@ class SqlgReadGraphContext extends ReadGraphContext {
         // (Re-)enable batch mode if it is supported
         super.startBatchTx();
         if (supportsBatchMode) {
-            sqlgGraph.tx().normalBatchModeOn();
+            graph().tx().normalBatchModeOn();
         }
     }
 
@@ -64,32 +62,26 @@ class SqlgReadGraphContext extends ReadGraphContext {
         // NOTE: This is modified code from `SqlgGraph.countVertices()`
 
         // Determine where the vertices are stored
-        SchemaTable schemaTable = SchemaTable.from(sqlgGraph, label)
+        SchemaTable schemaTable = SchemaTable.from(graph(), label)
                 .withPrefix(Topology.VERTEX_PREFIX);
 
         // Build the query
         StringBuilder sql = new StringBuilder()
                 .append("SELECT COUNT(1) FROM ")
-                .append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(schemaTable.getSchema()))
+                .append(graph().getSqlDialect().maybeWrapInQoutes(schemaTable.getSchema()))
                 .append('.')
-                .append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(schemaTable.getTable()));
+                .append(graph().getSqlDialect().maybeWrapInQoutes(schemaTable.getTable()));
 
         // Honor the partition strategy, if configured with read partitions (assume there is probably just one)
-        topology().partitionStrategy()
-                .filter(ps -> !ps.getReadPartitions().isEmpty())
-                .ifPresent(ps -> {
-                    String field = sqlgGraph.getSqlDialect().maybeWrapInQoutes(ps.getPartitionKey());
-                    // TODO Use statement parameters
-                    sql.append(ps.getReadPartitions().stream()
-                            .collect(joining("' OR " + field + " = \"", " WHERE " + field + " = '", "'")));
-                });
+        // TODO Use statement parameters
+        partition((k, v) -> " WHERE " + graph().getSqlDialect().maybeWrapInQoutes(k) + " = '" + v + "'").ifPresent(sql::append);
 
-        if (sqlgGraph.getSqlDialect().needsSemicolon()) {
+        if (graph().getSqlDialect().needsSemicolon()) {
             sql.append(';');
         }
 
         // Execute the query
-        Connection conn = sqlgGraph.tx().getConnection();
+        Connection conn = graph().tx().getConnection();
         try (PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
             ResultSet rs = preparedStatement.executeQuery();
             rs.next();

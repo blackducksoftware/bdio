@@ -19,8 +19,10 @@ import static com.blackducksoftware.common.base.ExtraStrings.afterLast;
 
 import java.io.IOException;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
-import java.util.function.Consumer;
+
+import javax.annotation.Nullable;
 
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.Configuration;
@@ -39,8 +41,8 @@ import org.junit.runners.Parameterized.Parameters;
 import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.util.SqlgUtil;
 
-import com.blackducksoftware.bdio2.tinkerpop.GraphContextFactory.AbstractContextBuilder;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Resources;
 
 @RunWith(Parameterized.class)
@@ -49,32 +51,67 @@ public abstract class BaseTest {
     /**
      * (T)est (T)okens.
      */
-    public static final class TT {
+    public static final class TT implements BlackDuckIoTokens {
+
         public static final String id = "_id";
 
         public static final String partition = "_partition";
 
         public static final String implicit = "_implicit";
 
+        public static final String unknown = "_unknown";
+
         public static final String root = "_root";
 
         public static final String Metadata = "Metadata";
+
+        private final Set<String> tokens;
+
+        private TT(String... tokens) {
+            this.tokens = ImmutableSet.copyOf(tokens);
+        }
+
+        @Override
+        public String metadataLabel() {
+            return token(Metadata);
+        }
+
+        @Override
+        public String rootLabel() {
+            return token(root);
+        }
+
+        @Override
+        public String identifierKey() {
+            return token(id);
+        }
+
+        @Override
+        public String implicitKey() {
+            return token(implicit);
+        }
+
+        @Override
+        public String unknownKey() {
+            return token(unknown);
+        }
+
+        @Override
+        public String partitionKey() {
+            return token(partition);
+        }
+
+        @Nullable
+        private String token(String token) {
+            return tokens.isEmpty() || tokens.contains(token) ? token : null;
+        }
     }
 
     /**
-     * The most basic context builder possible, produces graph context factories directly.
+     * Returns BDIO tokens for testing, if no tokens are requests, all of the test tokens will be used.
      */
-    public static class GraphContextFactoryBuilder extends AbstractContextBuilder<GraphContextFactory, GraphContextFactoryBuilder> {
-        public GraphContextFactoryBuilder() {
-            super(GraphContextFactoryBuilder::contextFactory);
-        }
-
-        public GraphContextFactoryBuilder onGraphTopology(Consumer<GraphTopology.Builder> config) {
-            // Eager approach to builder construction is suitable for testing only
-            GraphTopology.Builder builder = GraphTopology.build();
-            config.accept(builder);
-            return mapperFactory(GraphMapper.build().withTopology(builder::create)::create);
-        }
+    protected static BlackDuckIoTokens testTokens(String... tokens) {
+        return new TT(tokens);
     }
 
     /**
@@ -121,15 +158,6 @@ public abstract class BaseTest {
 
     public BaseTest(Configuration configuration) {
         this.configuration = Objects.requireNonNull(configuration);
-    }
-
-    /**
-     * A common "on-graph-topology" configuration for storing graph metadata and JSON-LD identifiers.
-     *
-     * @see TT
-     */
-    public Consumer<GraphTopology.Builder> storeMetadataAndIds() {
-        return b -> b.metadataLabel(TT.Metadata).identifierKey(TT.id);
     }
 
     /**

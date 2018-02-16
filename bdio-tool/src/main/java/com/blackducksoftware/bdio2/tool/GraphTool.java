@@ -22,14 +22,11 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
@@ -52,6 +49,7 @@ import org.umlg.sqlg.util.SqlgUtil;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIo;
+import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoCore;
 import com.google.common.base.Splitter;
 import com.google.common.base.Splitter.MapSplitter;
 import com.google.common.base.Stopwatch;
@@ -73,6 +71,10 @@ public class GraphTool extends Tool {
 
     static final String DEFAULT_PARTITION = "<stdin>";
 
+    private enum Actions {
+        CLEAN, INITIALIZE_SCHEMA, LOAD, APPLY_SEMANTIC_RULES
+    }
+
     private static final MapSplitter PROPERTY_SPLITTER = Splitter.on(',').limit(1).trimResults().withKeyValueSeparator('=');
 
     public static void main(String[] args) {
@@ -83,11 +85,7 @@ public class GraphTool extends Tool {
 
     private CompositeConfiguration configuration = new CompositeConfiguration();
 
-    private boolean clean;
-
-    private boolean skipLoad;
-
-    private boolean skipInitialization;
+    private EnumSet<Actions> actions = EnumSet.of(Actions.LOAD, Actions.APPLY_SEMANTIC_RULES);
 
     private Consumer<GraphTraversalSource> onGraphLoaded = g -> {};
 
@@ -134,15 +132,35 @@ public class GraphTool extends Tool {
     }
 
     public void setClean(boolean clean) {
-        this.clean = clean;
+        if (clean) {
+            actions.add(Actions.CLEAN);
+        } else {
+            actions.remove(Actions.CLEAN);
+        }
+    }
+
+    public void setInitializeSchema(boolean initialize) {
+        if (initialize) {
+            actions.add(Actions.INITIALIZE_SCHEMA);
+        } else {
+            actions.remove(Actions.INITIALIZE_SCHEMA);
+        }
     }
 
     public void setSkipLoad(boolean skipLoad) {
-        this.skipLoad = skipLoad;
+        if (skipLoad) {
+            actions.remove(Actions.LOAD);
+        } else {
+            actions.add(Actions.LOAD);
+        }
     }
 
-    public void setSkipInitialization(boolean skipInitialization) {
-        this.skipInitialization = skipInitialization;
+    public void setSkipApplySemanticRules(boolean skipApplySemanticRules) {
+        if (skipApplySemanticRules) {
+            actions.remove(Actions.APPLY_SEMANTIC_RULES);
+        } else {
+            actions.add(Actions.APPLY_SEMANTIC_RULES);
+        }
     }
 
     public void onGraphLoaded(Consumer<GraphTraversalSource> listener) {
@@ -195,8 +213,8 @@ public class GraphTool extends Tool {
             if (arg.equals("--clean")) {
                 setClean(true);
                 args = removeFirst(arg, args);
-            } else if (arg.equals("--skip-init")) {
-                setSkipInitialization(true);
+            } else if (arg.equals("--skip-rules")) {
+                setSkipApplySemanticRules(true);
                 args = removeFirst(arg, args);
             } else if (arg.startsWith("--onGraphComplete=")) {
                 optionValue(arg).map(GraphTool::listenerForString).ifPresent(this::onGraphComplete);
@@ -247,51 +265,62 @@ public class GraphTool extends Tool {
 
     @Override
     protected void execute() throws Exception {
-        checkState(!inputs.isEmpty() || (skipLoad && skipInitialization), "no inputs");
+        checkState(!inputs.isEmpty() || (!actions.contains(Actions.LOAD) && !actions.contains(Actions.APPLY_SEMANTIC_RULES)), "no inputs");
 
-        Graph graph = openGraph();
+        // Open the graph and update the BDIO specific configuration if necessary
+        Graph graph = GraphFactory.open(configuration);
+        if (actions.contains(Actions.CLEAN)) {
+            cleanGraph(graph);
+        }
+        if (!graph.features().vertex().supportsUserSuppliedIds() && !configuration.containsKey("bdio.identifierKey")) {
+            configuration.setProperty("bdio.identifierKey", DEFAULT_IDENTIFIER_KEY);
+        }
+        if (actions.contains(Actions.APPLY_SEMANTIC_RULES) && !configuration.containsKey("bdio.implicitKey")) {
+            configuration.setProperty("bdio.implicitKey", DEFAULT_IMPLICIT_KEY);
+        }
+        if (inputs.size() > 1 && !configuration.containsKey("bdio.partitionStrategy.partitionKey")) {
+            configuration.setProperty("bdio.partitionStrategy.partitionKey", DEFAULT_PARTITION_KEY);
+        }
+        if (inputs.size() == 1 && !configuration.containsKey("bdio.partitionStrategy.writePartition")) {
+            configuration.setProperty("bdio.partitionStrategy.writePartition", DEFAULT_PARTITION);
+        }
+
+        // Create a new BDIO core using the graph's configuration to define tokens
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withGraphConfiguration();
+        if (actions.contains(Actions.INITIALIZE_SCHEMA)) {
+            bdio.initializeSchema();
+        }
+
         try {
             for (Map.Entry<URI, ByteSource> input : inputs.entrySet()) {
                 try (InputStream inputStream = input.getValue().openStream()) {
-                    // Configure TinkerPop I/O
-                    Optional<PartitionStrategy> partition = partition(input.getKey());
-                    BlackDuckIo.Builder bdio = BlackDuckIo.build()
-                            .onGraphMapper(builder -> {
-                                // Set the JSON-LD context using file extensions
-                                setContentType(input.getKey(), builder::forContentType);
-                            })
-                            .onGraphTopology(builder -> {
-                                // Make sure each file goes into it's own partition
-                                partition.ifPresent(builder::partitionStrategy);
+                    // Do bad mutations in the loop...
+                    setContentType(input.getKey(), bdio::withContentType);
+                    if (inputs.size() > 1) {
+                        String writePartition = input.getKey().toString();
+                        bdio.withWritePartition(writePartition);
+                        configuration.setProperty("bdio.partitionStrategy.writePartition", writePartition);
+                    }
 
-                                // If the graph does not support user identifiers, ensure we store JSON-LD identifiers
-                                if (!graph.features().vertex().supportsUserSuppliedIds()) {
-                                    builder.identifierKey(configuration.getString("bdio.identifierKey", DEFAULT_IDENTIFIER_KEY));
-                                }
-
-                                // Add an implicit key, otherwise we won't generate implicit edges
-                                if (!skipInitialization) {
-                                    builder.implicitKey(configuration.getString("bdio.implicitKey", DEFAULT_IMPLICIT_KEY));
-                                }
-                            });
-
-                    // Get a traversal for the graph honoring the partition
+                    // Get a traversal for the graph honoring the partition for event listeners
                     GraphTraversalSource g = graph.traversal();
-                    g = partition.map(g::withStrategies).orElse(g);
+                    if (configuration.containsKey("bdio.partitionStrategy.partitionKey")) {
+                        g = g.withStrategies(PartitionStrategy.create(configuration.subset("bdio.partitionStrategy")));
+                    }
 
                     // Import the graph
-                    if (!skipLoad) {
+                    if (actions.contains(Actions.LOAD)) {
                         Stopwatch loadGraphTimer = Stopwatch.createStarted();
-                        graph.io(bdio).readGraph(inputStream);
+                        bdio.readGraph(inputStream);
                         printDebugMessage("Time to load BDIO graph: %s%n", loadGraphTimer.stop());
                         onGraphLoaded.accept(g);
                     }
 
                     // Run the extra operations
-                    if (!skipInitialization) {
+                    if (actions.contains(Actions.APPLY_SEMANTIC_RULES)) {
                         Stopwatch initGraphTimer = Stopwatch.createStarted();
-                        graph.io(bdio).applySemanticRules();
-                        printDebugMessage("Time to initialize BDIO graph: %s%n", initGraphTimer.stop());
+                        bdio.applySemanticRules();
+                        printDebugMessage("Time to apply semantic BDIO rules: %s%n", initGraphTimer.stop());
                         onGraphInitialized.accept(g);
                     }
                 }
@@ -304,47 +333,16 @@ public class GraphTool extends Tool {
         }
     }
 
-    private Graph openGraph() throws Exception {
-        Graph graph = GraphFactory.open(configuration);
-        if (clean) {
-            if (graph instanceof TinkerGraph) {
-                ((TinkerGraph) graph).clear();
-            } else if (graph instanceof SqlgGraph) {
-                SqlgUtil.dropDb((SqlgGraph) graph);
-                graph.tx().commit();
-                graph.close();
-                graph = GraphFactory.open(configuration);
-            } else {
-                throw new UnsupportedOperationException("unable to clean graph: " + graph.getClass().getSimpleName());
-            }
-        }
-        return graph;
-    }
-
-    private Optional<PartitionStrategy> partition(@Nullable URI inputSource) {
-        // If there is only one input and no explicit configuration, we don't need a partition
-        if (inputs.size() > 1 || configuration.containsKey("bdio.partitionStrategy.partitionKey")) {
-            String partitionKey = configuration.getString("bdio.partitionStrategy.partitionKey", DEFAULT_PARTITION_KEY);
-            String writePartition = Objects.toString(inputSource, DEFAULT_PARTITION);
-            List<String> readPartitions = Collections.singletonList(writePartition);
-
-            // Mimic `PartitionStrategy.create(Configuration)` to use configured values if we only have one input
-            if (inputs.size() == 1) {
-                writePartition = configuration.getString("bdio.partitionStrategy.writePartition", writePartition);
-                @SuppressWarnings("unchecked")
-                Collection<String> configuredReadPartitions = (Collection<String>) configuration.getProperty("bdio.partitionStrategy.readPartitions");
-                if (configuredReadPartitions != null) {
-                    readPartitions = new ArrayList<>(configuredReadPartitions);
-                }
-            }
-
-            return Optional.of(PartitionStrategy.build()
-                    .partitionKey(partitionKey)
-                    .writePartition(writePartition)
-                    .readPartitions(readPartitions)
-                    .create());
+    private void cleanGraph(Graph graph) throws Exception {
+        if (graph instanceof TinkerGraph) {
+            ((TinkerGraph) graph).clear();
+        } else if (graph instanceof SqlgGraph) {
+            SqlgUtil.dropDb((SqlgGraph) graph);
+            graph.tx().commit();
+            graph.close();
+            graph = GraphFactory.open(configuration);
         } else {
-            return Optional.empty();
+            throw new UnsupportedOperationException("unable to clean graph: " + graph.getClass().getSimpleName());
         }
     }
 

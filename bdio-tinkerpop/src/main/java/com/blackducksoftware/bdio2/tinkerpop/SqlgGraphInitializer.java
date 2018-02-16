@@ -32,16 +32,12 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.umlg.sqlg.structure.PropertyType;
-import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.structure.topology.PropertyColumn;
 import org.umlg.sqlg.structure.topology.Topology;
 import org.umlg.sqlg.structure.topology.VertexLabel;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoMapper.GraphInitializer;
-import com.blackducksoftware.common.base.ExtraEnums;
 import com.google.common.base.Enums;
 import com.google.common.collect.Streams;
 
@@ -54,41 +50,36 @@ import com.google.common.collect.Streams;
  *
  * @author jgustie
  */
-class SqlgGraphInitializer extends GraphInitializer {
+class SqlgGraphInitializer {
 
     // TODO Switch this to JSON and store JSON natively
     private static final PropertyType JSON = PropertyType.STRING;
 
-    protected SqlgGraphInitializer(SqlgGraph graph) {
-        super(graph);
+    public SqlgGraphInitializer() {
     }
 
-    @Override
-    protected SqlgGraph graph() {
-        return (SqlgGraph) super.graph();
+    public void initialize(SqlgGraphReaderWrapper wrapper) {
+        defineMetadata(wrapper);
+        defineBdioClasses(wrapper);
+        defineEdgeLabels(wrapper);
     }
 
-    @Override
-    protected void initialize(GraphTopology graphTopology) {
-        graphTopology.metadataLabel().ifPresent(label -> defineMetadata(label, graphTopology));
-        graphTopology.forEachTypeLabel(label -> defineLabel(label, graphTopology));
-        defineEdgeLabels(graphTopology);
-    }
-
-    private void defineMetadata(String label, GraphTopology graphTopology) {
-        Map<String, PropertyType> columns = new HashMap<>();
-        for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
-            if (domain(dataProperty).filter(Bdio.Domain::metadata).anyMatch(x -> true)) {
-                Bdio.Datatype datatype = dataRange(dataProperty).map(Bdio.DataPropertyRange::value).orElse(Bdio.Datatype.Default);
-                Bdio.Container container = dataProperty.container();
-                columns.put(dataProperty.name(), toPropertyType(datatype, container));
+    private void defineMetadata(SqlgGraphReaderWrapper wrapper) {
+        wrapper.mapper().metadataLabel().ifPresent(label -> {
+            Map<String, PropertyType> columns = new HashMap<>();
+            for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
+                if (domain(dataProperty).anyMatch(Bdio.Domain::metadata)) {
+                    Bdio.Datatype datatype = dataRange(dataProperty).map(Bdio.DataPropertyRange::value).orElse(Bdio.Datatype.Default);
+                    Bdio.Container container = dataProperty.container();
+                    columns.put(dataProperty.name(), toPropertyType(datatype, container));
+                }
             }
-        }
-        ensureVertexLabelExist(label, columns, Collections.emptyList(), graphTopology);
+            ensureVertexLabelExist(label, columns, Collections.emptyList(), wrapper);
+        });
     }
 
-    private void defineLabel(String label, GraphTopology graphTopology) {
-        ExtraEnums.tryByName(Bdio.Class.class, label).ifPresent(bdioClass -> {
+    private void defineBdioClasses(SqlgGraphReaderWrapper wrapper) {
+        for (Bdio.Class bdioClass : Bdio.Class.values()) {
             Map<String, PropertyType> columns = new HashMap<>();
             List<String> nonUniqueIndexNames = new ArrayList<>();
             for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
@@ -102,12 +93,12 @@ class SqlgGraphInitializer extends GraphInitializer {
                 // TODO Instead of non-unique, we need a unique on _partition/path (or just path)
                 nonUniqueIndexNames.add(Bdio.DataProperty.path.name());
             }
-            ensureVertexLabelExist(label, columns, nonUniqueIndexNames, graphTopology);
-        });
+            ensureVertexLabelExist(bdioClass.name(), columns, nonUniqueIndexNames, wrapper);
+        }
     }
 
     private VertexLabel ensureVertexLabelExist(String label, Map<String, PropertyType> labelColumns, List<String> labelNonUniqueIndexColumns,
-            GraphTopology graphTopology) {
+            SqlgGraphReaderWrapper wrapper) {
         // Build up an effective columns with additional topology specific columns
         Map<String, PropertyType> columns = new TreeMap<>();
         List<String> nonUniqueIndexNames = new ArrayList<>();
@@ -115,24 +106,24 @@ class SqlgGraphInitializer extends GraphInitializer {
         columns.putAll(labelColumns);
         nonUniqueIndexNames.addAll(labelNonUniqueIndexColumns);
 
-        graphTopology.partitionStrategy().map(PartitionStrategy::getPartitionKey).ifPresent(c -> {
+        wrapper.partition((k, v) -> k).ifPresent(c -> {
             columns.put(c, STRING);
             nonUniqueIndexNames.add(c);
         });
-        graphTopology.unknownKey().ifPresent(c -> {
+        wrapper.mapper().unknownKey().ifPresent(c -> {
             columns.put(c, JSON);
         });
-        graphTopology.identifierKey().ifPresent(c -> {
+        wrapper.mapper().identifierKey().ifPresent(c -> {
             columns.put(c, STRING);
             // TODO Instead of non-unique, we need a unique on _partition/_id (or just _id)
             nonUniqueIndexNames.add(c);
         });
-        graphTopology.implicitKey().ifPresent(c -> {
+        wrapper.mapper().implicitKey().ifPresent(c -> {
             columns.put(c, BOOLEAN);
         });
 
         // Create the table and indexes
-        VertexLabel vertexLabel = graph().getTopology().ensureVertexLabelExist(label, columns);
+        VertexLabel vertexLabel = wrapper.graph().getTopology().ensureVertexLabelExist(label, columns);
         nonUniqueIndexNames.stream()
                 .flatMap(((Function<String, Optional<PropertyColumn>>) vertexLabel::getProperty).andThen(Streams::stream))
                 .map(Collections::singletonList)
@@ -144,13 +135,13 @@ class SqlgGraphInitializer extends GraphInitializer {
     /**
      * Defines the topology for some of the edge labels.
      */
-    private void defineEdgeLabels(GraphTopology graphTopology) {
+    private void defineEdgeLabels(SqlgGraphReaderWrapper wrapper) {
         // In general we do not store BDIO information on edges, however there are a few common properties we use
         Map<String, PropertyType> properties = new TreeMap<>();
-        graphTopology.partitionStrategy().map(PartitionStrategy::getPartitionKey).ifPresent(c -> properties.put(c, STRING));
-        graphTopology.implicitKey().ifPresent(c -> properties.put(c, BOOLEAN));
+        wrapper.partition((k, v) -> k).ifPresent(c -> properties.put(c, STRING));
+        wrapper.mapper().implicitKey().ifPresent(c -> properties.put(c, BOOLEAN));
 
-        Topology topology = graph().getTopology();
+        Topology topology = wrapper.graph().getTopology();
         for (Bdio.ObjectProperty objectProperty : Bdio.ObjectProperty.values()) {
             List<VertexLabel> range = objectRange(objectProperty)
                     .flatMap(p -> Arrays.stream(p.value()))

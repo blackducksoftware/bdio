@@ -16,31 +16,23 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.io.UncheckedIOException;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.function.Supplier;
 import java.util.stream.Collector;
-import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
-
-import org.apache.commons.configuration.Configuration;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
-import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdProcessor;
 import com.github.jsonldjava.utils.JsonUtils;
@@ -56,9 +48,9 @@ import com.google.common.collect.Maps;
 public class GraphMapper {
 
     /**
-     * The graph topology to use for mapping.
+     * The JSON-LD context to use.
      */
-    private final GraphTopology topology;
+    private final BlackDuckIoContext context;
 
     /**
      * The JSON-LD value object mapper to use.
@@ -68,21 +60,21 @@ public class GraphMapper {
     /**
      * Options for creating BDIO documents.
      */
-    private final BdioOptions options;
+    private final BdioOptions bdioOptions;
 
     private GraphMapper(Builder builder) {
-        // Get a reference to the topology
-        topology = builder.topology.get();
+        context = Optional.ofNullable(builder.tokens).map(BlackDuckIoContext::create)
+                .orElseGet(() -> BlackDuckIoContext.build().create());
 
         // Construct the value object mapper
         ValueObjectMapper.Builder valueObjectMapperBuilder = new ValueObjectMapper.Builder();
-        topology.forEachEmbeddedType((label, id) -> {
+        context.forEachEmbeddedType((label, id) -> {
             // Normally the ValueObjectMapper only tracks fully qualified types but we need to use it prior to
             // JSON-LD expansion so we need to tell it to recognize the vertex labels as well
             valueObjectMapperBuilder.addEmbeddedType(label);
             valueObjectMapperBuilder.addEmbeddedType(id);
         });
-        topology.forEachMultiValueDataPropertyKey(valueObjectMapperBuilder::addMultiValueKey);
+        context.multiDataValueProperties().forEach(valueObjectMapperBuilder::addMultiValueKey);
         builder.datatypes.forEach(valueObjectMapperBuilder::useDatatypeHandler);
         builder.multiValueCollector.ifPresent(valueObjectMapperBuilder::multiValueCollector);
         valueObjectMapper = valueObjectMapperBuilder.build();
@@ -93,148 +85,113 @@ public class GraphMapper {
         // Construct the BDIO options
         BdioOptions.Builder optionsBuilder = new BdioOptions.Builder();
         optionsBuilder.forContentType(builder.contentType, builder.expandContext);
-        optionsBuilder.applicationContext(topology.applicationContext());
+        optionsBuilder.applicationContext(context.applicationContext());
         builder.injectedDocuments.forEach(optionsBuilder::injectDocument);
-        options = optionsBuilder.build();
+        bdioOptions = optionsBuilder.build();
     }
 
     /**
-     * Returns a reference to the topology. This is because construction of the actual topology is often deferred until
-     * the graph mapper itself is constructed.
+     * Returns the configured value object mapper.
      */
-    GraphTopology topology() {
-        return topology;
-    }
-
-    // TODO Should we have a separate VertexProperties class?
-
-    /**
-     * Returns a stream representing the values of the vertex property. If the value is null or not present, an empty
-     * stream is returned; if the value is not a list or array then a single element stream is returned; otherwise a
-     * stream is returned over the individual elements of the value.
-     */
-    public static Stream<?> streamValue(VertexProperty<?> vp) {
-        Object value = vp.orElse(null);
-        if (value == null) {
-            return Stream.empty();
-        } else if (value instanceof List<?>) {
-            return ((List<?>) value).stream();
-        } else if (value.getClass().isArray()) {
-            return Stream.of((Object[]) value);
-        } else {
-            return Stream.of(value);
-        }
-    }
-
-    /**
-     * Returns an optional representing the value of the vertex property. While the vertex property itself has methods
-     * like {@code orElse}, it lacks methods like {@code map}.
-     */
-    public static <T> Optional<T> optionalValue(VertexProperty<T> vp) {
-        return vp.isPresent() ? Optional.of(vp.value()) : Optional.empty();
-    }
-
-    /**
-     * Returns an optional string representing the value of the vertex property with the specified key.
-     */
-    public static Optional<String> stringValue(Vertex v, Enum<?> key) {
-        return optionalValue(v.property(key.name()));
-    }
-
-    /**
-     * Returns an optional object representing the value of the vertex property with the specified key.
-     */
-    public static Optional<Object> objectValue(Vertex v, Enum<?> key) {
-        return optionalValue(v.property(key.name()));
-    }
-
-    /**
-     * Returns a vertex property comparator that considers non-present properties to be less than present. The supplied
-     * comparator is used only when both vertex properties are present.
-     */
-    public static <T> Comparator<VertexProperty<T>> presentFirst(Comparator<T> comparator) {
-        return new PresentComparator<>(comparator, true);
-    }
-
-    /**
-     * Returns a vertex property comparator that considers non-present properties to be greater than present. The
-     * supplied comparator is used only when both vertex properties are present.
-     */
-    public static <T> Comparator<VertexProperty<T>> presentLast(Comparator<T> comparator) {
-        return new PresentComparator<>(comparator, false);
-    }
-
-    /**
-     * @see GraphMapper#presentFirst(Comparator)
-     * @see GraphMapper#presentLast(Comparator)
-     */
-    private static final class PresentComparator<T> implements Comparator<VertexProperty<T>>, Serializable {
-        private static final long serialVersionUID = 2383921724074331436L;
-
-        private final Comparator<T> delegate;
-
-        private final boolean presentFirst;
-
-        private PresentComparator(Comparator<T> delegate, boolean presentFirst) {
-            this.delegate = delegate;
-            this.presentFirst = presentFirst;
-        }
-
-        @Override
-        public int compare(VertexProperty<T> left, VertexProperty<T> right) {
-            if (!left.isPresent()) {
-                return !right.isPresent() ? 0 : (presentFirst ? -1 : 1);
-            } else if (!right.isPresent()) {
-                return presentFirst ? 1 : -1;
-            } else {
-                return delegate != null ? delegate.compare(left.value(), right.value()) : 0;
-            }
-        }
-
-        @Override
-        public Comparator<VertexProperty<T>> reversed() {
-            return new PresentComparator<>(delegate != null ? delegate.reversed() : null, !presentFirst);
-        }
-    }
-
     public ValueObjectMapper valueObjectMapper() {
         return valueObjectMapper;
     }
 
-    public RxJavaBdioDocument newBdioDocument() {
-        return new RxJavaBdioDocument(options);
+    /**
+     * Creates a new BDIO document.
+     */
+    public RxJavaBdioDocument newDocument() {
+        return new RxJavaBdioDocument(bdioOptions);
     }
 
-    public Map<String, Object> compact(Map<String, Object> input) throws JsonLdError {
-        return JsonLdProcessor.compact(input, topology.context(), options.jsonLdOptions());
+    public Optional<String> metadataLabel() {
+        return Optional.ofNullable(context.metadataLabel());
     }
 
-    public List<Object> expand(Object input) throws JsonLdError {
-        return JsonLdProcessor.expand(input, options.jsonLdOptions());
+    public Optional<String> rootLabel() {
+        return Optional.ofNullable(context.rootLabel());
     }
 
-    public Map<String, Object> frame() {
-        // Construct the JSON-LD frame
-        Map<String, Object> frame = new LinkedHashMap<>();
-        frame.put(JsonLdConsts.CONTEXT, topology.context());
-        frame.put(JsonLdConsts.TYPE, topology.type());
-        return frame;
+    public Optional<String> identifierKey() {
+        return Optional.ofNullable(context.identifierKey());
+    }
+
+    public Optional<String> implicitKey() {
+        return Optional.ofNullable(context.implicitKey());
+    }
+
+    public Optional<String> partitionKey() {
+        return Optional.ofNullable(context.partitionKey());
+    }
+
+    public Optional<String> unknownKey() {
+        return Optional.ofNullable(context.unknownKey());
     }
 
     /**
-     * Returns all of the unknown properties, serialized as a single string. If there are no unknown properties in
-     * the supplied node map, then the optional will be empty.
+     * Checks to see if the specified key represents a data property.
      */
-    public Optional<String> preserveUnknownProperties(Map<String, Object> node) {
-        return Optional.of(Maps.filterKeys(node, GraphMapper::isUnknownKey))
-                .filter(m -> !m.isEmpty())
-                .map(m -> {
-                    try {
-                        return JsonUtils.toString(m);
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                });
+    public boolean isDataPropertyKey(String key) {
+        return context.dataProperties().containsKey(key);
+    }
+
+    /**
+     * Checks to see if the specified key represents an object property.
+     */
+    public boolean isObjectPropertyKey(String key) {
+        return context.objectProperties().containsKey(key);
+    }
+
+    public boolean isUnknownKey(String key) {
+        return Objects.equals(context.unknownKey(), key);
+    }
+
+    public boolean isImplicitKey(String key) {
+        return Objects.equals(context.implicitKey(), key);
+    }
+
+    public boolean isSpecialKey(String key) {
+        return context.isSpecialKey(key);
+    }
+
+    /**
+     * Checks to see if the specified label is an embedded class.
+     */
+    public boolean isEmbeddedLabel(String label) {
+        return context.embeddedClasses().contains(label);
+    }
+
+    public Set<String> excludedLabels() {
+        return context.excludedLabels();
+    }
+
+    public Map<String, Object> compact(Map<String, Object> input) throws JsonLdError {
+        return JsonLdProcessor.compact(input, context.serialize(), bdioOptions.jsonLdOptions());
+    }
+
+    public List<Object> expand(Object input) throws JsonLdError {
+        return JsonLdProcessor.expand(input, bdioOptions.jsonLdOptions());
+    }
+
+    public Map<String, Object> frame() {
+        return context.frame();
+    }
+
+    /**
+     * Preserves all of the unknown properties, serialized as a single string. If there are no unknown properties in
+     * the supplied node map, then the supplied action is not invoked.
+     */
+    public void preserveUnknownProperties(Map<String, Object> node, BiConsumer<String, Object> propertyConsumer) {
+        if (context.unknownKey() != null) {
+            Map<String, Object> unknownData = Maps.filterKeys(node, context::isUnknownKey);
+            if (!unknownData.isEmpty()) {
+                try {
+                    propertyConsumer.accept(context.unknownKey(), JsonUtils.toString(unknownData));
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            }
+        }
     }
 
     /**
@@ -261,20 +218,32 @@ public class GraphMapper {
 
     public static final class Builder {
 
-        private Supplier<GraphTopology> topology;
+        @Nullable
+        private BlackDuckIoTokens tokens;
 
         private final Map<String, DatatypeHandler<?>> datatypes = new LinkedHashMap<>();
 
         private Optional<Collector<? super Object, ?, ?>> multiValueCollector = Optional.empty();
 
+        @Nullable
         private Bdio.ContentType contentType;
 
+        @Nullable
         private Object expandContext;
 
         private final Map<String, CharSequence> injectedDocuments = new LinkedHashMap<>();
 
         private Builder() {
-            topology = () -> GraphTopology.build().create();
+        }
+
+        public Builder tokens(@Nullable BlackDuckIoTokens tokens) {
+            this.tokens = tokens;
+            return this;
+        }
+
+        public Builder addDatatype(String iri, DatatypeHandler<?> handler) {
+            datatypes.put(Objects.requireNonNull(iri), Objects.requireNonNull(handler));
+            return this;
         }
 
         public Builder multiValueCollector(@Nullable Collector<? super Object, ?, ?> multiValueCollector) {
@@ -288,39 +257,14 @@ public class GraphMapper {
             return this;
         }
 
-        public Builder addDatatype(String iri, DatatypeHandler<?> handler) {
-            datatypes.put(Objects.requireNonNull(iri), Objects.requireNonNull(handler));
-            return this;
-        }
-
         public Builder injectDocument(String iri, CharSequence content) {
-            injectedDocuments.put(iri, content);
-            return this;
-        }
-
-        public Builder withTopology(Supplier<GraphTopology> topology) {
-            this.topology = Objects.requireNonNull(topology);
-            return this;
-        }
-
-        public Builder withConfiguration(Configuration configuration) {
-            Objects.requireNonNull(configuration);
-            // TODO Should we allow configuration of anything else?
+            injectedDocuments.put(Objects.requireNonNull(iri), Objects.requireNonNull(content));
             return this;
         }
 
         public GraphMapper create() {
             return new GraphMapper(this);
         }
-
-    }
-
-    /**
-     * Check to see if the specified key represents an unknown property.
-     */
-    private static boolean isUnknownKey(String key) {
-        // If framing did not recognize the attribute, it will still have a scheme or prefix separator
-        return key.indexOf(':') >= 0;
     }
 
 }

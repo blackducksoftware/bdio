@@ -59,8 +59,9 @@ public class BlackDuckIoReaderTest extends BaseTest {
 
     @Test
     public void readEmpty() throws Exception {
-        InputStream in = new ByteArrayInputStream(new byte[0]);
-        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds())).readGraph(in);
+        InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id));
+        bdio.readGraph(inputStream);
 
         GraphTraversal<Vertex, Vertex> namedGraphs = graph.traversal().V().hasLabel(TT.Metadata);
         assertThat(namedGraphs.hasNext()).isTrue();
@@ -68,8 +69,9 @@ public class BlackDuckIoReaderTest extends BaseTest {
 
     @Test
     public void readLogicallyEmpty() throws Exception {
-        InputStream in = new ByteArrayInputStream("{}".getBytes(UTF_8));
-        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds())).readGraph(in);
+        InputStream inputStream = new ByteArrayInputStream("{}".getBytes(UTF_8));
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id));
+        bdio.readGraph(inputStream);
 
         GraphTraversal<Vertex, Vertex> namedGraphs = graph.traversal().V().hasLabel(TT.Metadata);
         assertThat(namedGraphs.hasNext()).isTrue();
@@ -80,8 +82,9 @@ public class BlackDuckIoReaderTest extends BaseTest {
         ZonedDateTime creationDateTime = ZonedDateTime.now();
         BdioMetadata metadata = BdioMetadata.createRandomUUID().creationDateTime(creationDateTime);
 
-        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds()))
-                .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph()));
+        InputStream inputStream = BdioTest.zipJsonBytes(metadata.asNamedGraph());
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id));
+        bdio.readGraph(inputStream);
 
         GraphTraversal<Vertex, Vertex> namedGraphs = graph.traversal().V().hasLabel(TT.Metadata);
         assertThat(namedGraphs.hasNext()).isTrue();
@@ -100,10 +103,11 @@ public class BlackDuckIoReaderTest extends BaseTest {
     @Test
     public void readMetadataPartition() throws Exception {
         BdioMetadata metadata = BdioMetadata.createRandomUUID();
-        graph.io(BlackDuckIo.build()
-                .onGraphTopology(storeMetadataAndIds()
-                        .andThen(b -> b.partitionStrategy("_partition", "abc"))))
-                .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph()));
+
+        InputStream inputStream = BdioTest.zipJsonBytes(metadata.asNamedGraph());
+
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id, TT.partition)).withWritePartition("abc");
+        bdio.readGraph(inputStream);
 
         Vertex namedGraph = graph.traversal().V().hasLabel(TT.Metadata).next();
         VertexProperty<String> partition = namedGraph.property("_partition");
@@ -119,8 +123,8 @@ public class BlackDuckIoReaderTest extends BaseTest {
         fileModel.fingerprint(singleton(Digest.of("sha1", "2d05a5f70ffb6fbf6fcbf65bb6f4cd48a8b2592a")));
         fileModel.fingerprint(singleton(Digest.of("md5", "b26af8f84049e82f6a4805d68b0f178d")));
 
-        graph.io(BlackDuckIo.build())
-                .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(fileModel))));
+        InputStream inputStream = BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(fileModel)));
+        graph.io(BlackDuckIo.build()).reader().create().readGraph(inputStream, graph);
 
         GraphTraversal<Vertex, Vertex> files = graph.traversal().V().hasLabel(Bdio.Class.File.name());
         assertThat(files.hasNext()).isTrue();
@@ -154,8 +158,8 @@ public class BlackDuckIoReaderTest extends BaseTest {
         File fileModel = new File(BdioObject.randomId());
         fileModel.fingerprint(singleton(Digest.of("sha1", "2d05a5f70ffb6fbf6fcbf65bb6f4cd48a8b2592a")));
 
-        graph.io(BlackDuckIo.build())
-                .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(fileModel))));
+        InputStream inputStream = BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(fileModel)));
+        graph.io(BlackDuckIo.build()).reader().create().readGraph(inputStream, graph);
 
         GraphTraversal<Vertex, Vertex> files = graph.traversal().V().hasLabel(Bdio.Class.File.name());
         assertThat(files.hasNext()).isTrue();
@@ -183,8 +187,8 @@ public class BlackDuckIoReaderTest extends BaseTest {
         fileModel.byteCount(103L);
         projectModel.base(fileModel);
 
-        graph.io(BlackDuckIo.build())
-                .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(projectModel, fileModel))));
+        InputStream inputStream = BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(projectModel, fileModel)));
+        graph.io(BlackDuckIo.build()).reader().create().readGraph(inputStream, graph);
 
         Optional<Number> byteCount = graph.traversal().V()
                 .hasLabel(Bdio.Class.Project.name())
@@ -203,10 +207,11 @@ public class BlackDuckIoReaderTest extends BaseTest {
         fileModel1.byteCount(103L);
         fileModel2.contentType(ContentType.parse("text/plain"));
 
-        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds()))
-                .readGraph(BdioTest.zipJsonBytes(
-                        metadata.asNamedGraph(Lists.newArrayList(fileModel1)),
-                        metadata.asNamedGraph(Lists.newArrayList(fileModel2), JsonLdConsts.ID)));
+        InputStream inputStream = BdioTest.zipJsonBytes(
+                metadata.asNamedGraph(Lists.newArrayList(fileModel1)),
+                metadata.asNamedGraph(Lists.newArrayList(fileModel2), JsonLdConsts.ID));
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id));
+        bdio.readGraph(inputStream);
 
         GraphTraversal<Vertex, Vertex> files = graph.traversal().V().hasLabel(Bdio.Class.File.name());
         assertThat(files.hasNext()).isTrue();
@@ -225,10 +230,11 @@ public class BlackDuckIoReaderTest extends BaseTest {
         File fileModel = new File(BdioObject.randomId());
         projectModel2.base(fileModel);
 
-        graph.io(BlackDuckIo.build().onGraphTopology(storeMetadataAndIds()))
-                .readGraph(BdioTest.zipJsonBytes(
-                        metadata.asNamedGraph(Lists.newArrayList(projectModel1)),
-                        metadata.asNamedGraph(Lists.newArrayList(projectModel2, fileModel), JsonLdConsts.ID)));
+        InputStream inputStream = BdioTest.zipJsonBytes(
+                metadata.asNamedGraph(Lists.newArrayList(projectModel1)),
+                metadata.asNamedGraph(Lists.newArrayList(projectModel2, fileModel), JsonLdConsts.ID));
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id));
+        bdio.readGraph(inputStream);
 
         GraphTraversalSource g = graph.traversal();
         assertThat(g.V().hasLabel(Bdio.Class.Project.name()).count().next()).isEqualTo(1);
@@ -241,8 +247,9 @@ public class BlackDuckIoReaderTest extends BaseTest {
         Project projectModel = new Project(BdioObject.randomId());
         projectModel.put("http://example.com/gus", "testing");
 
-        graph.io(BlackDuckIo.build().onGraphTopology(b -> b.unknownKey("_unknown")))
-                .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(projectModel))));
+        InputStream inputStream = BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(projectModel)));
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id));
+        bdio.readGraph(inputStream);
 
         Optional<Object> unknown = graph.traversal().V().hasLabel(Bdio.Class.Project.name()).values("_unknown").tryNext();
         assertThat(unknown).isPresent();
@@ -256,8 +263,10 @@ public class BlackDuckIoReaderTest extends BaseTest {
         Project projectModel = new Project(BdioObject.randomId());
         projectModel.put("http://example.com/gus", "testing");
 
-        graph.io(BlackDuckIo.build().onGraphTopology(b -> b.unknownKey("_unknown").addDataProperty("foobar", "http://example.com/gus")))
-                .readGraph(BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(projectModel))));
+        InputStream inputStream = BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(projectModel)));
+        BlackDuckIoContext tokens = BlackDuckIoContext.build().unknownKey(TT.unknown).addDataProperty("foobar", "http://example.com/gus").create();
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(tokens);
+        bdio.readGraph(inputStream);
 
         Optional<Object> unknown = graph.traversal().V().hasLabel(Bdio.Class.Project.name()).values("_unknown").tryNext();
         assertThat(unknown).isEmpty();

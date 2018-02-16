@@ -24,7 +24,6 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import java.util.function.Consumer;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
@@ -45,7 +44,7 @@ public class BlackDuckIoOperationsTest extends BaseTest {
 
     @Test
     public void addMissingFileParents() throws IOException {
-        InputStream bdio = new NamedGraphBuilder()
+        InputStream inputStream = new NamedGraphBuilder()
                 .fileCollection(f -> {})
                 .file(f -> f.path("file:///foo"))
                 .relateToFirst(FileCollection.class, FileCollection::base)
@@ -54,11 +53,9 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 .file(f -> f.path("file:///foo/bar/gus/two/more"))
                 .build();
 
-        Consumer<GraphTopology.Builder> config = b -> b.implicitKey(TT.implicit);
-        graph.io(BlackDuckIo.build().onGraphTopology(config)).readGraph(bdio);
-
-        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphTopology(config).create().forBdioReadingInto(graph);
-        new BlackDuckIoOperations.AddMissingFileParentsOperation(context).run();
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.implicit));
+        bdio.readGraph(inputStream);
+        new BlackDuckIoOperations.AddMissingFileParentsOperation(bdio.readerWrapper()).run();
 
         GraphTraversalSource g = graph.traversal();
 
@@ -92,15 +89,13 @@ public class BlackDuckIoOperationsTest extends BaseTest {
 
     @Test
     public void identifyRootProject() throws IOException {
-        InputStream bdio = new NamedGraphBuilder()
+        InputStream inputStream = new NamedGraphBuilder()
                 .project(p -> {})
                 .build();
 
-        Consumer<GraphTopology.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
-        graph.io(BlackDuckIo.build().onGraphTopology(config)).readGraph(bdio);
-
-        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphTopology(config).create().forBdioReadingInto(graph);
-        new BlackDuckIoOperations.IdentifyRootOperation(context).run();
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.root, TT.implicit));
+        bdio.readGraph(inputStream);
+        new BlackDuckIoOperations.IdentifyRootOperation(bdio.readerWrapper()).run();
 
         GraphTraversalSource g = graph.traversal();
         List<Vertex> roots = g.V().hasLabel(TT.Metadata).out(TT.root).toList();
@@ -111,7 +106,7 @@ public class BlackDuckIoOperationsTest extends BaseTest {
 
     @Test
     public void identifyRootProjectWithEdges() throws IOException {
-        InputStream bdio = new NamedGraphBuilder()
+        InputStream inputStream = new NamedGraphBuilder()
                 .project(p -> p.name("project"))
                 .project(p -> p.name("subproject"))
                 .relateToFirst(Project.class, Project::subproject)
@@ -121,11 +116,9 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 .relateToFirst(Project.class, Project::previousVersion)
                 .build();
 
-        Consumer<GraphTopology.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
-        graph.io(BlackDuckIo.build().onGraphTopology(config)).readGraph(bdio);
-
-        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphTopology(config).create().forBdioReadingInto(graph);
-        new BlackDuckIoOperations.IdentifyRootOperation(context).run();
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.root, TT.implicit));
+        bdio.readGraph(inputStream);
+        new BlackDuckIoOperations.IdentifyRootOperation(bdio.readerWrapper()).run();
 
         GraphTraversalSource g = graph.traversal();
         List<Vertex> roots = g.V().hasLabel(TT.Metadata).out(TT.root).toList();
@@ -136,18 +129,16 @@ public class BlackDuckIoOperationsTest extends BaseTest {
 
     @Test
     public void addMissingProjectDependencies() throws IOException {
-        InputStream bdio = new NamedGraphBuilder()
+        InputStream inputStream = new NamedGraphBuilder()
                 .project(p -> {})
                 .component(c -> c.name("test1"))
                 .component(c -> c.name("test2"))
                 .build();
 
-        Consumer<GraphTopology.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
-        graph.io(BlackDuckIo.build().onGraphTopology(config)).readGraph(bdio);
-
-        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphTopology(config).create().forBdioReadingInto(graph);
-        new BlackDuckIoOperations.IdentifyRootOperation(context).run();
-        new BlackDuckIoOperations.AddMissingProjectDependenciesOperation(context).run();
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.root, TT.implicit));
+        bdio.readGraph(inputStream);
+        new BlackDuckIoOperations.IdentifyRootOperation(bdio.readerWrapper()).run();
+        new BlackDuckIoOperations.AddMissingProjectDependenciesOperation(bdio.readerWrapper()).run();
 
         GraphTraversalSource g = graph.traversal();
         List<String> directDependencyNames = g.V().hasLabel(TT.Metadata)
@@ -162,7 +153,7 @@ public class BlackDuckIoOperationsTest extends BaseTest {
 
     @Test
     public void implyFileSystemType() throws IOException {
-        InputStream bdio = new NamedGraphBuilder()
+        InputStream inputStream = new NamedGraphBuilder()
                 .fileCollection(f -> {})
                 .file(f -> f.path("file:///foo"))
                 .relateToFirst(FileCollection.class, FileCollection::base)
@@ -173,12 +164,10 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 .file(f -> f.path("zip:file:%2F%2F%2Ffoo%2Fbar%2Ftest.zip#test.txt").encoding("UTF-8"))
                 .build();
 
-        Consumer<GraphTopology.Builder> config = b -> b.metadataLabel(TT.Metadata).rootLabel(TT.root).implicitKey(TT.implicit);
-        graph.io(BlackDuckIo.build().onGraphTopology(config)).readGraph(bdio);
-
-        ReadGraphContext context = new GraphContextFactoryBuilder().onGraphTopology(config).create().forBdioReadingInto(graph);
-        new BlackDuckIoOperations.AddMissingFileParentsOperation(context).run();
-        new BlackDuckIoOperations.ImplyFileSystemTypeOperation(context).run();
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.root, TT.implicit));
+        bdio.readGraph(inputStream);
+        new BlackDuckIoOperations.AddMissingFileParentsOperation(bdio.readerWrapper()).run();
+        new BlackDuckIoOperations.ImplyFileSystemTypeOperation(bdio.readerWrapper()).run();
 
         GraphTraversalSource g = graph.traversal();
         List<Vertex> files = g.V().hasLabel(Bdio.Class.File.name()).toList();

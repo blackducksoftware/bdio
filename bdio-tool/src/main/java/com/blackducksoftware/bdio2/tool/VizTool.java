@@ -241,7 +241,7 @@ public class VizTool extends AbstractGraphTool {
         } else {
             // Importing from stdin doesn't make sense here, instead just open the configured graph
             graphTool().setSkipLoad(true);
-            graphTool().setSkipInitialization(true);
+            graphTool().setSkipApplySemanticRules(true);
         }
     }
 

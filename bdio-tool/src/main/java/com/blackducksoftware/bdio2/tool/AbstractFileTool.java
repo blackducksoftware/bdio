@@ -27,7 +27,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.tinkerpop.GraphMapper;
+import com.blackducksoftware.bdio2.tinkerpop.util.VertexProperties;
 import com.blackducksoftware.common.value.HID;
 
 /**
@@ -84,7 +84,7 @@ public abstract class AbstractFileTool extends AbstractGraphTool {
         }
 
         public Bdio.FileSystemType type() {
-            return GraphMapper.objectValue(vertex, Bdio.DataProperty.fileSystemType)
+            return VertexProperties.objectValue(vertex, Bdio.DataProperty.fileSystemType)
                     .map(Bdio.FileSystemType::from)
                     .orElse(Bdio.FileSystemType.REGULAR);
         }

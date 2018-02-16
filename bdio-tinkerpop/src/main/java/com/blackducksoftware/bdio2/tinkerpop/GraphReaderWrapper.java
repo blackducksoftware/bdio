@@ -23,9 +23,13 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
+import javax.annotation.Nullable;
+
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -38,6 +42,7 @@ import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.NodeDoesNotExistException;
+import com.blackducksoftware.common.base.ExtraOptionals;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.google.common.base.Joiner;
@@ -54,12 +59,17 @@ import io.reactivex.plugins.RxJavaPlugins;
  *
  * @author jgustie
  */
-class ReadGraphContext extends GraphContext {
+class GraphReaderWrapper extends GraphIoWrapper {
 
     /**
      * The number of mutations between commits.
      */
     private final int batchSize;
+
+    /**
+     * The partition identifier to use (if applicable).
+     */
+    private final Optional<String> partition;
 
     /**
      * The number of observed mutations.
@@ -71,11 +81,19 @@ class ReadGraphContext extends GraphContext {
      */
     private final VertexFeatures vertexFeatures;
 
-    protected ReadGraphContext(Graph graph, GraphMapper mapper, int batchSize) {
+    protected GraphReaderWrapper(Graph graph, GraphMapper mapper, int batchSize, @Nullable String partition) {
         super(graph, mapper);
         this.batchSize = batchSize;
+        this.partition = Optional.ofNullable(partition).filter(x -> mapper.partitionKey().isPresent());
         this.count = new AtomicLong();
         vertexFeatures = graph.features().vertex();
+    }
+
+    @Override
+    public GraphTraversalSource traversal() {
+        GraphTraversalSource g = super.traversal();
+        return partition((k, v) -> PartitionStrategy.build().partitionKey(k).writePartition(v).readPartitions(v).create())
+                .map(g::withStrategies).orElse(g);
     }
 
     /**
@@ -94,6 +112,13 @@ class ReadGraphContext extends GraphContext {
             commitTx();
             startBatchTx();
         }
+    }
+
+    /**
+     * Returns the result of combining the partition key and partition value, only if both are present.
+     */
+    public <R> Optional<R> partition(BiFunction<String, String, R> combiner) {
+        return ExtraOptionals.and(mapper().partitionKey(), partition, combiner);
     }
 
     /**
@@ -163,9 +188,7 @@ class ReadGraphContext extends GraphContext {
 
                     // Create a new edge
                     Edge edge = cachedOutV.addEdge(e.label(), cachedInV);
-                    topology().partitionStrategy().ifPresent(p -> {
-                        edge.property(p.getPartitionKey(), p.getWritePartition());
-                    });
+                    partition(edge::property);
                     return edge;
                 });
     }
@@ -174,7 +197,7 @@ class ReadGraphContext extends GraphContext {
      * If a metadata label is configured, store the supplied BDIO metadata on a vertex in the graph.
      */
     public void createMetadata(BdioMetadata metadata) {
-        topology().metadataLabel().ifPresent(metadataLabel -> {
+        mapper().metadataLabel().ifPresent(metadataLabel -> {
             GraphTraversalSource g = traversal();
 
             // Find or create the one vertex with the metadata label
@@ -183,7 +206,7 @@ class ReadGraphContext extends GraphContext {
 
             // Preserve the identifier (if present and configured)
             if (metadata.id() != null) {
-                topology().identifierKey().ifPresent(key -> vertex.property(key, metadata.id()));
+                mapper().identifierKey().ifPresent(key -> vertex.property(key, metadata.id()));
             }
 
             try {
@@ -219,11 +242,9 @@ class ReadGraphContext extends GraphContext {
                     .map(label -> Maps.immutableEntry(T.label, label))
                     .ifPresent(properties);
 
-            topology().partitionStrategy()
-                    .map(s -> Maps.immutableEntry(s.getPartitionKey(), s.getWritePartition()))
-                    .ifPresent(properties);
+            partition(Maps::immutableEntry).ifPresent(properties);
 
-            topology().identifierKey().ifPresent(key -> {
+            mapper().identifierKey().ifPresent(key -> {
                 Optional.ofNullable(node.get(JsonLdConsts.ID))
                         .map(id -> Maps.immutableEntry(key, id))
                         .ifPresent(properties);
@@ -232,16 +253,12 @@ class ReadGraphContext extends GraphContext {
 
         // Data properties
         Maps.transformEntries(node, mapper().valueObjectMapper()::fromFieldValue).entrySet().stream()
-                .filter(e -> topology().isDataPropertyKey(e.getKey()))
+                .filter(e -> mapper().isDataPropertyKey(e.getKey()))
                 .sorted(comparing(Map.Entry::getKey))
                 .forEachOrdered(properties);
 
         // Unknown properties
-        topology().unknownKey().ifPresent(key -> {
-            mapper().preserveUnknownProperties(node)
-                    .map(json -> Maps.immutableEntry(key, json))
-                    .ifPresent(properties);
-        });
+        mapper().preserveUnknownProperties(node, (k, v) -> properties.add(Maps.immutableEntry(k, v)));
 
         // Convert the whole thing into an array
         return properties.build()
@@ -253,13 +270,10 @@ class ReadGraphContext extends GraphContext {
         // If user supplied identifiers are not supported this value will only be used by the star graph elements
         // (for example, this is the identifier used by star vertices prior to being attached, and is later used to look
         // up the persisted identifier of the star edge incoming vertex)
-        if (vertexFeatures.supportsUserSuppliedIds() && topology().partitionStrategy().isPresent()) {
+        if (vertexFeatures.supportsUserSuppliedIds() && partition.isPresent()) {
             // The effective identifier must include the write partition value to avoid problems where the
             // same node imported into separate partitions gets recreated instead merged
-            String partitionKey = topology().partitionStrategy().get().getPartitionKey();
-            Object partitionValue = topology().partitionStrategy().get().getWritePartition();
-
-            Map<String, Object> mapId = ImmutableMap.of(JsonLdConsts.ID, id, partitionKey, partitionValue);
+            Map<String, Object> mapId = partition((k, v) -> ImmutableMap.of(JsonLdConsts.ID, id, k, v)).get();
             if (vertexFeatures.willAllowId(mapId)) {
                 return mapId;
             }

@@ -25,7 +25,7 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
  *
  * @author jgustie
  */
-abstract class GraphContext {
+abstract class GraphIoWrapper {
 
     /**
      * The graph in context.
@@ -38,44 +38,31 @@ abstract class GraphContext {
     private final GraphMapper mapper;
 
     /**
-     * A reference to the topology used by the {@link #mapper}.
-     */
-    private final GraphTopology topology;
-
-    /**
      * A reference to the transaction support flag of the {@link #graph}.
      */
     private final boolean supportsTransactions;
 
-    protected GraphContext(Graph graph, GraphMapper mapper) {
+    protected GraphIoWrapper(Graph graph, GraphMapper mapper) {
         this.graph = Objects.requireNonNull(graph);
         this.mapper = Objects.requireNonNull(mapper);
 
         // Store extra references that will be needed frequently
-        this.topology = mapper.topology();
         this.supportsTransactions = graph.features().graph().supportsTransactions();
 
-        // TODO Perform other feature validation here, e.g. user identifier support and topology.identifierKey...
+        // TODO Perform other feature validation here, e.g. user identifier support and context.identifierKey...
     }
 
     /**
      * Returns the graph for this context.
      */
-    public final Graph graph() {
+    public Graph graph() {
         return graph;
-    }
-
-    /**
-     * Returns the topology used in this context.
-     */
-    public final GraphTopology topology() {
-        return topology;
     }
 
     /**
      * Returns the mapper used in this context.
      */
-    public final GraphMapper mapper() {
+    public GraphMapper mapper() {
         return mapper;
     }
 
@@ -83,9 +70,7 @@ abstract class GraphContext {
      * Returns a traversal source for the graph.
      */
     public GraphTraversalSource traversal() {
-        // TODO Cache this?
-        GraphTraversalSource traversal = graph().traversal();
-        return topology().partitionStrategy().map(traversal::withStrategies).orElse(traversal);
+        return graph().traversal();
     }
 
     /**
@@ -105,7 +90,5 @@ abstract class GraphContext {
             graph.tx().rollback();
         }
     }
-
-    // TODO Can we also offer a `Workload<T> submit()` that returns a dummy workload that doesn't use transactions?
 
 }
