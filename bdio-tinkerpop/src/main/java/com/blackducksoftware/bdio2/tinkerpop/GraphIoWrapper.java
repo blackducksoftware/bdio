@@ -85,7 +85,7 @@ abstract class GraphIoWrapper {
             return graph().traversal();
         } else {
             // Generally not good form to serialize a list for varargs invocation, but we have little choice here
-            return graph().traversal().withStrategies(strategies.toArray(new TraversalStrategy[strategies.size()]));
+            return graph().traversal().withStrategies(strategies.toArray(new TraversalStrategy<?>[strategies.size()]));
         }
     }
 

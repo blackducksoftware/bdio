@@ -51,8 +51,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
         commit();
 
         HeapOutputStream outputStream = new HeapOutputStream();
-        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id));
-        bdio.writeGraph(outputStream);
+        new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id)).writeGraph(outputStream);
 
         List<String> entries = BdioTest.zipEntries(outputStream.getInputStream());
         assertThat(entries).hasSize(1);
@@ -71,7 +70,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
         commit();
 
         HeapOutputStream outputStream = new HeapOutputStream();
-        graph.io(BlackDuckIo.build()).writer().create().writeGraph(outputStream, graph);
+        new BlackDuckIoCore(graph).writeGraph(outputStream);
 
         List<String> entries = BdioTest.zipEntries(outputStream.getInputStream());
         assertThat(entries).hasSize(2);
@@ -95,8 +94,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
         commit();
 
         HeapOutputStream outputStream = new HeapOutputStream();
-        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id));
-        bdio.writeGraph(outputStream);
+        new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id)).writeGraph(outputStream);
 
         List<String> entries = BdioTest.zipEntries(outputStream.getInputStream());
         assertThat(entries).hasSize(2);
@@ -131,8 +129,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
         commit();
 
         HeapOutputStream outputStream = new HeapOutputStream();
-        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id));
-        bdio.writeGraph(outputStream);
+        new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id)).writeGraph(outputStream);
 
         List<String> entries = BdioTest.zipEntries(outputStream.getInputStream());
         assertThat(entries).hasSize(2);
@@ -157,20 +154,23 @@ public class BlackDuckIoWriterTest extends BaseTest {
                 "foobar", "testing");
         commit();
 
-        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id));
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph);
 
         // First write it out without registering the custom field and verify it doesn't show up
         HeapOutputStream nonCustomBuffer = new HeapOutputStream();
-        bdio.writeGraph(nonCustomBuffer);
+        bdio.withTokens(testTokens(TT.Metadata, TT.id)).writeGraph(nonCustomBuffer);
 
         assertThatJson(BdioTest.zipEntries(nonCustomBuffer.getInputStream()).get(1))
                 .at("/@graph/0").doesNotContainName("foobar");
 
         // Now write it out with the registered custom data property
+        BlackDuckIoTokens customTokens = BlackDuckIoContext.build()
+                .metadataLabel(TT.Metadata)
+                .identifierKey(TT.id)
+                .addDataProperty("foobar", "http://example.com/gus")
+                .create();
         HeapOutputStream customBuffer = new HeapOutputStream();
-        bdio.withTokens(BlackDuckIoContext.build().metadataLabel(TT.Metadata).identifierKey(TT.id)
-                .addDataProperty("foobar", "http://example.com/gus").create());
-        bdio.writeGraph(customBuffer);
+        bdio.withTokens(customTokens).writeGraph(customBuffer);
 
         List<String> entries = BdioTest.zipEntries(customBuffer.getInputStream());
         assertThatJson(entries.get(1)).at("/@graph/0").containsName("http://example.com/gus");
@@ -193,8 +193,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
         commit();
 
         HeapOutputStream outputStream = new HeapOutputStream();
-        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id));
-        bdio.writeGraph(outputStream);
+        new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id)).writeGraph(outputStream);
 
         List<String> entries = BdioTest.zipEntries(outputStream.getInputStream());
 

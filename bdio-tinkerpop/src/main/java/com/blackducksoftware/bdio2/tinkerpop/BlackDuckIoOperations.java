@@ -86,7 +86,8 @@ public final class BlackDuckIoOperations {
         protected abstract void execute(GraphTraversalSource g, GraphMapper mapper);
 
         /**
-         * Hopefully this isn't needed too often.
+         * Provides direct access to the graph wrapper, generally for transaction management and access to strategy
+         * configuration (e.g. partition schemes).
          */
         protected final GraphReaderWrapper wrapper() {
             return wrapper;
@@ -99,6 +100,11 @@ public final class BlackDuckIoOperations {
         this.graphWrapper = builder.wrapperFactory::wrapReader;
     }
 
+    /**
+     * When possible, initializes the graph's schema and configures indexes. Note that for some implementations this
+     * operation does nothing, however it is better to always call this at least once before attempting to perform BDIO
+     * operations on a graph.
+     */
     public void initializeSchema(Graph graph) {
         GraphReaderWrapper wrapper = graphWrapper.apply(graph);
         new InitializeSchemaOperation(wrapper).run();
@@ -149,7 +155,7 @@ public final class BlackDuckIoOperations {
     /**
      * Performs implementation specific schema initialization for BDIO (but <em>not</em> user defined extensions!).
      */
-    protected static class InitializeSchemaOperation extends Operation {
+    private static class InitializeSchemaOperation extends Operation {
         public InitializeSchemaOperation(GraphReaderWrapper wrapper) {
             super(wrapper, m -> true);
         }
