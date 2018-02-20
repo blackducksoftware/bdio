@@ -15,6 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tool;
 
+import static com.blackducksoftware.common.base.ExtraEnums.set;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.id;
 
@@ -131,35 +132,19 @@ public class GraphTool extends Tool {
     }
 
     public void setClean(boolean clean) {
-        if (clean) {
-            actions.add(Action.CLEAN);
-        } else {
-            actions.remove(Action.CLEAN);
-        }
+        set(actions, Action.CLEAN, clean);
     }
 
-    public void setInitializeSchema(boolean initialize) {
-        if (initialize) {
-            actions.add(Action.INITIALIZE_SCHEMA);
-        } else {
-            actions.remove(Action.INITIALIZE_SCHEMA);
-        }
+    public void setInitializeSchema(boolean initializeSchema) {
+        set(actions, Action.INITIALIZE_SCHEMA, initializeSchema);
     }
 
     public void setSkipLoad(boolean skipLoad) {
-        if (skipLoad) {
-            actions.remove(Action.LOAD);
-        } else {
-            actions.add(Action.LOAD);
-        }
+        set(actions, Action.LOAD, !skipLoad);
     }
 
     public void setSkipApplySemanticRules(boolean skipApplySemanticRules) {
-        if (skipApplySemanticRules) {
-            actions.remove(Action.APPLY_SEMANTIC_RULES);
-        } else {
-            actions.add(Action.APPLY_SEMANTIC_RULES);
-        }
+        set(actions, Action.APPLY_SEMANTIC_RULES, !skipApplySemanticRules);
     }
 
     public void onGraphLoaded(Consumer<GraphTraversalSource> listener) {
