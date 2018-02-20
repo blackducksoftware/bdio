@@ -82,6 +82,7 @@ public interface BlackDuckIoTokens {
     /**
      * The property key used to persist JSON-LD node identifiers.
      */
+    // TODO Remove this in favor of an ElementIdStrategy that generates random "urn:uuid:..." URIs
     @Nullable
     default String identifierKey() {
         return null;
@@ -100,14 +101,6 @@ public interface BlackDuckIoTokens {
      */
     @Nullable
     default String implicitKey() {
-        return null;
-    }
-
-    /**
-     * The partition key used isolate JSON-LD sub-graphs.
-     */
-    @Nullable
-    default String partitionKey() {
         return null;
     }
 

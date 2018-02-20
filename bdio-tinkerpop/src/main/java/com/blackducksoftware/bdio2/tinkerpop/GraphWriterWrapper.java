@@ -15,10 +15,15 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.blackducksoftware.common.base.ExtraStreams.ofType;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -39,8 +44,8 @@ import com.google.common.collect.Lists;
  */
 class GraphWriterWrapper extends GraphIoWrapper {
 
-    protected GraphWriterWrapper(Graph graph, GraphMapper mapper) {
-        super(graph, mapper);
+    protected GraphWriterWrapper(Graph graph, GraphMapper mapper, List<TraversalStrategy<?>> strategies) {
+        super(graph, mapper, strategies);
     }
 
     /**
@@ -65,7 +70,6 @@ class GraphWriterWrapper extends GraphIoWrapper {
                         }
                     } catch (JsonLdError e) {
                         // TODO How should we handle this?
-                        e.printStackTrace();
                     }
                     return metadata;
                 })
@@ -83,7 +87,7 @@ class GraphWriterWrapper extends GraphIoWrapper {
             if (mapper().isUnknownKey(vp.key())) {
                 // Restore unknown properties by putting them all back into the result map
                 mapper().restoreUnknownProperties(vp.value(), result::put);
-            } else if (mapper().isSpecialKey(vp.key())) {
+            } else if (isIgnoredKey(vp.key())) {
                 // Skip all of the "special" vertex properties used internally on the graph
                 return;
             } else {
@@ -92,6 +96,12 @@ class GraphWriterWrapper extends GraphIoWrapper {
             }
         });
         return result;
+    }
+
+    private boolean isIgnoredKey(String key) {
+        return mapper().isSpecialKey(key)
+                || strategies().flatMap(ofType(PartitionStrategy.class))
+                        .map(PartitionStrategy::getPartitionKey).anyMatch(Predicate.isEqual(key));
     }
 
     /**

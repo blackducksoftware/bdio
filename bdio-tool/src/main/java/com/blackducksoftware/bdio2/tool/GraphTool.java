@@ -30,7 +30,6 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -71,7 +70,7 @@ public class GraphTool extends Tool {
 
     static final String DEFAULT_PARTITION = "<stdin>";
 
-    private enum Actions {
+    private enum Action {
         CLEAN, INITIALIZE_SCHEMA, LOAD, APPLY_SEMANTIC_RULES
     }
 
@@ -85,7 +84,7 @@ public class GraphTool extends Tool {
 
     private CompositeConfiguration configuration = new CompositeConfiguration();
 
-    private EnumSet<Actions> actions = EnumSet.of(Actions.LOAD, Actions.APPLY_SEMANTIC_RULES);
+    private EnumSet<Action> actions = EnumSet.of(Action.LOAD, Action.APPLY_SEMANTIC_RULES);
 
     private Consumer<GraphTraversalSource> onGraphLoaded = g -> {};
 
@@ -133,33 +132,33 @@ public class GraphTool extends Tool {
 
     public void setClean(boolean clean) {
         if (clean) {
-            actions.add(Actions.CLEAN);
+            actions.add(Action.CLEAN);
         } else {
-            actions.remove(Actions.CLEAN);
+            actions.remove(Action.CLEAN);
         }
     }
 
     public void setInitializeSchema(boolean initialize) {
         if (initialize) {
-            actions.add(Actions.INITIALIZE_SCHEMA);
+            actions.add(Action.INITIALIZE_SCHEMA);
         } else {
-            actions.remove(Actions.INITIALIZE_SCHEMA);
+            actions.remove(Action.INITIALIZE_SCHEMA);
         }
     }
 
     public void setSkipLoad(boolean skipLoad) {
         if (skipLoad) {
-            actions.remove(Actions.LOAD);
+            actions.remove(Action.LOAD);
         } else {
-            actions.add(Actions.LOAD);
+            actions.add(Action.LOAD);
         }
     }
 
     public void setSkipApplySemanticRules(boolean skipApplySemanticRules) {
         if (skipApplySemanticRules) {
-            actions.remove(Actions.APPLY_SEMANTIC_RULES);
+            actions.remove(Action.APPLY_SEMANTIC_RULES);
         } else {
-            actions.add(Actions.APPLY_SEMANTIC_RULES);
+            actions.add(Action.APPLY_SEMANTIC_RULES);
         }
     }
 
@@ -265,17 +264,17 @@ public class GraphTool extends Tool {
 
     @Override
     protected void execute() throws Exception {
-        checkState(!inputs.isEmpty() || (!actions.contains(Actions.LOAD) && !actions.contains(Actions.APPLY_SEMANTIC_RULES)), "no inputs");
+        checkState(!inputs.isEmpty() || (!actions.contains(Action.LOAD) && !actions.contains(Action.APPLY_SEMANTIC_RULES)), "no inputs");
 
         // Open the graph and update the BDIO specific configuration if necessary
         Graph graph = GraphFactory.open(configuration);
-        if (actions.contains(Actions.CLEAN)) {
+        if (actions.contains(Action.CLEAN)) {
             cleanGraph(graph);
         }
         if (!graph.features().vertex().supportsUserSuppliedIds() && !configuration.containsKey("bdio.identifierKey")) {
             configuration.setProperty("bdio.identifierKey", DEFAULT_IDENTIFIER_KEY);
         }
-        if (actions.contains(Actions.APPLY_SEMANTIC_RULES) && !configuration.containsKey("bdio.implicitKey")) {
+        if (actions.contains(Action.APPLY_SEMANTIC_RULES) && !configuration.containsKey("bdio.implicitKey")) {
             configuration.setProperty("bdio.implicitKey", DEFAULT_IMPLICIT_KEY);
         }
         if (inputs.size() > 1 && !configuration.containsKey("bdio.partitionStrategy.partitionKey")) {
@@ -286,42 +285,35 @@ public class GraphTool extends Tool {
         }
 
         // Create a new BDIO core using the graph's configuration to define tokens
-        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withGraphConfiguration();
-        if (actions.contains(Actions.INITIALIZE_SCHEMA)) {
-            bdio.initializeSchema();
+        BlackDuckIoCore bdioCore = new BlackDuckIoCore(graph).withGraphConfiguration();
+        if (actions.contains(Action.INITIALIZE_SCHEMA)) {
+            bdioCore.initializeSchema();
         }
 
         try {
             for (Map.Entry<URI, ByteSource> input : inputs.entrySet()) {
                 try (InputStream inputStream = input.getValue().openStream()) {
-                    // Do bad mutations in the loop...
-                    setContentType(input.getKey(), bdio::withContentType);
-                    if (inputs.size() > 1) {
-                        String writePartition = input.getKey().toString();
-                        bdio.withWritePartition(writePartition);
-                        configuration.setProperty("bdio.partitionStrategy.writePartition", writePartition);
-                    }
+                    BlackDuckIoCore bdio = bdioCore.withExpandContext(expandContext(input.getKey()));
 
-                    // Get a traversal for the graph honoring the partition for event listeners
-                    GraphTraversalSource g = graph.traversal();
-                    if (configuration.containsKey("bdio.partitionStrategy.partitionKey")) {
-                        g = g.withStrategies(PartitionStrategy.create(configuration.subset("bdio.partitionStrategy")));
+                    // If we have multiple inputs, make sure each one gets it's own partition
+                    if (inputs.size() > 1) {
+                        bdio = bdio.withStrategies(multiInputPartition(input.getKey(), configuration));
                     }
 
                     // Import the graph
-                    if (actions.contains(Actions.LOAD)) {
+                    if (actions.contains(Action.LOAD)) {
                         Stopwatch loadGraphTimer = Stopwatch.createStarted();
                         bdio.readGraph(inputStream);
                         printDebugMessage("Time to load BDIO graph: %s%n", loadGraphTimer.stop());
-                        onGraphLoaded.accept(g);
+                        onGraphLoaded.accept(bdio.traversal());
                     }
 
                     // Run the extra operations
-                    if (actions.contains(Actions.APPLY_SEMANTIC_RULES)) {
+                    if (actions.contains(Action.APPLY_SEMANTIC_RULES)) {
                         Stopwatch initGraphTimer = Stopwatch.createStarted();
                         bdio.applySemanticRules();
                         printDebugMessage("Time to apply semantic BDIO rules: %s%n", initGraphTimer.stop());
-                        onGraphInitialized.accept(g);
+                        onGraphInitialized.accept(bdio.traversal());
                     }
                 }
             }
@@ -331,6 +323,12 @@ public class GraphTool extends Tool {
         } finally {
             graph.close();
         }
+    }
+
+    private PartitionStrategy multiInputPartition(URI input, Configuration configuration) {
+        Configuration inputConfig = new CompositeConfiguration(Collections.singleton(configuration.subset("bdio.partitionStrategy")));
+        inputConfig.setProperty("bdio.partitionStrategy.writePartition", input.toString());
+        return PartitionStrategy.create(inputConfig);
     }
 
     private void cleanGraph(Graph graph) throws Exception {
@@ -357,12 +355,17 @@ public class GraphTool extends Tool {
     }
 
     /**
-     * Sets the content type and expansion context given the supplied identifier.
+     * Returns the expansion context given the supplied identifier.
      */
-    public static void setContentType(@Nullable URI id, BiConsumer<Bdio.ContentType, Object> contentType) {
+    protected static Object expandContext(URI id) {
+        Object expandContext;
         if (id != null && id.getPath() != null) {
-            contentType.accept(Bdio.ContentType.forFileName(id.getPath()), Bdio.Context.DEFAULT.toString());
+            Bdio.ContentType contentType = Bdio.ContentType.forFileName(id.getPath());
+            expandContext = contentType != Bdio.ContentType.JSON ? contentType : Bdio.Context.DEFAULT;
+        } else {
+            expandContext = Bdio.Context.DEFAULT;
         }
+        return expandContext;
     }
 
     /**

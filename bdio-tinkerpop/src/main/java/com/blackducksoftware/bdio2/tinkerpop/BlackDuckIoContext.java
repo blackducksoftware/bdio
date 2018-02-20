@@ -98,11 +98,6 @@ public class BlackDuckIoContext implements BlackDuckIoTokens {
      */
     private final Optional<String> implicitKey;
 
-    /**
-     * The partitioning key used isolate JSON-LD sub-graphs.
-     */
-    private final Optional<String> partitionKey;
-
     private BlackDuckIoContext(Builder builder) {
         classes = ImmutableMap.copyOf(builder.classes);
         embeddedClasses = ImmutableSet.copyOf(builder.embeddedClasses);
@@ -114,7 +109,6 @@ public class BlackDuckIoContext implements BlackDuckIoTokens {
         identifierKey = Optional.ofNullable(builder.identifierKey);
         unknownKey = Optional.ofNullable(builder.unknownKey);
         implicitKey = Optional.ofNullable(builder.implicitKey);
-        partitionKey = Optional.ofNullable(builder.partitionKey);
 
         // We can't make edges from metadata if we aren't recording metadata
         checkState(metadataLabel.isPresent() || !rootLabel.isPresent(), "rootLabel cannot be specified without metadataLabel");
@@ -125,7 +119,6 @@ public class BlackDuckIoContext implements BlackDuckIoTokens {
         checkState(!identifierKey.filter(dataProperties::containsKey).isPresent(), "identifierKey conflict");
         checkState(!unknownKey.filter(dataProperties::containsKey).isPresent(), "unknownKey conflict");
         checkState(!implicitKey.filter(dataProperties::containsKey).isPresent(), "implicitKey conflict");
-        checkState(!partitionKey.filter(dataProperties::containsKey).isPresent(), "partitionKey conflict");
     }
 
     @Override
@@ -178,11 +171,6 @@ public class BlackDuckIoContext implements BlackDuckIoTokens {
         return implicitKey.orElse(null);
     }
 
-    @Override
-    public String partitionKey() {
-        return partitionKey.orElse(null);
-    }
-
     /**
      * Checks to see if the specified key represents a special property internal to the graph.
      */
@@ -190,8 +178,7 @@ public class BlackDuckIoContext implements BlackDuckIoTokens {
         // TODO All keys that start with "_"?
         Predicate<String> isKey = Predicate.isEqual(key);
         return identifierKey.filter(isKey).isPresent()
-                || implicitKey.filter(isKey).isPresent()
-                || partitionKey.filter(isKey).isPresent();
+                || implicitKey.filter(isKey).isPresent();
     }
 
     /**
@@ -248,8 +235,7 @@ public class BlackDuckIoContext implements BlackDuckIoTokens {
     /**
      * Returns the application context: i.e. a context that does not describe BDIO.
      */
-    @Nullable
-    Map<String, Object> applicationContext() {
+    Optional<Map<String, Object>> applicationContext() {
         Map<String, Object> context = serialize();
 
         // Remove everything that could come from BDIO
@@ -262,7 +248,7 @@ public class BlackDuckIoContext implements BlackDuckIoTokens {
         metadataLabel.ifPresent(context::remove);
         context.keySet().removeIf(this::isSpecialKey);
 
-        return context.isEmpty() ? null : context;
+        return context.isEmpty() ? Optional.empty() : Optional.of(context);
     }
 
     /**
@@ -291,7 +277,6 @@ public class BlackDuckIoContext implements BlackDuckIoTokens {
         builder.identifierKey(config.getString("identifierKey", null));
         builder.unknownKey(config.getString("unknownKey", null));
         builder.implicitKey(config.getString("implicitKey", null));
-        builder.partitionKey(config.getString("partitionStrategy.partitionKey", null));
         return builder.create();
     }
 
@@ -310,7 +295,6 @@ public class BlackDuckIoContext implements BlackDuckIoTokens {
         builder.identifierKey(tokens.identifierKey());
         builder.unknownKey(tokens.unknownKey());
         builder.implicitKey(tokens.implicitKey());
-        builder.partitionKey(tokens.partitionKey());
         return builder.create();
     }
 
@@ -340,9 +324,6 @@ public class BlackDuckIoContext implements BlackDuckIoTokens {
 
         @Nullable
         private String implicitKey;
-
-        @Nullable
-        private String partitionKey;
 
         private Builder() {
             classes = new LinkedHashMap<>();
@@ -421,11 +402,6 @@ public class BlackDuckIoContext implements BlackDuckIoTokens {
 
         public Builder implicitKey(@Nullable String implicitKey) {
             this.implicitKey = checkUserSuppliedKey(implicitKey, "implicitKey '%s' is reserved");
-            return this;
-        }
-
-        public Builder partitionKey(@Nullable String partitionKey) {
-            this.partitionKey = checkUserSuppliedKey(partitionKey, "partitionKey '%s' is reserved");
             return this;
         }
 

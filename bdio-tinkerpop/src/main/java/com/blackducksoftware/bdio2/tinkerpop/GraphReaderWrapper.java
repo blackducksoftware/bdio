@@ -15,19 +15,20 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static java.util.Comparator.comparing;
 import static org.apache.tinkerpop.gremlin.structure.Direction.OUT;
 
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.BiFunction;
+import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
-import javax.annotation.Nullable;
-
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Direction;
@@ -42,7 +43,6 @@ import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.NodeDoesNotExistException;
-import com.blackducksoftware.common.base.ExtraOptionals;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.google.common.base.Joiner;
@@ -67,11 +67,6 @@ class GraphReaderWrapper extends GraphIoWrapper {
     private final int batchSize;
 
     /**
-     * The partition identifier to use (if applicable).
-     */
-    private final Optional<String> partition;
-
-    /**
      * The number of observed mutations.
      */
     private final AtomicLong count;
@@ -81,19 +76,11 @@ class GraphReaderWrapper extends GraphIoWrapper {
      */
     private final VertexFeatures vertexFeatures;
 
-    protected GraphReaderWrapper(Graph graph, GraphMapper mapper, int batchSize, @Nullable String partition) {
-        super(graph, mapper);
+    protected GraphReaderWrapper(Graph graph, GraphMapper mapper, List<TraversalStrategy<?>> strategies, int batchSize) {
+        super(graph, mapper, strategies);
         this.batchSize = batchSize;
-        this.partition = Optional.ofNullable(partition).filter(x -> mapper.partitionKey().isPresent());
         this.count = new AtomicLong();
         vertexFeatures = graph.features().vertex();
-    }
-
-    @Override
-    public GraphTraversalSource traversal() {
-        GraphTraversalSource g = super.traversal();
-        return partition((k, v) -> PartitionStrategy.build().partitionKey(k).writePartition(v).readPartitions(v).create())
-                .map(g::withStrategies).orElse(g);
     }
 
     /**
@@ -115,10 +102,13 @@ class GraphReaderWrapper extends GraphIoWrapper {
     }
 
     /**
-     * Returns the result of combining the partition key and partition value, only if both are present.
+     * Accepts each partition key and write partition value.
      */
-    public <R> Optional<R> partition(BiFunction<String, String, R> combiner) {
-        return ExtraOptionals.and(mapper().partitionKey(), partition, combiner);
+    public void forEachPartition(BiConsumer<String, String> consumer) {
+        strategies()
+                .flatMap(ofType(PartitionStrategy.class))
+                .filter(s -> s.getWritePartition() != null)
+                .forEachOrdered(s -> consumer.accept(s.getPartitionKey(), s.getWritePartition()));
     }
 
     /**
@@ -188,7 +178,7 @@ class GraphReaderWrapper extends GraphIoWrapper {
 
                     // Create a new edge
                     Edge edge = cachedOutV.addEdge(e.label(), cachedInV);
-                    partition(edge::property);
+                    forEachPartition(edge::property);
                     return edge;
                 });
     }
@@ -242,7 +232,7 @@ class GraphReaderWrapper extends GraphIoWrapper {
                     .map(label -> Maps.immutableEntry(T.label, label))
                     .ifPresent(properties);
 
-            partition(Maps::immutableEntry).ifPresent(properties);
+            forEachPartition((k, v) -> properties.add(Maps.immutableEntry(k, v)));
 
             mapper().identifierKey().ifPresent(key -> {
                 Optional.ofNullable(node.get(JsonLdConsts.ID))
@@ -270,10 +260,13 @@ class GraphReaderWrapper extends GraphIoWrapper {
         // If user supplied identifiers are not supported this value will only be used by the star graph elements
         // (for example, this is the identifier used by star vertices prior to being attached, and is later used to look
         // up the persisted identifier of the star edge incoming vertex)
-        if (vertexFeatures.supportsUserSuppliedIds() && partition.isPresent()) {
+        if (vertexFeatures.supportsUserSuppliedIds() && strategies().anyMatch(s -> s instanceof PartitionStrategy)) {
             // The effective identifier must include the write partition value to avoid problems where the
             // same node imported into separate partitions gets recreated instead merged
-            Map<String, Object> mapId = partition((k, v) -> ImmutableMap.of(JsonLdConsts.ID, id, k, v)).get();
+            ImmutableMap.Builder<String, Object> mapIdBuilder = ImmutableMap.builder();
+            mapIdBuilder.put(JsonLdConsts.ID, id);
+            forEachPartition(mapIdBuilder::put);
+            Map<String, Object> mapId = mapIdBuilder.build();
             if (vertexFeatures.willAllowId(mapId)) {
                 return mapId;
             }

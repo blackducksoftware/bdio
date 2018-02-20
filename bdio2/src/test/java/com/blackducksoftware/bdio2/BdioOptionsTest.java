@@ -70,34 +70,27 @@ public class BdioOptionsTest {
     }
 
     @Test
-    public void expandContext_forJson_null() throws Exception {
-        BdioOptions options = new BdioOptions.Builder().forJson(null).build();
-        assertThat(options.jsonLdOptions().getExpandContext()).isNull();
-    }
-
-    @Test
-    public void expandContext_forJson_invalidType() throws Exception {
+    public void expandContext_null() throws Exception {
         thrown.expect(IllegalArgumentException.class);
-        new BdioOptions.Builder().forJson(0);
+        new BdioOptions.Builder().expandContext(null);
     }
 
     @Test
-    public void expandContext_forJson_string() throws Exception {
-        // No verification is made on the string yet, we just need to ensure it passes through
-        BdioOptions options = new BdioOptions.Builder().forJson("").build();
-        assertThat(options.jsonLdOptions().getExpandContext()).isEqualTo("");
+    public void expandContext_forJson() throws Exception {
+        thrown.expect(IllegalArgumentException.class);
+        new BdioOptions.Builder().expandContext(Bdio.ContentType.JSON);
     }
 
     @Test
     public void expandContext_forJsonLd() throws Exception {
-        BdioOptions options = new BdioOptions.Builder().forJsonLd().build();
+        BdioOptions options = new BdioOptions.Builder().expandContext(Bdio.ContentType.JSONLD).build();
         assertThat(options.jsonLdOptions().getExpandContext()).isNull();
     }
 
     @Test
-    public void expandContext_forContentType_jsonLd() throws Exception {
-        BdioOptions options = new BdioOptions.Builder().forContentType(Bdio.ContentType.JSONLD, "foobar").build();
-        assertThat(options.jsonLdOptions().getExpandContext()).isNull();
+    public void expandContext_forBdio() throws Exception {
+        BdioOptions options = new BdioOptions.Builder().expandContext(Bdio.ContentType.BDIO_JSON).build();
+        assertThat(options.jsonLdOptions().getExpandContext()).isEqualTo(Bdio.Context.DEFAULT.toString());
     }
 
 }

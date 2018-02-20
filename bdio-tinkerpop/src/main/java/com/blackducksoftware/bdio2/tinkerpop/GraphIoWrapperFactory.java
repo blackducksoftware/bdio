@@ -15,11 +15,13 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-import javax.annotation.Nullable;
-
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.umlg.sqlg.structure.SqlgGraph;
 
@@ -34,8 +36,7 @@ class GraphIoWrapperFactory {
 
     private int batchSize;
 
-    @Nullable
-    private String writePartition;
+    private List<TraversalStrategy<?>> strategies = new ArrayList<>();
 
     public GraphIoWrapperFactory() {
         mapper = () -> GraphMapper.build().create();
@@ -52,21 +53,21 @@ class GraphIoWrapperFactory {
         return this;
     }
 
-    public GraphIoWrapperFactory writePartition(@Nullable String writePartition) {
-        this.writePartition = writePartition;
+    public GraphIoWrapperFactory addStrategies(Collection<TraversalStrategy<?>> strategies) {
+        this.strategies.addAll(strategies);
         return this;
     }
 
     public GraphReaderWrapper wrapReader(Graph graph) {
         if (graph instanceof SqlgGraph) {
-            return new SqlgGraphReaderWrapper((SqlgGraph) graph, mapper.get(), batchSize, writePartition);
+            return new SqlgGraphReaderWrapper((SqlgGraph) graph, mapper.get(), strategies, batchSize);
         } else {
-            return new GraphReaderWrapper(graph, mapper.get(), batchSize, writePartition);
+            return new GraphReaderWrapper(graph, mapper.get(), strategies, batchSize);
         }
     }
 
     public GraphWriterWrapper wrapWriter(Graph graph) {
-        return new GraphWriterWrapper(graph, mapper.get());
+        return new GraphWriterWrapper(graph, mapper.get(), strategies);
     }
 
 }

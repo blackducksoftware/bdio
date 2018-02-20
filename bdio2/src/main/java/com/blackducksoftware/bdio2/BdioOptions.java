@@ -52,7 +52,7 @@ public class BdioOptions {
 
     private BdioOptions(Builder builder) {
         base = Objects.requireNonNull(builder.base);
-        expandContext = expandContext(builder.contentTypeContext, builder.applicationContext);
+        expandContext = expandContext(builder.expandContext, builder.applicationContext);
         injectedDocs = ImmutableMap.copyOf(builder.injectedDocs);
     }
 
@@ -91,6 +91,8 @@ public class BdioOptions {
     /**
      * Generate an expand context from multiple, possibly {@code null}, sources.
      */
+    // TODO Instead of this, have the builder keep a list; the empty list is a null context, otherwise the builder just
+    // lets you add as many contexts as you want
     private static Object expandContext(Object... contexts) {
         Object expandContext = null;
         for (Object context : contexts) {
@@ -116,15 +118,17 @@ public class BdioOptions {
 
         private String base;
 
-        private Object contentTypeContext;
+        @Nullable
+        private Object expandContext;
 
+        @Nullable
         private Object applicationContext;
 
         private final Map<String, CharSource> injectedDocs = new LinkedHashMap<>();
 
         public Builder() {
             base = "";
-            contentTypeContext = Bdio.Context.DEFAULT.toString();
+            expandContext = Bdio.Context.DEFAULT.toString(); // TODO Should this default to null?
             for (Bdio.Context context : Bdio.Context.values()) {
                 // TODO Memoize these CharSources (with a soft ref?) so we only read them once...
                 injectedDocs.put(context.toString(), Resources.asCharSource(context.resourceUrl(), UTF_8));
@@ -162,71 +166,55 @@ public class BdioOptions {
         }
 
         /**
-         * In a addition to the primary expansion context determined by the content type, applications may include a
-         * secondary "application" context for extensibility.
-         */
-        public Builder applicationContext(Object applicationContext) {
-            checkArgument(applicationContext == null
-                    || applicationContext instanceof String
-                    || applicationContext instanceof Map<?, ?>
-                    || applicationContext instanceof List<?>,
-                    "applicationContext must be a String, Map<String, Object> or a List<Object>");
-            this.applicationContext = applicationContext;
-            return this;
-        }
-
-        /**
-         * Prepares this document for processing documents based on their detected or declared content type.
+         * Sets the JSON-LD expansion context for processing input.
          * <p>
-         * Note that the supplied expansion context is only used with the {@linkplain Bdio.ContentType#JSON JSON} type.
+         * An expand context can be a map or list representing the JSON-LD context or it can be the JSON-LD context URL
+         * (represented as a string or {@link Bdio.Context}). Note that the URL form may require remote access for
+         * resolution, however you can use {@linkplain #injectDocument(String, CharSequence) document injection} to
+         * allow the use of arbitrary URIs.
+         * <p>
+         * Finally note that a {@link Bdio.ContentType} can also be used to set the expand context, though it should be
+         * noted that use of the {@link Bdio.ContentType#JSON} content type is not permitted as it would leave the
+         * expansion context undefined (plain JSON should not have any JSON-LD constructs indicating the expansion
+         * context, therefore requiring an explicit context).
          */
-        public Builder forContentType(@Nullable Bdio.ContentType contentType, @Nullable Object expandContext) {
-            checkArgument(expandContext == null
-                    || expandContext instanceof String
-                    || expandContext instanceof Map<?, ?>
-                    || expandContext instanceof List<?>,
-                    "expandContext must be a String, Map<String, Object> or a List<Object>");
-
-            if (contentType == null) {
-                contentTypeContext = Bdio.Context.DEFAULT.toString();
-            } else if (contentType.equals(Bdio.ContentType.JSON)) {
-                // TODO Warn if expandContext is null? Require non-null?
-                contentTypeContext = expandContext;
-            } else if (contentType.equals(Bdio.ContentType.JSONLD)) {
-                contentTypeContext = null;
-            } else if (contentType.equals(Bdio.ContentType.BDIO_JSON) || contentType.equals(Bdio.ContentType.BDIO_ZIP)) {
-                contentTypeContext = Bdio.Context.DEFAULT.toString();
+        public Builder expandContext(Object expandContext) {
+            if (expandContext instanceof String || expandContext instanceof Map<?, ?> || expandContext instanceof List<?>) {
+                // An explicit expand context, should only be used with plain JSON input
+                this.expandContext = expandContext;
+            } else if (expandContext instanceof Bdio.Context) {
+                // A known BDIO context, perhaps the version number was sniffed from the content
+                this.expandContext = expandContext.toString();
+            } else if (expandContext instanceof Bdio.ContentType) {
+                // Defined by content type or file extension, cannot be JSON since we can't imply an actual context
+                checkArgument(expandContext != Bdio.ContentType.JSON, "the JSON content type leaves the expansion context undefined");
+                if (expandContext == Bdio.ContentType.JSONLD || expandContext == Bdio.ContentType.BDIO_ZIP) {
+                    // Any context information should be defined inside the document, no external context necessary
+                    this.expandContext = null;
+                } else if (expandContext == Bdio.ContentType.BDIO_JSON) {
+                    // Plain JSON with the assumption of the default BDIO context
+                    this.expandContext = Bdio.Context.DEFAULT.toString();
+                } else {
+                    throw new IllegalArgumentException("unknown content type: " + expandContext);
+                }
             } else {
-                throw new IllegalArgumentException("unknown content type: " + contentType);
+                throw new IllegalArgumentException("expandContext must be a Bdio.ContentType, Bdio.Context, String, Map<String, Object> or a List<Object>");
             }
             return this;
         }
 
         /**
-         * Prepares the document for processing BDIO loaded from plain JSON. The {@code expandContext} is typically a
-         * {@code String} representation of the {@code http://www.w3.org/ns/json-ld#context} link relationship (a URI
-         * identifying the context), however it can also be a {@code Map<String, Object>} representing an already parsed
-         * JSON-LD context. Note that, while accepted, a {@code null} context will only produce meaningful results if
-         * the JSON contains fully qualified IRIs.
+         * In a addition to the primary expansion context determined by the content type, applications may include a
+         * secondary "application" context for extensibility.
          */
-        public Builder forJson(@Nullable Object expandContext) {
-            return forContentType(Bdio.ContentType.JSON, expandContext);
-        }
-
-        /**
-         * Prepares this document for processing BDIO loaded from JSON-LD. The JSON-LD contexts must be explicitly
-         * defined within the document itself.
-         */
-        public Builder forJsonLd() {
-            return forContentType(Bdio.ContentType.JSONLD, null);
-        }
-
-        /**
-         * Prepares this document for processing BDIO documents. This assumes the default BDIO context will be used for
-         * processing plain JSON or JSON-LD input (Zip forms should already be fully expanded internally).
-         */
-        public Builder forBdio() {
-            return forContentType(null, null);
+        public Builder applicationContext(@Nullable Object applicationContext) {
+            checkArgument(applicationContext == null
+                    || applicationContext instanceof String
+                    || applicationContext instanceof Map<?, ?>
+                    || applicationContext instanceof List<?>,
+                    "applicationContext must be a String, Map<String, Object>, List<Object> or null");
+            this.applicationContext = applicationContext;
+            return this;
         }
 
         /**

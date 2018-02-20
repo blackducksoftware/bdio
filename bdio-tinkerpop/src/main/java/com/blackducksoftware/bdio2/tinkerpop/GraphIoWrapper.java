@@ -15,8 +15,13 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
@@ -38,13 +43,19 @@ abstract class GraphIoWrapper {
     private final GraphMapper mapper;
 
     /**
+     * The traversal strategies to use.
+     */
+    private final List<TraversalStrategy<?>> strategies;
+
+    /**
      * A reference to the transaction support flag of the {@link #graph}.
      */
     private final boolean supportsTransactions;
 
-    protected GraphIoWrapper(Graph graph, GraphMapper mapper) {
+    protected GraphIoWrapper(Graph graph, GraphMapper mapper, List<TraversalStrategy<?>> strategies) {
         this.graph = Objects.requireNonNull(graph);
         this.mapper = Objects.requireNonNull(mapper);
+        this.strategies = Collections.unmodifiableList(TraversalStrategies.sortStrategies(strategies));
 
         // Store extra references that will be needed frequently
         this.supportsTransactions = graph.features().graph().supportsTransactions();
@@ -70,7 +81,19 @@ abstract class GraphIoWrapper {
      * Returns a traversal source for the graph.
      */
     public GraphTraversalSource traversal() {
-        return graph().traversal();
+        if (strategies.isEmpty()) {
+            return graph().traversal();
+        } else {
+            // Generally not good form to serialize a list for varargs invocation, but we have little choice here
+            return graph().traversal().withStrategies(strategies.toArray(new TraversalStrategy[strategies.size()]));
+        }
+    }
+
+    /**
+     * Returns a stream of the configured traversal strategies.
+     */
+    protected Stream<TraversalStrategy<?>> strategies() {
+        return strategies.stream();
     }
 
     /**

@@ -20,13 +20,15 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Consumer;
 
 import org.apache.commons.configuration.Configuration;
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
-import com.blackducksoftware.bdio2.Bdio;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Core helper for encapsulating shared BDIO configuration.
@@ -46,66 +48,55 @@ public final class BlackDuckIoCore {
 
     private final BlackDuckIoVersion version;
 
-    private Consumer<BlackDuckIoMapper.Builder> onMapper;
+    private final Optional<BlackDuckIoTokens> tokens;
 
-    private Consumer<BlackDuckIoReader.Builder> onReader;
+    private final Optional<Object> expandContext;
 
-    private Consumer<BlackDuckIoWriter.Builder> onWriter;
-
-    private Consumer<BlackDuckIoOperations.Builder> onOperations;
-
-    private Consumer<GraphIoWrapperFactory> onWrapper;
-
-    private Optional<String> writePartition = Optional.empty();
+    private final ImmutableList<TraversalStrategy<?>> strategies;
 
     public BlackDuckIoCore(Graph graph) {
         this(graph, BlackDuckIoVersion.defaultVersion());
     }
 
     public BlackDuckIoCore(Graph graph, BlackDuckIoVersion version) {
+        this(graph, version, Optional.empty(), Optional.empty(), ImmutableList.of());
+    }
+
+    private BlackDuckIoCore(Graph graph, BlackDuckIoVersion version,
+            Optional<Object> expandContext, Optional<BlackDuckIoTokens> tokens, ImmutableList<TraversalStrategy<?>> strategies) {
         this.graph = Objects.requireNonNull(graph);
         this.version = Objects.requireNonNull(version);
-        onMapper = b -> {};
-        onReader = b -> {
-            b.mapper(mapper());
-            writePartition.ifPresent(b::partition);
-        };
-        onWriter = b -> b.mapper(mapper());
-        onOperations = b -> {
-            b.mapper(mapper());
-            writePartition.ifPresent(b::partition);
-        };
-        onWrapper = f -> {
-            f.mapper(mapper()::createMapper);
-            writePartition.ifPresent(f::writePartition);
-        };
+        this.tokens = Objects.requireNonNull(tokens);
+        this.expandContext = Objects.requireNonNull(expandContext);
+        this.strategies = Objects.requireNonNull(strategies);
     }
 
     // Configuration
 
+    public BlackDuckIoCore withTokens(BlackDuckIoTokens tokens) {
+        return new BlackDuckIoCore(graph, version, expandContext, Optional.of(tokens), strategies);
+    }
+
+    public BlackDuckIoCore withExpandContext(Object expandContext) {
+        return new BlackDuckIoCore(graph, version, Optional.of(expandContext), tokens, strategies);
+    }
+
+    public BlackDuckIoCore withStrategies(@SuppressWarnings("rawtypes") TraversalStrategy... strategies) {
+        return new BlackDuckIoCore(graph, version, expandContext, tokens, ImmutableList.copyOf(strategies));
+    }
+
     public BlackDuckIoCore withConfiguration(Configuration config) {
-        onMapper = onMapper.andThen(b -> b.tokens(BlackDuckIoContext.create(config)));
-        writePartition = Optional.ofNullable(config.getString("bdio.partitionStrategy.writePartition", null));
-        return this;
+        BlackDuckIoTokens tokens = BlackDuckIoContext.create(config);
+        ImmutableList.Builder<TraversalStrategy<?>> strategies = ImmutableList.builder();
+        strategies.addAll(this.strategies);
+        if (config.containsKey("partitionStrategy.partitionKey")) {
+            strategies.add(PartitionStrategy.create(config.subset("partitionStrategy")));
+        }
+        return new BlackDuckIoCore(graph, version, expandContext, Optional.of(tokens), strategies.build());
     }
 
     public BlackDuckIoCore withGraphConfiguration() {
         return withConfiguration(graph.configuration().subset("bdio"));
-    }
-
-    public BlackDuckIoCore withTokens(BlackDuckIoTokens tokens) {
-        onMapper = onMapper.andThen(b -> b.tokens(tokens));
-        return this;
-    }
-
-    public BlackDuckIoCore withContentType(Bdio.ContentType contentType, Object expandContext) {
-        onMapper = onMapper.andThen(b -> b.contentType(contentType, expandContext));
-        return this;
-    }
-
-    public BlackDuckIoCore withWritePartition(String writePartition) {
-        this.writePartition = Optional.of(writePartition);
-        return this;
     }
 
     // High level
@@ -130,29 +121,29 @@ public final class BlackDuckIoCore {
 
     public BlackDuckIoMapper mapper() {
         BlackDuckIoMapper.Builder builder = io().mapper();
-        onMapper.accept(builder);
+        tokens.ifPresent(builder::tokens);
+        expandContext.ifPresent(builder::expandContext);
         return builder.create();
     }
 
     public BlackDuckIoReader reader() {
-        BlackDuckIoReader.Builder builder = io().reader();
-        onReader.accept(builder);
-        return builder.create();
+        return io().reader().mapper(mapper()).addStrategies(strategies).create();
     }
 
     public BlackDuckIoWriter writer() {
-        BlackDuckIoWriter.Builder builder = io().writer();
-        onWriter.accept(builder);
-        return builder.create();
+        return io().writer().mapper(mapper()).addStrategies(strategies).create();
     }
 
     public BlackDuckIoOperations operations() {
-        BlackDuckIoOperations.Builder builder = BlackDuckIoOperations.build();
-        onOperations.accept(builder);
-        return builder.create();
+        return BlackDuckIoOperations.build().mapper(mapper()).addStrategies(strategies).create();
     }
 
     // Low level
+
+    public GraphTraversalSource traversal() {
+        // NOTE: The choice of `readerWrapper()` over `writerWrapper()` was arbitrary
+        return readerWrapper().traversal();
+    }
 
     @VisibleForTesting
     GraphReaderWrapper readerWrapper() {
@@ -169,9 +160,7 @@ public final class BlackDuckIoCore {
     }
 
     private GraphIoWrapperFactory graphWrapper() {
-        GraphIoWrapperFactory factory = new GraphIoWrapperFactory();
-        onWrapper.accept(factory);
-        return factory;
+        return new GraphIoWrapperFactory().mapper(mapper()::createMapper).addStrategies(strategies);
     }
 
 }

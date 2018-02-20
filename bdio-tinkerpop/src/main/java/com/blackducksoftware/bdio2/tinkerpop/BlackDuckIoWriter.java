@@ -22,9 +22,11 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identi
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.util.Collection;
 import java.util.Map;
 import java.util.function.Function;
 
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -191,7 +193,12 @@ public class BlackDuckIoWriter implements GraphWriter {
             return this;
         }
 
-        // TODO Batch size and partitions?
+        // TODO Batch size...slightly different concept here as it applies to the node buffer size...
+
+        public Builder addStrategies(Collection<TraversalStrategy<?>> strategies) {
+            wrapperFactory.addStrategies(strategies);
+            return this;
+        }
 
         @Override
         public BlackDuckIoWriter create() {

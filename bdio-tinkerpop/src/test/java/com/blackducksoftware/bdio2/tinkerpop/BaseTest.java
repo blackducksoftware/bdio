@@ -16,6 +16,7 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.common.base.ExtraStrings.afterLast;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -69,6 +70,7 @@ public abstract class BaseTest {
 
         private TT(String... tokens) {
             this.tokens = ImmutableSet.copyOf(tokens);
+            checkArgument(!this.tokens.contains(partition), "the partition token is not valid here");
         }
 
         @Override
@@ -96,11 +98,6 @@ public abstract class BaseTest {
             return token(unknown);
         }
 
-        @Override
-        public String partitionKey() {
-            return token(partition);
-        }
-
         @Nullable
         private String token(String token) {
             return tokens.isEmpty() || tokens.contains(token) ? token : null;
@@ -112,6 +109,24 @@ public abstract class BaseTest {
      */
     protected static BlackDuckIoTokens testTokens(String... tokens) {
         return new TT(tokens);
+    }
+
+    /**
+     * Creates a partition with the specified read/write partition value.
+     */
+    protected static PartitionStrategy testPartition(String id) {
+        return PartitionStrategy.build()
+                .partitionKey(TT.partition)
+                .writePartition(id)
+                .readPartitions(id)
+                .create();
+    }
+
+    /**
+     * Creates a partition identified by a new random value.
+     */
+    protected static PartitionStrategy createRandomPartition() {
+        return testPartition(UUID.randomUUID().toString());
     }
 
     /**
@@ -158,18 +173,6 @@ public abstract class BaseTest {
 
     public BaseTest(Configuration configuration) {
         this.configuration = Objects.requireNonNull(configuration);
-    }
-
-    /**
-     * Creates a partition identified by a new random value.
-     */
-    public PartitionStrategy createRandomPartition() {
-        String id = UUID.randomUUID().toString();
-        return PartitionStrategy.build()
-                .partitionKey(TT.partition)
-                .writePartition(id)
-                .readPartitions(id)
-                .create();
     }
 
     /**

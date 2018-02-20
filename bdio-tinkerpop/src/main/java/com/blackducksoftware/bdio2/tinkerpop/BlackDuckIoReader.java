@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -25,6 +26,7 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -217,8 +219,8 @@ public final class BlackDuckIoReader implements GraphReader {
             return this;
         }
 
-        public Builder partition(@Nullable String partition) {
-            wrapperFactory.writePartition(partition);
+        public Builder addStrategies(Collection<TraversalStrategy<?>> strategies) {
+            wrapperFactory.addStrategies(strategies);
             return this;
         }
 

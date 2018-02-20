@@ -106,11 +106,11 @@ public class BlackDuckIoReaderTest extends BaseTest {
 
         InputStream inputStream = BdioTest.zipJsonBytes(metadata.asNamedGraph());
 
-        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id, TT.partition)).withWritePartition("abc");
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id)).withStrategies(testPartition("abc"));
         bdio.readGraph(inputStream);
 
         Vertex namedGraph = graph.traversal().V().hasLabel(TT.Metadata).next();
-        VertexProperty<String> partition = namedGraph.property("_partition");
+        VertexProperty<String> partition = namedGraph.property(TT.partition);
         assertThat(partition.isPresent()).isTrue();
         assertThat(partition.value()).isEqualTo("abc");
     }

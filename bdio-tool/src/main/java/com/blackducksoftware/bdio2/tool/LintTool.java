@@ -122,7 +122,7 @@ public class LintTool extends AbstractGraphTool {
             Stopwatch readTimer = Stopwatch.createStarted();
             for (Map.Entry<URI, ByteSource> input : graphTool().getInputs().entrySet()) {
                 BdioOptions.Builder options = new BdioOptions.Builder();
-                GraphTool.setContentType(input.getKey(), options::forContentType);
+                options.expandContext(GraphTool.expandContext(input.getKey()));
                 RxJavaBdioDocument doc = new RxJavaBdioDocument(options.build());
                 doc.read(input.getValue().openStream())
                         .doOnNext(this::executeWithRawEntry)
@@ -175,6 +175,7 @@ public class LintTool extends AbstractGraphTool {
 
     protected void executeWithRawEntry(Object entry) {
         rules.values().stream()
+                // TODO Sort this so that Metadata runs first
                 .flatMap(ofType(RawEntryRule.class))
                 .flatMap(rule -> rule.validate(entry))
                 .forEachOrdered(violations::add);

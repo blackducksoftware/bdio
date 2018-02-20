@@ -15,13 +15,13 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import static com.blackducksoftware.common.base.ExtraOptionals.flatMapMany;
 import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.has;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.or;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.property;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
@@ -31,8 +31,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import javax.annotation.Nullable;
-
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
@@ -137,8 +136,8 @@ public final class BlackDuckIoOperations {
             return this;
         }
 
-        public Builder partition(@Nullable String partition) {
-            wrapperFactory.writePartition(partition);
+        public Builder addStrategies(Collection<TraversalStrategy<?>> strategies) {
+            wrapperFactory.addStrategies(strategies);
             return this;
         }
 
@@ -258,7 +257,10 @@ public final class BlackDuckIoOperations {
                         .add(Bdio.DataProperty.fileSystemType.name()).add(Bdio.FileSystemType.DIRECTORY.toString())
                         .add(mapper.implicitKey().get()).add(Boolean.TRUE);
                 mapper.identifierKey().ifPresent(key -> properties.add(key).add(BdioObject.randomId()));
-                flatMapMany(wrapper().partition(Stream::of), x -> x).forEach(properties::add);
+                wrapper().forEachPartition((k, v) -> {
+                    properties.add(k);
+                    properties.add(v);
+                });
                 files.put(path, wrapper().graph().addVertex(properties.build().toArray()));
                 wrapper().batchCommitTx();
             }
@@ -279,7 +281,10 @@ public final class BlackDuckIoOperations {
                             .orElseThrow(illegalState("missing parent: %s", e.getKey()));
                     Stream.Builder<Object> properties = Stream.builder()
                             .add(mapper.implicitKey().get()).add(Boolean.TRUE);
-                    flatMapMany(wrapper().partition(Stream::of), x -> x).forEach(properties::add);
+                    wrapper().forEachPartition((k, v) -> {
+                        properties.add(k);
+                        properties.add(v);
+                    });
                     e.getValue().addEdge(Bdio.ObjectProperty.parent.name(), parent, properties.build().toArray());
                     wrapper().batchCommitTx();
                 }

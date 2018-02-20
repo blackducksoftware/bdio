@@ -52,6 +52,9 @@ import com.google.common.collect.Streams;
  */
 class SqlgGraphInitializer {
 
+    // TODO Is there a good way to introduce a Sqlg property type mapping through an IoRegistry?
+    // If we could get a Bdio.Datatype and Bdio.Container for every property that would work also...
+
     // TODO Switch this to JSON and store JSON natively
     private static final PropertyType JSON = PropertyType.STRING;
 
@@ -106,7 +109,7 @@ class SqlgGraphInitializer {
         columns.putAll(labelColumns);
         nonUniqueIndexNames.addAll(labelNonUniqueIndexColumns);
 
-        wrapper.partition((k, v) -> k).ifPresent(c -> {
+        wrapper.forEachPartition((c, p) -> {
             columns.put(c, STRING);
             nonUniqueIndexNames.add(c);
         });
@@ -138,7 +141,7 @@ class SqlgGraphInitializer {
     private void defineEdgeLabels(SqlgGraphReaderWrapper wrapper) {
         // In general we do not store BDIO information on edges, however there are a few common properties we use
         Map<String, PropertyType> properties = new TreeMap<>();
-        wrapper.partition((k, v) -> k).ifPresent(c -> properties.put(c, STRING));
+        wrapper.forEachPartition((c, p) -> properties.put(c, STRING));
         wrapper.mapper().implicitKey().ifPresent(c -> properties.put(c, BOOLEAN));
 
         Topology topology = wrapper.graph().getTopology();

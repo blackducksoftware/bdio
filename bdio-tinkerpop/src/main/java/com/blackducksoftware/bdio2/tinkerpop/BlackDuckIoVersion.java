@@ -37,28 +37,18 @@ public enum BlackDuckIoVersion {
     }
 
     @Nullable
-    Bdio.ContentType contentType(@Nullable Bdio.ContentType contentType) {
-        if (this == V2_0) {
-            return contentType;
-        } else if (this == V1_1_1 || this == V1_1 || this == V1_0) {
-            return Bdio.ContentType.JSON;
-        } else {
-            return null;
-        }
-    }
-
-    @Nullable
     Object expandContext(@Nullable Object expandContext) {
-        if (this == V2_0) {
+        switch (this) {
+        case V1_0:
+            return Bdio.Context.VERSION_1_0;
+        case V1_1:
+            return Bdio.Context.VERSION_1_1;
+        case V1_1_1:
+            return Bdio.Context.VERSION_1_1_1;
+        case V2_0:
             return expandContext;
-        } else if (this == V1_1_1) {
-            return Bdio.Context.VERSION_1_1_1.toString();
-        } else if (this == V1_1) {
-            return Bdio.Context.VERSION_1_1.toString();
-        } else if (this == V1_0) {
-            return Bdio.Context.VERSION_1_0.toString();
-        } else {
-            return null;
+        default:
+            throw new IllegalStateException("unknown version: " + this);
         }
     }
 

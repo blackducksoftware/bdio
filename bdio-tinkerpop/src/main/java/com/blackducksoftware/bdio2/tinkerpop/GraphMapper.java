@@ -28,7 +28,6 @@ import java.util.stream.Collector;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
@@ -63,8 +62,7 @@ public class GraphMapper {
     private final BdioOptions bdioOptions;
 
     private GraphMapper(Builder builder) {
-        context = Optional.ofNullable(builder.tokens).map(BlackDuckIoContext::create)
-                .orElseGet(() -> BlackDuckIoContext.build().create());
+        context = builder.tokens.map(BlackDuckIoContext::create).orElseGet(() -> BlackDuckIoContext.build().create());
 
         // Construct the value object mapper
         ValueObjectMapper.Builder valueObjectMapperBuilder = new ValueObjectMapper.Builder();
@@ -84,8 +82,8 @@ public class GraphMapper {
 
         // Construct the BDIO options
         BdioOptions.Builder optionsBuilder = new BdioOptions.Builder();
-        optionsBuilder.forContentType(builder.contentType, builder.expandContext);
-        optionsBuilder.applicationContext(context.applicationContext());
+        context.applicationContext().ifPresent(optionsBuilder::applicationContext);
+        builder.expandContext.ifPresent(optionsBuilder::expandContext);
         builder.injectedDocuments.forEach(optionsBuilder::injectDocument);
         bdioOptions = optionsBuilder.build();
     }
@@ -118,10 +116,6 @@ public class GraphMapper {
 
     public Optional<String> implicitKey() {
         return Optional.ofNullable(context.implicitKey());
-    }
-
-    public Optional<String> partitionKey() {
-        return Optional.ofNullable(context.partitionKey());
     }
 
     public Optional<String> unknownKey() {
@@ -218,18 +212,13 @@ public class GraphMapper {
 
     public static final class Builder {
 
-        @Nullable
-        private BlackDuckIoTokens tokens;
+        private Optional<BlackDuckIoTokens> tokens = Optional.empty();
+
+        private Optional<Object> expandContext = Optional.empty();
 
         private final Map<String, DatatypeHandler<?>> datatypes = new LinkedHashMap<>();
 
         private Optional<Collector<? super Object, ?, ?>> multiValueCollector = Optional.empty();
-
-        @Nullable
-        private Bdio.ContentType contentType;
-
-        @Nullable
-        private Object expandContext;
 
         private final Map<String, CharSequence> injectedDocuments = new LinkedHashMap<>();
 
@@ -237,7 +226,12 @@ public class GraphMapper {
         }
 
         public Builder tokens(@Nullable BlackDuckIoTokens tokens) {
-            this.tokens = tokens;
+            this.tokens = Optional.ofNullable(tokens);
+            return this;
+        }
+
+        public Builder expandContext(@Nullable Object expandContext) {
+            this.expandContext = Optional.ofNullable(expandContext);
             return this;
         }
 
@@ -248,12 +242,6 @@ public class GraphMapper {
 
         public Builder multiValueCollector(@Nullable Collector<? super Object, ?, ?> multiValueCollector) {
             this.multiValueCollector = Optional.ofNullable(multiValueCollector);
-            return this;
-        }
-
-        public Builder forContentType(@Nullable Bdio.ContentType contentType, @Nullable Object expandContext) {
-            this.contentType = contentType;
-            this.expandContext = expandContext;
             return this;
         }
 

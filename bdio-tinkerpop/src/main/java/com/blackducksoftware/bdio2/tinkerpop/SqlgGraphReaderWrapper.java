@@ -15,13 +15,17 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.blackducksoftware.common.base.ExtraStreams.ofType;
+import static java.util.stream.Collectors.joining;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 
-import javax.annotation.Nullable;
-
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.structure.topology.Topology;
@@ -38,8 +42,8 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
      */
     private final boolean supportsBatchMode;
 
-    protected SqlgGraphReaderWrapper(SqlgGraph sqlgGraph, GraphMapper mapper, int batchSize, @Nullable String partition) {
-        super(sqlgGraph, mapper, batchSize, partition);
+    protected SqlgGraphReaderWrapper(SqlgGraph sqlgGraph, GraphMapper mapper, List<TraversalStrategy<?>> strategies, int batchSize) {
+        super(sqlgGraph, mapper, strategies, batchSize);
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
     }
 
@@ -74,7 +78,14 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
 
         // Honor the partition strategy, if configured with read partitions (assume there is probably just one)
         // TODO Use statement parameters
-        partition((k, v) -> " WHERE " + graph().getSqlDialect().maybeWrapInQoutes(k) + " = '" + v + "'").ifPresent(sql::append);
+        if (strategies().anyMatch(s -> s instanceof PartitionStrategy && !((PartitionStrategy) s).getReadPartitions().isEmpty())) {
+            sql.append(" WHERE ").append(strategies().flatMap(ofType(PartitionStrategy.class))
+                    .flatMap(s -> {
+                        String field = graph().getSqlDialect().maybeWrapInQoutes(s.getPartitionKey());
+                        return s.getReadPartitions().stream().map(p -> field + " = '" + p + "'");
+                    })
+                    .collect(joining(" OR ")));
+        }
 
         if (graph().getSqlDialect().needsSemicolon()) {
             sql.append(';');
