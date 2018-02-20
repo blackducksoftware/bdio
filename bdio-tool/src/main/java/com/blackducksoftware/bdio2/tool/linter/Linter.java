@@ -300,7 +300,7 @@ public final class Linter {
                     { "ValidFilePath.String", "Path should be a string" },
                     { "ValidIdentifier.Absolute", "Node identifiers should be absolute" },
                     { "ValidIdentifier.Scheme", "Node identifier scheme is questionable" },
-                    { "ValidIdentifier.MissingFileAuthority", "When using a 'file' URI as an identifier, it should include an authority" },
+                    { "ValidIdentifier.MissingAuthority", "Hierarchical URI scheme should include an authority" },
                     { "ValidIdentifier.Invalid", "Node identifier is not a valid URI" },
                     { "ValidIdentifier.String", "Node identifier should be a string" },
             };
