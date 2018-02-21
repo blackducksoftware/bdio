@@ -93,15 +93,15 @@ public class VertexProperties {
     /**
      * Returns an optional string representing the value of the vertex property with the specified key.
      */
-    public static Optional<String> stringValue(Vertex v, Enum<?> key) {
-        return optionalValue(v.property(key.name()));
+    public static Optional<String> stringValue(Vertex v, Object propertyKey) {
+        return optionalValue(v.property(key(propertyKey)));
     }
 
     /**
      * Returns an optional object representing the value of the vertex property with the specified key.
      */
-    public static Optional<Object> objectValue(Vertex v, Enum<?> key) {
-        return optionalValue(v.property(key.name()));
+    public static Optional<Object> objectValue(Vertex v, Object propertyKey) {
+        return optionalValue(v.property(key(propertyKey)));
     }
 
     /**
@@ -118,6 +118,16 @@ public class VertexProperties {
      */
     public static <T> Comparator<VertexProperty<T>> presentLast(Comparator<T> comparator) {
         return new PresentComparator<>(comparator, false);
+    }
+
+    private static String key(Object propertyKey) {
+        if (propertyKey instanceof Enum<?>) {
+            return ((Enum<?>) propertyKey).name();
+        } else if (propertyKey instanceof String) {
+            return (String) propertyKey;
+        } else {
+            throw new IllegalArgumentException("unknown property key type: " + propertyKey);
+        }
     }
 
     private VertexProperties() {
