@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
@@ -27,6 +28,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
+import com.blackducksoftware.bdio2.BdioDocument;
+import com.blackducksoftware.bdio2.BdioOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
@@ -147,8 +150,11 @@ public final class BlackDuckIoCore {
     // Low level
 
     public GraphTraversalSource traversal() {
-        // NOTE: The choice of `readerWrapper()` over `writerWrapper()` was arbitrary
         return readerWrapper().traversal();
+    }
+
+    public <B extends BdioDocument> B newDocument(Function<BdioOptions, B> documentFactory) {
+        return documentFactory.apply(readerWrapper().bdioOptions());
     }
 
     @VisibleForTesting
