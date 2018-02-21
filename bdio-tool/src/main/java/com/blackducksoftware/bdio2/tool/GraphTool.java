@@ -278,7 +278,13 @@ public class GraphTool extends Tool {
         try {
             for (Map.Entry<URI, ByteSource> input : inputs.entrySet()) {
                 try (InputStream inputStream = input.getValue().openStream()) {
-                    BlackDuckIoCore bdio = bdioCore.withExpandContext(expandContext(input.getKey()));
+                    BlackDuckIoCore bdio = bdioCore;
+
+                    // Try to determine the expansion context by looking at the input URI
+                    Object expandContext = expandContext(input.getKey());
+                    if (expandContext != null) {
+                        bdio = bdio.withExpandContext(expandContext);
+                    }
 
                     // If we have multiple inputs, make sure each one gets it's own partition
                     if (inputs.size() > 1) {
@@ -342,13 +348,14 @@ public class GraphTool extends Tool {
     /**
      * Returns the expansion context given the supplied identifier.
      */
+    @Nullable
     protected static Object expandContext(URI id) {
         Object expandContext;
         if (id != null && id.getPath() != null) {
             Bdio.ContentType contentType = Bdio.ContentType.forFileName(id.getPath());
-            expandContext = contentType != Bdio.ContentType.JSON ? contentType : Bdio.Context.DEFAULT;
+            expandContext = contentType != Bdio.ContentType.JSON ? contentType : null;
         } else {
-            expandContext = Bdio.Context.DEFAULT;
+            expandContext = null;
         }
         return expandContext;
     }
