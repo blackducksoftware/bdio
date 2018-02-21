@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.StringJoiner;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -436,7 +437,7 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
 
         // We got to the end of the file and never found a BillOfMaterials node
         metadata = BdioMetadata.createRandomUUID();
-        metadata.publisher(ProductList.of(product()));
+        metadata.publisher(ProductList.of(product().build()));
     }
 
     /**
@@ -709,21 +710,21 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
             }
         }).ifPresent(creationDateTime);
 
-        Optional<Matcher> creationInfo = currentValue("creationInfo", "spdx:creator")
-                .map(SPDX_CREATOR::matcher)
-                .filter(Matcher::matches);
-
-        creationInfo.filter(m -> m.group("personName") != null).map(m -> m.group("personName")).ifPresent(creator);
-
+        // TODO Is this acceptable for multiple "Person:" entries?
+        StringJoiner creatorBuilder = new StringJoiner(",");
         ProductList.Builder producerBuilder = new ProductList.Builder();
-        creationInfo.filter(m -> m.group("toolName") != null)
-                .map(m -> new Product.Builder()
-                        .name(m.group("toolName"))
-                        .version(m.group("toolVersion"))
-                        .addCommentText("bdio %s", currentValue("specVersion").orElse("1.0.0"))
-                        .build())
-                .ifPresent(producerBuilder::addProduct);
-        producer.accept(producerBuilder.addProduct(product()).build());
+        currentValues("creationInfo", "spdx:creator").map(SPDX_CREATOR::matcher).filter(Matcher::matches).forEach(m -> {
+            // We ignore the organization
+            if (m.group("personName") != null) {
+                creatorBuilder.add(m.group("personName"));
+            } else if (m.group("toolName") != null) {
+                producerBuilder.addProduct(new Product.Builder().name(m.group("toolName")).version(m.group("toolVersion")).build());
+            }
+        });
+        producerBuilder.addProduct(product().addCommentText("bdio %s", currentValue("specVersion").orElse("1.0.0")).build());
+
+        creator.accept(creatorBuilder.toString());
+        producer.accept(producerBuilder.build());
     }
 
     /**
@@ -941,11 +942,10 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
     /**
      * Returns the product identifying this code.
      */
-    private static Product product() {
+    private static Product.Builder product() {
         return new Product.Builder()
                 .simpleName(LegacyBdio1xEmitter.class)
-                .implementationVersion(LegacyBdio1xEmitter.class)
-                .build();
+                .implementationVersion(LegacyBdio1xEmitter.class);
     }
 
 }
