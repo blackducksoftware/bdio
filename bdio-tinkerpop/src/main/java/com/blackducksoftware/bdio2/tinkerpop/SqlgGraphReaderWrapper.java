@@ -23,6 +23,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
@@ -42,8 +43,9 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
      */
     private final boolean supportsBatchMode;
 
-    protected SqlgGraphReaderWrapper(SqlgGraph sqlgGraph, GraphMapper mapper, List<TraversalStrategy<?>> strategies, int batchSize) {
-        super(sqlgGraph, mapper, strategies, batchSize);
+    protected SqlgGraphReaderWrapper(SqlgGraph sqlgGraph, GraphMapper mapper, List<TraversalStrategy<?>> strategies, Optional<Object> expandContext,
+            int batchSize) {
+        super(sqlgGraph, mapper, strategies, expandContext, batchSize);
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
     }
 

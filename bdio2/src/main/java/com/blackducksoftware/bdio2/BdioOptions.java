@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,13 +45,14 @@ public class BdioOptions {
 
     private final String base;
 
+    @Nullable
     private final Object expandContext;
 
     private final ImmutableMap<String, CharSource> injectedDocs;
 
     private BdioOptions(Builder builder) {
         base = Objects.requireNonNull(builder.base);
-        expandContext = expandContext(builder.expandContext, builder.applicationContext);
+        expandContext = builder.expandContext;
         injectedDocs = ImmutableMap.copyOf(builder.injectedDocs);
     }
 
@@ -60,16 +60,7 @@ public class BdioOptions {
      * Test to see if the supplied context is applicable to these options.
      */
     public boolean hasContext(@Nullable Object expandContext) {
-        if (this.expandContext instanceof List<?>) {
-            for (Object ctx : (List<?>) this.expandContext) {
-                if (Objects.equals(ctx, expandContext)) {
-                    return true;
-                }
-            }
-            return false;
-        } else {
-            return Objects.equals(this.expandContext, expandContext);
-        }
+        return Objects.equals(this.expandContext, expandContext);
     }
 
     /**
@@ -88,32 +79,6 @@ public class BdioOptions {
         return result;
     }
 
-    /**
-     * Generate an expand context from multiple, possibly {@code null}, sources.
-     */
-    // TODO Instead of this, have the builder keep a list; the empty list is a null context, otherwise the builder just
-    // lets you add as many contexts as you want
-    private static Object expandContext(Object... contexts) {
-        Object expandContext = null;
-        for (Object context : contexts) {
-            if (context != null && !context.equals(expandContext)) {
-                if (expandContext == null) {
-                    expandContext = context;
-                } else if (expandContext instanceof List<?>) {
-                    @SuppressWarnings("unchecked")
-                    List<Object> contextList = (List<Object>) expandContext;
-                    contextList.add(context);
-                } else {
-                    List<Object> contextList = new ArrayList<>();
-                    contextList.add(expandContext);
-                    contextList.add(context);
-                    expandContext = contextList;
-                }
-            }
-        }
-        return expandContext;
-    }
-
     public static class Builder {
 
         private String base;
@@ -121,14 +86,10 @@ public class BdioOptions {
         @Nullable
         private Object expandContext;
 
-        @Nullable
-        private Object applicationContext;
-
         private final Map<String, CharSource> injectedDocs = new LinkedHashMap<>();
 
         public Builder() {
             base = "";
-            expandContext = Bdio.Context.DEFAULT.toString(); // TODO Should this default to null?
             for (Bdio.Context context : Bdio.Context.values()) {
                 // TODO Memoize these CharSources (with a soft ref?) so we only read them once...
                 injectedDocs.put(context.toString(), Resources.asCharSource(context.resourceUrl(), UTF_8));
@@ -200,20 +161,6 @@ public class BdioOptions {
             } else {
                 throw new IllegalArgumentException("expandContext must be a Bdio.ContentType, Bdio.Context, String, Map<String, Object> or a List<Object>");
             }
-            return this;
-        }
-
-        /**
-         * In a addition to the primary expansion context determined by the content type, applications may include a
-         * secondary "application" context for extensibility.
-         */
-        public Builder applicationContext(@Nullable Object applicationContext) {
-            checkArgument(applicationContext == null
-                    || applicationContext instanceof String
-                    || applicationContext instanceof Map<?, ?>
-                    || applicationContext instanceof List<?>,
-                    "applicationContext must be a String, Map<String, Object>, List<Object> or null");
-            this.applicationContext = applicationContext;
             return this;
         }
 

@@ -16,6 +16,7 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.common.base.ExtraStreams.ofType;
+import static com.github.jsonldjava.core.JsonLdProcessor.compact;
 import static java.util.Comparator.comparing;
 import static org.apache.tinkerpop.gremlin.structure.Direction.OUT;
 
@@ -76,8 +77,8 @@ class GraphReaderWrapper extends GraphIoWrapper {
      */
     private final VertexFeatures vertexFeatures;
 
-    protected GraphReaderWrapper(Graph graph, GraphMapper mapper, List<TraversalStrategy<?>> strategies, int batchSize) {
-        super(graph, mapper, strategies);
+    protected GraphReaderWrapper(Graph graph, GraphMapper mapper, List<TraversalStrategy<?>> strategies, Optional<Object> expandContext, int batchSize) {
+        super(graph, mapper, strategies, expandContext);
         this.batchSize = batchSize;
         this.count = new AtomicLong();
         vertexFeatures = graph.features().vertex();
@@ -200,7 +201,7 @@ class GraphReaderWrapper extends GraphIoWrapper {
             }
 
             try {
-                Map<String, Object> compactMetadata = mapper().compact(metadata);
+                Map<String, Object> compactMetadata = compact(metadata, mapper().context(), bdioOptions().jsonLdOptions());
                 ElementHelper.attachProperties(vertex, getNodeProperties(compactMetadata, false));
             } catch (JsonLdError e) {
                 // If we wrapped this and re-threw it, it would go back to the document's metadata single which is

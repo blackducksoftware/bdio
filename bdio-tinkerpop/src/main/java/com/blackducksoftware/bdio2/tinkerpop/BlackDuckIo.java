@@ -57,7 +57,7 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
      */
     @Override
     public BlackDuckIoMapper.Builder mapper() {
-        BlackDuckIoMapper.Builder builder = BlackDuckIoMapper.build().version(version);
+        BlackDuckIoMapper.Builder builder = BlackDuckIoMapper.build();
         if (graph instanceof SqlgGraph) {
             builder.addRegistry(SqlgIoRegistryBdio.instance());
         }
@@ -70,7 +70,7 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
      */
     @Override
     public BlackDuckIoReader.Builder reader() {
-        return BlackDuckIoReader.build().mapper(mapper().create());
+        return BlackDuckIoReader.build().mapper(mapper().create()).version(version);
     }
 
     /**
@@ -88,7 +88,11 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
      */
     @Override
     public BlackDuckIoWriter.Builder writer() {
-        return BlackDuckIoWriter.build().mapper(mapper().create());
+        if (version == BlackDuckIoVersion.V2_0) {
+            return BlackDuckIoWriter.build().mapper(mapper().create());
+        } else {
+            throw new UnsupportedOperationException("write is not supported for version " + version);
+        }
     }
 
     /**

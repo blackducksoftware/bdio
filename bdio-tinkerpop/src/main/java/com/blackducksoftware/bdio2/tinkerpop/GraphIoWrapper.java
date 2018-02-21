@@ -18,12 +18,15 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+
+import com.blackducksoftware.bdio2.BdioOptions;
 
 /**
  * Base class for a context object encapsulating the configuration and graph currently being manipulated.
@@ -48,14 +51,23 @@ abstract class GraphIoWrapper {
     private final List<TraversalStrategy<?>> strategies;
 
     /**
+     * The BDIO document options to use.
+     */
+    private final BdioOptions bdioOptions;
+
+    /**
      * A reference to the transaction support flag of the {@link #graph}.
      */
     private final boolean supportsTransactions;
 
-    protected GraphIoWrapper(Graph graph, GraphMapper mapper, List<TraversalStrategy<?>> strategies) {
+    protected GraphIoWrapper(Graph graph, GraphMapper mapper, List<TraversalStrategy<?>> strategies, Optional<Object> expandContext) {
         this.graph = Objects.requireNonNull(graph);
         this.mapper = Objects.requireNonNull(mapper);
         this.strategies = Collections.unmodifiableList(TraversalStrategies.sortStrategies(strategies));
+
+        BdioOptions.Builder optionsBuilder = new BdioOptions.Builder();
+        optionsBuilder.expandContext(expandContext.orElseGet(mapper::context));
+        bdioOptions = optionsBuilder.build();
 
         // Store extra references that will be needed frequently
         this.supportsTransactions = graph.features().graph().supportsTransactions();
@@ -78,6 +90,20 @@ abstract class GraphIoWrapper {
     }
 
     /**
+     * Returns a stream of the configured traversal strategies.
+     */
+    protected Stream<TraversalStrategy<?>> strategies() {
+        return strategies.stream();
+    }
+
+    /**
+     * Returns the BDIO document options.
+     */
+    protected BdioOptions bdioOptions() {
+        return bdioOptions;
+    }
+
+    /**
      * Returns a traversal source for the graph.
      */
     public GraphTraversalSource traversal() {
@@ -87,13 +113,6 @@ abstract class GraphIoWrapper {
             // Generally not good form to serialize a list for varargs invocation, but we have little choice here
             return graph().traversal().withStrategies(strategies.toArray(new TraversalStrategy<?>[strategies.size()]));
         }
-    }
-
-    /**
-     * Returns a stream of the configured traversal strategies.
-     */
-    protected Stream<TraversalStrategy<?>> strategies() {
-        return strategies.stream();
     }
 
     /**

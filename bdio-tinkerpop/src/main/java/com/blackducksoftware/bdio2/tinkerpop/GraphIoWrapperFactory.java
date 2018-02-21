@@ -19,11 +19,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.umlg.sqlg.structure.SqlgGraph;
+
+import com.blackducksoftware.common.base.ExtraOptionals;
 
 /**
  * Factory class for constructing new graph wrappers.
@@ -37,6 +40,10 @@ class GraphIoWrapperFactory {
     private int batchSize;
 
     private List<TraversalStrategy<?>> strategies = new ArrayList<>();
+
+    private Optional<BlackDuckIoVersion> version = Optional.empty();
+
+    private Optional<Object> expandContext = Optional.empty();
 
     public GraphIoWrapperFactory() {
         mapper = () -> GraphMapper.build().create();
@@ -58,11 +65,23 @@ class GraphIoWrapperFactory {
         return this;
     }
 
+    public GraphIoWrapperFactory version(BlackDuckIoVersion version) {
+        this.version = Optional.of(version);
+        return this;
+    }
+
+    public GraphIoWrapperFactory expandContext(Object expandContext) {
+        this.expandContext = Optional.of(expandContext);
+        return this;
+    }
+
     public GraphReaderWrapper wrapReader(Graph graph) {
+        GraphMapper mapper = this.mapper.get();
+        Optional<Object> expandContext = ExtraOptionals.or(version.flatMap(BlackDuckIoVersion::expandContext), () -> this.expandContext);
         if (graph instanceof SqlgGraph) {
-            return new SqlgGraphReaderWrapper((SqlgGraph) graph, mapper.get(), strategies, batchSize);
+            return new SqlgGraphReaderWrapper((SqlgGraph) graph, mapper, strategies, expandContext, batchSize);
         } else {
-            return new GraphReaderWrapper(graph, mapper.get(), strategies, batchSize);
+            return new GraphReaderWrapper(graph, mapper, strategies, expandContext, batchSize);
         }
     }
 

@@ -164,7 +164,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
                 .at("/@graph/0").doesNotContainName("foobar");
 
         // Now write it out with the registered custom data property
-        BlackDuckIoTokens customTokens = BlackDuckIoContext.build()
+        BlackDuckIoTokens customTokens = DefaultBlackDuckIoTokens.build()
                 .metadataLabel(TT.Metadata)
                 .identifierKey(TT.id)
                 .addDataProperty("foobar", "http://example.com/gus")

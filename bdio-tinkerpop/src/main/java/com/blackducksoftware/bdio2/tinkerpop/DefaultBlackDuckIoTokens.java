@@ -18,15 +18,12 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.BiConsumer;
-import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
 
@@ -37,16 +34,16 @@ import org.umlg.sqlg.structure.topology.Topology;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.Bdio.Container;
-import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 /**
- * Default implementation of the tokens interface.
+ * Default implementation of the tokens interface. Basically provides a builder and configuration along with some
+ * additional validation of user specified values.
  *
  * @author jgustie
  */
-public class BlackDuckIoContext implements BlackDuckIoTokens {
+public class DefaultBlackDuckIoTokens implements BlackDuckIoTokens {
 
     /**
      * The mapping of vertex labels to {@code @type} IRIs. Does not include the metadata vertex label.
@@ -98,7 +95,7 @@ public class BlackDuckIoContext implements BlackDuckIoTokens {
      */
     private final Optional<String> implicitKey;
 
-    private BlackDuckIoContext(Builder builder) {
+    private DefaultBlackDuckIoTokens(Builder builder) {
         classes = ImmutableMap.copyOf(builder.classes);
         embeddedClasses = ImmutableSet.copyOf(builder.embeddedClasses);
         dataProperties = ImmutableMap.copyOf(builder.dataProperties);
@@ -171,103 +168,12 @@ public class BlackDuckIoContext implements BlackDuckIoTokens {
         return implicitKey.orElse(null);
     }
 
-    /**
-     * Checks to see if the specified key represents a special property internal to the graph.
-     */
-    boolean isSpecialKey(String key) {
-        // TODO All keys that start with "_"?
-        Predicate<String> isKey = Predicate.isEqual(key);
-        return identifierKey.filter(isKey).isPresent()
-                || implicitKey.filter(isKey).isPresent();
-    }
-
-    /**
-     * Check to see if the specified key represents an unknown property.
-     */
-    boolean isUnknownKey(String key) {
-        // If framing did not recognize the attribute, it will still have a scheme or prefix separator
-        // This implementation of the check is probably a lot easier then looking at all the possible keys
-        return key.indexOf(':') >= 0;
-    }
-
-    /**
-     * Iterates over the known embedded type labels.
-     */
-    void forEachEmbeddedType(BiConsumer<String, String> embeddedTypeConsumer) {
-        classes.entrySet().stream()
-                .filter(e -> embeddedClasses.contains(e.getKey()))
-                .forEach(e -> embeddedTypeConsumer.accept(e.getKey(), e.getValue()));
-    }
-
-    /**
-     * Returns the labels which should be excluded from writing.
-     */
-    Set<String> excludedLabels() {
-        // TODO Allow other labels to be added?
-        // TODO What about rules like "exclude labels that start with _"?
-        Set<String> excludedLabels = new LinkedHashSet<>();
-        metadataLabel.ifPresent(excludedLabels::add);
-        excludedLabels.addAll(embeddedClasses);
-        return excludedLabels;
-    }
-
-    /**
-     * Returns the JSON-LD {@code @context} value.
-     */
-    Map<String, Object> serialize() {
-        Map<String, Object> context = new LinkedHashMap<>();
-        context.putAll(classes);
-        context.putAll(dataProperties);
-        context.putAll(objectProperties);
-        return context;
-    }
-
-    /**
-     * Returns the JSON-LD frame value.
-     */
-    Map<String, Object> frame() {
-        Map<String, Object> frame = new LinkedHashMap<>();
-        frame.put(JsonLdConsts.CONTEXT, serialize());
-        frame.put(JsonLdConsts.TYPE, new ArrayList<>(classes.values()));
-        return frame;
-    }
-
-    /**
-     * Returns the application context: i.e. a context that does not describe BDIO.
-     */
-    Optional<Map<String, Object>> applicationContext() {
-        Map<String, Object> context = serialize();
-
-        // Remove everything that could come from BDIO
-        removeKeysAndValues(Bdio.Class.class, context);
-        removeKeysAndValues(Bdio.DataProperty.class, context);
-        removeKeysAndValues(Bdio.ObjectProperty.class, context);
-
-        // Remove everything that is for internal use
-        // NOTE: These should all be no-ops if pre-build validation is working correctly
-        metadataLabel.ifPresent(context::remove);
-        context.keySet().removeIf(this::isSpecialKey);
-
-        return context.isEmpty() ? Optional.empty() : Optional.of(context);
-    }
-
-    /**
-     * Removes all of the enumeration names from the supplied map's key set and removes all occurrences the enumeration
-     * string representations from the supplied map's value collection.
-     */
-    private static <E extends Enum<E>> void removeKeysAndValues(Class<E> enumType, Map<String, Object> map) {
-        for (E e : enumType.getEnumConstants()) {
-            map.remove(e.name());
-            map.values().removeIf(Predicate.isEqual(e.toString()));
-        }
-    }
-
     public static Builder build() {
         return new Builder();
     }
 
-    public static BlackDuckIoContext create(Configuration config) {
-        BlackDuckIoContext.Builder builder = BlackDuckIoContext.build();
+    public static DefaultBlackDuckIoTokens create(Configuration config) {
+        DefaultBlackDuckIoTokens.Builder builder = DefaultBlackDuckIoTokens.build();
         ConfigurationConverter.getMap(config.subset("embeddedClass")).forEach((k, v) -> builder.addEmbeddedClass(k.toString(), v.toString()));
         ConfigurationConverter.getMap(config.subset("class")).forEach((k, v) -> builder.addClass(k.toString(), v.toString()));
         ConfigurationConverter.getMap(config.subset("dataProperties")).forEach((k, v) -> builder.addDataProperty(k.toString(), v.toString()));
@@ -280,11 +186,11 @@ public class BlackDuckIoContext implements BlackDuckIoTokens {
         return builder.create();
     }
 
-    public static BlackDuckIoContext create(BlackDuckIoTokens tokens) {
-        if (tokens instanceof BlackDuckIoContext) {
-            return (BlackDuckIoContext) tokens;
+    public static DefaultBlackDuckIoTokens create(BlackDuckIoTokens tokens) {
+        if (tokens instanceof DefaultBlackDuckIoTokens) {
+            return (DefaultBlackDuckIoTokens) tokens;
         }
-        BlackDuckIoContext.Builder builder = BlackDuckIoContext.build();
+        DefaultBlackDuckIoTokens.Builder builder = DefaultBlackDuckIoTokens.build();
         tokens.classes().forEach(builder::addClass);
         tokens.embeddedClasses().forEach(label -> builder.addEmbeddedClass(label, tokens.classes().get(label)));
         tokens.dataProperties().forEach(builder::addDataProperty);
@@ -405,8 +311,8 @@ public class BlackDuckIoContext implements BlackDuckIoTokens {
             return this;
         }
 
-        public BlackDuckIoContext create() {
-            return new BlackDuckIoContext(this);
+        public DefaultBlackDuckIoTokens create() {
+            return new DefaultBlackDuckIoTokens(this);
         }
 
         /**

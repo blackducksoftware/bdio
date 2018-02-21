@@ -48,9 +48,9 @@ public final class BlackDuckIoCore {
 
     private final BlackDuckIoVersion version;
 
-    private final Optional<BlackDuckIoTokens> tokens;
-
     private final Optional<Object> expandContext;
+
+    private final Optional<BlackDuckIoTokens> tokens;
 
     private final ImmutableList<TraversalStrategy<?>> strategies;
 
@@ -73,12 +73,12 @@ public final class BlackDuckIoCore {
 
     // Configuration
 
-    public BlackDuckIoCore withTokens(BlackDuckIoTokens tokens) {
-        return new BlackDuckIoCore(graph, version, expandContext, Optional.of(tokens), strategies);
-    }
-
     public BlackDuckIoCore withExpandContext(Object expandContext) {
         return new BlackDuckIoCore(graph, version, Optional.of(expandContext), tokens, strategies);
+    }
+
+    public BlackDuckIoCore withTokens(BlackDuckIoTokens tokens) {
+        return new BlackDuckIoCore(graph, version, expandContext, Optional.of(tokens), strategies);
     }
 
     public BlackDuckIoCore withStrategies(@SuppressWarnings("rawtypes") TraversalStrategy... strategies) {
@@ -86,7 +86,7 @@ public final class BlackDuckIoCore {
     }
 
     public BlackDuckIoCore withConfiguration(Configuration config) {
-        BlackDuckIoTokens tokens = BlackDuckIoContext.create(config);
+        BlackDuckIoTokens tokens = DefaultBlackDuckIoTokens.create(config);
         ImmutableList.Builder<TraversalStrategy<?>> strategies = ImmutableList.builder();
         strategies.addAll(this.strategies);
         if (config.containsKey("partitionStrategy.partitionKey")) {
@@ -122,20 +122,26 @@ public final class BlackDuckIoCore {
     public BlackDuckIoMapper mapper() {
         BlackDuckIoMapper.Builder builder = io().mapper();
         tokens.ifPresent(builder::tokens);
-        expandContext.ifPresent(builder::expandContext);
         return builder.create();
     }
 
     public BlackDuckIoReader reader() {
-        return io().reader().mapper(mapper()).addStrategies(strategies).create();
+        BlackDuckIoReader.Builder builder = io().reader();
+        builder.mapper(mapper()).addStrategies(strategies).version(version);
+        expandContext.ifPresent(builder::expandContext);
+        return builder.create();
     }
 
     public BlackDuckIoWriter writer() {
-        return io().writer().mapper(mapper()).addStrategies(strategies).create();
+        BlackDuckIoWriter.Builder builder = io().writer();
+        builder.mapper(mapper()).addStrategies(strategies);
+        return builder.create();
     }
 
     public BlackDuckIoOperations operations() {
-        return BlackDuckIoOperations.build().mapper(mapper()).addStrategies(strategies).create();
+        BlackDuckIoOperations.Builder builder = BlackDuckIoOperations.build();
+        builder.mapper(mapper()).addStrategies(strategies);
+        return builder.create();
     }
 
     // Low level

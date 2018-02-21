@@ -255,7 +255,7 @@ public class BlackDuckIoReaderTest extends BaseTest {
         Project projectModel = new Project(BdioObject.randomId());
         projectModel.put("http://example.com/gus", "testing");
 
-        BlackDuckIoContext tokens = BlackDuckIoContext.build()
+        BlackDuckIoTokens tokens = DefaultBlackDuckIoTokens.build()
                 .unknownKey(TT.unknown)
                 .addDataProperty("foobar", "http://example.com/gus")
                 .create();

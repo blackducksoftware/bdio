@@ -17,8 +17,9 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -28,12 +29,9 @@ import java.util.stream.Collector;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
-import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
-import com.github.jsonldjava.core.JsonLdError;
-import com.github.jsonldjava.core.JsonLdProcessor;
+import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.collect.Maps;
 
@@ -47,140 +45,144 @@ import com.google.common.collect.Maps;
 public class GraphMapper {
 
     /**
-     * The JSON-LD context to use.
+     * The token definitions to use.
      */
-    private final BlackDuckIoContext context;
+    private final BlackDuckIoTokens tokens;
 
     /**
      * The JSON-LD value object mapper to use.
      */
     private final ValueObjectMapper valueObjectMapper;
 
-    /**
-     * Options for creating BDIO documents.
-     */
-    private final BdioOptions bdioOptions;
-
     private GraphMapper(Builder builder) {
-        context = builder.tokens.map(BlackDuckIoContext::create).orElseGet(() -> BlackDuckIoContext.build().create());
+        // Wrap the tokens to make sure we get the built in definitions
+        tokens = builder.tokens.map(DefaultBlackDuckIoTokens::create).orElseGet(() -> DefaultBlackDuckIoTokens.build().create());
 
         // Construct the value object mapper
         ValueObjectMapper.Builder valueObjectMapperBuilder = new ValueObjectMapper.Builder();
-        context.forEachEmbeddedType((label, id) -> {
+        builder.datatypes.forEach(valueObjectMapperBuilder::useDatatypeHandler);
+        builder.multiValueCollector.ifPresent(valueObjectMapperBuilder::multiValueCollector);
+        tokens.multiDataValueProperties().forEach(valueObjectMapperBuilder::addMultiValueKey);
+        tokens.embeddedClasses().forEach(label -> {
             // Normally the ValueObjectMapper only tracks fully qualified types but we need to use it prior to
             // JSON-LD expansion so we need to tell it to recognize the vertex labels as well
             valueObjectMapperBuilder.addEmbeddedType(label);
-            valueObjectMapperBuilder.addEmbeddedType(id);
+            valueObjectMapperBuilder.addEmbeddedType(tokens.classes().get(label));
         });
-        context.multiDataValueProperties().forEach(valueObjectMapperBuilder::addMultiValueKey);
-        builder.datatypes.forEach(valueObjectMapperBuilder::useDatatypeHandler);
-        builder.multiValueCollector.ifPresent(valueObjectMapperBuilder::multiValueCollector);
         valueObjectMapper = valueObjectMapperBuilder.build();
 
         // Set our value object mapper as the context mapper
         ValueObjectMapper.setContextValueObjectMapper(valueObjectMapper);
-
-        // Construct the BDIO options
-        BdioOptions.Builder optionsBuilder = new BdioOptions.Builder();
-        context.applicationContext().ifPresent(optionsBuilder::applicationContext);
-        builder.expandContext.ifPresent(optionsBuilder::expandContext);
-        builder.injectedDocuments.forEach(optionsBuilder::injectDocument);
-        bdioOptions = optionsBuilder.build();
     }
 
     /**
-     * Returns the configured value object mapper.
+     * Returns the currently configured value object mapper.
      */
     public ValueObjectMapper valueObjectMapper() {
         return valueObjectMapper;
     }
 
     /**
-     * Creates a new BDIO document.
-     */
-    public RxJavaBdioDocument newDocument() {
-        return new RxJavaBdioDocument(bdioOptions);
-    }
-
-    public Optional<String> metadataLabel() {
-        return Optional.ofNullable(context.metadataLabel());
-    }
-
-    public Optional<String> rootLabel() {
-        return Optional.ofNullable(context.rootLabel());
-    }
-
-    public Optional<String> identifierKey() {
-        return Optional.ofNullable(context.identifierKey());
-    }
-
-    public Optional<String> implicitKey() {
-        return Optional.ofNullable(context.implicitKey());
-    }
-
-    public Optional<String> unknownKey() {
-        return Optional.ofNullable(context.unknownKey());
-    }
-
-    /**
-     * Checks to see if the specified key represents a data property.
-     */
-    public boolean isDataPropertyKey(String key) {
-        return context.dataProperties().containsKey(key);
-    }
-
-    /**
-     * Checks to see if the specified key represents an object property.
-     */
-    public boolean isObjectPropertyKey(String key) {
-        return context.objectProperties().containsKey(key);
-    }
-
-    public boolean isUnknownKey(String key) {
-        return Objects.equals(context.unknownKey(), key);
-    }
-
-    public boolean isImplicitKey(String key) {
-        return Objects.equals(context.implicitKey(), key);
-    }
-
-    public boolean isSpecialKey(String key) {
-        return context.isSpecialKey(key);
-    }
-
-    /**
      * Checks to see if the specified label is an embedded class.
      */
     public boolean isEmbeddedLabel(String label) {
-        return context.embeddedClasses().contains(label);
+        return tokens.embeddedClasses().contains(label);
     }
 
+    /**
+     * Checks to see if the specified key is a data property.
+     */
+    public boolean isDataPropertyKey(String key) {
+        return tokens.dataProperties().containsKey(key);
+    }
+
+    /**
+     * Checks to see if the specified key is an object property.
+     */
+    public boolean isObjectPropertyKey(String key) {
+        return tokens.objectProperties().containsKey(key);
+    }
+
+    /**
+     * Returns the metadata vertex label, if configured.
+     */
+    public Optional<String> metadataLabel() {
+        return Optional.ofNullable(tokens.metadataLabel());
+    }
+
+    /**
+     * Returns the root edge label, if configured.
+     */
+    public Optional<String> rootLabel() {
+        return Optional.ofNullable(tokens.rootLabel());
+    }
+
+    /**
+     * Returns the alternate identifier storage property key, if configured.
+     */
+    public Optional<String> identifierKey() {
+        return Optional.ofNullable(tokens.identifierKey());
+    }
+
+    /**
+     * Returns the implicit creation property key, if configured.
+     */
+    public Optional<String> implicitKey() {
+        return Optional.ofNullable(tokens.implicitKey());
+    }
+
+    /**
+     * Returns the unknown value storage property key, if configured.
+     */
+    public Optional<String> unknownKey() {
+        return Optional.ofNullable(tokens.unknownKey());
+    }
+
+    /**
+     * Returns the labels which should be excluded from writing.
+     */
     public Set<String> excludedLabels() {
-        return context.excludedLabels();
+        Set<String> excludedLabels = new LinkedHashSet<>();
+        excludedLabels.addAll(tokens.embeddedClasses());
+        metadataLabel().ifPresent(excludedLabels::add);
+        return excludedLabels;
     }
 
-    public Map<String, Object> compact(Map<String, Object> input) throws JsonLdError {
-        return JsonLdProcessor.compact(input, context.serialize(), bdioOptions.jsonLdOptions());
+    /**
+     * Returns the JSON-LD {@code @context} value.
+     */
+    public Map<String, Object> context() {
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.putAll(tokens.classes());
+        context.putAll(tokens.dataProperties());
+        context.putAll(tokens.objectProperties());
+        return context;
     }
 
-    public List<Object> expand(Object input) throws JsonLdError {
-        return JsonLdProcessor.expand(input, bdioOptions.jsonLdOptions());
-    }
-
+    /**
+     * Returns the JSON-LD frame value.
+     */
     public Map<String, Object> frame() {
-        return context.frame();
+        Map<String, Object> frame = new LinkedHashMap<>();
+        frame.put(JsonLdConsts.CONTEXT, context());
+        frame.put(JsonLdConsts.TYPE, new ArrayList<>(tokens.classes().values()));
+        return frame;
     }
+
+    // TODO Unknown property preservation should be using native JSON types for storage
 
     /**
      * Preserves all of the unknown properties, serialized as a single string. If there are no unknown properties in
      * the supplied node map, then the supplied action is not invoked.
      */
     public void preserveUnknownProperties(Map<String, Object> node, BiConsumer<String, Object> propertyConsumer) {
-        if (context.unknownKey() != null) {
-            Map<String, Object> unknownData = Maps.filterKeys(node, context::isUnknownKey);
+        if (tokens.unknownKey() != null) {
+            // If framing did not recognize the attribute, it will still have a scheme or prefix separator
+            // This implementation of the check is probably a lot easier then looking at all the possible keys
+            Map<String, Object> unknownData = Maps.filterKeys(node, key -> key.indexOf(':') >= 0);
             if (!unknownData.isEmpty()) {
                 try {
-                    propertyConsumer.accept(context.unknownKey(), JsonUtils.toString(unknownData));
+                    propertyConsumer.accept(tokens.unknownKey(), JsonUtils.toString(unknownData));
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
@@ -214,24 +216,15 @@ public class GraphMapper {
 
         private Optional<BlackDuckIoTokens> tokens = Optional.empty();
 
-        private Optional<Object> expandContext = Optional.empty();
-
         private final Map<String, DatatypeHandler<?>> datatypes = new LinkedHashMap<>();
 
         private Optional<Collector<? super Object, ?, ?>> multiValueCollector = Optional.empty();
-
-        private final Map<String, CharSequence> injectedDocuments = new LinkedHashMap<>();
 
         private Builder() {
         }
 
         public Builder tokens(@Nullable BlackDuckIoTokens tokens) {
             this.tokens = Optional.ofNullable(tokens);
-            return this;
-        }
-
-        public Builder expandContext(@Nullable Object expandContext) {
-            this.expandContext = Optional.ofNullable(expandContext);
             return this;
         }
 
@@ -242,11 +235,6 @@ public class GraphMapper {
 
         public Builder multiValueCollector(@Nullable Collector<? super Object, ?, ?> multiValueCollector) {
             this.multiValueCollector = Optional.ofNullable(multiValueCollector);
-            return this;
-        }
-
-        public Builder injectDocument(String iri, CharSequence content) {
-            injectedDocuments.put(Objects.requireNonNull(iri), Objects.requireNonNull(content));
             return this;
         }
 

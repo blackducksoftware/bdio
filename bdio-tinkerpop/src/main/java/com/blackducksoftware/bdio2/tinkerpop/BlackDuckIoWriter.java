@@ -70,7 +70,7 @@ public class BlackDuckIoWriter implements GraphWriter {
     @Override
     public void writeGraph(OutputStream outputStream, Graph graph) throws IOException {
         GraphWriterWrapper wrapper = graphWrapper.apply(graph);
-        RxJavaBdioDocument document = wrapper.mapper().newDocument();
+        RxJavaBdioDocument document = new RxJavaBdioDocument(wrapper.bdioOptions());
 
         try {
             Flowable.fromIterable(() -> wrapper.traversal().V()
@@ -150,7 +150,7 @@ public class BlackDuckIoWriter implements GraphWriter {
 
         vertex.edges(Direction.OUT).forEachRemaining(e -> {
             // Skip implicit edges
-            if (e.keys().stream().anyMatch(mapper::isImplicitKey)) {
+            if (mapper.implicitKey().isPresent() && e.keys().stream().anyMatch(mapper.implicitKey().get()::equals)) {
                 return;
             }
 

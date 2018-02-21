@@ -69,7 +69,7 @@ public final class BlackDuckIoReader implements GraphReader {
     @Override
     public void readGraph(InputStream inputStream, Graph graph) throws IOException {
         GraphReaderWrapper wrapper = graphWrapper.apply(graph);
-        RxJavaBdioDocument doc = wrapper.mapper().newDocument();
+        RxJavaBdioDocument doc = new RxJavaBdioDocument(wrapper.bdioOptions());
 
         try {
             Flowable<Object> entries = doc.read(inputStream).publish().autoConnect(2);
@@ -214,13 +214,23 @@ public final class BlackDuckIoReader implements GraphReader {
             return this;
         }
 
+        public Builder addStrategies(Collection<TraversalStrategy<?>> strategies) {
+            wrapperFactory.addStrategies(strategies);
+            return this;
+        }
+
         public Builder batchSize(int batchSize) {
             wrapperFactory.batchSize(batchSize);
             return this;
         }
 
-        public Builder addStrategies(Collection<TraversalStrategy<?>> strategies) {
-            wrapperFactory.addStrategies(strategies);
+        public Builder version(BlackDuckIoVersion version) {
+            wrapperFactory.version(version);
+            return this;
+        }
+
+        public Builder expandContext(Object expandContext) {
+            wrapperFactory.expandContext(expandContext);
             return this;
         }
 

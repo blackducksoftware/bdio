@@ -37,15 +37,12 @@ public class BlackDuckIoMapper implements Mapper<GraphMapper> {
 
     private final Optional<BlackDuckIoTokens> tokens;
 
-    private final Optional<Object> expandContext;
-
     private final List<DatatypeRegistration> datatypes;
 
     private final Optional<MultiValueCollectorRegistration> multiValueCollector;
 
     private BlackDuckIoMapper(BlackDuckIoMapper.Builder builder) {
         tokens = Optional.ofNullable(builder.tokens);
-        expandContext = Optional.ofNullable(builder.version.expandContext(builder.expandContext));
         datatypes = builder.registries.stream()
                 .flatMap(registry -> registry.find(BlackDuckIo.class, DatatypeRegistration.class).stream())
                 .map(Pair::getValue1).collect(toList());
@@ -61,7 +58,6 @@ public class BlackDuckIoMapper implements Mapper<GraphMapper> {
     public GraphMapper createMapper() {
         GraphMapper.Builder mapperBuilder = GraphMapper.build();
         tokens.ifPresent(mapperBuilder::tokens);
-        expandContext.ifPresent(mapperBuilder::expandContext);
         datatypes.forEach(r -> mapperBuilder.addDatatype(r.iri(), r.handler()));
         multiValueCollector.ifPresent(r -> mapperBuilder.multiValueCollector(r.collector()));
         return mapperBuilder.create();
@@ -75,16 +71,10 @@ public class BlackDuckIoMapper implements Mapper<GraphMapper> {
 
         private final List<IoRegistry> registries = new ArrayList<>();
 
-        private BlackDuckIoVersion version;
-
         @Nullable
         private BlackDuckIoTokens tokens;
 
-        @Nullable
-        private Object expandContext;
-
         private Builder() {
-            version = BlackDuckIoVersion.defaultVersion();
         }
 
         /**
@@ -96,18 +86,8 @@ public class BlackDuckIoMapper implements Mapper<GraphMapper> {
             return this;
         }
 
-        public Builder version(BlackDuckIoVersion version) {
-            this.version = Objects.requireNonNull(version);
-            return this;
-        }
-
         public Builder tokens(@Nullable BlackDuckIoTokens tokens) {
             this.tokens = tokens;
-            return this;
-        }
-
-        public Builder expandContext(@Nullable Object expandContext) {
-            this.expandContext = expandContext;
             return this;
         }
 

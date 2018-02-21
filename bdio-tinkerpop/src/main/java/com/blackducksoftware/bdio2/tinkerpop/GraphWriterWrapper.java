@@ -16,10 +16,13 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.common.base.ExtraStreams.ofType;
+import static com.github.jsonldjava.core.JsonLdProcessor.expand;
+import static org.apache.tinkerpop.gremlin.structure.util.ElementHelper.propertyValueMap;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
@@ -27,7 +30,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.Partit
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
-import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.github.jsonldjava.core.JsonLdConsts;
@@ -45,7 +47,7 @@ import com.google.common.collect.Lists;
 class GraphWriterWrapper extends GraphIoWrapper {
 
     protected GraphWriterWrapper(Graph graph, GraphMapper mapper, List<TraversalStrategy<?>> strategies) {
-        super(graph, mapper, strategies);
+        super(graph, mapper, strategies, Optional.empty());
     }
 
     /**
@@ -60,7 +62,7 @@ class GraphWriterWrapper extends GraphIoWrapper {
                         metadata.id(vertex.value(key));
                     });
                     try {
-                        Object expandedMetadata = Iterables.getOnlyElement(mapper().expand(ElementHelper.propertyValueMap(vertex)), null);
+                        Object expandedMetadata = Iterables.getOnlyElement(expand(propertyValueMap(vertex), bdioOptions().jsonLdOptions()), null);
                         if (expandedMetadata instanceof Map<?, ?>) {
                             ((Map<?, ?>) expandedMetadata).forEach((key, value) -> {
                                 if (key instanceof String) {
@@ -84,7 +86,7 @@ class GraphWriterWrapper extends GraphIoWrapper {
         result.put(JsonLdConsts.TYPE, vertex.label());
         result.put(JsonLdConsts.ID, generateId(vertex));
         vertex.properties().forEachRemaining(vp -> {
-            if (mapper().isUnknownKey(vp.key())) {
+            if (mapper().unknownKey().filter(Predicate.isEqual(vp.key())).isPresent()) {
                 // Restore unknown properties by putting them all back into the result map
                 mapper().restoreUnknownProperties(vp.value(), result::put);
             } else if (isIgnoredKey(vp.key())) {
@@ -99,9 +101,11 @@ class GraphWriterWrapper extends GraphIoWrapper {
     }
 
     private boolean isIgnoredKey(String key) {
-        return mapper().isSpecialKey(key)
+        Predicate<String> isKey = Predicate.isEqual(key);
+        return mapper().identifierKey().filter(isKey).isPresent()
+                || mapper().implicitKey().filter(isKey).isPresent()
                 || strategies().flatMap(ofType(PartitionStrategy.class))
-                        .map(PartitionStrategy::getPartitionKey).anyMatch(Predicate.isEqual(key));
+                        .map(PartitionStrategy::getPartitionKey).anyMatch(isKey);
     }
 
     /**
