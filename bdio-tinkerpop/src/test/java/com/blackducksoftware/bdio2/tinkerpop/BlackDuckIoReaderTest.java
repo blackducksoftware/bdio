@@ -15,7 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import static com.blackducksoftware.common.test.JsonSubject.assertThatJson;
+import static com.blackducksoftware.common.test.JsonSubject.assertThat;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth8.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -43,6 +43,7 @@ import com.blackducksoftware.bdio2.model.Project;
 import com.blackducksoftware.bdio2.test.BdioTest;
 import com.blackducksoftware.common.value.ContentType;
 import com.blackducksoftware.common.value.Digest;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.Lists;
 
@@ -245,8 +246,8 @@ public class BlackDuckIoReaderTest extends BaseTest {
 
         Optional<Object> unknown = graph.traversal().V().hasLabel(Bdio.Class.Project.name()).values(TT.unknown).tryNext();
         assertThat(unknown).isPresent();
-        assertThat(unknown.get()).isInstanceOf(String.class);
-        assertThatJson((String) unknown.get()).containsPair("http://example.com/gus", "testing");
+        assertThat(unknown.get()).isInstanceOf(JsonNode.class);
+        assertThat((JsonNode) unknown.get()).containsPair("http://example.com/gus", "testing");
     }
 
     @Test

@@ -16,8 +16,8 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -31,8 +31,10 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper.DatatypeHandler;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.jsonldjava.core.JsonLdConsts;
-import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.collect.Maps;
 
 /**
@@ -43,6 +45,16 @@ import com.google.common.collect.Maps;
  * @author jgustie
  */
 public class GraphMapper {
+
+    /**
+     * The JSON object mapper used to preserve unknown values.
+     */
+    private static final ObjectMapper UNKNOWN_DATA_MAPPER = new ObjectMapper();
+    static {
+        // See `com.github.jsonldjava.utils.JsonUtils`
+        UNKNOWN_DATA_MAPPER.getFactory().disable(JsonFactory.Feature.INTERN_FIELD_NAMES);
+        UNKNOWN_DATA_MAPPER.getFactory().disable(JsonFactory.Feature.CANONICALIZE_FIELD_NAMES);
+    }
 
     /**
      * The token definitions to use.
@@ -169,11 +181,9 @@ public class GraphMapper {
         return frame;
     }
 
-    // TODO Unknown property preservation should be using native JSON types for storage
-
     /**
-     * Preserves all of the unknown properties, serialized as a single string. If there are no unknown properties in
-     * the supplied node map, then the supplied action is not invoked.
+     * Preserves all of the unknown properties. If there are no unknown properties in the supplied node map, then the
+     * supplied action is not invoked.
      */
     public void preserveUnknownProperties(Map<String, Object> node, BiConsumer<String, Object> propertyConsumer) {
         if (tokens.unknownKey() != null) {
@@ -181,11 +191,7 @@ public class GraphMapper {
             // This implementation of the check is probably a lot easier then looking at all the possible keys
             Map<String, Object> unknownData = Maps.filterKeys(node, key -> key.indexOf(':') >= 0);
             if (!unknownData.isEmpty()) {
-                try {
-                    propertyConsumer.accept(tokens.unknownKey(), JsonUtils.toString(unknownData));
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                }
+                propertyConsumer.accept(tokens.unknownKey(), UNKNOWN_DATA_MAPPER.valueToTree(unknownData));
             }
         }
     }
@@ -194,17 +200,23 @@ public class GraphMapper {
      * Given a preserved serialization of unknown properties, replay them back to the supplied consumer.
      */
     public void restoreUnknownProperties(@Nullable Object value, BiConsumer<String, Object> unknownPropertyConsumer) {
-        if (value != null) {
-            try {
-                Object unknown = JsonUtils.fromString(value.toString());
-                if (unknown instanceof Map<?, ?>) {
-                    for (Map.Entry<?, ?> unknownProperty : ((Map<?, ?>) unknown).entrySet()) {
-                        unknownPropertyConsumer.accept((String) unknownProperty.getKey(), unknownProperty.getValue());
-                    }
-                }
-            } catch (IOException e) {
-                // Ignore this...
+        try {
+            Map<?, ?> unknownData = Collections.emptyMap();
+            if (value instanceof JsonNode) {
+                unknownData = UNKNOWN_DATA_MAPPER.treeToValue((JsonNode) value, Map.class);
+            } else if (value instanceof CharSequence) {
+                unknownData = UNKNOWN_DATA_MAPPER.readValue(value.toString(), Map.class);
+            } else if (value != null) {
+                throw new IllegalArgumentException("unable to restore unknown properties from: " + value);
             }
+
+            // Does Jackson have better built-in support for Map<String, Object>?
+            for (Map.Entry<?, ?> e : unknownData.entrySet()) {
+                unknownPropertyConsumer.accept((String) e.getKey(), e.getValue());
+            }
+        } catch (IOException e) {
+            // TODO Should we serialize the failure, e.g. `upc.accept("unknownRestoreError", e.toString())`?
+            return;
         }
     }
 

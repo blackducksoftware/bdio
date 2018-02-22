@@ -16,6 +16,7 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import static org.umlg.sqlg.structure.PropertyType.BOOLEAN;
+import static org.umlg.sqlg.structure.PropertyType.JSON;
 import static org.umlg.sqlg.structure.PropertyType.STRING;
 import static org.umlg.sqlg.structure.topology.IndexType.NON_UNIQUE;
 
@@ -54,9 +55,6 @@ class SqlgGraphInitializer {
 
     // TODO Is there a good way to introduce a Sqlg property type mapping through an IoRegistry?
     // If we could get a Bdio.Datatype and Bdio.Container for every property that would work also...
-
-    // TODO Switch this to JSON and store JSON natively
-    private static final PropertyType JSON = PropertyType.STRING;
 
     public SqlgGraphInitializer() {
     }
