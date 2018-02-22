@@ -16,13 +16,16 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.has;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.or;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.property;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -42,6 +45,7 @@ import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.common.value.HID;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
 /**
@@ -94,6 +98,25 @@ public final class BlackDuckIoOperations {
         }
     }
 
+    /**
+     * Admin graph initializers are package private and are invoked with a wrapper instead of the raw graph.
+     */
+    static abstract interface AdminGraphInitializer extends GraphInitializer {
+        default void initialize(GraphReaderWrapper wrapper) {
+            initialize(wrapper.graph());
+        }
+
+        @Override
+        default void initialize(Graph graph) {
+        }
+
+        @Override
+        default int compareTo(GraphInitializer other) {
+            // Admin initializers always run first
+            return other instanceof AdminGraphInitializer ? GraphInitializer.super.compareTo(other) : 1;
+        }
+    }
+
     private final Function<Graph, GraphReaderWrapper> graphWrapper;
 
     private BlackDuckIoOperations(Builder builder) {
@@ -105,9 +128,9 @@ public final class BlackDuckIoOperations {
      * operation does nothing, however it is better to always call this at least once before attempting to perform BDIO
      * operations on a graph.
      */
-    public void initializeSchema(Graph graph) {
+    public void initializeSchema(Graph graph, GraphInitializer... initializers) {
         GraphReaderWrapper wrapper = graphWrapper.apply(graph);
-        new InitializeSchemaOperation(wrapper).run();
+        new InitializeSchemaOperation(wrapper, Arrays.asList(initializers)).run();
     }
 
     /**
@@ -156,14 +179,23 @@ public final class BlackDuckIoOperations {
      * Performs implementation specific schema initialization for BDIO (but <em>not</em> user defined extensions!).
      */
     private static class InitializeSchemaOperation extends Operation {
-        public InitializeSchemaOperation(GraphReaderWrapper wrapper) {
+
+        private final ImmutableList<GraphInitializer> initializers;
+
+        public InitializeSchemaOperation(GraphReaderWrapper wrapper, List<GraphInitializer> initializers) {
             super(wrapper, m -> true);
+            this.initializers = Stream.concat(new SqlgGraphInitializer().stream(), initializers.stream())
+                    .sorted().collect(toImmutableList());
         }
 
         @Override
         protected void execute(GraphTraversalSource g, GraphMapper mapper) {
-            if (wrapper() instanceof SqlgGraphReaderWrapper) {
-                new SqlgGraphInitializer().initialize((SqlgGraphReaderWrapper) wrapper());
+            for (GraphInitializer i : initializers) {
+                if (i instanceof AdminGraphInitializer) {
+                    ((AdminGraphInitializer) i).initialize(wrapper());
+                } else {
+                    i.initialize(wrapper().graph());
+                }
             }
         }
     }

@@ -15,7 +15,10 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.blackducksoftware.common.base.ExtraStreams.stream;
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth8.assertThat;
+import static com.google.common.truth.TruthJUnit.assume;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.in;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.not;
@@ -24,12 +27,16 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.Test;
+import org.umlg.sqlg.structure.SqlgGraph;
+import org.umlg.sqlg.structure.topology.Schema;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.model.FileCollection;
@@ -187,6 +194,53 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString());
             } else if (path.equals("zip:file:%2F%2F%2Ffoo%2Fbar%2Ftest.zip#test.txt")) {
                 assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.REGULAR_TEXT.toString());
+            }
+        }
+    }
+
+    @Test
+    public void sqlgSchemaInitialization() {
+        assume().that(graph).isInstanceOf(SqlgGraph.class);
+        new BlackDuckIoCore(graph)
+                .withTokens(testTokens(TT.Metadata))
+                .initializeSchema(stream(GraphInitializer.Step.class).map(InitializationTester::new).toArray(GraphInitializer[]::new));
+    }
+
+    private static class InitializationTester implements GraphInitializer {
+        private final Step step;
+
+        private InitializationTester(Step step) {
+            this.step = Objects.requireNonNull(step);
+        }
+
+        @Override
+        public Step initializationStep() {
+            return step;
+        }
+
+        @Override
+        public void initialize(Graph graph) {
+            Schema publicSchema = ((SqlgGraph) graph).getTopology().getPublicSchema();
+            switch (step) {
+            case START:
+                assertThat(publicSchema.getVertexLabel(TT.Metadata)).isEmpty();
+                break;
+            case METADATA:
+                assertThat(publicSchema.getVertexLabel(TT.Metadata)).isPresent();
+                assertThat(publicSchema.getVertexLabel(Bdio.Class.Project.name())).isEmpty();
+                break;
+            case VERTEX:
+                assertThat(publicSchema.getVertexLabel(Bdio.Class.Project.name())).isPresent();
+                assertThat(publicSchema.getEdgeLabel(Bdio.ObjectProperty.base.name())).isEmpty();
+                break;
+            case EDGE:
+                assertThat(publicSchema.getEdgeLabel(Bdio.ObjectProperty.base.name())).isPresent();
+                break;
+            case FINISH:
+                // Nothing should have changed since EDGE by default
+                break;
+            default:
+                throw new IllegalStateException("unknown step: " + step);
             }
         }
     }

@@ -104,8 +104,8 @@ public final class BlackDuckIoCore {
 
     // High level
 
-    public void initializeSchema() {
-        operations().initializeSchema(graph);
+    public void initializeSchema(GraphInitializer... initializers) {
+        operations().initializeSchema(graph, initializers);
     }
 
     public void applySemanticRules() {
