@@ -222,6 +222,7 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
     }
 
     private static Map<String, Object> publisher(Product product) {
+        // Technically this should be a JSON-LD value object, however we might be able to sneak it through...
         return ImmutableMap.of(Bdio.DataProperty.publisher.toString(), ProductList.of(product));
     }
 

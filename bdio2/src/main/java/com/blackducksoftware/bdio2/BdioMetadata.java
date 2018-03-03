@@ -150,8 +150,8 @@ public final class BdioMetadata extends BdioObject {
                 if (producer != null) {
                     // Merges to create new producer
                     ProductList.Builder builder = new ProductList.Builder();
-                    ((ProductList) mapper().fromFieldValue(key, producer)).forEach(builder::mergeProduct);
-                    ((ProductList) mapper().fromFieldValue(key, value)).forEach(builder::mergeProduct);
+                    ProductList.from(mapper().fromFieldValue(key, producer)).forEach(builder::mergeProduct);
+                    ProductList.from(mapper().fromFieldValue(key, value)).forEach(builder::mergeProduct);
                     putData(Bdio.DataProperty.publisher, builder.build());
                 } else {
                     // Establishes a new producer
@@ -161,8 +161,8 @@ public final class BdioMetadata extends BdioObject {
                 Object creator = get(key);
                 if (creator != null) {
                     // Merges to create a new creator
-                    put(key, splitOnFirst((String) mapper().fromFieldValue(key, creator), '@',
-                            (user1, host1) -> splitOnFirst((String) mapper().fromFieldValue(key, value), '@', (user2, host2) -> {
+                    put(key, splitOnFirst(mapper().fromFieldValue(key, creator).toString(), '@',
+                            (user1, host1) -> splitOnFirst(mapper().fromFieldValue(key, value).toString(), '@', (user2, host2) -> {
                                 return ensureDelimiter(isNullOrEmpty(user1) ? user2 : user1, "@", isNullOrEmpty(host1) ? host2 : host1);
                             })));
                 } else {
