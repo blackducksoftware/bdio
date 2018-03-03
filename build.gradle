@@ -37,6 +37,11 @@ subprojects {
 		options.compilerArgs << '-Xlint:all'
 	}
 
+	tasks.withType(AbstractArchiveTask) {
+		preserveFileTimestamps = false
+		reproducibleFileOrder = true
+	}
+
 	jar {
 		manifest {
 			attributes('Implementation-Title': project.description,
