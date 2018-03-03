@@ -100,19 +100,19 @@ public abstract class AbstractFileTool extends AbstractGraphTool {
      * (F)ile (T)ool (T)okens.
      */
     private enum FTT {
-        _Metadata(),
-        _root(),
+        Metadata(),
+        root(),
     }
 
     public AbstractFileTool(String name) {
         super(name);
-        graphTool().setProperty("bdio.metadataLabel", FTT._Metadata.name());
-        graphTool().setProperty("bdio.rootLabel", FTT._root.name());
+        graphTool().setProperty("bdio.metadataLabel", FTT.Metadata.name());
+        graphTool().setProperty("bdio.rootLabel", FTT.root.name());
     }
 
     protected Stream<FileNode> baseFiles(GraphTraversalSource g) {
-        return g.V().hasLabel(FTT._Metadata.name())
-                .out(FTT._root.name())
+        return g.V().hasLabel(FTT.Metadata.name())
+                .out(FTT.root.name()) // TODO Dedup here, multiple Metadata vertices?
                 .emit().repeat(out(Bdio.ObjectProperty.subproject.name()))
                 .out(Bdio.ObjectProperty.base.name())
                 .toStream()
