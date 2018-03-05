@@ -45,6 +45,7 @@ import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.common.value.HID;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
@@ -108,12 +109,6 @@ public final class BlackDuckIoOperations {
 
         @Override
         default void initialize(Graph graph) {
-        }
-
-        @Override
-        default int compareTo(GraphInitializer other) {
-            // Admin initializers always run first
-            return other instanceof AdminGraphInitializer ? GraphInitializer.super.compareTo(other) : 1;
         }
     }
 
@@ -185,7 +180,11 @@ public final class BlackDuckIoOperations {
         public InitializeSchemaOperation(GraphReaderWrapper wrapper, List<GraphInitializer> initializers) {
             super(wrapper, m -> true);
             this.initializers = Stream.concat(new SqlgGraphInitializer().stream(), initializers.stream())
-                    .sorted().collect(toImmutableList());
+                    .sorted((a, b) -> ComparisonChain.start()
+                            .compare(a.initializationStep(), b.initializationStep())
+                            .compareTrueFirst(a instanceof AdminGraphInitializer, b instanceof AdminGraphInitializer)
+                            .result())
+                    .collect(toImmutableList());
         }
 
         @Override

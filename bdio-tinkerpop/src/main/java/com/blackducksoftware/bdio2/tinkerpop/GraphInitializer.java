@@ -17,7 +17,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
-public interface GraphInitializer extends Comparable<GraphInitializer> {
+public interface GraphInitializer {
 
     enum Step {
         START, METADATA, VERTEX, EDGE, FINISH
@@ -35,8 +35,4 @@ public interface GraphInitializer extends Comparable<GraphInitializer> {
         return Step.FINISH;
     }
 
-    @Override
-    default int compareTo(GraphInitializer other) {
-        return initializationStep().compareTo(other.initializationStep());
-    }
 }
