@@ -15,6 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tool.linter;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -46,7 +47,7 @@ public class Metadata implements RawEntryRule {
 
             // The identifier should always be present
             if (!bdioEntry.containsKey(JsonLdConsts.ID) || Objects.equals(bdioEntry.get(JsonLdConsts.ID), JsonLdConsts.DEFAULT)) {
-                result.error("DefaultNamedGraphIdentififer");
+                result.warning("DefaultNamedGraphIdentififer");
             } else {
                 Object id = bdioEntry.get(JsonLdConsts.ID);
                 if (this.id == null) {
@@ -71,6 +72,9 @@ public class Metadata implements RawEntryRule {
                     }
                 }
             }
+        } else if (input instanceof List<?>) {
+            // A list is valid input, however, it makes it impossible to label the named graph
+            result.warning("DefaultNamedGraphIdentififer");
         }
 
         return result.build();
