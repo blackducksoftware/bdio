@@ -195,6 +195,9 @@ class LegacyScanContainerEmitter implements Emitter {
                 if (signatures.containsKey(SIGNATURES_CLEAN_SHA1)) {
                     // We only collected clean SHA-1 on text files
                     return Bdio.FileSystemType.REGULAR_TEXT.toString();
+                } else if (signatures.containsKey(SIGNATURES_SHA1)) {
+                    // We only collected SHA-1 on binary files
+                    return Bdio.FileSystemType.REGULAR_BINARY.toString();
                 } else {
                     return Bdio.FileSystemType.REGULAR.toString();
                 }
