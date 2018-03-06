@@ -40,6 +40,7 @@ import org.umlg.sqlg.structure.topology.VertexLabel;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoOperations.AdminGraphInitializer;
+import com.blackducksoftware.common.base.ExtraStreams;
 import com.google.common.base.Enums;
 import com.google.common.collect.Streams;
 
@@ -147,7 +148,7 @@ class SqlgGraphInitializer {
             Topology topology = wrapper.graph().getTopology();
             for (Bdio.ObjectProperty objectProperty : Bdio.ObjectProperty.values()) {
                 List<VertexLabel> range = objectRange(objectProperty)
-                        .flatMap(p -> Arrays.stream(p.value()))
+                        .flatMap(p -> p.value().length > 0 ? Arrays.stream(p.value()) : ExtraStreams.stream(Bdio.Class.class))
                         .map(Bdio.Class::name)
                         .map(topology::ensureVertexLabelExist)
                         .collect(Collectors.toList());
