@@ -132,8 +132,13 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
     }
 
     private void finishMetadata(JsonParser jp, BdioMetadata metadata, @Nullable String project, @Nullable String release) throws IOException {
-        // Add the metadata identifier and product information
+        // Add the metadata identifier and name if it has not been populated
         metadata.id(toFileUri(hostName, baseDir, null));
+        if (!metadata.containsKey(Bdio.DataProperty.name.toString())) {
+            metadata.name(hostName + "#" + baseDir);
+        }
+
+        // Merge in additional product information for this code
         metadata.merge(publisher(new Product.Builder()
                 .simpleName(LegacyScanContainerEmitter.class)
                 .implementationVersion(LegacyScanContainerEmitter.class)

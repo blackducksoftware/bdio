@@ -46,6 +46,7 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.FileCollection;
 import com.blackducksoftware.bdio2.model.Project;
+import com.blackducksoftware.common.base.ExtraStrings;
 import com.blackducksoftware.common.value.Digest;
 import com.blackducksoftware.common.value.HID;
 import com.blackducksoftware.common.value.Product;
@@ -301,7 +302,7 @@ class LegacyScanContainerEmitter implements Emitter {
         public BdioMetadata metadata() {
             return new BdioMetadata()
                     .id(toFileUri(hostName, baseDir, null))
-                    .name(name)
+                    .name(ExtraStrings.ofEmpty(name).orElseGet(() -> hostName + "#" + baseDir))
                     .creator(null, hostName)
                     .creationDateTime(createdOn)
                     .publisher(new ProductList.Builder()
