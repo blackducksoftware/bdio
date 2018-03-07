@@ -248,10 +248,6 @@ public final class BlackDuckIoOperations {
 
             // Get the list of base paths
             Set<String> basePaths = g.V()
-                    .hasLabel(Bdio.Class.Container.name(),
-                            Bdio.Class.FileCollection.name(),
-                            Bdio.Class.Project.name(),
-                            Bdio.Class.Repository.name())
                     .out(Bdio.ObjectProperty.base.name())
                     .<String> values(Bdio.DataProperty.path.name())
                     .toSet();
