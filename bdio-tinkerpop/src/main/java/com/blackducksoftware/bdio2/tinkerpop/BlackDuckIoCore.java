@@ -88,6 +88,11 @@ public final class BlackDuckIoCore {
         return new BlackDuckIoCore(graph, version, expandContext, tokens, ImmutableList.copyOf(strategies));
     }
 
+    public BlackDuckIoCore addStrategy(TraversalStrategy<?> strategy) {
+        return new BlackDuckIoCore(graph, version, expandContext, tokens,
+                ImmutableList.<TraversalStrategy<?>> builder().addAll(strategies).add(strategy).build());
+    }
+
     public BlackDuckIoCore withConfiguration(Configuration config) {
         BlackDuckIoTokens tokens = DefaultBlackDuckIoTokens.create(config);
         ImmutableList.Builder<TraversalStrategy<?>> strategies = ImmutableList.builder();

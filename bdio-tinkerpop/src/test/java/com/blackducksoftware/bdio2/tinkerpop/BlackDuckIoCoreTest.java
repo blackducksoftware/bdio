@@ -15,11 +15,13 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.blackducksoftware.bdio2.tinkerpop.util.VertexProperties.stringValue;
 import static com.google.common.truth.Truth8.assertThat;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 
 /**
@@ -37,25 +39,49 @@ public class BlackDuckIoCoreTest extends BaseTest {
     public void multiplePartitions() {
         BlackDuckIoCore bdio = new BlackDuckIoCore(graph);
         bdio = bdio.withStrategies(
-                PartitionStrategy.build().partitionKey("a").create(),
-                PartitionStrategy.build().partitionKey("b").create());
+                PartitionStrategy.build().partitionKey("a").writePartition("a").create(),
+                PartitionStrategy.build().partitionKey("b").writePartition("b").create());
 
         TraversalStrategies strategies = bdio.traversal().getStrategies();
         assertThat(strategies.getStrategy(PartitionStrategy.class).map(PartitionStrategy::getPartitionKey)).hasValue("a");
         assertThat(strategies.toList().stream().filter(s -> s instanceof PartitionStrategy)).hasSize(2);
         assertThat(bdio.readerWrapper().strategies().filter(s -> s instanceof PartitionStrategy)).hasSize(2);
+
+        Vertex v = bdio.traversal().addV().next();
+        assertThat(stringValue(v, "a")).hasValue("a");
+        assertThat(stringValue(v, "b")).hasValue("b");
+    }
+
+    @Test
+    public void addPartitions() {
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph);
+        bdio = bdio.addStrategy(PartitionStrategy.build().partitionKey("a").writePartition("a").create());
+        bdio = bdio.addStrategy(PartitionStrategy.build().partitionKey("b").writePartition("b").create());
+
+        TraversalStrategies strategies = bdio.traversal().getStrategies();
+        assertThat(strategies.getStrategy(PartitionStrategy.class).map(PartitionStrategy::getPartitionKey)).hasValue("a");
+        assertThat(strategies.toList().stream().filter(s -> s instanceof PartitionStrategy)).hasSize(2);
+        assertThat(bdio.readerWrapper().strategies().filter(s -> s instanceof PartitionStrategy)).hasSize(2);
+
+        Vertex v = bdio.traversal().addV().next();
+        assertThat(stringValue(v, "a")).hasValue("a");
+        assertThat(stringValue(v, "b")).hasValue("b");
     }
 
     @Test
     public void overwritePartitions() {
         BlackDuckIoCore bdio = new BlackDuckIoCore(graph);
-        bdio = bdio.withStrategies(PartitionStrategy.build().partitionKey("a").create());
-        bdio = bdio.withStrategies(PartitionStrategy.build().partitionKey("b").create());
+        bdio = bdio.withStrategies(PartitionStrategy.build().partitionKey("a").writePartition("a").create());
+        bdio = bdio.withStrategies(PartitionStrategy.build().partitionKey("b").writePartition("b").create());
 
         TraversalStrategies strategies = bdio.traversal().getStrategies();
         assertThat(strategies.getStrategy(PartitionStrategy.class).map(PartitionStrategy::getPartitionKey)).hasValue("b");
         assertThat(strategies.toList().stream().filter(s -> s instanceof PartitionStrategy)).hasSize(1);
         assertThat(bdio.readerWrapper().strategies().filter(s -> s instanceof PartitionStrategy)).hasSize(1);
+
+        Vertex v = bdio.traversal().addV().next();
+        assertThat(stringValue(v, "a")).isEmpty();
+        assertThat(stringValue(v, "b")).hasValue("b");
     }
 
 }
