@@ -202,7 +202,7 @@ public class BlackDuckIoOperationsTest extends BaseTest {
     public void sqlgSchemaInitialization() {
         assume().that(graph).isInstanceOf(SqlgGraph.class);
         new BlackDuckIoCore(graph)
-                .withTokens(testTokens(TT.Metadata))
+                .withTokens(testTokens(TT.Metadata, TT.root))
                 .initializeSchema(stream(GraphInitializer.Step.class).map(InitializationTester::new).toArray(GraphInitializer[]::new));
     }
 
@@ -234,6 +234,7 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 assertThat(publicSchema.getEdgeLabel(Bdio.ObjectProperty.base.name())).isEmpty();
                 break;
             case EDGE:
+                assertThat(publicSchema.getEdgeLabel(TT.root)).isPresent();
                 assertThat(publicSchema.getEdgeLabel(Bdio.ObjectProperty.base.name())).isPresent();
                 break;
             case FINISH:

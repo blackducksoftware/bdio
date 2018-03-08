@@ -163,6 +163,18 @@ class SqlgGraphInitializer {
                             }
                         });
             }
+
+            wrapper.mapper().rootLabel().ifPresent(l -> {
+                wrapper.mapper().metadataLabel()
+                        .map(topology::ensureVertexLabelExist)
+                        .ifPresent(d -> {
+                            // TODO Where do we define "top-level" objects needed for the range?
+                            Stream.of(Bdio.Class.Container, Bdio.Class.FileCollection, Bdio.Class.Project, Bdio.Class.Repository)
+                                    .map(Bdio.Class::name)
+                                    .map(topology::ensureVertexLabelExist)
+                                    .forEach(r -> topology.ensureEdgeLabelExist(l, d, r, properties));
+                        });
+            });
         }
     }
 
