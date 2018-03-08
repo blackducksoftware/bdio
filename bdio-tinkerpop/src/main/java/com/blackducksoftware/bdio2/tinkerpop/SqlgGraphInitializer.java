@@ -184,9 +184,6 @@ class SqlgGraphInitializer {
         Map<String, PropertyType> columns = new TreeMap<>();
         List<String> nonUniqueIndexNames = new ArrayList<>();
 
-        columns.putAll(labelColumns);
-        nonUniqueIndexNames.addAll(labelNonUniqueIndexColumns);
-
         wrapper.forEachPartition((c, p) -> {
             columns.put(c, STRING);
             nonUniqueIndexNames.add(c);
@@ -202,6 +199,15 @@ class SqlgGraphInitializer {
         wrapper.mapper().implicitKey().ifPresent(c -> {
             columns.put(c, BOOLEAN);
         });
+
+        // Create the "special" columns first
+        if (!columns.isEmpty()) {
+            wrapper.graph().getTopology().ensureVertexLabelExist(label, columns);
+            columns.clear();
+        }
+
+        columns.putAll(labelColumns);
+        nonUniqueIndexNames.addAll(labelNonUniqueIndexColumns);
 
         // Create the table and indexes
         VertexLabel vertexLabel = wrapper.graph().getTopology().ensureVertexLabelExist(label, columns);

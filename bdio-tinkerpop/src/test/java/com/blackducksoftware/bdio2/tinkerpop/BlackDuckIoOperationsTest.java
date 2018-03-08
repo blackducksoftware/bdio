@@ -31,6 +31,7 @@ import java.util.Objects;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
@@ -202,7 +203,8 @@ public class BlackDuckIoOperationsTest extends BaseTest {
     public void sqlgSchemaInitialization() {
         assume().that(graph).isInstanceOf(SqlgGraph.class);
         new BlackDuckIoCore(graph)
-                .withTokens(testTokens(TT.Metadata, TT.root))
+                .withTokens(testTokens(TT.Metadata, TT.root, TT.id))
+                .withStrategies(PartitionStrategy.build().partitionKey("test").writePartition("").create())
                 .initializeSchema(stream(GraphInitializer.Step.class).map(InitializationTester::new).toArray(GraphInitializer[]::new));
     }
 
