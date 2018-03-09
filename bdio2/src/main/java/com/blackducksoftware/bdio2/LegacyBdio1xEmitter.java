@@ -21,6 +21,7 @@ import static com.blackducksoftware.common.base.ExtraStrings.beforeFirst;
 import static com.blackducksoftware.common.base.ExtraStrings.removePrefix;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.emptyToNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -723,7 +724,7 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
         });
         producerBuilder.addProduct(product().addCommentText("bdio %s", currentValue("specVersion").orElse("1.0.0")).build());
 
-        creator.accept(creatorBuilder.toString());
+        creator.accept(emptyToNull(creatorBuilder.toString()));
         producer.accept(producerBuilder.build());
     }
 
