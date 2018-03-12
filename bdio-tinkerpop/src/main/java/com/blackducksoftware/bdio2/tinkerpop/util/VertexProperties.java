@@ -15,6 +15,8 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop.util;
 
+import static com.blackducksoftware.common.base.ExtraOptionals.ofType;
+
 import java.io.Serializable;
 import java.util.Comparator;
 import java.util.List;
@@ -102,6 +104,14 @@ public class VertexProperties {
      */
     public static Optional<Object> objectValue(Vertex v, Object propertyKey) {
         return optionalValue(v.property(key(propertyKey)));
+    }
+
+    /**
+     * Returns an optional object representing the value of the vertex property with the specified key if it can be cast
+     * to the specified type.
+     */
+    public static <T> Optional<T> objectValue(Vertex v, Object propertyKey, Class<T> type) {
+        return objectValue(v, propertyKey).flatMap(ofType(type));
     }
 
     /**
