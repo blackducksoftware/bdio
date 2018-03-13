@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
@@ -52,6 +53,8 @@ import com.google.common.collect.ImmutableMap;
 class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
 
     private BdioMetadata metadata;
+
+    private Function<File, Map<String, Object>> base;
 
     private String hostName;
 
@@ -150,23 +153,19 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
             throw new IOException("expected start array: " + jp.getCurrentToken());
         }
 
-        // Do not define a base file if the scan node list is empty
-        File base = null;
-        if (jp.nextToken() != null && jp.isExpectedStartObjectToken()) {
-            base = new File(toFileUri(hostName, baseDir, "scanNode-0"));
-        }
-
         // Add the root object to the graph
         String rootId = toFileUri(hostName, baseDir, "root");
         if (project != null) {
-            offer(new Project(rootId).name(project).version(release).base(base));
+            offer(new Project(rootId).name(project).version(release));
+            base = f -> new Project(rootId).base(f);
         } else {
-            offer(new FileCollection(rootId).base(base));
+            offer(new FileCollection(rootId));
+            base = f -> new FileCollection(rootId).base(f);
         }
     }
 
     private List<Map<String, Object>> parseGraph(JsonParser jp) throws IOException {
-        do {
+        while (jp.nextToken() != null) {
             if (jp.isExpectedStartObjectToken()) {
                 // Read a scan node and convert it into a BDIO file
                 LegacyScanNode scanNode = jp.readValueAs(LegacyScanNode.class);
@@ -175,6 +174,11 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
                         .path(scanNode.path(baseDir, null))
                         .byteCount(scanNode.byteCount())
                         .fingerprint(scanNode.fingerprint());
+
+                // Add a base relationship
+                if (scanNode.isBase()) {
+                    offer(base.apply(file));
+                }
 
                 if (!offer(file)) {
                     // The entry is full, finish the current entry and start a new one by re-offering the file
@@ -186,7 +190,7 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
                 // This is end of the scan node list, we can ignore the result of the file
                 return finishEntry();
             }
-        } while (jp.nextToken() != null);
+        }
 
         // We should hit the end of the array before we run out of tokens
         throw new IOException("Unexpected end of stream");

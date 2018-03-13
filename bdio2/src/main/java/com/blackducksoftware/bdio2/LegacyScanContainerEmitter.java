@@ -138,6 +138,10 @@ class LegacyScanContainerEmitter implements Emitter {
             return "scanNode-" + id;
         }
 
+        public boolean isBase() {
+            return id == 0;
+        }
+
         public String path(String baseDir, @Nullable Function<Long, LegacyScanNode> lookup) {
             if (uri != null) {
                 // New versions of the scan client include a BDIO 2 compatible definition of the path
@@ -320,7 +324,10 @@ class LegacyScanContainerEmitter implements Emitter {
 
         public Map<String, Object> rootObject() {
             String id = toFileUri(hostName, baseDir, "root");
-            File base = scanNodeList.isEmpty() ? null : new File(toFileUri(hostName, baseDir, "scanNode-0"));
+            File base = scanNodeList.values().stream()
+                    .filter(LegacyScanNode::isBase)
+                    .map(scanNode -> new File(toFileUri(hostName, baseDir, scanNode.toString())))
+                    .findFirst().orElse(null);
             if (project != null) {
                 return new Project(id)
                         .name(project)
