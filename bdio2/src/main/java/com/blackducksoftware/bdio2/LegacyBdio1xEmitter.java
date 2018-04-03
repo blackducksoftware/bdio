@@ -68,6 +68,7 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.io.IOContext;
 import com.fasterxml.jackson.core.util.JsonParserDelegate;
 import com.github.jsonldjava.core.JsonLdConsts;
+import com.google.common.base.CharMatcher;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
@@ -97,6 +98,14 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
     private static Pattern SPDX_CREATOR = Pattern.compile("(?:Person: (?<personName>.*))"
             + "|(?:Tool: (?<toolName>.*?)(?:-(?<toolVersion>.+))?)"
             + "|(?:Organization: (?<organizationName>.*))");
+
+    /**
+     * The characters that we can retain when matching tool names to create a product.
+     */
+    private static final CharMatcher PRODUCT_TOKEN_CHAR = CharMatcher.anyOf("!#$%&'*+-.^_`|~")
+            .or(CharMatcher.inRange('0', '9'))
+            .or(CharMatcher.inRange('a', 'z'))
+            .or(CharMatcher.inRange('A', 'Z'));
 
     /**
      * Computes additional nodes need for BDIO 2.x.
@@ -719,7 +728,10 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
             if (m.group("personName") != null) {
                 creatorBuilder.add(m.group("personName"));
             } else if (m.group("toolName") != null) {
-                producerBuilder.addProduct(new Product.Builder().name(m.group("toolName")).version(m.group("toolVersion")).build());
+                producerBuilder.addProduct(new Product.Builder()
+                        .name(PRODUCT_TOKEN_CHAR.retainFrom(m.group("toolName")))
+                        .version(emptyToNull(PRODUCT_TOKEN_CHAR.retainFrom(m.group("toolVersion"))))
+                        .build());
             }
         });
         producerBuilder.addProduct(product().addCommentText("bdio %s", currentValue("specVersion").orElse("1.0.0")).build());
