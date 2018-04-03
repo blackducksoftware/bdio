@@ -60,7 +60,7 @@ public interface Emitter {
                 });
                 return hasNext.get();
             }
-        }, false);
+        }, false).onClose(this::dispose);
     }
 
     /**
