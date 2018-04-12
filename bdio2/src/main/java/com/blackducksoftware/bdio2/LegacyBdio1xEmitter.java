@@ -72,6 +72,7 @@ import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.LinkedHashMultimap;
@@ -729,11 +730,14 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
             if (m.group("personName") != null) {
                 creatorBuilder.add(m.group("personName"));
             } else if (m.group("toolName") != null) {
-                String name = PRODUCT_TOKEN_CHAR.retainFrom(m.group("toolName"));
+                String name = Strings.emptyToNull(PRODUCT_TOKEN_CHAR.retainFrom(m.group("toolName")));
                 String version = Optional.ofNullable(m.group("toolVersion")).map(PRODUCT_TOKEN_CHAR::retainFrom).flatMap(ExtraStrings::ofEmpty).orElse(null);
-                producerBuilder.addProduct(new Product.Builder().name(name).version(version).build());
+                if (name != null) {
+                    producerBuilder.addProduct(new Product.Builder().name(name).version(version).build());
+                }
             }
         });
+        // TODO Validate the specVersion?
         producerBuilder.addProduct(product().addCommentText("bdio %s", currentValue("specVersion").orElse("1.0.0")).build());
 
         creator.accept(emptyToNull(creatorBuilder.toString()));
