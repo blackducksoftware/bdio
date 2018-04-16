@@ -438,7 +438,7 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
             if (currentType().equals("BillOfMaterials")) {
                 // Convert the BillOfMaterials node into BDIO metadata
                 metadata = new BdioMetadata().id(currentId());
-                currentValue("spdx:name").ifPresent(metadata::name);
+                currentValue("spdx:name").filter(s -> !s.isEmpty()).ifPresent(metadata::name);
                 convertCreationInfo(metadata::creationDateTime, metadata::creator, metadata::publisher);
                 return;
             } else {

@@ -42,6 +42,7 @@ import com.blackducksoftware.common.value.ProductList;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.github.jsonldjava.core.JsonLdConsts;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 
 /**
@@ -112,7 +113,7 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
                 metadata.merge(publisher(scanClient().addCommentText("signature %s", jp.nextTextValue()).build()));
                 break;
             case "name":
-                metadata.name(jp.nextTextValue());
+                metadata.name(Strings.emptyToNull(jp.nextTextValue()));
                 break;
             case "createdOn":
                 jp.nextToken();
@@ -135,11 +136,8 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
     }
 
     private void finishMetadata(JsonParser jp, BdioMetadata metadata, @Nullable String project, @Nullable String release) throws IOException {
-        // Add the metadata identifier and name if it has not been populated
+        // Add the metadata identifier
         metadata.id(toFileUri(hostName, baseDir, null));
-        if (!metadata.containsKey(Bdio.DataProperty.name.toString())) {
-            metadata.name(hostName + "#" + baseDir);
-        }
 
         // Merge in additional product information for this code
         metadata.merge(publisher(new Product.Builder()
