@@ -302,6 +302,7 @@ public final class Linter {
                     { "ValidIdentifier.Scheme", "Node identifier scheme is questionable" },
                     { "ValidIdentifier.MissingAuthority", "Hierarchical URI scheme should include an authority" },
                     { "ValidIdentifier.Invalid", "Node identifier is not a valid URI" },
+                    { "ValidIdentifier.UUID", "Node identifier use 'urn:' scheme (i.e. 'urn:uuid:')" },
                     { "ValidIdentifier.String", "Node identifier should be a string" },
             };
         }

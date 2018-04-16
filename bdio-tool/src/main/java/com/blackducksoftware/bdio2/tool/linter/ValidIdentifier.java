@@ -54,9 +54,13 @@ public class ValidIdentifier implements RawNodeRule {
                     if (uri.getAuthority() == null) {
                         result.warning("MissingAuthority");
                     }
+                } else if (Ascii.equalsIgnoreCase(uri.getScheme(), "uuid")) {
+                    // "uuid:" isn't a scheme, it should be "urn:uuid:"
+                    result.warning("UUID");
                 }
                 // TODO Use of "mvn:g/a/v" vs. "mvn:g:a:v" (first is "correct")
                 // See `https://www.iana.org/assignments/uri-schemes/prov/mvn` for examples
+                // TODO Package URL ("pkg") format
             } catch (URISyntaxException e) {
                 // Identifier should be a valid URI
                 result.error("Invalid", e);
