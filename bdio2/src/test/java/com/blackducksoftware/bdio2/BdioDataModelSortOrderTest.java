@@ -34,28 +34,28 @@ public class BdioDataModelSortOrderTest {
 
     @Test
     public void bdioClassOrdering() {
-        assertThat(stream(Bdio.Class.class).map(Enum::name).collect(toList())).isOrdered();
+        assertThat(stream(Bdio.Class.class).map(Bdio.Class::name).collect(toList())).isOrdered();
     }
 
     @Test
     public void bdioObjectPropertyOrdering() {
-        assertThat(stream(Bdio.ObjectProperty.class).map(Enum::name).collect(toList())).isOrdered();
+        assertThat(stream(Bdio.ObjectProperty.class).map(Bdio.ObjectProperty::name).collect(toList())).isOrdered();
     }
 
     @Test
     public void bdioDataPropertyOrdering() {
-        assertThat(stream(Bdio.DataProperty.class).map(Enum::name).collect(toList())).isOrdered();
+        assertThat(stream(Bdio.DataProperty.class).map(Bdio.DataProperty::name).collect(toList())).isOrdered();
     }
 
     @Test
     public void bdioDatatypeOrdering() {
-        assertThat(stream(Bdio.Datatype.class).map(Enum::name).collect(toList())).isOrdered();
+        assertThat(stream(Bdio.Datatype.class).map(Bdio.Datatype::name).collect(toList())).isOrdered();
     }
 
     @Test
     public void bdioObjectPropertyAllowOnOrdering() {
         for (Bdio.ObjectProperty objectProperty : Bdio.ObjectProperty.values()) {
-            assertThat(Stream.of(Enums.getField(objectProperty).getAnnotation(Bdio.Domain.class).value()).map(Enum::name).collect(toList()))
+            assertThat(Stream.of(Enums.getField(objectProperty).getAnnotation(Bdio.Domain.class).value()).map(Bdio.Class::name).collect(toList()))
                     .named(objectProperty.name()).isOrdered();
         }
     }
@@ -63,7 +63,7 @@ public class BdioDataModelSortOrderTest {
     @Test
     public void bdioDataPropertyAllowOnOrdering() {
         for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
-            assertThat(Stream.of(Enums.getField(dataProperty).getAnnotation(Bdio.Domain.class).value()).map(Enum::name).collect(toList()))
+            assertThat(Stream.of(Enums.getField(dataProperty).getAnnotation(Bdio.Domain.class).value()).map(Bdio.Class::name).collect(toList()))
                     .named(dataProperty.name()).isOrdered();
         }
     }

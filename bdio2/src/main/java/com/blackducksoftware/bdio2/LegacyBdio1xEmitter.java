@@ -871,6 +871,7 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
     private static Stream<String> toFileSystemType(String fileType) {
         // TODO BDIO 1.x had "OTHER" that isn't accounted for
         // TODO SPDX has "_documentation", "_image", "_audio", "_video", "_spdx" that aren't accounted for
+        // TODO Should binary map to regular/binary?
         if (checkIdentifier(fileType, "BINARY", "http://spdx.org/rdf/terms#fileType_binary")
                 || checkIdentifier(fileType, "APPLICATION", "http://spdx.org/rdf/terms#fileType_application")) {
             return Stream.of(Bdio.FileSystemType.REGULAR.toString());

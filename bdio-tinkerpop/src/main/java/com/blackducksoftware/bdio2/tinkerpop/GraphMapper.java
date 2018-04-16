@@ -182,8 +182,7 @@ public class GraphMapper {
     }
 
     /**
-     * Preserves all of the unknown properties. If there are no unknown properties in the supplied node map, then the
-     * supplied action is not invoked.
+     * Preserves all of the unknown properties. If there are no unknown properties in the supplied node map, then the supplied action is not invoked.
      */
     public void preserveUnknownProperties(Map<String, Object> node, BiConsumer<String, Object> propertyConsumer) {
         if (tokens.unknownKey() != null) {
