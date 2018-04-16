@@ -256,6 +256,14 @@ class LegacyUtilities {
     }
 
     /**
+     * Legacy formats expected the BOM name (when used) to uniquely identify the graph, this method creates a URI to use
+     * as the graph label from the BOM name.
+     */
+    public static String toNameUri(String name) {
+        return "urn:uuid:" + UUID.nameUUIDFromBytes(name.getBytes(UTF_8));
+    }
+
+    /**
      * Partitions a sequence of elements into buckets of specified capacity. The resulting sequence consists of lists
      * such that the sum of the weighing function applied to each element of the list will be strictly less then the
      * supplied maximum weight. The average weight is used to estimate the size of the resulting spliterator.

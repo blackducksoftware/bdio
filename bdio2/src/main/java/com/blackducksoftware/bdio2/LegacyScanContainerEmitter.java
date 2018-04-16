@@ -35,6 +35,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Spliterator;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -46,6 +47,7 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.FileCollection;
 import com.blackducksoftware.bdio2.model.Project;
+import com.blackducksoftware.common.base.ExtraStrings;
 import com.blackducksoftware.common.value.Digest;
 import com.blackducksoftware.common.value.HID;
 import com.blackducksoftware.common.value.Product;
@@ -54,7 +56,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
@@ -304,9 +305,10 @@ class LegacyScanContainerEmitter implements Emitter {
         }
 
         public BdioMetadata metadata() {
+            Optional<String> name = ExtraStrings.ofEmpty(this.name);
             return new BdioMetadata()
-                    .id(toFileUri(hostName, baseDir, null))
-                    .name(Strings.emptyToNull(name))
+                    .id(name.map(LegacyUtilities::toNameUri).orElseGet(() -> toFileUri(hostName, baseDir, null)))
+                    .name(name.orElse(null))
                     .creator(null, hostName)
                     .creationDateTime(createdOn)
                     .publisher(new ProductList.Builder()

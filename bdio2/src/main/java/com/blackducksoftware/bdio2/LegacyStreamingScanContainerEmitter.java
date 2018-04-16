@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
@@ -137,7 +138,8 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
 
     private void finishMetadata(JsonParser jp, BdioMetadata metadata, @Nullable String project, @Nullable String release) throws IOException {
         // Add the metadata identifier
-        metadata.id(toFileUri(hostName, baseDir, null));
+        Optional<String> name = Optional.ofNullable((String) metadata.get(Bdio.DataProperty.name.toString()));
+        metadata.id(name.map(LegacyUtilities::toNameUri).orElseGet(() -> toFileUri(hostName, baseDir, null)));
 
         // Merge in additional product information for this code
         metadata.merge(publisher(new Product.Builder()
