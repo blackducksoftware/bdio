@@ -15,6 +15,9 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.google.common.base.Throwables.throwIfInstanceOf;
+import static com.google.common.base.Throwables.throwIfUnchecked;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -42,6 +45,7 @@ import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarEdge;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 
 import com.blackducksoftware.bdio2.BdioDocument;
+import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 
 import io.reactivex.Flowable;
@@ -96,10 +100,31 @@ public final class BlackDuckIoReader implements GraphReader {
                     // Ignore values, propagate errors
                     .blockingSubscribe();
 
-        } catch (UncheckedIOException e) {
-            // TODO We loose the stack of the unchecked wrapper: `e.getCause().addSuppressed(e)`?
-            throw e.getCause();
+        } catch (RuntimeException e) {
+            Throwable failure = unwrap(e);
+            throwIfInstanceOf(failure, IOException.class);
+            throwIfUnchecked(failure);
+            if (failure instanceof NodeDoesNotExistException) {
+                throw new BlackDuckIoReadGraphException("Failed to load BDIO due to invalid references in the input", e.getCause());
+            }
+
+            // Add a check above and throw a BlackDuckIoReadGraphException with a nice message instead
+            throw new IllegalStateException("Unexpected checked exception in readGraph", failure);
         }
+    }
+
+    /**
+     * Unwraps an exception thrown by {@code Flowable.blockingSubscribe()}.
+     */
+    private Throwable unwrap(RuntimeException failure) {
+        // Blocking subscribe uses a raw RuntimeException to wrap checked exceptions so check the actual type
+        if (failure.getClass().equals(RuntimeException.class) || failure instanceof UncheckedIOException) {
+            // Only unwrap checked exceptions
+            if (!(failure.getCause() instanceof RuntimeException)) {
+                return failure.getCause();
+            }
+        }
+        return failure;
     }
 
     /**

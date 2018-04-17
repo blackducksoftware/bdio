@@ -20,6 +20,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth8.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.singleton;
+import static org.hamcrest.CoreMatchers.instanceOf;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -32,12 +33,15 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.model.Project;
 import com.blackducksoftware.bdio2.test.BdioTest;
@@ -53,6 +57,9 @@ import com.google.common.collect.Lists;
  * @author jgustie
  */
 public class BlackDuckIoReaderTest extends BaseTest {
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
     public BlackDuckIoReaderTest(Configuration configuration) {
         super(configuration);
@@ -268,6 +275,19 @@ public class BlackDuckIoReaderTest extends BaseTest {
 
         Optional<Object> foobar = graph.traversal().V().hasLabel(Bdio.Class.Project.name()).values("foobar").tryNext();
         assertThat(foobar).hasValue("testing");
+    }
+
+    @Test
+    public void readNodeDoesNotExist() throws Exception {
+        thrown.expect(instanceOf(BlackDuckIoReadGraphException.class));
+        thrown.expectCause(instanceOf(NodeDoesNotExistException.class));
+
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+        Project projectModel = new Project(BdioObject.randomId());
+        projectModel.base(new File(BdioObject.randomId()));
+
+        InputStream inputStream = BdioTest.zipJsonBytes(metadata.asNamedGraph(Lists.newArrayList(projectModel)));
+        new BlackDuckIoCore(graph).readGraph(inputStream);
     }
 
 }
