@@ -48,8 +48,11 @@ import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.util.SqlgUtil;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIo;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoCore;
+import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoReadGraphException;
+import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Splitter;
 import com.google.common.base.Splitter.MapSplitter;
 import com.google.common.base.Stopwatch;
@@ -182,6 +185,21 @@ public class GraphTool extends Tool {
     }
 
     @Override
+    protected String formatException(Throwable failure) {
+        String result = super.formatException(failure);
+
+        if (failure instanceof BlackDuckIoReadGraphException && failure.getCause() instanceof NodeDoesNotExistException) {
+            Object missingNodeIdentifier = ((NodeDoesNotExistException) failure.getCause()).getMissingNodeIdentifier();
+            if (missingNodeIdentifier instanceof Map<?, ?> && ((Map<?, ?>) missingNodeIdentifier).containsKey(JsonLdConsts.ID)) {
+                missingNodeIdentifier = ((Map<?, ?>) missingNodeIdentifier).get(JsonLdConsts.ID);
+            }
+            result += ", unable to find '" + missingNodeIdentifier + "'";
+        }
+
+        return result;
+    }
+
+    @Override
     protected Set<String> optionsWithArgs() {
         return ImmutableSet.<String> builder()
                 .addAll(graphConfigurationOptionsWithArgs())
@@ -266,7 +284,8 @@ public class GraphTool extends Tool {
             configuration.setProperty("bdio.partitionStrategy.partitionKey", DEFAULT_PARTITION_KEY);
         }
         if (inputs.size() == 1 && !configuration.containsKey("bdio.partitionStrategy.writePartition")) {
-            configuration.setProperty("bdio.partitionStrategy.writePartition", DEFAULT_PARTITION);
+            configuration.setProperty("bdio.partitionStrategy.writePartition",
+                    inputs.keySet().stream().findFirst().map(URI::toString).orElse(DEFAULT_PARTITION));
         }
 
         // Create a new BDIO core using the graph's configuration to define tokens

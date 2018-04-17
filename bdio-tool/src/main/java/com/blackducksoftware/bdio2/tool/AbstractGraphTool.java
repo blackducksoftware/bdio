@@ -68,6 +68,11 @@ public abstract class AbstractGraphTool extends Tool {
     }
 
     @Override
+    protected String formatException(Throwable failure) {
+        return graphTool().formatException(failure);
+    }
+
+    @Override
     protected Tool parseArguments(String[] args) throws Exception {
         boolean hasInput = false;
         for (String name : arguments(args)) {
