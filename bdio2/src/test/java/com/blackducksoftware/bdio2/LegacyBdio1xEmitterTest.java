@@ -24,10 +24,13 @@ import java.io.InputStream;
 import java.time.ZonedDateTime;
 import java.util.Map;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.common.value.ProductList;
+import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.io.CharSource;
 
 /**
@@ -39,12 +42,22 @@ public class LegacyBdio1xEmitterTest {
 
     private static final ValueObjectMapper mapper = ValueObjectMapper.getContextValueObjectMapper();
 
+    private static final String idKey = JsonLdConsts.ID;
+
     private static final String nameKey = Bdio.DataProperty.name.toString();
 
     private static final String publisherKey = Bdio.DataProperty.publisher.toString();
 
+    private static final String creatorKey = Bdio.DataProperty.creator.toString();
+
     private static final String creationDateTimeKey = Bdio.DataProperty.creationDateTime.toString();
 
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
+
+    /**
+     * A missing creator tool version just skips the version.
+     */
     @Test
     public void creationInfo_noCreatorVersion() throws IOException {
         InputStream inputStream = CharSource.wrap(""
@@ -59,14 +72,20 @@ public class LegacyBdio1xEmitterTest {
                 + "  }"
                 + "} ]").asByteSource(UTF_8).openStream();
         Map<?, ?> metadata = (Map<?, ?>) new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
+        assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
+                .isNotEqualTo("urn:uuid:c4c37b94-0c57-4d59-abc4-630e631af7a9");
         assertThat(mapper.fromFieldValue(nameKey, metadata.get(nameKey)))
                 .isEqualTo("Test Metadata 1");
         assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
                 .isEqualTo(ProductList.from("Example LegacyBdio1xEmitter (bdio 1.1.0)"));
         assertThat(mapper.fromFieldValue(creationDateTimeKey, metadata.get(creationDateTimeKey)))
                 .isEqualTo(ZonedDateTime.parse("2016-11-22T16:33:20.000Z"));
+        assertThat(metadata).doesNotContainKey(creatorKey);
     }
 
+    /**
+     * In SPDX, creator tool names may contain spaces.
+     */
     @Test
     public void creationInfo_creatorWithSpaces() throws IOException {
         InputStream inputStream = CharSource.wrap(""
@@ -81,12 +100,149 @@ public class LegacyBdio1xEmitterTest {
                 + "  }"
                 + "} ]").asByteSource(UTF_8).openStream();
         Map<?, ?> metadata = (Map<?, ?>) new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
+        assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
+                .isNotEqualTo("urn:uuid:9240c6e7-abb1-435f-ace5-abc7277bbc4f");
         assertThat(mapper.fromFieldValue(nameKey, metadata.get(nameKey)))
                 .isEqualTo("Test Metadata 2");
         assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
                 .isEqualTo(ProductList.from("BlackDuckIOProject/2.0.1 LegacyBdio1xEmitter (bdio 1.1.0)"));
         assertThat(mapper.fromFieldValue(creationDateTimeKey, metadata.get(creationDateTimeKey)))
                 .isEqualTo(ZonedDateTime.parse("2017-09-27T17:41:02.000Z"));
+        assertThat(metadata).doesNotContainKey(creatorKey);
+    }
+
+    /**
+     * We can extract the host name from identifier if it is a hierarchical, host bearing URI.
+     */
+    @Test
+    public void creationInfo_creatorWithHost() throws IOException {
+        InputStream inputStream = CharSource.wrap(""
+                + "[ {"
+                + "  \"@id\" : \"http://example.com/test\","
+                + "  \"@type\" : \"BillOfMaterials\""
+                + "} ]").asByteSource(UTF_8).openStream();
+        Map<?, ?> metadata = (Map<?, ?>) new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
+        assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
+                .isEqualTo("http://example.com/test");
+        assertThat(metadata).doesNotContainKey(nameKey);
+        assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
+                .isEqualTo(ProductList.from("LegacyBdio1xEmitter (bdio 1.0.0)"));
+        assertThat(metadata).doesNotContainKey(creationDateTimeKey);
+        assertThat(mapper.fromFieldValue(creatorKey, metadata.get(creatorKey)))
+                .isEqualTo("@example.com");
+    }
+
+    /**
+     * A person name (with spaces!) is successfully combined with the hostname.
+     */
+    @Test
+    public void creationInfo_creatorWithPersonAndHost() throws IOException {
+        InputStream inputStream = CharSource.wrap(""
+                + "[ {"
+                + "  \"@id\" : \"http://example.com/test\","
+                + "  \"@type\" : \"BillOfMaterials\","
+                + "  \"creationInfo\" : {"
+                + "    \"spdx:creator\" : \"Person: Joe Shmoe\""
+                + "  }"
+                + "} ]").asByteSource(UTF_8).openStream();
+        Map<?, ?> metadata = (Map<?, ?>) new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
+        assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
+                .isEqualTo("http://example.com/test");
+        assertThat(metadata).doesNotContainKey(nameKey);
+        assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
+                .isEqualTo(ProductList.from("LegacyBdio1xEmitter (bdio 1.0.0)"));
+        assertThat(metadata).doesNotContainKey(creationDateTimeKey);
+        assertThat(mapper.fromFieldValue(creatorKey, metadata.get(creatorKey)))
+                .isEqualTo("Joe Shmoe@example.com");
+    }
+
+    /**
+     * Make sure we capture the host even when using a name on the BOM node.
+     */
+    @Test
+    public void creationInfo_nameDoesNotImpactHost() throws IOException {
+        InputStream inputStream = CharSource.wrap(""
+                + "[ {"
+                + "  \"@id\" : \"http://example.com/test\","
+                + "  \"@type\" : \"BillOfMaterials\","
+                + "  \"spdx:name\" : \"Test Metadata 3\","
+                + "  \"creationInfo\" : {"
+                + "    \"spdx:creator\" : \"Person: Joe Shmoe\""
+                + "  }"
+                + "} ]").asByteSource(UTF_8).openStream();
+        Map<?, ?> metadata = (Map<?, ?>) new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
+        assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
+                .isNotEqualTo("http://example.com/test");
+        assertThat(mapper.fromFieldValue(nameKey, metadata.get(nameKey)))
+                .isEqualTo("Test Metadata 3");
+        assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
+                .isEqualTo(ProductList.from("LegacyBdio1xEmitter (bdio 1.0.0)"));
+        assertThat(metadata).doesNotContainKey(creationDateTimeKey);
+        assertThat(mapper.fromFieldValue(creatorKey, metadata.get(creatorKey)))
+                .isEqualTo("Joe Shmoe@example.com");
+    }
+
+    /**
+     * If the tool specification is empty we should safely ignore it.
+     */
+    @Test
+    public void creationInfo_missingTool() throws IOException {
+        InputStream inputStream = CharSource.wrap(""
+                + "[ {"
+                + "  \"@id\" : \"http://example.com/test\","
+                + "  \"@type\" : \"BillOfMaterials\","
+                + "  \"creationInfo\" : {"
+                + "    \"spdx:creator\" : \"Tool: \""
+                + "  }"
+                + "} ]").asByteSource(UTF_8).openStream();
+        Map<?, ?> metadata = (Map<?, ?>) new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
+        assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
+                .isEqualTo("http://example.com/test");
+        assertThat(metadata).doesNotContainKey(nameKey);
+        assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
+                .isEqualTo(ProductList.from("LegacyBdio1xEmitter (bdio 1.0.0)"));
+        assertThat(metadata).doesNotContainKey(creationDateTimeKey);
+        assertThat(mapper.fromFieldValue(creatorKey, metadata.get(creatorKey)))
+                .isEqualTo("@example.com");
+    }
+
+    /**
+     * Treat the version as the product name token.
+     */
+    @Test
+    public void creationInfo_versionOnlyTool() throws IOException {
+        InputStream inputStream = CharSource.wrap(""
+                + "[ {"
+                + "  \"@id\" : \"http://example.com/test\","
+                + "  \"@type\" : \"BillOfMaterials\","
+                + "  \"creationInfo\" : {"
+                + "    \"spdx:creator\" : \"Tool: 1.1.1\""
+                + "  }"
+                + "} ]").asByteSource(UTF_8).openStream();
+        Map<?, ?> metadata = (Map<?, ?>) new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
+        assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
+                .isEqualTo("http://example.com/test");
+        assertThat(metadata).doesNotContainKey(nameKey);
+        assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
+                .isEqualTo(ProductList.from("1.1.1 LegacyBdio1xEmitter (bdio 1.0.0)"));
+        assertThat(metadata).doesNotContainKey(creationDateTimeKey);
+        assertThat(mapper.fromFieldValue(creatorKey, metadata.get(creatorKey)))
+                .isEqualTo("@example.com");
+    }
+
+    /**
+     * An invalid specification version causes a failure.
+     */
+    @Test
+    public void creationInfo_invalidSpecVersion() throws IOException {
+        thrown.expect(IllegalArgumentException.class);
+        InputStream inputStream = CharSource.wrap(""
+                + "[ {"
+                + "  \"@id\" : \"http://example.com/test\","
+                + "  \"@type\" : \"BillOfMaterials\","
+                + "  \"specVersion\" : \"1.2.0\""
+                + "} ]").asByteSource(UTF_8).openStream();
+        new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
     }
 
 }

@@ -18,13 +18,16 @@ package com.blackducksoftware.bdio2;
 import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static com.blackducksoftware.common.base.ExtraStrings.afterLast;
 import static com.blackducksoftware.common.base.ExtraStrings.beforeFirst;
+import static com.blackducksoftware.common.base.ExtraStrings.ensurePrefix;
 import static com.blackducksoftware.common.base.ExtraStrings.removePrefix;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.emptyToNull;
+import static com.google.common.base.Strings.isNullOrEmpty;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
@@ -535,12 +538,12 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
      */
     private String currentId() {
         Object id = currentNode.get(JsonLdConsts.ID);
-        if (id == null) {
+        checkState(id == null || id instanceof String, "current identifier must be a string: %s", id);
+        if (isNullOrEmpty((String) id)) {
             // BDIO 1.x used blank node identifiers (e.g. "_:b0", which is an invalid URI) when the ID was absent
             id = BdioObject.randomId();
             currentNode.put(JsonLdConsts.ID, id);
         }
-        checkState(id instanceof String, "current identifier must be a string: %s", id);
         return (String) id;
     }
 
@@ -728,13 +731,23 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
             }
         }).ifPresent(creationDateTime);
 
+        // Attempt to capture the hostname from the BillOfMaterials "@id"
+        String hostname = Optional.of(currentId())
+                .flatMap(id -> {
+                    try {
+                        return Optional.ofNullable(ensurePrefix("@", URI.create(id).getHost()));
+                    } catch (IllegalArgumentException e) {
+                        return Optional.empty();
+                    }
+                }).orElse("");
+
         // TODO Is this acceptable for multiple "Person:" entries?
         StringJoiner creatorBuilder = new StringJoiner(",");
         ProductList.Builder producerBuilder = new ProductList.Builder();
         currentValues("creationInfo", "spdx:creator").map(SPDX_CREATOR::matcher).filter(Matcher::matches).forEach(m -> {
             // We ignore the organization
-            if (m.group("personName") != null) {
-                creatorBuilder.add(m.group("personName"));
+            if (Strings.emptyToNull(m.group("personName")) != null) {
+                creatorBuilder.add(m.group("personName") + hostname);
             } else if (m.group("toolName") != null) {
                 String name = Strings.emptyToNull(PRODUCT_TOKEN_CHAR.retainFrom(m.group("toolName")));
                 String version = Optional.ofNullable(m.group("toolVersion")).map(PRODUCT_TOKEN_CHAR::retainFrom).flatMap(ExtraStrings::ofEmpty).orElse(null);
@@ -743,10 +756,13 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
                 }
             }
         });
-        // TODO Validate the specVersion?
-        producerBuilder.addProduct(product().addCommentText("bdio %s", currentValue("specVersion").orElse("1.0.0")).build());
 
-        creator.accept(emptyToNull(creatorBuilder.toString()));
+        // Note that mapping through forSpecVersion forces the version to be valid
+        String specVersion = currentValue("specVersion").filter(s -> !s.isEmpty()).orElse("1.0.0");
+        Bdio.Context.forSpecVersion(specVersion);
+        producerBuilder.addProduct(product().addCommentText("bdio %s", specVersion).build());
+
+        creator.accept(ExtraStrings.ofEmpty(creatorBuilder.toString()).orElse(emptyToNull(hostname)));
         producer.accept(producerBuilder.build());
     }
 
