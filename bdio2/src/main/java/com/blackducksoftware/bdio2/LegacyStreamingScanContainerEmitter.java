@@ -137,9 +137,10 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
     }
 
     private void finishMetadata(JsonParser jp, BdioMetadata metadata, @Nullable String project, @Nullable String release) throws IOException {
-        // Add the metadata identifier
+        // Add the metadata identifier and adjust the name to preserve the base directory
         Optional<String> name = Optional.ofNullable((String) metadata.get(Bdio.DataProperty.name.toString()));
         metadata.id(name.map(LegacyUtilities::toNameUri).orElseGet(() -> toFileUri(hostName, baseDir, null)));
+        metadata.name(name.map(n -> String.format("%s <%s>", n, baseDir)).orElseGet(() -> String.format("<%s>", baseDir)));
 
         // Merge in additional product information for this code
         metadata.merge(publisher(new Product.Builder()

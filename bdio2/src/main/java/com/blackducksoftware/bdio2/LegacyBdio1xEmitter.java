@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2;
 import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static com.blackducksoftware.common.base.ExtraStrings.afterLast;
 import static com.blackducksoftware.common.base.ExtraStrings.beforeFirst;
+import static com.blackducksoftware.common.base.ExtraStrings.beforeLast;
 import static com.blackducksoftware.common.base.ExtraStrings.ensurePrefix;
 import static com.blackducksoftware.common.base.ExtraStrings.removePrefix;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -440,13 +441,12 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
         while (readNode(jp)) {
             if (currentType().equals("BillOfMaterials")) {
                 // Convert the BillOfMaterials node into BDIO metadata
-                metadata = new BdioMetadata().id(currentId());
-                Optional<String> name = currentValue("spdx:name").filter(s -> !s.isEmpty());
-                name.ifPresent(metadata::name);
+                metadata = new BdioMetadata().id(beforeLast(currentId(), '#'));
 
-                // Reset the identifier based on the name
-                // NOTE: Calling BdioMetadata.id() here ensures we strip off any URI fragments
-                metadata.id(name.map(LegacyUtilities::toNameUri).orElseGet(metadata::id));
+                // Preserve legacy semantics for name handling
+                Optional<String> name = currentValue("spdx:name").filter(s -> !s.isEmpty());
+                name.map(n -> String.format("%s <%s>", n, metadata.id())).ifPresent(metadata::name);
+                name.map(LegacyUtilities::toNameUri).ifPresent(metadata::id);
 
                 convertCreationInfo(metadata::creationDateTime, metadata::creator, metadata::publisher);
                 return;

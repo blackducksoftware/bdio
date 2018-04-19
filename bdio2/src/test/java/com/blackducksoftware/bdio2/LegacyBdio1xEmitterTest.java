@@ -75,7 +75,7 @@ public class LegacyBdio1xEmitterTest {
         assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
                 .isNotEqualTo("urn:uuid:c4c37b94-0c57-4d59-abc4-630e631af7a9");
         assertThat(mapper.fromFieldValue(nameKey, metadata.get(nameKey)))
-                .isEqualTo("Test Metadata 1");
+                .isEqualTo("Test Metadata 1 <urn:uuid:c4c37b94-0c57-4d59-abc4-630e631af7a9>");
         assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
                 .isEqualTo(ProductList.from("Example LegacyBdio1xEmitter (bdio 1.1.0)"));
         assertThat(mapper.fromFieldValue(creationDateTimeKey, metadata.get(creationDateTimeKey)))
@@ -103,7 +103,7 @@ public class LegacyBdio1xEmitterTest {
         assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
                 .isNotEqualTo("urn:uuid:9240c6e7-abb1-435f-ace5-abc7277bbc4f");
         assertThat(mapper.fromFieldValue(nameKey, metadata.get(nameKey)))
-                .isEqualTo("Test Metadata 2");
+                .isEqualTo("Test Metadata 2 <urn:uuid:9240c6e7-abb1-435f-ace5-abc7277bbc4f>");
         assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
                 .isEqualTo(ProductList.from("BlackDuckIOProject/2.0.1 LegacyBdio1xEmitter (bdio 1.1.0)"));
         assertThat(mapper.fromFieldValue(creationDateTimeKey, metadata.get(creationDateTimeKey)))
@@ -174,7 +174,7 @@ public class LegacyBdio1xEmitterTest {
         assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
                 .isNotEqualTo("http://example.com/test");
         assertThat(mapper.fromFieldValue(nameKey, metadata.get(nameKey)))
-                .isEqualTo("Test Metadata 3");
+                .isEqualTo("Test Metadata 3 <http://example.com/test>");
         assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
                 .isEqualTo(ProductList.from("LegacyBdio1xEmitter (bdio 1.0.0)"));
         assertThat(metadata).doesNotContainKey(creationDateTimeKey);
@@ -242,7 +242,7 @@ public class LegacyBdio1xEmitterTest {
                 + "  \"@type\" : \"BillOfMaterials\","
                 + "  \"specVersion\" : \"1.2.0\""
                 + "} ]").asByteSource(UTF_8).openStream();
-        new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
+        new LegacyBdio1xEmitter(inputStream).stream().iterator().next();
     }
 
 }
