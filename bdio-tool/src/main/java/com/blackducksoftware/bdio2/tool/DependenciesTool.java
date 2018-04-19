@@ -203,6 +203,7 @@ public class DependenciesTool extends AbstractGraphTool {
                 .map(Dependency::new);
     }
 
+    @SuppressWarnings("OrphanedFormatString")
     private void formatDependency(Dependency dep, Set<Integer> childrenAtDepths, boolean hasMoreSiblings) {
         StringBuilder rowFormat = new StringBuilder();
         List<Object> arguments = new ArrayList<>();

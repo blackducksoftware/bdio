@@ -258,6 +258,7 @@ public class TreeTool extends AbstractFileTool {
     /**
      * Performs a simple ASCII format of a row in the tree output.
      */
+    @SuppressWarnings("OrphanedFormatString")
     private void formatFileNode(FileNode fileNode, Set<Integer> childrenAtDepths, boolean hasMoreSiblings) {
         StringBuilder rowFormat = new StringBuilder();
         List<Object> arguments = new ArrayList<>();
