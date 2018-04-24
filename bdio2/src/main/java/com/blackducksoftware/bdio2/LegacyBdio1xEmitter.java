@@ -939,7 +939,7 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
         } else if (checkIdentifier(externalSystemTypeId, "maven", "http://blackducksoftware.com/rdf/terms#externalIdentifier_maven")) {
             return "maven";
         } else if (checkIdentifier(externalSystemTypeId, "npm", "http://blackducksoftware.com/rdf/terms#externalIdentifier_npm")) {
-            return "npmjs";
+            return "npm";
         } else if (checkIdentifier(externalSystemTypeId, "nuget", "http://blackducksoftware.com/rdf/terms#externalIdentifier_nuget")) {
             return "nuget";
         } else if (checkIdentifier(externalSystemTypeId, "rubygems", "http://blackducksoftware.com/rdf/terms#externalIdentifier_rubygems")) {
