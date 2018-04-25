@@ -1,7 +1,7 @@
 description = 'Black Duck I/O for Project Reactor'
 
 dependencyRecommendations {
-	mavenBom module: 'io.projectreactor:reactor-bom:Aluminium-SR3'
+	mavenBom module: 'io.projectreactor:reactor-bom:Bismuth-SR8'
 }
 
 dependencies {
