@@ -45,6 +45,7 @@ import java.util.StringJoiner;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -599,7 +600,12 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
         Object result = currentNode;
         for (Object path : paths) {
             if (result instanceof Map<?, ?>) {
-                result = ((Map<?, ?>) result).get(path);
+                if (path.equals(0)) {
+                    // Assume this was an attempt to index a compacted single element list
+                    continue;
+                } else {
+                    result = ((Map<?, ?>) result).get(path);
+                }
             } else if (result instanceof List<?>) {
                 result = ((List<?>) result).get((Integer) path);
             } else if (result == null) {
@@ -610,16 +616,16 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
     }
 
     /**
-     * Helper to traverse containers in the current node by returning list or map sizes.
+     * Helper to traverse containers in the current node by returning list sizes.
      */
     private int currentSize(Object... paths) {
         return currentValue(Object.class, paths).map(obj -> {
-            if (obj instanceof Map<?, ?>) {
-                return ((Map<?, ?>) obj).size();
-            } else if (obj instanceof List<?>) {
+            if (obj instanceof List<?>) {
+                // If the element is a list, just return it's size
                 return ((List<?>) obj).size();
             } else {
-                return 0;
+                // Assume the list contained a single element and was compacted
+                return 1;
             }
         }).orElse(0);
     }
@@ -667,7 +673,7 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
         Component result = new Component(currentId());
         currentValue("name").ifPresent(result::name);
         currentValue("homepage").ifPresent(result::homepage);
-        convertRevision(result::version, result::requestedVersion);
+        convertRevision(result::version);
         currentValue("license").ifPresent(result::license);
         convertExternalIdentifier(result::namespace, result::identifier, result::context);
         convertRelationships(result::dependency);
@@ -773,27 +779,43 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
     // TODO Multiple external identifiers = multiple components/projects with canonical links
     private void convertExternalIdentifier(Consumer<String> namespace, Consumer<String> identifier, Consumer<String> repository) {
         // TODO Attempt to support Black Duck Hub by converting this from an external identifier to Hub reference
-        currentValue("externalIdentifier", "externalSystemTypeId").map(LegacyBdio1xEmitter::toNamespace).ifPresent(namespace);
-        currentValue("externalIdentifier", "externalId").ifPresent(identifier);
-        currentValue("externalIdentifier", "externalRepositoryLocation").ifPresent(repository);
+        currentValue("externalIdentifier", 0, "externalSystemTypeId").map(LegacyBdio1xEmitter::toNamespace).ifPresent(namespace);
+        currentValue("externalIdentifier", 0, "externalId").ifPresent(identifier);
+        currentValue("externalIdentifier", 0, "externalRepositoryLocation").ifPresent(repository);
     }
 
     /**
      * Converts the revision from the current node.
      */
-    // TODO Same multiple external identifier bug exists here
-    private void convertRevision(Consumer<String> version, Consumer<String> requestedVersion) {
-        currentValue("revision").ifPresent(revision -> {
-            String namespace = currentValue("externalIdentifier", "externalSystemTypeId").map(LegacyBdio1xEmitter::toNamespace).orElse("");
-            String externalId = currentValue("externalIdentifier", "externalId").orElse(null);
-            // TODO Did we support requested versions in Ruby Bundler as well?
-            if (namespace.equals("npmjs") && externalId != null) {
-                version.accept(afterLast(externalId, '@'));
-                requestedVersion.accept(revision);
+    private void convertRevision(Consumer<String> version) {
+        // For both 'npm' and 'rubygems' components the revision held the "declared" or "requested" version
+        // so we need to extract the actual version from the external identifier
+        Optional<String> versionValue = findExternalId((systemTypeId, id) -> {
+            if (checkIdentifier(systemTypeId, "npm", "http://blackducksoftware.com/rdf/terms#externalIdentifier_npm")) {
+                return afterLast(id, '@');
+            } else if (checkIdentifier(systemTypeId, "rubygems", "http://blackducksoftware.com/rdf/terms#externalIdentifier_rubygems")) {
+                // TODO Do we also need to remove the "-<platform>" suffix?
+                return afterLast(id, '=');
             } else {
-                version.accept(revision);
+                return null;
             }
         });
+        ExtraOptionals.or(versionValue, () -> currentValue("revision")).ifPresent(version);
+    }
+
+    /**
+     * Helper to iterates through the current external identifiers and returns the first non-null value produced by the
+     * supplied bi-function (which accepts the system type and identifier of each external identifier).
+     */
+    private <R> Optional<R> findExternalId(BiFunction<String, String, R> f) {
+        Optional<R> result = Optional.empty();
+        int externalIdentifierSize = currentSize("externalIdentifier");
+        for (int index = 0; index < externalIdentifierSize && !result.isPresent(); ++index) {
+            Optional<String> externalSystemTypeId = currentValue("externalIdentifier", index, "externalSystemTypeId");
+            Optional<String> externalId = currentValue("externalIdentifier", index, "externalId");
+            result = ExtraOptionals.and(externalSystemTypeId, externalId, f);
+        }
+        return result;
     }
 
     /**
@@ -830,8 +852,9 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
      * Converts the checksums from the current node. The supplied consumer may be invoked multiple times.
      */
     private void convertChecksums(Consumer<Collection<Digest>> fingerprint) {
-        List<Digest> fingerprints = new ArrayList<>(currentSize("checksum"));
-        for (int index = 0, size = currentSize("checksum"); index < size; ++index) {
+        int checksumSize = currentSize("checksum");
+        List<Digest> fingerprints = new ArrayList<>(checksumSize);
+        for (int index = 0; index < checksumSize; ++index) {
             Optional<String> algorithm = currentValue("checksum", index, "algorithm").flatMap(LegacyBdio1xEmitter::toDigestAlgorithm);
             Optional<String> checksumValue = currentValue("checksum", index, "checksumValue");
             ExtraOptionals.and(algorithm, checksumValue, Digest::of).ifPresent(fingerprints::add);
@@ -871,12 +894,14 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
      * Converts the relationships from the current node. The supplied consumer may be invoked multiple times.
      */
     private void convertRelationships(Consumer<Dependency> dependency) {
-        for (int index = 0, size = currentSize("relationship"); index < size; ++index) {
-            String relationshipType = currentValue("relationship", index, "relationshipType").orElse("");
-            if (checkIdentifier(relationshipType, "DYNAMIC_LINK", "http://blackducksoftware.com/rdf/terms#relationshipType_dynamicLink")) {
-                currentValue("relationship", index, "related")
-                        .map(ref -> new Dependency().dependsOn(ref))
-                        .ifPresent(dependency);
+        int relationshipSize = currentSize("relationship");
+        for (int index = 0; index < relationshipSize; ++index) {
+            Optional<String> relationshipType = currentValue("relationship", index, "relationshipType");
+            Optional<String> related = currentValue("relationship", index, "related");
+
+            if (relationshipType.isPresent() && related.isPresent()
+                    && checkIdentifier(relationshipType.get(), "DYNAMIC_LINK", "http://blackducksoftware.com/rdf/terms#relationshipType_dynamicLink")) {
+                dependency.accept(new Dependency().dependsOn(related.get()));
             }
         }
     }
