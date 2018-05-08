@@ -16,6 +16,7 @@
 package com.blackducksoftware.bdio2;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.stream.Collectors.joining;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -27,7 +28,6 @@ import java.util.Spliterators.AbstractSpliterator;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.ToIntFunction;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -260,6 +260,7 @@ class LegacyUtilities {
      * as the graph label from the BOM name.
      */
     public static String toNameUri(String name) {
+        // TODO This should be prefixed with a namespace UUID
         return "urn:uuid:" + UUID.nameUUIDFromBytes(name.getBytes(UTF_8));
     }
 
@@ -307,7 +308,8 @@ class LegacyUtilities {
     private static String dependencyIdentifier(ValueObjectMapper valueObjectMapper, Dependency dep) {
         Stream<Object> dependsOn = valueObjectMapper.fromReferenceValueObject(dep.get(Bdio.ObjectProperty.dependsOn.toString()));
         Stream<Object> license = valueObjectMapper.fromReferenceValueObject(dep.get(Bdio.ObjectProperty.license.toString()));
-        byte[] name = Stream.concat(dependsOn, license).map(Object::toString).collect(Collectors.joining("><", "<", ">")).getBytes(UTF_8);
+        byte[] name = Stream.concat(dependsOn, license).map(Object::toString).collect(joining(">,<", "<", ">")).getBytes(UTF_8);
+        // TODO This should be prefixed with a namespace UUID
         return "urn:uuid:" + UUID.nameUUIDFromBytes(name);
     }
 

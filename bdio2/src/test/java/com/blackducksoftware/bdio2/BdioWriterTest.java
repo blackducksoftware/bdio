@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -55,7 +54,7 @@ public class BdioWriterTest {
 
     @Before
     public void createMetadata() {
-        metadata = new BdioMetadata().id("urn:uuid:" + UUID.randomUUID());
+        metadata = BdioMetadata.createRandomUUID();
     }
 
     @SuppressWarnings("resource")
