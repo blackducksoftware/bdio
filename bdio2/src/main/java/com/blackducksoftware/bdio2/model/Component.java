@@ -72,11 +72,6 @@ public final class Component extends BdioObject {
         return this;
     }
 
-    public Component requestedVersion(@Nullable String requestedVersion) {
-        putData(Bdio.DataProperty.requestedVersion, requestedVersion);
-        return this;
-    }
-
     public Component vendor(@Nullable String vendor) {
         putData(Bdio.DataProperty.vendor, vendor);
         return this;

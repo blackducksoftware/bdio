@@ -76,6 +76,11 @@ public final class Dependency extends BdioObject {
         return this;
     }
 
+    public Dependency requestedVersion(@Nullable String requestedVersion) {
+        putData(Bdio.DataProperty.requestedVersion, requestedVersion);
+        return this;
+    }
+
     public Dependency scope(@Nullable String scope) {
         putData(Bdio.DataProperty.scope, scope);
         return this;

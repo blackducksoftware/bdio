@@ -901,7 +901,11 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
 
             if (relationshipType.isPresent() && related.isPresent()
                     && checkIdentifier(relationshipType.get(), "DYNAMIC_LINK", "http://blackducksoftware.com/rdf/terms#relationshipType_dynamicLink")) {
-                dependency.accept(new Dependency().dependsOn(related.get()));
+                Dependency dep = new Dependency().dependsOn(related.get());
+
+                // TODO How do we get the requested version on here?
+
+                dependency.accept(dep);
             }
         }
     }

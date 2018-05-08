@@ -517,7 +517,7 @@ public class Bdio {
         /**
          * The namespace specific version range that resulted in a component being included.
          */
-        @Domain({ Class.Component })
+        @Domain({ Class.Dependency })
         @DataPropertyRange(Datatype.Default)
         requestedVersion("https://blackducksoftware.github.io/bdio#hasRequestedVersion", Container.single),
 

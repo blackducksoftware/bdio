@@ -15,6 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tool;
 
+import static com.blackducksoftware.bdio2.tinkerpop.util.VertexProperties.stringValue;
 import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
 
 import java.util.ArrayDeque;
@@ -27,6 +28,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+
+import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -52,17 +55,20 @@ public class DependenciesTool extends AbstractGraphTool {
      */
     protected static class Dependency {
 
-        private final Vertex vertex;
+        private final Vertex component;
+
+        private final Optional<Vertex> dependency;
 
         private final int depth;
 
-        public Dependency(Vertex vertex, int depth) {
-            this.vertex = Objects.requireNonNull(vertex);
+        public Dependency(Vertex component, @Nullable Vertex dependency, int depth) {
+            this.component = Objects.requireNonNull(component);
+            this.dependency = Optional.ofNullable(dependency);
             this.depth = depth;
         }
 
-        public Dependency(Vertex vertex) {
-            this(vertex, 0);
+        public Dependency(Vertex component) {
+            this(component, null, 0);
         }
 
         public int depth() {
@@ -74,41 +80,41 @@ public class DependenciesTool extends AbstractGraphTool {
         }
 
         public String id() {
-            return vertex.id().toString();
+            return component.id().toString();
         }
 
         public Optional<String> name() {
-            return Optional.ofNullable(vertex.<String> property(Bdio.DataProperty.name.name()).orElse(null));
+            return stringValue(component, Bdio.DataProperty.name);
         }
 
         public Optional<String> version() {
-            return Optional.ofNullable(vertex.<String> property(Bdio.DataProperty.version.name()).orElse(null));
+            return stringValue(component, Bdio.DataProperty.version);
         }
 
         public Optional<String> requestedVersion() {
-            return Optional.ofNullable(vertex.<String> property(Bdio.DataProperty.requestedVersion.name()).orElse(null));
+            return dependency.flatMap(v -> stringValue(v, Bdio.DataProperty.requestedVersion));
         }
 
         public Optional<String> namespace() {
-            return Optional.ofNullable(vertex.<String> property(Bdio.DataProperty.namespace.name()).orElse(null));
+            return stringValue(component, Bdio.DataProperty.namespace);
         }
 
         public Optional<String> identifier() {
-            return Optional.ofNullable(vertex.<String> property(Bdio.DataProperty.identifier.name()).orElse(null));
+            return stringValue(component, Bdio.DataProperty.identifier);
         }
 
         public Iterator<Dependency> children(GraphTraversalSource g, Predicate<String> scopeFilter) {
-            return g.V(vertex)
-                    .out(Bdio.ObjectProperty.dependency.name())
-                    // TODO Filter by scope...
+            return g.V(component)
+                    .out(Bdio.ObjectProperty.dependency.name()).as("dependency")
                     .out(Bdio.ObjectProperty.dependsOn.name())
-                    .map(t -> new Dependency(t.get(), depth + 1));
+                    .map(t -> new Dependency(t.get(), t.path("dependency"), depth + 1));
         }
 
         public Optional<String> cleanRequestedVersion() {
+            // TODO Use BDNS for this
             Optional<String> requestedVersion = requestedVersion();
             String namespace = namespace().orElse(null);
-            if (Objects.equals(namespace, "npmjs")) {
+            if (Objects.equals(namespace, "npm")) {
                 return requestedVersion.map(v -> {
                     if (v.startsWith("=v")) {
                         return v.substring(2);
