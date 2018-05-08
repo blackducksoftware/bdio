@@ -17,6 +17,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static java.util.stream.Collectors.joining;
+import static org.umlg.sqlg.structure.PropertyType.STRING;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -78,15 +79,19 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                 .append('.')
                 .append(graph().getSqlDialect().maybeWrapInQoutes(schemaTable.getTable()));
 
-        // Honor the partition strategy, if configured with read partitions (assume there is probably just one)
-        // TODO Use statement parameters
-        if (strategies().anyMatch(s -> s instanceof PartitionStrategy && !((PartitionStrategy) s).getReadPartitions().isEmpty())) {
-            sql.append(" WHERE ").append(strategies().flatMap(ofType(PartitionStrategy.class))
-                    .flatMap(s -> {
-                        String field = graph().getSqlDialect().maybeWrapInQoutes(s.getPartitionKey());
-                        return s.getReadPartitions().stream().map(p -> field + " = '" + p + "'");
-                    })
-                    .collect(joining(" OR ")));
+        // Honor any partition strategies, if configured with read partitions
+        if (strategies().flatMap(ofType(PartitionStrategy.class)).anyMatch(ps -> !ps.getReadPartitions().isEmpty())) {
+            sql.append(strategies()
+                    .flatMap(ofType(PartitionStrategy.class))
+                    .filter(ps -> !ps.getReadPartitions().isEmpty())
+                    .map(ps -> new StringBuilder()
+                            .append(graph().getSqlDialect().maybeWrapInQoutes(ps.getPartitionKey()))
+                            .append(ps.getReadPartitions().size() == 1 ? " = " : " IN (")
+                            .append(ps.getReadPartitions().stream()
+                                    .map(rp -> graph().getSqlDialect().valueToValuesString(STRING, rp))
+                                    .collect(joining(", ")))
+                            .append(ps.getReadPartitions().size() == 1 ? "" : ")"))
+                    .collect(joining(" ) AND ( ", " WHERE ( ", " )")));
         }
 
         if (graph().getSqlDialect().needsSemicolon()) {
