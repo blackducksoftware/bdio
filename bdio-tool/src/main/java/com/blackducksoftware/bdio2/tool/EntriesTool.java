@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.lang.ProcessBuilder.Redirect;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -71,6 +73,21 @@ public class EntriesTool extends Tool {
     }
 
     @Override
+    protected void printUsage() {
+        printOutput("usage: %s [-0] [file]%n", name());
+        // printOutput("usage: %s [-0] [--exec <utility> [argument ...] ; ] [file]%n", name());
+    }
+
+    @Override
+    protected void printHelp() {
+        Map<String, String> options = new LinkedHashMap<>();
+        options.put("-0", "Delimit entries with a NUL (\"\\0\") character.");
+        // options.put("--exec <utility> [argument ...] ;",
+        // "Pipe the contents of each entry into the supplied utility");
+        printOptionHelp(options);
+    }
+
+    @Override
     protected Set<String> optionsWithArgs() {
         return ImmutableSet.of("--exec");
     }
@@ -79,6 +96,7 @@ public class EntriesTool extends Tool {
     protected Tool parseArguments(String[] args) throws Exception {
         for (String arg : options(args)) {
             if (arg.startsWith("--exec=")) {
+                // TODO This isn't right, it should just take every argument until ";"
                 optionValue(arg).map(cmd -> cmd.split("[ \t\n\r\f]")).ifPresent(this::setCommand);
                 args = removeFirst(arg, args);
             } else if (arg.equals("-0")) {

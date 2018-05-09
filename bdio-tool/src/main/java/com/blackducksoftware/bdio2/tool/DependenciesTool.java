@@ -23,7 +23,9 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -157,6 +159,19 @@ public class DependenciesTool extends AbstractGraphTool {
 
     public void setShowNamespaces(boolean showNamespaces) {
         this.showNamespaces = showNamespaces;
+    }
+
+    @Override
+    protected void printUsage() {
+        printOutput("usage: %s [-in] [file ...]%n", name());
+    }
+
+    @Override
+    protected void printHelp() {
+        Map<String, String> options = new LinkedHashMap<>();
+        options.put("-i", "Print identifiers for each dependency.");
+        options.put("-n", "Include the namespace with the dependency identifier.");
+        printOptionHelp(options);
     }
 
     @Override

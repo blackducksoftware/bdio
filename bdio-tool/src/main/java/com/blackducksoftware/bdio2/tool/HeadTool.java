@@ -18,7 +18,9 @@ package com.blackducksoftware.bdio2.tool;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import com.blackducksoftware.bdio2.Bdio;
@@ -57,6 +59,18 @@ public class HeadTool extends Tool {
 
     public void setJson(boolean json) {
         this.json = json;
+    }
+
+    @Override
+    protected void printUsage() {
+        printOutput("usage: %s [--json] [file ...]%n", name());
+    }
+
+    @Override
+    protected void printHelp() {
+        Map<String, String> options = new LinkedHashMap<>();
+        options.put("--json", "Output metadata in JSON");
+        printOptionHelp(options);
     }
 
     @Override

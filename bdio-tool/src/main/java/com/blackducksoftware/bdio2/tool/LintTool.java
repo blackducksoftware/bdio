@@ -22,6 +22,7 @@ import static java.util.stream.Collectors.toMap;
 import java.net.URI;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -93,6 +94,18 @@ public class LintTool extends AbstractGraphTool {
     public void setMaxViolations(int maxViolations) {
         Preconditions.checkArgument(maxViolations >= 0, "max violations must not be negative");
         this.maxViolations = maxViolations;
+    }
+
+    @Override
+    protected void printUsage() {
+        printOutput("usage: %s [--max-violations=N] [file ...]%n", name());
+    }
+
+    @Override
+    protected void printHelp() {
+        Map<String, String> options = new LinkedHashMap<>();
+        options.put("--max-violations=N", "Maximum number of violations per-rule (default " + maxViolations + ")");
+        printOptionHelp(options);
     }
 
     @Override
