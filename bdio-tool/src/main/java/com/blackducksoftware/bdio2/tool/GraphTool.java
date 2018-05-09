@@ -285,7 +285,7 @@ public class GraphTool extends Tool {
         }
         if (inputs.size() == 1 && !configuration.containsKey("bdio.partitionStrategy.writePartition")) {
             configuration.setProperty("bdio.partitionStrategy.writePartition",
-                    inputs.keySet().stream().findFirst().map(URI::toString).orElse(DEFAULT_PARTITION));
+                    inputs.keySet().stream().filter(x -> x != null).findFirst().map(URI::toString).orElse(DEFAULT_PARTITION));
         }
 
         // Create a new BDIO core using the graph's configuration to define tokens
