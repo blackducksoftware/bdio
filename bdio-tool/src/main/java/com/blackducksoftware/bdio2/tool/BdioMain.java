@@ -107,9 +107,13 @@ public class BdioMain extends Tool {
         }
 
         @Override
-        protected void printHelp() {
+        protected void printUsage() {
             printOutput("usage: %s [--version] [--help] [--quiet|--verbose|--debug] [--pretty]%n", toolName);
             printOutput("            <command> [<args>]%n%n");
+        }
+
+        @Override
+        protected void printHelp() {
             printOutput("The most commonly used %s commands are:%n", toolName);
             Stream.of(Command.values())
                     .filter(Command::isCommon)
