@@ -43,6 +43,7 @@ import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.bdio2.tinkerpop.sqlg.strategy.SqlgGraphCountStrategy;
 import com.blackducksoftware.common.value.HID;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
@@ -255,8 +256,8 @@ public final class BlackDuckIoOperations {
             // Index all of the files by path
             // NOTE: This potentially takes a lot of memory as we are loading full files
             // TODO Can we reduce the footprint somehow? We only need ID and path...
-            int fileCount = Math.toIntExact(wrapper().countVerticesByLabel(Bdio.Class.File.name()));
-            Map<String, Vertex> files = Maps.newHashMapWithExpectedSize(fileCount);
+            long fileCount = g.withStrategies(SqlgGraphCountStrategy.instance()).V().hasLabel(Bdio.Class.File.name()).count().next();
+            Map<String, Vertex> files = Maps.newHashMapWithExpectedSize(Math.toIntExact(fileCount));
             g.V().hasLabel(Bdio.Class.File.name()).has(Bdio.DataProperty.path.name()).forEachRemaining(v -> {
                 files.put(v.value(Bdio.DataProperty.path.name()), v);
             });

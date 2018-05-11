@@ -15,22 +15,11 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import static com.blackducksoftware.common.base.ExtraStreams.ofType;
-import static java.util.stream.Collectors.joining;
-import static org.umlg.sqlg.structure.PropertyType.STRING;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
-import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
-import org.umlg.sqlg.structure.topology.Topology;
 
 /**
  * Specialization of the read graph context to use when the underlying graph is a Sqlg graph.
@@ -61,52 +50,6 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
         super.startBatchTx();
         if (supportsBatchMode) {
             graph().tx().normalBatchModeOn();
-        }
-    }
-
-    @Override
-    public long countVerticesByLabel(String label) {
-        // NOTE: This is modified code from `SqlgGraph.countVertices()`
-
-        // Determine where the vertices are stored
-        SchemaTable schemaTable = SchemaTable.from(graph(), label)
-                .withPrefix(Topology.VERTEX_PREFIX);
-
-        // Build the query
-        StringBuilder sql = new StringBuilder()
-                .append("SELECT COUNT(1) FROM ")
-                .append(graph().getSqlDialect().maybeWrapInQoutes(schemaTable.getSchema()))
-                .append('.')
-                .append(graph().getSqlDialect().maybeWrapInQoutes(schemaTable.getTable()));
-
-        // Honor any partition strategies, if configured with read partitions
-        if (strategies().flatMap(ofType(PartitionStrategy.class)).anyMatch(ps -> !ps.getReadPartitions().isEmpty())) {
-            sql.append(strategies()
-                    .flatMap(ofType(PartitionStrategy.class))
-                    .filter(ps -> !ps.getReadPartitions().isEmpty())
-                    .map(ps -> new StringBuilder()
-                            .append(graph().getSqlDialect().maybeWrapInQoutes(ps.getPartitionKey()))
-                            .append(ps.getReadPartitions().size() == 1 ? " = " : " IN (")
-                            .append(ps.getReadPartitions().stream()
-                                    .map(rp -> graph().getSqlDialect().valueToValuesString(STRING, rp))
-                                    .collect(joining(", ")))
-                            .append(ps.getReadPartitions().size() == 1 ? "" : ")"))
-                    .collect(joining(" ) AND ( ", " WHERE ( ", " )")));
-        }
-
-        if (graph().getSqlDialect().needsSemicolon()) {
-            sql.append(';');
-        }
-
-        // Execute the query
-        Connection conn = graph().tx().getConnection();
-        try (PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
-            ResultSet rs = preparedStatement.executeQuery();
-            rs.next();
-            return rs.getLong(1);
-        } catch (SQLException e) {
-            // Wrapping SQLException with a RuntimeException is consistent with how Sqlg behaves
-            throw new RuntimeException(e);
         }
     }
 

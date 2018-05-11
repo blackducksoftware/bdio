@@ -212,10 +212,6 @@ class GraphReaderWrapper extends GraphIoWrapper {
         });
     }
 
-    public long countVerticesByLabel(String label) {
-        return traversal().V().hasLabel(label).count().next();
-    }
-
     /**
      * Returns key/value pairs for the data properties of the specified BDIO node.
      */
