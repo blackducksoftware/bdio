@@ -22,6 +22,9 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.or;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.property;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -40,6 +43,14 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
+import org.slf4j.LoggerFactory;
+import org.umlg.sqlg.sql.dialect.SqlDialect;
+import org.umlg.sqlg.structure.PropertyType;
+import org.umlg.sqlg.structure.SchemaTable;
+import org.umlg.sqlg.structure.SqlgGraph;
+import org.umlg.sqlg.structure.SqlgVertex;
+import org.umlg.sqlg.structure.topology.Topology;
+import org.umlg.sqlg.structure.topology.VertexLabel;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
@@ -49,6 +60,7 @@ import com.blackducksoftware.common.value.HID;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 /**
@@ -368,16 +380,21 @@ public final class BlackDuckIoOperations {
         @SuppressWarnings("unchecked")
         @Override
         protected void execute(GraphTraversalSource g, GraphMapper mapper) {
-            wrapper().startBatchTx();
-
-            g.V().out(Bdio.ObjectProperty.parent.name())
-                    .hasNot(Bdio.DataProperty.fileSystemType.name())
-                    .coalesce(
-                            or(has(Bdio.DataProperty.byteCount.name()), has(Bdio.DataProperty.contentType.name()))
-                                    .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString()),
-                            property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY.toString()))
-                    .sideEffect(t -> wrapper().batchCommitTx())
-                    .iterate();
+            if (g.getGraph() instanceof SqlgGraph) {
+                SqlgGraph sqlgGraph = (SqlgGraph) g.getGraph();
+                updateFileSystemType(sqlgGraph, Bdio.FileSystemType.DIRECTORY_ARCHIVE);
+                updateFileSystemType(sqlgGraph, Bdio.FileSystemType.DIRECTORY);
+            } else {
+                wrapper().startBatchTx();
+                g.V().out(Bdio.ObjectProperty.parent.name())
+                        .hasNot(Bdio.DataProperty.fileSystemType.name())
+                        .coalesce(
+                                or(has(Bdio.DataProperty.byteCount.name()), has(Bdio.DataProperty.contentType.name()))
+                                        .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString()),
+                                property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY.toString()))
+                        .sideEffect(t -> wrapper().batchCommitTx())
+                        .iterate();
+            }
 
             g.withStrategies(SqlgGraphAddPropertyStrategy.instance()).V().hasLabel(Bdio.Class.File.name())
                     .hasNot(Bdio.DataProperty.fileSystemType.name())
@@ -395,6 +412,75 @@ public final class BlackDuckIoOperations {
                     .hasNot(Bdio.DataProperty.fileSystemType.name())
                     .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.REGULAR.toString())
                     .iterate();
+        }
+
+        /**
+         * This is a very ugly optimization for a specific case that was extremely expensive to compute in Sqlg.
+         */
+        private static void updateFileSystemType(SqlgGraph sqlgGraph, Bdio.FileSystemType fileSystemType) {
+            SqlDialect dialect = sqlgGraph.getSqlDialect();
+            SchemaTable fileTable = SchemaTable.of(dialect.getPublicSchema(), Bdio.Class.File.name()).withPrefix(Topology.VERTEX_PREFIX);
+            SchemaTable parentTable = SchemaTable.of(dialect.getPublicSchema(), Bdio.ObjectProperty.parent.name()).withPrefix(Topology.EDGE_PREFIX);
+
+            // Make sure everything we are about to query is properly constructed
+            VertexLabel fileLabel = sqlgGraph.getTopology().ensureVertexLabelExist(fileTable.getSchema(), fileTable.withOutPrefix().getTable());
+            sqlgGraph.getTopology().ensureEdgeLabelExist(parentTable.withOutPrefix().getTable(), fileLabel, fileLabel, ImmutableMap.of());
+            sqlgGraph.getTopology().ensureVertexLabelPropertiesExist(fileTable.getSchema(), fileTable.withOutPrefix().getTable(), ImmutableMap.of(
+                    Bdio.DataProperty.fileSystemType.name(), PropertyType.STRING,
+                    Bdio.DataProperty.byteCount.name(), PropertyType.LONG,
+                    Bdio.DataProperty.contentType.name(), PropertyType.STRING));
+
+            StringBuilder sql = new StringBuilder();
+            sql.append("\nUPDATE\n\t")
+                    .append(dialect.maybeWrapInQoutes(fileTable.getSchema()))
+                    .append('.')
+                    .append(dialect.maybeWrapInQoutes(fileTable.getTable()))
+                    .append("\nSET\n\t")
+                    .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.fileSystemType.name()))
+                    .append(" = ")
+                    .append(dialect.valueToValuesString(PropertyType.STRING, fileSystemType.toString()))
+                    .append("\nFROM\n\t")
+                    .append(dialect.maybeWrapInQoutes(parentTable.getSchema()))
+                    .append('.')
+                    .append(dialect.maybeWrapInQoutes(parentTable.getTable()))
+                    .append("\nWHERE\n\t")
+                    .append(dialect.maybeWrapInQoutes(fileTable.getTable()))
+                    .append('.')
+                    .append(dialect.maybeWrapInQoutes(Topology.ID))
+                    .append(" = ")
+                    .append(dialect.maybeWrapInQoutes(parentTable.getTable()))
+                    .append('.')
+                    .append(dialect.maybeWrapInQoutes(fileTable.withOutPrefix() + Topology.IN_VERTEX_COLUMN_END));
+            if (fileSystemType == Bdio.FileSystemType.DIRECTORY_ARCHIVE) {
+                sql.append(" AND (")
+                        .append(dialect.maybeWrapInQoutes(fileTable.getTable()))
+                        .append(".")
+                        .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.byteCount.name()))
+                        .append(" IS NOT NULL OR ")
+                        .append(dialect.maybeWrapInQoutes(fileTable.getTable()))
+                        .append(".")
+                        .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.contentType.name()))
+                        .append(" IS NOT NULL)");
+            } else if (fileSystemType == Bdio.FileSystemType.DIRECTORY) {
+                sql.append(" AND ")
+                        .append(dialect.maybeWrapInQoutes(fileTable.getTable()))
+                        .append(".")
+                        .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.fileSystemType.name()))
+                        .append(" IS NULL");
+            } else {
+                throw new IllegalArgumentException("file system type must be DIRECTORY or DIRECTORY_ARCHIVE");
+            }
+            if (dialect.needsSemicolon()) {
+                sql.append(";");
+            }
+
+            LoggerFactory.getLogger(SqlgVertex.class).debug("{}", sql);
+            Connection conn = sqlgGraph.tx().getConnection();
+            try (Statement statement = conn.createStatement()) {
+                statement.executeUpdate(sql.toString());
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
         }
 
     }
