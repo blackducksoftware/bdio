@@ -43,6 +43,7 @@ import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.bdio2.tinkerpop.sqlg.strategy.SqlgGraphAddPropertyStrategy;
 import com.blackducksoftware.bdio2.tinkerpop.sqlg.strategy.SqlgGraphCountStrategy;
 import com.blackducksoftware.common.value.HID;
 import com.google.common.annotations.VisibleForTesting;
@@ -378,15 +379,21 @@ public final class BlackDuckIoOperations {
                     .sideEffect(t -> wrapper().batchCommitTx())
                     .iterate();
 
-            g.V().hasLabel(Bdio.Class.File.name())
+            g.withStrategies(SqlgGraphAddPropertyStrategy.instance()).V().hasLabel(Bdio.Class.File.name())
                     .hasNot(Bdio.DataProperty.fileSystemType.name())
-                    .coalesce(
-                            has(Bdio.DataProperty.linkPath.name())
-                                    .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.SYMLINK.toString()),
-                            has(Bdio.DataProperty.encoding.name())
-                                    .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.REGULAR_TEXT.toString()),
-                            property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.REGULAR.toString()))
-                    .sideEffect(t -> wrapper().batchCommitTx())
+                    .has(Bdio.DataProperty.linkPath.name())
+                    .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.SYMLINK.toString())
+                    .iterate();
+
+            g.withStrategies(SqlgGraphAddPropertyStrategy.instance()).V().hasLabel(Bdio.Class.File.name())
+                    .hasNot(Bdio.DataProperty.fileSystemType.name())
+                    .has(Bdio.DataProperty.encoding.name())
+                    .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.REGULAR_TEXT.toString())
+                    .iterate();
+
+            g.withStrategies(SqlgGraphAddPropertyStrategy.instance()).V().hasLabel(Bdio.Class.File.name())
+                    .hasNot(Bdio.DataProperty.fileSystemType.name())
+                    .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.REGULAR.toString())
                     .iterate();
         }
 
