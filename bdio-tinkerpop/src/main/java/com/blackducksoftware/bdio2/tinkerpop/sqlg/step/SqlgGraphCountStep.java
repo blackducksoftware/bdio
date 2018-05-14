@@ -54,6 +54,7 @@ public class SqlgGraphCountStep extends AbstractStep<Long, Long> {
 
     private final SqlgGraph sqlgGraph;
 
+    @SuppressWarnings("JdkObsolete") // This is the type required by the APIs being invoked
     private final LinkedList<SchemaTableTree> distinctQueryStack = new LinkedList<>();
 
     public SqlgGraphCountStep(Traversal.Admin<?, ?> traversal, SqlgGraphStep<?, ?> replacedStep) {

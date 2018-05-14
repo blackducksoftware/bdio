@@ -36,6 +36,7 @@ import com.blackducksoftware.bdio2.tinkerpop.sqlg.step.SqlgGraphCountStep;
  *
  * @author jgustie
  */
+@SuppressWarnings("ComparableType") // The super breaks the contract of Comparable
 public class SqlgGraphCountStrategy
         extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy>
         implements TraversalStrategy.ProviderOptimizationStrategy {

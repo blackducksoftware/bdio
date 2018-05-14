@@ -67,6 +67,7 @@ public class SqlgGraphAddPropertyStep<S> extends AbstractStep<S, S> {
 
     private final SqlgGraph sqlgGraph;
 
+    @SuppressWarnings("JdkObsolete") // This is the type required by the APIs being invoked
     private final LinkedList<SchemaTableTree> distinctQueryStack = new LinkedList<>();
 
     private final LinkedHashMap<String, Object> properties;

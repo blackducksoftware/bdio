@@ -40,6 +40,7 @@ import com.blackducksoftware.bdio2.tinkerpop.sqlg.step.SqlgGraphAddPropertyStep;
  *
  * @author jgustie
  */
+@SuppressWarnings("ComparableType") // The super breaks the contract of Comparable
 public class SqlgGraphAddPropertyStrategy extends AbstractTraversalStrategy<TraversalStrategy.ProviderOptimizationStrategy>
         implements TraversalStrategy.ProviderOptimizationStrategy {
     private static final long serialVersionUID = 1L;
