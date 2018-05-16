@@ -1,6 +1,39 @@
 # Appendix C: File Data
 
-## Common File Path Archive Schemes
+## File System Types
+
+This section is normative.
+
+| File System Type         | Description |
+|--------------------------|-------------|
+| `regular`                | A regular file, typically of unknown content. |
+| `regular/binary`         | A regular file with executable content. |
+| `regular/text`           | A regular file with known text content. Should be accompanied by an encoding. |
+| `directory`              | A directory entry which may or may not contain children. |
+| `directory/archive`      | An archive which may or may not contain children. Can also be treated as a regular file. |
+| `symlink`                | A symbolic link. Should be accompanied by a link target. |
+| `other/device/block`     | A block device, like a drive. |
+| `other/device/character` | A character device, like a terminal. |
+| `other/door`             | A door used for interprocess communication. |
+| `other/pipe`             | A named pipe. |
+| `other/socket`           | A socket. |
+| `other/whiteout`         | A whiteout, or file removal in a layered file system. |
+
+NOTE: File system types are compared case-insensitively.
+
+
+## Recommended Fingerprint Digest Algorithms
+
+| Algorithm | Expected Hex String Length  | Description |
+|-----------|-----------------------------|-------------|
+| md5       | 32                          | MD5 |
+| sha1      | 40                          | SHA-1 |
+| sha256    | 64                          | SHA-2, SHA-256 |
+
+NOTE: Algorithms are compared case-insensitively.
+
+
+## Recommended File Path Archive Schemes
 
 | Scheme    | Slash Required | Description |
 |-----------|----------------|-------------|
@@ -21,21 +54,3 @@
 
 NOTE: File extensions and/or compression formats are not accounted for using the scheme, e.g. a file with the extension ".tgz" or ".tar.gz" still has a scheme of "tar".
 
-## File System Types
-
-| File System Type         | Description |
-|--------------------------|-------------|
-| `regular`                | A regular file, typically of unknown content. |
-| `regular/binary`         | A regular file with executable content. |
-| `regular/text`           | A regular file with known text content. Should be accompanied by an encoding. |
-| `directory`              | A directory entry which may or may not contain children. |
-| `directory/archive`      | An archive which may or may not contain children. Can also be treated as a regular file. |
-| `symlink`                | A symbolic link. Should be accompanied by a link target. |
-| `other/device/block`     | A block device, like a drive. |
-| `other/device/character` | A character device, like a terminal. |
-| `other/door`             | A door used for interprocess communication. |
-| `other/pipe`             | A named pipe. |
-| `other/socket`           | A socket. |
-| `other/whiteout`         | A whiteout, or file removal in a layered file system. |
-
-NOTE: File system types are compared case-insensitively.
