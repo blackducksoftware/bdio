@@ -112,7 +112,8 @@ public abstract class AbstractFileTool extends AbstractGraphTool {
 
     protected Stream<FileNode> baseFiles(GraphTraversalSource g) {
         return g.V().hasLabel(FTT.Metadata.name())
-                .out(FTT.root.name()) // TODO Dedup here, multiple Metadata vertices?
+                .out(FTT.root.name())
+                .dedup()
                 .emit().repeat(out(Bdio.ObjectProperty.subproject.name()))
                 .out(Bdio.ObjectProperty.base.name())
                 .toStream()
