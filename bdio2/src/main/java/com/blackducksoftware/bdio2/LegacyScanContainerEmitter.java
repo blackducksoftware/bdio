@@ -19,8 +19,11 @@ import static com.blackducksoftware.bdio2.LegacyUtilities.guessScheme;
 import static com.blackducksoftware.bdio2.LegacyUtilities.partitionNodes;
 import static com.blackducksoftware.bdio2.LegacyUtilities.scanContainerObjectMapper;
 import static com.blackducksoftware.bdio2.LegacyUtilities.toFileUri;
+import static com.blackducksoftware.common.base.ExtraStrings.afterLast;
+import static com.blackducksoftware.common.base.ExtraStrings.beforeLast;
 import static com.blackducksoftware.common.base.ExtraStrings.ensureDelimiter;
 import static com.blackducksoftware.common.base.ExtraStrings.ensurePrefix;
+import static com.google.common.collect.Iterables.getLast;
 import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.toList;
 
@@ -39,6 +42,7 @@ import java.util.Optional;
 import java.util.Spliterator;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -137,10 +141,6 @@ class LegacyScanContainerEmitter implements Emitter {
         @Override
         public String toString() {
             return "scanNode-" + id;
-        }
-
-        public boolean isBase() {
-            return id == 0;
         }
 
         public String path(String baseDir, @Nullable Function<Long, LegacyScanNode> lookup) {
@@ -249,6 +249,24 @@ class LegacyScanContainerEmitter implements Emitter {
                 return "unknown";
             }
         }
+
+        /**
+         * Returns a predicate for testing if a scan node is the base node given the base directory. This used to be as
+         * simple as testing for {@code id == 0}, however this is not always the case in newer versions of the scanner
+         * (in fact it is just the opposite, the base is the last node emitted).
+         *
+         * @implNote This method returns a predicate so it can capture the pre-computed expected values, hopefully
+         *           this reduces the overhead of heavy use.
+         */
+        public static Predicate<LegacyScanNode> isBase(String baseDir) {
+            String baseUri = toFileUri(null, baseDir, null);
+            String baseArchiveUri = "file:" + beforeLast(baseDir, '/') + "/";
+            String baseName = afterLast(baseDir, '/');
+            return scanNode -> Objects.equals(scanNode.uri, baseUri)
+                    || (Objects.equals("/", scanNode.path)
+                            && Objects.equals(scanNode.archiveUri, baseArchiveUri)
+                            && Objects.equals(scanNode.name, baseName));
+        }
     }
 
     /**
@@ -326,10 +344,17 @@ class LegacyScanContainerEmitter implements Emitter {
 
         public Map<String, Object> rootObject() {
             String id = toFileUri(hostName, baseDir, "root");
-            File base = scanNodeList.values().stream()
-                    .filter(LegacyScanNode::isBase)
-                    .map(scanNode -> new File(toFileUri(hostName, baseDir, scanNode.toString())))
-                    .findFirst().orElse(null);
+
+            Predicate<LegacyScanNode> isBase = LegacyScanNode.isBase(baseDir);
+            Optional<LegacyScanNode> baseScanNode = Optional.ofNullable(scanNodeList.get(0L)).filter(isBase);
+            if (!baseScanNode.isPresent()) {
+                baseScanNode = Optional.of(getLast(scanNodeList.values())).filter(isBase); // O(1)
+                if (!baseScanNode.isPresent()) {
+                    baseScanNode = scanNodeList.values().stream().filter(isBase).findFirst(); // O(n)
+                }
+            }
+
+            File base = baseScanNode.map(scanNode -> new File(toFileUri(hostName, baseDir, scanNode.toString()))).orElse(null);
             if (project != null) {
                 return new Project(id)
                         .name(project)

@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
 
@@ -57,6 +58,8 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
     private BdioMetadata metadata;
 
     private Function<File, Map<String, Object>> base;
+
+    private Predicate<LegacyScanNode> isBase;
 
     private String hostName;
 
@@ -106,6 +109,7 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
                 break;
             case "baseDir":
                 baseDir = jp.nextTextValue();
+                isBase = LegacyScanNode.isBase(baseDir);
                 break;
             case "scannerVersion":
                 metadata.merge(publisher(scanClient().version(jp.nextTextValue()).build()));
@@ -177,7 +181,7 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
                         .fingerprint(scanNode.fingerprint());
 
                 // Add a base relationship
-                if (scanNode.isBase()) {
+                if (isBase.test(scanNode)) {
                     offer(base.apply(file));
                 }
 
