@@ -196,7 +196,7 @@ public class DependenciesTool extends AbstractGraphTool {
 
         // Find the base file in the graph
         dependencies.addFirst(root(g).map(Iterators::singletonIterator)
-                .orElseThrow(illegalState("No base file found")));
+                .orElseThrow(illegalState("No root object found")));
 
         while (!dependencies.isEmpty()) {
             Iterator<Dependency> i = dependencies.getLast();

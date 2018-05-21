@@ -230,6 +230,9 @@ public class GraphTool extends Tool {
         if (inputs.isEmpty()) {
             addInput(null, getInput("-"));
         }
+        if (!configuration.containsKey(Graph.GRAPH)) {
+            setGraph(TinkerGraph.class.getName());
+        }
 
         return super.parseArguments(args);
     }

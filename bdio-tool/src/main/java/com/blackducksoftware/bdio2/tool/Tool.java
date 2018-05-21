@@ -15,6 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tool;
 
+import static com.blackducksoftware.common.base.ExtraStrings.removeSuffix;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -44,6 +45,7 @@ import com.blackducksoftware.common.io.ExtraIO;
 import com.blackducksoftware.common.value.Product;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.github.jsonldjava.utils.JsonUtils;
+import com.google.common.base.CaseFormat;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
@@ -340,7 +342,14 @@ public abstract class Tool implements Runnable {
             return String.format("%s at line %d, column %d", parseException.getOriginalMessage(),
                     parseException.getLocation().getLineNr(), parseException.getLocation().getColumnNr());
         } else {
-            return failure.getLocalizedMessage();
+            String message = failure.getLocalizedMessage();
+            if (message == null) {
+                // Anything is more useful then "null"
+                message = failure.getClass().getSimpleName();
+                message = removeSuffix(message, "Exception");
+                message = CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, message).replace('_', ' ');
+            }
+            return message;
         }
     }
 
