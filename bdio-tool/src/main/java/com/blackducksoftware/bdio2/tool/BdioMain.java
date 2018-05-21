@@ -15,7 +15,10 @@
  */
 package com.blackducksoftware.bdio2.tool;
 
+import static java.util.stream.Collectors.toList;
+
 import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -96,6 +99,11 @@ public class BdioMain extends Tool {
          */
         private String commandName;
 
+        /**
+         * Prints the names of all the commands in the help output.
+         */
+        private boolean printAllCommands;
+
         private HelpTool(String name) {
             super(name.substring(name.indexOf(' ') + 1));
             this.toolName = name.substring(0, name.indexOf(' '));
@@ -103,6 +111,13 @@ public class BdioMain extends Tool {
 
         @Override
         protected Tool parseArguments(String[] args) throws Exception {
+            for (String arg : options(args)) {
+                if (arg.equals("-a")) {
+                    printAllCommands = true;
+                    args = removeFirst(arg, args);
+                }
+            }
+
             commandName = Iterables.getFirst(arguments(args), name());
             return super.parseArguments(args);
         }
@@ -115,17 +130,38 @@ public class BdioMain extends Tool {
 
         @Override
         protected void printHelp() {
-            printOutput("The most commonly used %s commands are:%n", toolName);
-            Stream.of(Command.values())
-                    .filter(Command::isCommon)
-                    .sorted(Comparator.comparing(Command::name))
-                    .forEachOrdered(command -> printOutput("   %-12s %s%n", command.name(), command.description));
-            printOutput("%nSee '%s %s <command>' to read about a specific subcommand.%n", toolName, name());
+            int columnWidth = Stream.of(Command.values()).map(Command::name).mapToInt(String::length).max().getAsInt() + 2;
+            if (printAllCommands) {
+                printOutput("All the available %s commands:%n", toolName);
+                List<Command> commands = Stream.of(Command.values())
+                        .filter(c -> c != Command.help)
+                        .sorted(Comparator.comparing(Command::name))
+                        .collect(toList());
+                int rows = (commands.size() + 5) / 6;
+                for (int offset = 0; offset < rows; ++offset) {
+                    printOutput("%n  ");
+                    for (int i = offset; i < commands.size(); i += rows) {
+                        printOutput("%-" + columnWidth + "s", commands.get(i).name());
+                    }
+                }
+            } else {
+                printOutput("The most commonly used %s commands are:%n", toolName);
+                Stream.of(Command.values())
+                        .filter(Command::isCommon)
+                        .sorted(Comparator.comparing(Command::name))
+                        .forEachOrdered(command -> printOutput("   %-" + columnWidth + "s %s%n", command.name(), command.description));
+                printOutput("%n");
+                printOutput("'%s help -a' lists available subcommands. ", toolName);
+                printOutput("See '%s %s <command>' to read about a specific subcommand.%n", toolName, name());
+            }
         }
 
         @Override
         protected void execute() throws Exception {
             Tool tool = Command.named(commandName).factory.apply(toolName + " " + commandName);
+            if (tool instanceof HelpTool) {
+                ((HelpTool) tool).printAllCommands = printAllCommands;
+            }
             tool.printUsage();
             tool.printHelp();
         }
