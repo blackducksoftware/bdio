@@ -17,6 +17,7 @@ package com.blackducksoftware.bdio2.rxjava;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -66,6 +67,7 @@ public class RxJavaJsonLdProcessing implements BdioDocument.JsonLdProcessing {
                     return Flowable.error(e);
                 }
             });
+            // TODO Do we need to handle handle the default if empty case?
         }
 
         /**
@@ -147,15 +149,25 @@ public class RxJavaJsonLdProcessing implements BdioDocument.JsonLdProcessing {
          */
         @Override
         protected Map<String, Object> applyOnce(Object input, JsonLdOptions options) throws JsonLdError {
-            List<Map<String, Object>> graphNodes = BdioDocument.toGraphNodes(input);
-            if (graphNodes.isEmpty()) {
-                // There is a bug in the JSON-LD API where an empty list causes an NPE
+            if (input instanceof Map<?, ?>) {
+                Map<?, ?> inputMap = (Map<?, ?>) input;
+                if (inputMap.containsKey(JsonLdConsts.GRAPH)) {
+                    // Only pass the context and the graph itself to the framing implementation
+                    Map<String, Object> alternateInput = new LinkedHashMap<>();
+                    alternateInput.put(JsonLdConsts.CONTEXT, inputMap.get(JsonLdConsts.CONTEXT));
+                    alternateInput.put(JsonLdConsts.GRAPH, inputMap.get(JsonLdConsts.GRAPH));
+                    alternateInput.values().removeIf(Objects::isNull);
+                    input = alternateInput;
+                }
+            }
+
+            // There is a bug in the JSON-LD API where an empty list causes an NPE
+            if (BdioDocument.toGraphNodes(input).isEmpty()) {
                 Map<String, Object> emptyResult = new HashMap<>(1);
                 emptyResult.put(JsonLdConsts.GRAPH, new ArrayList<>(0));
                 return emptyResult;
             } else {
-                // TODO Restore the graph label?
-                return JsonLdProcessor.frame(graphNodes, frame, options);
+                return JsonLdProcessor.frame(input, frame, options);
             }
         }
     }
