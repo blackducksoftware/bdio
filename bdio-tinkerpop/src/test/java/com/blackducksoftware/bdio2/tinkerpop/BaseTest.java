@@ -17,6 +17,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.common.base.ExtraStrings.afterLast;
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.junit.Assume.assumeNoException;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -187,7 +188,11 @@ public abstract class BaseTest {
     @Before
     public final void openGraph() throws Exception {
         // Open a new graph
-        graph = GraphFactory.open(configuration);
+        try {
+            graph = GraphFactory.open(configuration);
+        } catch (Exception e) {
+            assumeNoException("Unable to open graph (check that the 'bdio-tinkerpop-db' Docker container is running)", e);
+        }
 
         // Hard reset the Sqlg graph database into a clean state
         if (graph instanceof SqlgGraph) {
@@ -200,14 +205,16 @@ public abstract class BaseTest {
 
     @After
     public final void closeGraph() throws Exception {
-        // Make sure that transactions are cleaned up if necessary
-        if (graph.features().graph().supportsTransactions()) {
-            graph.tx().onClose(Transaction.CLOSE_BEHAVIOR.ROLLBACK);
-        }
+        if (graph != null) {
+            // Make sure that transactions are cleaned up if necessary
+            if (graph.features().graph().supportsTransactions()) {
+                graph.tx().onClose(Transaction.CLOSE_BEHAVIOR.ROLLBACK);
+            }
 
-        // Close out the graph
-        graph.close();
-        graph = null;
+            // Close out the graph
+            graph.close();
+            graph = null;
+        }
     }
 
 }
