@@ -15,6 +15,8 @@
  */
 package com.blackducksoftware.bdio2.tool;
 
+import static com.blackducksoftware.common.base.ExtraStrings.beforeFirst;
+import static com.blackducksoftware.common.base.ExtraStrings.removePrefix;
 import static com.blackducksoftware.common.base.ExtraStrings.removeSuffix;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -48,6 +50,7 @@ import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.base.CaseFormat;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -235,11 +238,18 @@ public abstract class Tool implements Runnable {
             }
             sysexit.accept(((ExitException) e).status);
         } else if (Level.QUIET.compareTo(verbosity) < 0) {
-            stderr.print("bdio: "); // TODO Should this be configurable (e.g. generally this comes from BdioMain)?
+            String prefix = beforeFirst(name(), ' ') + ": ";
+            stderr.print(prefix);
             if (Level.DEBUG.compareTo(verbosity) <= 0) {
                 e.printStackTrace(stderr);
             } else if (Level.VERBOSE.compareTo(verbosity) <= 0) {
-                stderr.println(e.toString());
+                int depth = 0;
+                Throwable failure = e;
+                while (failure != null) {
+                    stderr.print(Strings.repeat(" ", (depth > 0 ? prefix.length() - 4 : 0) + (4 * depth++)));
+                    stderr.println(removePrefix(failure.toString(), failure.getClass().getName() + ": "));
+                    failure = failure.getCause();
+                }
             } else if (Level.DEFAULT.compareTo(verbosity) <= 0) {
                 stderr.println(formatException(e));
             }
