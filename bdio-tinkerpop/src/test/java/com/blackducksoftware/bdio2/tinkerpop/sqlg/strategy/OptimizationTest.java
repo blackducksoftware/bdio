@@ -25,6 +25,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 import org.umlg.sqlg.structure.SqlgGraph;
 
@@ -158,6 +159,33 @@ public class OptimizationTest extends BaseTest {
 
         g.withStrategies(a1).V().hasLabel(Bdio.Class.File.name()).has("b", "1").property("c", "1").iterate();
         assertThat(g.V().has("c", "1").count().next()).isEqualTo(1);
+    }
+
+    @Test
+    public void multiLabelGraphAddProperty() {
+        graph.addVertex(T.label, "a", "c", "1");
+        graph.addVertex(T.label, "b", "c", "1");
+
+        // Start the traversal source with our optimization
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphAddPropertyStrategy.instance());
+
+        g.V().has("c", "1").property("d", "1").iterate();
+        assertThat(g.V().has("c", "1").count().next()).isEqualTo(2);
+    }
+
+    @Test
+    public void edgeGraphAddProperty() {
+        Vertex a = graph.addVertex(T.label, "a");
+        Vertex b = graph.addVertex(T.label, "b");
+        Vertex c = graph.addVertex(T.label, "c");
+        graph.traversal().addE("x").from(a).to(b).iterate();
+        graph.traversal().addE("y").from(b).to(c).iterate();
+
+        // Start the traversal source with our optimization
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphAddPropertyStrategy.instance());
+
+        g.E().hasLabel("x").property("d", "1").iterate();
+        assertThat(g.E().has("d", "1").count().next()).isEqualTo(1);
     }
 
 }

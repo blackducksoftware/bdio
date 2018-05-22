@@ -17,7 +17,6 @@ package com.blackducksoftware.bdio2.tinkerpop.sqlg.step;
 
 import static com.blackducksoftware.common.base.ExtraOptionals.ofType;
 import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
-import static com.google.common.collect.MoreCollectors.onlyElement;
 import static com.google.common.collect.MoreCollectors.toOptional;
 import static java.util.stream.Collectors.joining;
 
@@ -28,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -67,10 +67,9 @@ public class SqlgGraphAddPropertyStep<S> extends AbstractStep<S, S> {
 
     private final SqlgGraph sqlgGraph;
 
-    @SuppressWarnings("JdkObsolete") // This is the type required by the APIs being invoked
-    private final LinkedList<SchemaTableTree> distinctQueryStack = new LinkedList<>();
-
     private final LinkedHashMap<String, Object> properties;
+
+    private final Set<SchemaTableTree> rootSchemaTableTrees;
 
     public SqlgGraphAddPropertyStep(Traversal.Admin<?, ?> traversal, SqlgGraphStep<?, ?> replacedStep) {
         super(traversal);
@@ -78,7 +77,7 @@ public class SqlgGraphAddPropertyStep<S> extends AbstractStep<S, S> {
                 .orElseThrow(illegalState("expected SqlgGraph"));
 
         // Get the schema table tree for generating a WHERE clause
-        distinctQueryStack.add(replacedStep.parseForStrategy().stream().collect(onlyElement()));
+        rootSchemaTableTrees = replacedStep.parseForStrategy();
 
         // Store the properties being updated
         properties = new LinkedHashMap<>();
@@ -96,47 +95,9 @@ public class SqlgGraphAddPropertyStep<S> extends AbstractStep<S, S> {
 
     @Override
     protected Traverser.Admin<S> processNextStart() throws NoSuchElementException {
-        if (!distinctQueryStack.isEmpty()) {
-            SchemaTable table = distinctQueryStack.getFirst().getSchemaTable();
-
-            sqlgGraph.getTopology().ensureVertexLabelPropertiesExist(table.getSchema(), table.withOutPrefix().getTable(),
-                    Maps.transformValues(properties, PropertyType::from));
-
-            StringBuilder sql = new StringBuilder().append("\n")
-                    .append("UPDATE\n\t")
-                    .append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(table.getSchema()))
-                    .append(".")
-                    .append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(table.getTable()))
-                    .append("\nSET\n")
-                    .append(properties.entrySet().stream()
-                            .flatMap(e -> {
-                                Stream.Builder<String> keys = Stream.<String> builder().add(e.getKey());
-                                PropertyType pt = PropertyType.from(e.getValue());
-                                String[] postfixes = sqlgGraph.getSqlDialect().propertyTypeToSqlDefinition(pt);
-                                for (int i = 1; i < postfixes.length; ++i) {
-                                    keys.add(e.getKey() + pt.getPostFixes()[i - 1]);
-                                }
-                                return keys.build();
-                            })
-                            .map(sqlgGraph.getSqlDialect()::maybeWrapInQoutes)
-                            .map(k -> k + " = ?")
-                            .collect(joining(",\n\t", "\t", "\n")))
-                    .append("WHERE\n")
-                    .append(distinctQueryStack.getFirst().constructSql(distinctQueryStack).split("\\bWHERE\\b", 2)[1]);
-
-            LoggerFactory.getLogger(SqlgVertex.class).debug("{}", sql);
-
-            Connection conn = sqlgGraph.tx().getConnection();
-            try (PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
-                List<ImmutablePair<PropertyType, Object>> typeAndValues = SqlgUtil.transformToTypeAndValue(properties);
-                int idx = SqlgUtil.setKeyValuesAsParameter(sqlgGraph, true, 1, preparedStatement, typeAndValues);
-                SqlgUtil.setParametersOnStatement(sqlgGraph, distinctQueryStack, preparedStatement, idx);
-                preparedStatement.executeUpdate();
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-
-            distinctQueryStack.clear();
+        if (!rootSchemaTableTrees.isEmpty()) {
+            rootSchemaTableTrees.forEach(this::update);
+            rootSchemaTableTrees.clear();
             if (getNextStep() instanceof ProfileStep<?>) {
                 // TODO Should we return a traverser with the count of updated rows so it looks like we did something?
                 ((ProfileStep<?>) getNextStep()).getMetrics().incrementCount(TraversalMetrics.TRAVERSER_COUNT_ID, 1);
@@ -151,6 +112,59 @@ public class SqlgGraphAddPropertyStep<S> extends AbstractStep<S, S> {
     @Override
     public String toString() {
         return StringFactory.stepString(this, properties);
+    }
+
+    private void update(SchemaTableTree rootSchemaTableTree) {
+        @SuppressWarnings("JdkObsolete") // This is the type required by the APIs being invoked
+        LinkedList<SchemaTableTree> distinctQueryStack = new LinkedList<>();
+        distinctQueryStack.add(rootSchemaTableTree);
+
+        SchemaTable table = rootSchemaTableTree.getSchemaTable();
+
+        if (table.isVertexTable()) {
+            sqlgGraph.getTopology().ensureVertexLabelPropertiesExist(table.getSchema(), table.withOutPrefix().getTable(),
+                    Maps.transformValues(properties, PropertyType::from));
+        } else if (table.isEdgeTable()) {
+            sqlgGraph.getTopology().ensureEdgePropertiesExist(table.getSchema(), table.withOutPrefix().getTable(),
+                    Maps.transformValues(properties, PropertyType::from));
+        }
+
+        StringBuilder sql = new StringBuilder().append("\n")
+                .append("UPDATE\n\t")
+                .append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(table.getSchema()))
+                .append(".")
+                .append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(table.getTable()))
+                .append("\nSET\n")
+                .append(properties.entrySet().stream()
+                        .flatMap(e -> {
+                            Stream.Builder<String> keys = Stream.<String> builder().add(e.getKey());
+                            PropertyType pt = PropertyType.from(e.getValue());
+                            String[] postfixes = sqlgGraph.getSqlDialect().propertyTypeToSqlDefinition(pt);
+                            for (int i = 1; i < postfixes.length; ++i) {
+                                keys.add(e.getKey() + pt.getPostFixes()[i - 1]);
+                            }
+                            return keys.build();
+                        })
+                        .map(sqlgGraph.getSqlDialect()::maybeWrapInQoutes)
+                        .map(k -> k + " = ?")
+                        .collect(joining(",\n\t", "\t", "\n")));
+
+        String[] whereParts = rootSchemaTableTree.constructSql(distinctQueryStack).split("\\bWHERE\\b", 2);
+        if (whereParts.length == 2) {
+            sql.append("WHERE\n").append(whereParts[1]);
+        }
+
+        LoggerFactory.getLogger(SqlgVertex.class).debug("{}", sql);
+
+        Connection conn = sqlgGraph.tx().getConnection();
+        try (PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
+            List<ImmutablePair<PropertyType, Object>> typeAndValues = SqlgUtil.transformToTypeAndValue(properties);
+            int idx = SqlgUtil.setKeyValuesAsParameter(sqlgGraph, true, 1, preparedStatement, typeAndValues);
+            SqlgUtil.setParametersOnStatement(sqlgGraph, distinctQueryStack, preparedStatement, idx);
+            preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }
