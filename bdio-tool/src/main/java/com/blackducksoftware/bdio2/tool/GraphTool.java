@@ -286,9 +286,16 @@ public class GraphTool extends Tool {
         if (inputs.size() > 1 && !configuration.containsKey("bdio.partitionStrategy.partitionKey")) {
             configuration.setProperty("bdio.partitionStrategy.partitionKey", DEFAULT_PARTITION_KEY);
         }
-        if (inputs.size() == 1 && !configuration.containsKey("bdio.partitionStrategy.writePartition")) {
-            configuration.setProperty("bdio.partitionStrategy.writePartition",
-                    inputs.keySet().stream().filter(x -> x != null).findFirst().map(URI::toString).orElse(DEFAULT_PARTITION));
+        if (inputs.size() == 1) {
+            if (!configuration.containsKey("bdio.partitionStrategy.writePartition")) {
+                configuration.setProperty("bdio.partitionStrategy.writePartition",
+                        inputs.keySet().stream().filter(x -> x != null).findFirst().map(URI::toString).orElse(DEFAULT_PARTITION));
+            }
+            if (!configuration.containsKey("bdio.partitionStrategy.readPartitions")) {
+                // FIXME The trailing "," adds an empty read partition to make a list in Commons Configuration
+                configuration.getInMemoryConfiguration().setProperty("bdio.partitionStrategy.readPartitions",
+                        inputs.keySet().stream().filter(x -> x != null).findFirst().map(URI::toString).orElse(DEFAULT_PARTITION) + ",");
+            }
         }
 
         // Create a new BDIO core using the graph's configuration to define tokens
