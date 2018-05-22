@@ -34,6 +34,8 @@ Please refer to the [project wiki][wiki].
 ````
 $ git clone git@github.com:blackducksoftware/bdio.git bdio-libraries
 $ cd bdio-libraries/
+$ docker build -t blackducksoftware/bdio-tinkerpop-db bdio-tinkerpop-db/
+$ docker run -d -p 5432:5432 blackducksoftware/bdio-tinkerpop-db
 $ ./gradlew build
 ````
 

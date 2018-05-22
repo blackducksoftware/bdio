@@ -17,6 +17,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.common.base.ExtraStrings.afterLast;
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeNoException;
 
 import java.io.IOException;
@@ -187,10 +188,15 @@ public abstract class BaseTest {
 
     @Before
     public final void openGraph() throws Exception {
-        // Open a new graph
         try {
+            // Overhead of opening connection pools can be significant, cache failures
+            assumeFalse("Previous attempt to open graph failed, not retrying",
+                    configuration.getBoolean("bdio.test.openGraphFailed", false));
+
+            // Open a new graph
             graph = GraphFactory.open(configuration);
         } catch (Exception e) {
+            configuration.setProperty("bdio.test.openGraphFailed", true);
             assumeNoException("Unable to open graph (check that the 'bdio-tinkerpop-db' Docker container is running)", e);
         }
 
