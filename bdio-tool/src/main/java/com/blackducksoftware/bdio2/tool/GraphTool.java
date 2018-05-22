@@ -17,6 +17,7 @@ package com.blackducksoftware.bdio2.tool;
 
 import static com.blackducksoftware.common.base.ExtraEnums.set;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.repeat;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.id;
 
 import java.io.File;
@@ -40,8 +41,10 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.MapConfiguration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.util.GraphFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.umlg.sqlg.structure.SqlgGraph;
@@ -166,7 +169,7 @@ public class GraphTool extends Tool {
     protected void printUsage() {
         printOutput("usage: %s [--graph=tinkergraph|sqlg|<class>] [--clean] [--skip-init]%n", name());
         printOutput("          [--config=<file>] [-D=<key>=<value>]%n");
-        printOutput("          [--onGraphComplete=dump|<class>]%n%n");
+        printOutput("          [--onGraphComplete=dump|summary|<class>]%n%n");
     }
 
     @Override
@@ -368,6 +371,8 @@ public class GraphTool extends Tool {
         switch (listener) {
         case "dump":
             return GraphTool::dump;
+        case "summary":
+            return GraphTool::summary;
         default:
             // TODO Use reflection to create a consumer?
             throw new UnsupportedOperationException("unable to create listener: " + listener);
@@ -410,7 +415,7 @@ public class GraphTool extends Tool {
     }
 
     /**
-     * Helper to a graph to standard output.
+     * Helper to dump a graph to standard output.
      */
     // TODO Make this more configurable?
     public static void dump(Graph graph) {
@@ -438,6 +443,36 @@ public class GraphTool extends Tool {
         g.E().forEachRemaining(e -> {
             out.format("[%s] %s --%s--> %s%n", e.id(), e.outVertex().id(), e.label(), e.inVertex().id());
         });
+    }
+
+    /**
+     * Helper to summarize a graph to standard output.
+     */
+    // TODO Make this more configurable?
+    public static void summary(Graph graph) {
+        GraphTraversalSource g = graph.traversal();
+        PrintStream out = System.out;
+
+        String partitionKey = graph.configuration().getString("bdio.partitionStrategy.partitionKey", DEFAULT_PARTITION_KEY);
+        String writePartition = graph.configuration().getString("bdio.partitionStrategy.writePartition", DEFAULT_PARTITION);
+        out.format("Distinct Partitions (%s)%n", partitionKey);
+        out.format("=====================%s=%n", repeat("=", partitionKey.length()));
+        g.V().values(partitionKey).inject(writePartition).dedup()
+                .forEachRemaining(p -> out.format("  %s%n", p));
+
+        out.format("%n");
+
+        out.format("Vertex count by label%n");
+        out.format("=====================%n");
+        g.V().group().by(T.label).by(__.count()).next().entrySet()
+                .forEach(e -> out.format("  %s = %d%n", e.getKey(), e.getValue()));
+
+        out.format("%n");
+
+        out.format("Edge count by label%n");
+        out.format("===================%n");
+        g.E().group().by(T.label).by(__.count()).next().entrySet()
+                .forEach(e -> out.format("  %s = %d%n", e.getKey(), e.getValue()));
     }
 
 }
