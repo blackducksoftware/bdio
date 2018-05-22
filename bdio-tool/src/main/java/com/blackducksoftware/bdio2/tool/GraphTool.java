@@ -465,14 +465,14 @@ public class GraphTool extends Tool {
         out.format("Vertex count by label%n");
         out.format("=====================%n");
         g.V().group().by(T.label).by(__.count()).next().entrySet()
-                .forEach(e -> out.format("  %s = %d%n", e.getKey(), e.getValue()));
+                .forEach(e -> out.format("  %s = %s%n", e.getKey(), e.getValue()));
 
         out.format("%n");
 
         out.format("Edge count by label%n");
         out.format("===================%n");
         g.E().group().by(T.label).by(__.count()).next().entrySet()
-                .forEach(e -> out.format("  %s = %d%n", e.getKey(), e.getValue()));
+                .forEach(e -> out.format("  %s = %s%n", e.getKey(), e.getValue()));
     }
 
 }
