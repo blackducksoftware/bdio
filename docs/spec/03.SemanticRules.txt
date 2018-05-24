@@ -19,7 +19,7 @@ Publishers may choose to include data in a BDIO data set that is not part of the
 When describing file or resources in BDIO, publishers SHALL adhere to the guidelines in this section: this ensures data size is minimized and interpretation by processors can be consistent. BDIO files can be used to describe files on a file system (real or virtual), entries within an archive, resources from the web or any other entity which can be described as hierarchal structure of named pieces of data.
 
 ### File Paths
-BDIO files must be represented as a tree-like hierarchy: each file is permitted to have a single parent. The file's path is used to identify the location within the hierarchy. The path MUST be a valid URI. Most entities will have a "natural" URI (e.g. with a "file:" or "http(s):" scheme); however special considerations are necessary for the path to an archive entry. Archive entry paths must be encoding using the pattern:
+BDIO files must be represented as a tree-like hierarchy starting with the base file identified by the root object. The file's "path" property is used to identify the location within the hierarchy. The path MUST be a valid absolute URI. Generally this will be an RFC 8089 "file" URI representing an absolute path to a file on the file system, however it may be any URI. Special considerations are necessary for the URI representing an archive entry: archive entry paths must be encoding using the pattern:
 
 ````
 <scheme> ":" <archive-URI> "#" <entry-name>
