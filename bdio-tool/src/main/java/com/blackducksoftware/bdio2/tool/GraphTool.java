@@ -377,20 +377,22 @@ public class GraphTool extends Tool {
      * Returns the expansion context given the supplied identifier.
      */
     protected Optional<Object> getExpandContext(URI id) {
-        return Optional.ofNullable(id)
-                .flatMap(uri -> Optional.ofNullable(uri.getPath()))
-                .map(Bdio.ContentType::forFileName)
-                .map(c -> {
-                    if (c != Bdio.ContentType.JSON) {
-                        return c;
-                    } else {
-                        if (expandContext == null) {
-                            printDebugMessage("Using default BDIO context for JSON%n");
-                            expandContext = Bdio.Context.DEFAULT;
-                        }
-                        return expandContext;
-                    }
-                });
+        if (id != null && id.getPath() != null) {
+            // If we have a path to look at, always return a context
+            Object context = Bdio.ContentType.forFileName(id.getPath());
+            if (context == Bdio.ContentType.JSON) {
+                if (expandContext == null) {
+                    // Modify the expand context so we only print this message once
+                    printDebugMessage("Using default BDIO context for JSON%n");
+                    expandContext = Bdio.Context.DEFAULT;
+                }
+                context = expandContext;
+            }
+            return Optional.of(context);
+        } else {
+            // Fall back to the value of the --context argument
+            return Optional.ofNullable(expandContext);
+        }
     }
 
     private PartitionStrategy multiInputPartition(URI input, Configuration configuration) {
