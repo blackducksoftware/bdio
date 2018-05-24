@@ -35,7 +35,7 @@ public class ImpliedFileSystemTypeConflict implements CompletedGraphRule {
 
         // If you have children you should be a directory
         input.V().hasLabel(Bdio.Class.File.name())
-                .in(Bdio.ObjectProperty.parent.name())
+                .out(Bdio.ObjectProperty.parent.name())
                 .has(Bdio.DataProperty.fileSystemType.name(), without(
                         Bdio.FileSystemType.DIRECTORY.toString(),
                         Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString()))
