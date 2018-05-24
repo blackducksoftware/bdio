@@ -6,14 +6,14 @@ For all supported formats, characters MUST be encoded using UTF-8. Consumers MUS
 ## JSON-LD
 The default format for BDIO data is [JSON-LD 1.0][jsonld].
 
-Producers MAY use remote JSON-LD contexts. Compliant consumers MAY operate in "offline mode", restricting access to remote JSON-LD context documents. When operating in this mode, an offline cached copy of the following JSON-LD context documents MUST be made available during processing: `https://blackducksoftware.com/bdio`
+Producers MAY use remote JSON-LD contexts. Compliant consumers MAY operate in "offline mode", restricting access to remote JSON-LD context documents. When operating in this mode, an offline cached copy of the following JSON-LD context documents MUST be made available during processing: `https://blackducksoftware.github.io/bdio`
 
 Both compliant consumers and producers SHOULD use GZIP content encoding when transferring JSON-LD data. Note that content encoding support for HTTP requests is often not offered by default. Producers MUST create JSON-LD data whose content is strictly less then 16MB; consumers SHOULD fail when presented with a JSON-LD file in excess of this limit. The size limit is applied on presentation and MUST NOT account for effects of JSON-LD normalization though the application of compaction or expansion algorithms.
 
 JSON-LD data should be given the file extension `.jsonld` and should be transferred using the content type application/ld+json (only in [accordance][jsonld-json] with the [JSON-LD Specification][jsonld-iana]).
 
 ## JSON
-While all JSON-LD is technically JSON, it is often convenient to simplify the syntax using JSON-LD compaction. The default context for BDIO documents may be referenced as a remote context using the IRI `https://blackducksoftware.com/bdio`. Compliant consumers SHOULD include an offline copy of this context to avoid network traffic when processing JSON-LD data.
+While all JSON-LD is technically JSON, it is often convenient to simplify the syntax using JSON-LD compaction. The default context for BDIO documents may be referenced as a remote context using the IRI `https://blackducksoftware.github.io/bdio`. Compliant consumers SHOULD include an offline copy of this context to avoid network traffic when processing JSON-LD data.
 
 The `Link` header should be honored on both requests and responses per the [JSON-LD specification][jsonld-iana].
 
