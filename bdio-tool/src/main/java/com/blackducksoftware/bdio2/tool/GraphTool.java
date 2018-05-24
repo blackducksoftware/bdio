@@ -59,6 +59,7 @@ import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Splitter;
 import com.google.common.base.Splitter.MapSplitter;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteSource;
 
@@ -429,7 +430,11 @@ public class GraphTool extends Tool {
                 .valueMap(true)
                 .forEachRemaining(valueMap -> {
                     // TODO Why was this needed?
-                    TreeMap<String, Object> sortedValueMap = new TreeMap<>();
+                    TreeMap<String, Object> sortedValueMap = new TreeMap<>((s1, s2) -> ComparisonChain.start()
+                            .compareTrueFirst(s1.equals("label"), s2.equals("label"))
+                            .compareTrueFirst(s1.equals("id"), s2.equals("id"))
+                            .compare(s1, s2)
+                            .result());
                     for (Map.Entry<?, ?> e : ((Map<?, ?>) valueMap).entrySet()) {
                         sortedValueMap.put(e.getKey().toString(), e.getValue());
                     }
