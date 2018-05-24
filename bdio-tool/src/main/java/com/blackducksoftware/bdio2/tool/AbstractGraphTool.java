@@ -17,12 +17,14 @@ package com.blackducksoftware.bdio2.tool;
 
 import java.io.File;
 import java.net.URI;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteSource;
 
 /**
@@ -61,6 +63,10 @@ public abstract class AbstractGraphTool extends Tool {
         graphTool().addInput(file);
     }
 
+    public void setExpandContext(Object expandContext) {
+        graphTool().setExpandContext(expandContext);
+    }
+
     @Override
     public void setVerbosity(Level verbosity) {
         super.setVerbosity(verbosity);
@@ -73,7 +79,19 @@ public abstract class AbstractGraphTool extends Tool {
     }
 
     @Override
+    protected Set<String> optionsWithArgs() {
+        return ImmutableSet.of("--context");
+    }
+
+    @Override
     protected Tool parseArguments(String[] args) throws Exception {
+        for (String arg : options(args)) {
+            if (arg.startsWith("--context=")) {
+                setExpandContext(arg);
+                args = removeFirst(arg, args);
+            }
+        }
+
         boolean hasInput = false;
         for (String name : arguments(args)) {
             addInput(new File(name).toURI(), getInput(name));

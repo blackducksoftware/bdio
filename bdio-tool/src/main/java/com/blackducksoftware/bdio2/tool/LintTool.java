@@ -106,11 +106,16 @@ public class LintTool extends AbstractGraphTool {
         Map<String, String> options = new LinkedHashMap<>();
         options.put("--max-violations=N", "Maximum number of violations per-rule (default " + maxViolations + ")");
         printOptionHelp(options);
+
+        printOutput("%nSee 'bdio help graph' for additional options");
     }
 
     @Override
     protected Set<String> optionsWithArgs() {
-        return ImmutableSet.of("--max-violations");
+        return ImmutableSet.<String> builder()
+                .addAll(super.optionsWithArgs())
+                .add("--max-violations")
+                .build();
     }
 
     @Override
@@ -135,7 +140,7 @@ public class LintTool extends AbstractGraphTool {
             Stopwatch readTimer = Stopwatch.createStarted();
             for (Map.Entry<URI, ByteSource> input : graphTool().getInputs().entrySet()) {
                 BdioOptions.Builder options = new BdioOptions.Builder();
-                options.expandContext(GraphTool.expandContext(input.getKey()));
+                graphTool().getExpandContext(input.getKey()).ifPresent(options::expandContext);
                 RxJavaBdioDocument doc = new RxJavaBdioDocument(options.build());
                 doc.read(input.getValue().openStream())
                         .doOnNext(this::executeWithRawEntry)

@@ -29,6 +29,7 @@ import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
@@ -92,6 +93,8 @@ public class GraphTool extends Tool {
 
     private CompositeConfiguration configuration = new CompositeConfiguration();
 
+    private Object expandContext;
+
     private EnumSet<Action> actions = EnumSet.of(Action.LOAD, Action.APPLY_SEMANTIC_RULES);
 
     private Consumer<GraphTraversalSource> onGraphLoaded = g -> {};
@@ -138,6 +141,14 @@ public class GraphTool extends Tool {
         }
     }
 
+    public void setExpandContext(Object expandContext) {
+        if (Objects.equals(expandContext, "bdio")) {
+            this.expandContext = Bdio.Context.DEFAULT;
+        } else {
+            this.expandContext = Objects.requireNonNull(expandContext);
+        }
+    }
+
     public void setClean(boolean clean) {
         set(actions, Action.CLEAN, clean);
     }
@@ -168,24 +179,38 @@ public class GraphTool extends Tool {
 
     @Override
     protected void printUsage() {
-        printOutput("usage: %s [--graph=tinkergraph|sqlg|<class>] [--clean] [--skip-init]%n", name());
+        printOutput("usage: %s [--graph=tinkergraph|sqlg|<class>] %n", name());
         printOutput("          [--config=<file>] [-D=<key>=<value>]%n");
-        printOutput("          [--onGraphComplete=dump|summary|<class>]%n%n");
+        printOutput("          [--context=bdio|<uri>]%n");
+        printOutput("          [--clean] [--skip-rules]%n");
+        printOutput("          [--onGraphComplete=dump|summary|<class>]%n");
+        printOutput("%n");
     }
 
     @Override
     protected void printHelp() {
-        printOutput("Some common properties are:%n");
-        printOutput("   gremlin.tinkergraph.graphFormat - Format used to persist TinkerGraph:%n");
-        printOutput("       graphml, graphson, gryo, %s%n", BlackDuckIo.Builder.class.getName());
-        printOutput("   gremlin.tinkergraph.graphLocation - File location used to persist TinkerGraph%n");
-        printOutput("   jdbc.url - URL of the database (e.g. 'jdbc:postgresql://localhost:5432/bdio')%n");
-        printOutput("   jdbc.username - Database username%n");
-        printOutput("   jdbc.password - Database password%n");
-        printOutput("   bdio.metadataLabel - BDIO metadata vertex label%n");
-        printOutput("   bdio.identifierKey - JSON-LD identifier vertex property%n");
-        printOutput("   bdio.unknownKey - Vertex property for unknown JSON-LD data%n");
-        printOutput("   bdio.implicitKey - Record implicitly created vertices%n");
+        Map<String, String> options = new LinkedHashMap<>();
+        options.put("Common graph tool options", null);
+        options.put("--graph=<factory>", "Graph implementation factory (default: tinkergraph)");
+        options.put("--config=<file>", "Graph configuration file (see properties below)");
+        options.put("--D=<key>=<value>", "Single property graph configuration (see properties below)");
+        options.put("--context=<ctx>", "JSON-LD expand context when using JSON input");
+        options.put("Graph tool options", null);
+        options.put("--clean", "Wipe the graph contents before starting");
+        options.put("--skip-rules", "Skip application of BDIO normalization rules");
+        options.put("--onGraphComplete", "Register an onGraphComplete listener (can be applied multiple times)");
+        options.put("Frequently used properties", null);
+        options.put("gremlin.tinkergraph.graphFormat",
+                "Format used to persist TinkerGraph (graphml, graphson, gryo, " + BlackDuckIo.Builder.class.getName() + ")");
+        options.put("gremlin.tinkergraph.graphLocation", "File location used to persist TinkerGraph");
+        options.put("jdbc.url", "URL of the database (e.g. 'jdbc:postgresql://localhost:5432/bdio')");
+        options.put("jdbc.username", "Database username");
+        options.put("jdbc.password", "Database password");
+        options.put("bdio.metadataLabel", "BDIO metadata vertex label");
+        options.put("bdio.identifierKey", "JSON-LD identifier vertex property");
+        options.put("bdio.unknownKey", "Vertex property for unknown JSON-LD data");
+        options.put("bdio.implicitKey", "Record implicitly created vertices");
+        printOptionHelp(options);
     }
 
     @Override
@@ -260,6 +285,9 @@ public class GraphTool extends Tool {
                         .orElse(Collections.emptyMap())
                         .forEach(graphTool::setProperty);
                 args = removeFirst(arg, args);
+            } else if (arg.startsWith("--context=")) {
+                optionValue(arg).ifPresent(graphTool::setExpandContext);
+                args = removeFirst(arg, args);
             }
         }
         return args;
@@ -269,7 +297,7 @@ public class GraphTool extends Tool {
      * These are the options with arguments handled by {@link #parseGraphConfigurationArguments(String[], GraphTool)}.
      */
     public static Set<String> graphConfigurationOptionsWithArgs() {
-        return ImmutableSet.of("--graph", "--config", "-D");
+        return ImmutableSet.of("--graph", "--config", "-D", "--context");
     }
 
     @Override
@@ -314,9 +342,10 @@ public class GraphTool extends Tool {
                     BlackDuckIoCore bdio = bdioCore;
 
                     // Try to determine the expansion context by looking at the input URI
-                    Object expandContext = expandContext(input.getKey());
-                    if (expandContext != null) {
-                        bdio = bdio.withExpandContext(expandContext);
+                    Optional<Object> expandContext = getExpandContext(input.getKey());
+                    if (expandContext.isPresent()) {
+                        // REMEMBER `bdio.with*` RETURNS A NEW INSTANCE!
+                        bdio = bdio.withExpandContext(expandContext.get());
                     }
 
                     // If we have multiple inputs, make sure each one gets it's own partition
@@ -349,6 +378,26 @@ public class GraphTool extends Tool {
         }
     }
 
+    /**
+     * Returns the expansion context given the supplied identifier.
+     */
+    protected Optional<Object> getExpandContext(URI id) {
+        return Optional.ofNullable(id)
+                .flatMap(uri -> Optional.ofNullable(uri.getPath()))
+                .map(Bdio.ContentType::forFileName)
+                .map(c -> {
+                    if (c != Bdio.ContentType.JSON) {
+                        return c;
+                    } else {
+                        if (expandContext == null) {
+                            printDebugMessage("Using default BDIO context for JSON%n");
+                            expandContext = Bdio.Context.DEFAULT;
+                        }
+                        return expandContext;
+                    }
+                });
+    }
+
     private PartitionStrategy multiInputPartition(URI input, Configuration configuration) {
         Configuration inputConfig = new CompositeConfiguration(Collections.singleton(configuration.subset("bdio.partitionStrategy")));
         inputConfig.setProperty("bdio.partitionStrategy.writePartition", input.toString());
@@ -378,21 +427,6 @@ public class GraphTool extends Tool {
             // TODO Use reflection to create a consumer?
             throw new UnsupportedOperationException("unable to create listener: " + listener);
         }
-    }
-
-    /**
-     * Returns the expansion context given the supplied identifier.
-     */
-    @Nullable
-    protected static Object expandContext(URI id) {
-        Object expandContext;
-        if (id != null && id.getPath() != null) {
-            Bdio.ContentType contentType = Bdio.ContentType.forFileName(id.getPath());
-            expandContext = contentType != Bdio.ContentType.JSON ? contentType : null;
-        } else {
-            expandContext = null;
-        }
-        return expandContext;
     }
 
     /**
