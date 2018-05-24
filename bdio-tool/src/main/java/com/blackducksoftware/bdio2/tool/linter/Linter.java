@@ -315,7 +315,10 @@ public final class Linter {
         // TODO More then two license edges that are not all the same type
         // TODO Multiple canonical edges (e.g. "x -c-> y -c-> z" instead of "x -c-> z")
         // TODO Unreferenced/disconnected vertices
+        // TODO Missing version number on primary publisher product
+        // TODO Explicit use of the legacy publisher identifiers
         // TODO Unsupported "range" values (e.g. using "chars" without an encoding)
+        // TODO Files that are "above" or "outside" the base directory
         return Stream.<Rule<?>> builder()
                 .add(new DataPropertyRange())
                 .add(new Domain())
@@ -327,7 +330,6 @@ public final class Linter {
                 .add(new ObjectPropertyRange())
                 .add(new SemanticRules())
                 .add(new SingleRoot())
-                .add(new UnreferencedNode())
                 .add(new ValidFilePath())
                 .add(new ValidIdentifier())
                 .build();
