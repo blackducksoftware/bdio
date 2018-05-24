@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -46,7 +45,6 @@ import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.HashMultiset;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.TreeMultiset;
 import com.google.common.io.ByteSource;
@@ -111,11 +109,8 @@ public class LintTool extends AbstractGraphTool {
     }
 
     @Override
-    protected Set<String> optionsWithArgs() {
-        return ImmutableSet.<String> builder()
-                .addAll(super.optionsWithArgs())
-                .add("--max-violations")
-                .build();
+    protected boolean isOptionWithArgs(String option) {
+        return super.isOptionWithArgs(option) || option.equals("--max-violations");
     }
 
     @Override

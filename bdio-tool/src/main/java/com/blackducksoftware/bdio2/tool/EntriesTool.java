@@ -26,7 +26,6 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -35,7 +34,6 @@ import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.EmitterFactory;
 import com.blackducksoftware.common.base.ExtraStrings;
 import com.github.jsonldjava.utils.JsonUtils;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.io.ByteSource;
 
@@ -87,8 +85,8 @@ public class EntriesTool extends Tool {
     }
 
     @Override
-    protected Set<String> optionsWithArgs() {
-        return ImmutableSet.of("--exec");
+    protected boolean isOptionWithArgs(String option) {
+        return super.isOptionWithArgs(option) || option.equals("--exec");
     }
 
     @Override

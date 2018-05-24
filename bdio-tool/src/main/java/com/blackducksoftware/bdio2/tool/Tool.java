@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.IntConsumer;
 
 import javax.annotation.Nullable;
@@ -52,7 +51,6 @@ import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteSink;
@@ -202,11 +200,10 @@ public abstract class Tool implements Runnable {
     public final Tool parseArgs(String[] args) {
         try {
             // Normalize the options with arguments (e.g. ['-foo', 'bar'] becomes ['-foo=bar'])
-            Set<String> optionsWithArgs = optionsWithArgs();
             List<String> normalizedArgs = new ArrayList<>(args.length);
             for (int i = 0; i < args.length; ++i) {
                 String arg = args[i];
-                if (optionsWithArgs.contains(arg)) {
+                if (isOptionWithArgs(arg)) {
                     if (i < args.length - 1 && !args[i + 1].startsWith("-")) {
                         // There is another arg available and it doesn't look like an option...
                         normalizedArgs.add(arg + '=' + args[++i]);
@@ -283,13 +280,13 @@ public abstract class Tool implements Runnable {
     }
 
     /**
-     * Returns the set of options that have arguments. This should be overridden by subclasses, each option should
-     * include any expected "-" or "--". Note that any argument found in this set will automatically be concatenated
-     * with the following argument (delimited by '=') when passed into {@link #parseArguments(String[])}. This also
-     * means that users can choose between `--foo bar` or `--foo=bar` from the shell.
+     * Checks to see if an option has arguments. This should be overridden by subclasses, each option should include any
+     * expected "-" or "--". Note that any argument matched by this test will automatically be concatenated with the
+     * following argument (delimited by '=') when passed into {@link #parseArguments(String[])}. This also means that
+     * users can choose between `--foo bar` or `--foo=bar` from the shell.
      */
-    protected Set<String> optionsWithArgs() {
-        return ImmutableSet.of();
+    protected boolean isOptionWithArgs(String option) {
+        return false;
     }
 
     /**

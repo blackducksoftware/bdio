@@ -17,14 +17,12 @@ package com.blackducksoftware.bdio2.tool;
 
 import java.io.File;
 import java.net.URI;
-import java.util.Set;
 
 import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 
-import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteSource;
 
 /**
@@ -79,8 +77,8 @@ public abstract class AbstractGraphTool extends Tool {
     }
 
     @Override
-    protected Set<String> optionsWithArgs() {
-        return ImmutableSet.of("--context");
+    protected boolean isOptionWithArgs(String option) {
+        return super.isOptionWithArgs(option) || option.equals("--context");
     }
 
     @Override

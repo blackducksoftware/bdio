@@ -35,7 +35,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.structure.Graph;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 
 /**
@@ -48,6 +47,12 @@ public class TreeTool extends AbstractFileTool {
     public static void main(String[] args) {
         new TreeTool(null).parseArgs(args).run();
     }
+
+    // TODO We should support `ls` like output
+    // TODO We should allow starting from different points in the tree
+    // TODO We should support `find` like syntax for limiting the output
+    // TODO dircolors support? e.g. look at $LS_COLORS env...
+    // TODO Remember Magpie has fnmatch exclude file matching (not accessible, but...)
 
     // TODO -p Print the protections for each file.
     // TODO -u Displays file owner or UID number.
@@ -164,8 +169,8 @@ public class TreeTool extends AbstractFileTool {
     }
 
     @Override
-    protected Set<String> optionsWithArgs() {
-        return ImmutableSet.of("-L");
+    protected boolean isOptionWithArgs(String option) {
+        return super.isOptionWithArgs(option) || option.equals("-L");
     }
 
     @Override

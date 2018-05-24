@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -37,7 +36,6 @@ import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.blackducksoftware.common.net.Hostname;
 import com.blackducksoftware.common.value.ProductList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteSink;
 import com.google.common.io.ByteSource;
 
@@ -67,8 +65,8 @@ public class ConcatenateTool extends Tool {
     }
 
     @Override
-    protected Set<String> optionsWithArgs() {
-        return ImmutableSet.of("--output");
+    protected boolean isOptionWithArgs(String option) {
+        return super.isOptionWithArgs(option) || option.equals("--output");
     }
 
     public void setOutput(ByteSink output) {

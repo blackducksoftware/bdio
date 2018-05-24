@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
@@ -51,7 +50,6 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteSource;
 import com.google.common.io.Resources;
 import com.sun.net.httpserver.HttpExchange;
@@ -246,12 +244,8 @@ public class VizTool extends AbstractGraphTool {
     }
 
     @Override
-    protected Set<String> optionsWithArgs() {
-        return ImmutableSet.<String> builder()
-                .addAll(super.optionsWithArgs())
-                .addAll(GraphTool.graphConfigurationOptionsWithArgs())
-                .add("--port")
-                .build();
+    protected boolean isOptionWithArgs(String option) {
+        return super.isOptionWithArgs(option) || GraphTool.isGraphConfigurationOptionWithArgs(option) || option.equals("--port");
     }
 
     @Override

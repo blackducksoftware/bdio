@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 
@@ -61,7 +60,6 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Splitter.MapSplitter;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteSource;
 
 /**
@@ -229,11 +227,8 @@ public class GraphTool extends Tool {
     }
 
     @Override
-    protected Set<String> optionsWithArgs() {
-        return ImmutableSet.<String> builder()
-                .addAll(graphConfigurationOptionsWithArgs())
-                .add("--onGraphComplete")
-                .build();
+    protected boolean isOptionWithArgs(String option) {
+        return super.isOptionWithArgs(option) || isGraphConfigurationOptionWithArgs(option) || option.equals("--onGraphComplete");
     }
 
     @Override
@@ -296,8 +291,8 @@ public class GraphTool extends Tool {
     /**
      * These are the options with arguments handled by {@link #parseGraphConfigurationArguments(String[], GraphTool)}.
      */
-    public static Set<String> graphConfigurationOptionsWithArgs() {
-        return ImmutableSet.of("--graph", "--config", "-D", "--context");
+    protected static boolean isGraphConfigurationOptionWithArgs(String option) {
+        return option.equals("--graph") || option.equals("--config") || option.equals("-D") || option.equals("--context");
     }
 
     @Override
