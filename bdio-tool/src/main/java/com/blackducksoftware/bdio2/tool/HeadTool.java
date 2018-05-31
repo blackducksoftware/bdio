@@ -29,6 +29,7 @@ import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
+import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.io.ByteSource;
 
 import io.reactivex.Flowable;
@@ -44,6 +45,8 @@ public class HeadTool extends Tool {
     public static void main(String[] args) {
         new HeadTool(null).parseArgs(args).run();
     }
+
+    // TODO There should be a separate tool that can generate metadata using environment variables and other information
 
     private List<ByteSource> inputs = new ArrayList<>();
 
@@ -109,7 +112,9 @@ public class HeadTool extends Tool {
             printJson(metadata);
         } else {
             metadata.forEach((k, v) -> {
-                printOutput("%s = %s%n", formatKey(k), formatValue(k, v));
+                if (!k.equals(JsonLdConsts.CONTEXT)) {
+                    printOutput("%s = %s%n", formatKey(k), formatValue(k, v));
+                }
             });
         }
         printOutput("%n%n");
