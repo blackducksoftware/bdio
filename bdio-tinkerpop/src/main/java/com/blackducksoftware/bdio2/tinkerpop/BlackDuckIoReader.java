@@ -21,6 +21,7 @@ import static com.google.common.base.Throwables.throwIfUnchecked;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -105,7 +106,9 @@ public final class BlackDuckIoReader implements GraphReader {
             throwIfInstanceOf(failure, IOException.class);
             throwIfUnchecked(failure);
             if (failure instanceof NodeDoesNotExistException) {
-                throw new BlackDuckIoReadGraphException("Failed to load BDIO due to invalid references in the input", e.getCause());
+                throw new BlackDuckIoReadGraphException("Failed to load BDIO due to invalid references in the input", failure);
+            } else if (failure instanceof SQLException) {
+                throw new BlackDuckIoReadGraphException("Failed to load BDIO due to a database error", failure);
             }
 
             // Add a check above and throw a BlackDuckIoReadGraphException with a nice message instead
