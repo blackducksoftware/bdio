@@ -180,7 +180,7 @@ public class GraphTool extends Tool {
         printOutput("usage: %s [--graph=tinkergraph|sqlg|<class>] %n", name());
         printOutput("          [--config=<file>] [-D=<key>=<value>]%n");
         printOutput("          [--context=bdio|<uri>]%n");
-        printOutput("          [--clean] [--skip-rules]%n");
+        printOutput("          [--clean] [--skip-rules] [--init-schema]%n");
         printOutput("          [--onGraphComplete=dump|summary|<class>]%n");
         printOutput("%n");
     }
@@ -196,6 +196,7 @@ public class GraphTool extends Tool {
         options.put("Graph tool options", null);
         options.put("--clean", "Wipe the graph contents before starting");
         options.put("--skip-rules", "Skip application of BDIO normalization rules");
+        options.put("--init-schema", "Initialize using the full BDIO schema");
         options.put("--onGraphComplete", "Register an onGraphComplete listener (can be applied multiple times)");
         options.put("Frequently used properties", null);
         options.put("gremlin.tinkergraph.graphFormat",
@@ -241,6 +242,9 @@ public class GraphTool extends Tool {
                 args = removeFirst(arg, args);
             } else if (arg.equals("--skip-rules")) {
                 setSkipApplySemanticRules(true);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("--init-schema")) {
+                setInitializeSchema(true);
                 args = removeFirst(arg, args);
             } else if (arg.startsWith("--onGraphComplete=")) {
                 optionValue(arg).map(GraphTool::listenerForString).ifPresent(this::onGraphComplete);
