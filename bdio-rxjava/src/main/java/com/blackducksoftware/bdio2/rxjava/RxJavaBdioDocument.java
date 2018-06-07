@@ -16,6 +16,7 @@
 package com.blackducksoftware.bdio2.rxjava;
 
 import java.io.InputStream;
+import java.util.Map;
 
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -73,8 +74,8 @@ public final class RxJavaBdioDocument extends BdioDocument {
 
     @Override
     public Flowable<BdioMetadata> metadata(Publisher<Object> inputs) {
-        return Flowable.fromPublisher(inputs)
-                .map(BdioDocument::toMetadata)
+        return jsonLd(Flowable.fromPublisher(inputs).map(BdioDocument::toMetadata))
+                .expand().flatMapIterable(x -> x).cast(Map.class)
                 .onErrorReturn(BdioMetadata::new)
                 .reduce(new BdioMetadata(), BdioMetadata::merge)
                 .toFlowable();
