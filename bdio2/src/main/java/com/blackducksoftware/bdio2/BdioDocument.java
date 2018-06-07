@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -134,6 +135,20 @@ public abstract class BdioDocument {
             }
         }
         return ImmutableMap.of();
+    }
+
+    /**
+     * Unfolds expanded JSON-LD by returning only the {@code Map} instances, cast to have string keys.
+     */
+    @SuppressWarnings("unchecked")
+    protected static Iterable<Map<String, Object>> unfoldExpand(List<Object> expanded) {
+        if (expanded.isEmpty() || (expanded.size() == 1 && expanded.get(0) instanceof Map<?, ?>)) {
+            // This is probably the most common case, there is no need to create extra overhead when a cast will do
+            return (Iterable<Map<String, Object>>) ((Object) expanded);
+        } else {
+            // Filter the whole list with our danger casts
+            return () -> expanded.stream().flatMap(x -> x instanceof Map<?, ?> ? Stream.of((Map<String, Object>) x) : Stream.empty()).iterator();
+        }
     }
 
     /**

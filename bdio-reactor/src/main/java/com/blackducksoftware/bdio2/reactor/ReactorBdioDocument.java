@@ -16,7 +16,6 @@
 package com.blackducksoftware.bdio2.reactor;
 
 import java.io.InputStream;
-import java.util.Map;
 
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -74,7 +73,7 @@ public class ReactorBdioDocument extends BdioDocument {
     @Override
     public Flux<BdioMetadata> metadata(Publisher<Object> inputs) {
         return jsonLd(Flux.from(inputs).map(BdioDocument::toMetadata))
-                .expand().flatMapIterable(x -> x).cast(Map.class)
+                .expand().flatMapIterable(BdioDocument::unfoldExpand)
                 .onErrorResume(t -> Flux.just(new BdioMetadata(t)))
                 .reduce(new BdioMetadata(), BdioMetadata::merge)
                 .flux();
