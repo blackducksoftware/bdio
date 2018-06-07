@@ -302,7 +302,7 @@ public class GraphTool extends Tool {
         // Open the graph and update the BDIO specific configuration if necessary
         Graph graph = GraphFactory.open(configuration);
         if (actions.contains(Action.CLEAN)) {
-            cleanGraph(graph);
+            graph = cleanGraph(graph);
         }
         if (!graph.features().vertex().supportsUserSuppliedIds() && !configuration.containsKey("bdio.identifierKey")) {
             configuration.setProperty("bdio.identifierKey", DEFAULT_IDENTIFIER_KEY);
@@ -401,14 +401,15 @@ public class GraphTool extends Tool {
         return PartitionStrategy.create(inputConfig);
     }
 
-    private void cleanGraph(Graph graph) throws Exception {
+    private Graph cleanGraph(Graph graph) throws Exception {
         if (graph instanceof TinkerGraph) {
             ((TinkerGraph) graph).clear();
+            return graph;
         } else if (graph instanceof SqlgGraph) {
             SqlgUtil.dropDb((SqlgGraph) graph);
             graph.tx().commit();
             graph.close();
-            graph = GraphFactory.open(configuration);
+            return GraphFactory.open(configuration);
         } else {
             throw new UnsupportedOperationException("unable to clean graph: " + graph.getClass().getSimpleName());
         }
