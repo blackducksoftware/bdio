@@ -16,6 +16,8 @@
 package com.blackducksoftware.bdio2.tool.linter;
 
 import java.nio.charset.Charset;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -38,12 +40,21 @@ public class DataPropertyRange implements RawNodeRule {
             String key = dataProperty.toString();
             try {
                 // Use the value object mapper to validate data properties
-                Object value = valueObjectMapper.fromFieldValue(key, input.get(key));
+                Object rawValue = valueObjectMapper.fromFieldValue(key, input.get(key));
+
+                Collection<?> values;
+                if (rawValue instanceof Collection<?>) {
+                    values = (Collection<?>) rawValue;
+                } else if (rawValue != null) {
+                    values = Collections.singleton(rawValue);
+                } else {
+                    values = Collections.emptyList();
+                }
 
                 // TODO How do we detect invalid reference or embedded objects?
 
                 // Check other fields which may have more restrictive rules
-                if (value != null) {
+                for (Object value : values) {
                     if (key.equals(Bdio.DataProperty.fileSystemType.toString())) {
                         FileSystemType.from(value);
                     } else if (key.equals(Bdio.DataProperty.path.toString())
@@ -56,7 +67,7 @@ public class DataPropertyRange implements RawNodeRule {
                     }
                 }
             } catch (Exception e) {
-                result.error("Invalid", e, key);
+                result.error("Invalid", e, key, input.get(key));
             }
         }
 

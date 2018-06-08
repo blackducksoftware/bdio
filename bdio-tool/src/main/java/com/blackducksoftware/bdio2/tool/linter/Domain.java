@@ -22,7 +22,6 @@ import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
 import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
-import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Enums;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
@@ -58,14 +57,13 @@ public class Domain implements RawNodeRule {
     public Stream<Violation> validate(Map<String, Object> input) {
         ViolationBuilder result = new ViolationBuilder(this, input);
 
-        Object type = input.get(JsonLdConsts.TYPE);
-        if (type != null) {
+        RawNodeRule.types(input).forEach(type -> {
             for (String key : input.keySet()) {
                 if (knownProperties.contains(key) && !allowedProperties.containsEntry(type, key)) {
                     result.error("PropertyNotAllowed", type, key);
                 }
             }
-        }
+        });
 
         return result.build();
     }

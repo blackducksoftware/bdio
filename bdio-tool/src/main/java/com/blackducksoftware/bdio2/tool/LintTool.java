@@ -137,7 +137,8 @@ public class LintTool extends AbstractGraphTool {
                 BdioOptions.Builder options = new BdioOptions.Builder();
                 graphTool().getExpandContext(input.getKey()).ifPresent(options::expandContext);
                 RxJavaBdioDocument doc = new RxJavaBdioDocument(options.build());
-                doc.read(input.getValue().openStream())
+                doc.jsonLd(doc.read(input.getValue().openStream()))
+                        .expand().flatMapIterable(x -> x)
                         .doOnNext(this::executeWithRawEntry)
                         .flatMapIterable(BdioDocument::toGraphNodes)
                         .doOnNext(this::executeWithRawNode)

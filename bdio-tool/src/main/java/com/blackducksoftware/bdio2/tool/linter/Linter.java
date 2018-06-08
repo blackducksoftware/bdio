@@ -19,6 +19,7 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.text.MessageFormat;
+import java.util.Collection;
 import java.util.ListResourceBundle;
 import java.util.Map;
 import java.util.MissingResourceException;
@@ -129,6 +130,20 @@ public final class Linter {
      * A linter rule that looks at each BDIO node.
      */
     public interface RawNodeRule extends Rule<Map<String, Object>> {
+
+        /**
+         * Returns types associated with the input. Typically there is only one type.
+         */
+        static Stream<String> types(Map<String, Object> input) {
+            Object type = input.get(JsonLdConsts.TYPE);
+            if (type instanceof String) {
+                return Stream.of((String) type);
+            } else if (type instanceof Collection<?>) {
+                return ((Collection<?>) type).stream().map(Object::toString);
+            } else {
+                return Stream.empty();
+            }
+        }
     }
 
     /**
@@ -277,16 +292,16 @@ public final class Linter {
         @Override
         protected Object[][] getContents() {
             return new Object[][] {
-                    { "DataPropertyRange.Invalid", "Invalid value for {}" },
+                    { "DataPropertyRange.Invalid", "Invalid value for {0}: {1}" },
                     { "DataPropertyRange.UnsupportedCharset", "Unsupported encoding" },
-                    { "Domain.PropertyNotAllowed", "Property not allowed on {}: {}" },
+                    { "Domain.PropertyNotAllowed", "Property not allowed on {0}: {1}" },
                     { "ImpliedFileSystemTypeConflict.Parent", "Files with children should have a directory type" },
                     { "ImpliedFileSystemTypeConflict.ByteCount", "Files with sizes should have a regular type" },
                     { "ImpliedFileSystemTypeConflict.LinkPath", "Files with link paths should have symbolic link type" },
                     { "ImpliedFileSystemTypeConflict.Encoding", "Files with encodings should have text type" },
                     { "Metadata.DefaultNamedGraphIdentififer", "Named graph has default identifier" },
                     { "Metadata.MismatchedGraphLabel", "BDIO entries have different labels" },
-                    { "Metadata.PropertyNotAllowed", "Property not allowed on @graph: {}" },
+                    { "Metadata.PropertyNotAllowed", "Property not allowed on @graph: {0}" },
                     { "MissingFilePath.PathNotPresent", "File is missing path property" },
                     { "MissingProjectName.HasVersion", "Project has version but no name" },
                     { "MissingProjectName.NameNotPresent", "Project with no name should be a FileCollection" },
@@ -319,6 +334,7 @@ public final class Linter {
         // TODO Explicit use of the legacy publisher identifiers
         // TODO Unsupported "range" values (e.g. using "chars" without an encoding)
         // TODO Files that are "above" or "outside" the base directory
+        // TODO Namespaced values with no namespace definition
         return Stream.<Rule<?>> builder()
                 .add(new DataPropertyRange())
                 .add(new Domain())
