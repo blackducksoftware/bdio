@@ -15,8 +15,11 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.umlg.sqlg.structure.SqlgGraph;
@@ -51,6 +54,43 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
         if (supportsBatchMode) {
             graph().tx().normalBatchModeOn();
         }
+    }
+
+    @Override
+    public Object[] getNodeProperties(Map<String, Object> node, boolean includeSpecial) {
+        Object[] result = super.getNodeProperties(node, includeSpecial);
+
+        // Until issue #294 is resolved we cannot include ZonedDateTime instances when normal batch mode is enabled
+
+        // The bug impacts batch mode when one vertex has the value and the other does not; e.g. one file has a last
+        // modified time and the other does not. Since we cannot inspect the entire vertex cache to determine if we need
+        // to strip ZonedDateTime instances (or really any property type with a postfix, we just don't use `Period` or
+        // `Duration`), the best we can do is make a guess based on the property values we see.
+
+        // If `includeSpecial == false` we are most likely processing metadata, there will only be a single vertex
+        // created for that vertex label therefore the bug will not occur.
+
+        // Otherwise only 'Annotation', 'File' and 'Vulnerability' are affected
+
+        if (includeSpecial && graph().tx().isInNormalBatchMode() && hasZonedDateTime(result)) {
+            return IntStream.range(0, result.length)
+                    .filter(i -> i % 2 == 0)
+                    .filter(i -> !(result[i + 1] instanceof ZonedDateTime))
+                    .flatMap(i -> IntStream.of(i, i + 1))
+                    .mapToObj(i -> result[i])
+                    .toArray();
+        }
+
+        return result;
+    }
+
+    private static boolean hasZonedDateTime(Object[] keyValuePairs) {
+        for (int i = 1; i < keyValuePairs.length; i += 2) {
+            if (keyValuePairs[i] instanceof ZonedDateTime) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }
