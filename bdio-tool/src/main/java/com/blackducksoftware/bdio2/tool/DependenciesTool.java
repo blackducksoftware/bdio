@@ -20,16 +20,19 @@ import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
@@ -39,7 +42,9 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.common.base.ExtraOptionals;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Sets;
 
 /**
  * Prints a dependency tree.
@@ -105,7 +110,8 @@ public class DependenciesTool extends AbstractGraphTool {
             return stringValue(component, Bdio.DataProperty.identifier);
         }
 
-        public Iterator<Dependency> children(GraphTraversalSource g, Predicate<String> scopeFilter) {
+        // TODO This should accept a single scope value to filter on
+        public Iterator<Dependency> children(GraphTraversalSource g) {
             return g.V(component)
                     .out(Bdio.ObjectProperty.dependency.name()).as("dependency")
                     .out(Bdio.ObjectProperty.dependsOn.name())
@@ -134,6 +140,60 @@ public class DependenciesTool extends AbstractGraphTool {
     }
 
     /**
+     * An iterator over transient dependencies. Used to detect cyclic dependencies.
+     */
+    private static class DependencyIterator implements Iterator<Dependency> {
+
+        private static final Iterator<Dependency> CYCLIC_DEPENDENCY_ITERATOR = new Iterator<Dependency>() {
+            @Override
+            public boolean hasNext() {
+                return false;
+            }
+
+            @Override
+            public Dependency next() {
+                throw new NoSuchElementException();
+            }
+        };
+
+        private final Iterator<Dependency> delegate;
+
+        private final Set<String> distinctPathElements;
+
+        public DependencyIterator(Dependency root) {
+            this(Iterators.singletonIterator(root), ImmutableSet.of());
+        }
+
+        private DependencyIterator(Iterator<Dependency> delegate, Set<String> distinctPathElements) {
+            this.delegate = Objects.requireNonNull(delegate);
+            this.distinctPathElements = ImmutableSet.copyOf(distinctPathElements);
+        }
+
+        public DependencyIterator children(Dependency parent, Supplier<Iterator<Dependency>> children) {
+            if (distinctPathElements.contains(parent.id())) {
+                return new DependencyIterator(CYCLIC_DEPENDENCY_ITERATOR, distinctPathElements);
+            } else {
+                return new DependencyIterator(children.get(), Sets.union(distinctPathElements, Collections.singleton(parent.id())));
+            }
+        }
+
+        public boolean isCyclicDependency() {
+            return delegate == CYCLIC_DEPENDENCY_ITERATOR;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return delegate.hasNext();
+        }
+
+        @Override
+        public Dependency next() {
+            return delegate.next();
+        }
+
+    }
+
+    /**
      * (D)ependency (T)ool (T)okens.
      */
     private enum DTT {
@@ -141,7 +201,13 @@ public class DependenciesTool extends AbstractGraphTool {
         _root,
     }
 
-    // TODO Options to limit by scope
+    private Predicate<String> scopeFilter = scope -> true;
+
+    private int level = Integer.MAX_VALUE;
+
+    private boolean noReport;
+
+    private boolean showAllDependencies;
 
     private boolean showIdentifiers;
 
@@ -151,6 +217,22 @@ public class DependenciesTool extends AbstractGraphTool {
         super(name);
         graphTool().setProperty("bdio.metadataLabel", DTT._Metadata.name());
         graphTool().setProperty("bdio.rootLabel", DTT._root.name());
+    }
+
+    public void setScopeFilter(Predicate<String> scopeFilter) {
+        this.scopeFilter = scopeFilter;
+    }
+
+    public void setLevel(int level) {
+        this.level = level;
+    }
+
+    public void setNoReport(boolean noReport) {
+        this.noReport = noReport;
+    }
+
+    public void setShowAllDependencies(boolean showAllDependencies) {
+        this.showAllDependencies = showAllDependencies;
     }
 
     public void setShowIdentifiers(boolean showIdentifiers) {
@@ -163,25 +245,39 @@ public class DependenciesTool extends AbstractGraphTool {
 
     @Override
     protected void printUsage() {
-        printOutput("usage: %s [-in] [file ...]%n", name());
+        printOutput("usage: %s [-ain] [-L <level>] [--noreport] [file ...]%n", name());
     }
 
     @Override
     protected void printHelp() {
         Map<String, String> options = new LinkedHashMap<>();
+        options.put("-a", "Do not skip previously listed dependencies.");
         options.put("-i", "Print identifiers for each dependency.");
         options.put("-n", "Include the namespace with the dependency identifier.");
+        options.put("-L level", "Descend only level dependencies deep.");
+        options.put("--noreport", "Turn off dependency count at end of listing.");
         printOptionHelp(options);
+    }
+
+    @Override
+    protected boolean isOptionWithArgs(String option) {
+        return super.isOptionWithArgs(option) || option.equals("-L");
     }
 
     @Override
     protected Tool parseArguments(String[] args) throws Exception {
         for (String arg : options(args)) {
-            if (arg.equals("-i")) {
+            if (arg.equals("-a")) {
+                setShowAllDependencies(true);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("-i")) {
                 setShowIdentifiers(true);
                 args = removeFirst(arg, args);
             } else if (arg.equals("-n")) {
                 setShowNamespaces(true);
+                args = removeFirst(arg, args);
+            } else if (arg.startsWith("-L=")) {
+                optionValue(arg).map(Integer::valueOf).ifPresent(this::setLevel);
                 args = removeFirst(arg, args);
             }
         }
@@ -191,16 +287,23 @@ public class DependenciesTool extends AbstractGraphTool {
     @Override
     protected void executeWithGraph(Graph graph) {
         GraphTraversalSource g = graph.traversal();
-        Deque<Iterator<Dependency>> dependencies = new ArrayDeque<>();
+        boolean dependenciesOmitted = false;
+
+        // TODO Get the list of distinct scopes (sorted?) and filtered using scopeFilter and loop
+        // TODO Print out a header for each scope
+
+        Deque<DependencyIterator> dependencies = new ArrayDeque<>();
         Set<Integer> childrenAtDepths = new HashSet<>();
+        Set<String> distinctDependencies = new HashSet<>(); // TODO Track this for all scopes also?
 
         // Find the base file in the graph
-        dependencies.addFirst(root(g).map(Iterators::singletonIterator)
+        dependencies.addFirst(root(g).map(DependencyIterator::new)
                 .orElseThrow(illegalState("No root object found")));
 
         while (!dependencies.isEmpty()) {
-            Iterator<Dependency> i = dependencies.getLast();
+            DependencyIterator i = dependencies.getLast();
             Dependency dep = i.next();
+
             if (i.hasNext()) {
                 childrenAtDepths.add(dep.parentDepth());
             } else {
@@ -208,12 +311,34 @@ public class DependenciesTool extends AbstractGraphTool {
                 dependencies.removeLast();
             }
 
-            Iterator<Dependency> children = dep.children(g, x -> true);
-            if (children.hasNext()) {
-                dependencies.addLast(children);
+            if (dep.parentDepth() == level) {
+                continue;
             }
 
-            formatDependency(dep, childrenAtDepths, i.hasNext());
+            DependencyIterator children = i.children(dep, () -> dep.children(g));
+            boolean showChildren = !children.isCyclicDependency();
+            if (showChildren) {
+                if (children.hasNext()) {
+                    showChildren = distinctDependencies.add(dep.id()) || showAllDependencies;
+                    if (showChildren) {
+                        dependencies.addLast(children);
+                    } else {
+                        dependenciesOmitted = true;
+                    }
+                }
+            } else {
+                dependenciesOmitted = true;
+            }
+
+            formatDependency(dep, childrenAtDepths, i.hasNext(), !showChildren);
+        }
+
+        if (!noReport) {
+            // TODO Track the count of direct dependencies also?
+            printOutput("%n%d unique dependencies%n", distinctDependencies.size());
+            if (dependenciesOmitted) {
+                printOutput("%n(*) - dependencies omitted (listed previously)%n");
+            }
         }
     }
 
@@ -225,7 +350,7 @@ public class DependenciesTool extends AbstractGraphTool {
     }
 
     @SuppressWarnings("OrphanedFormatString")
-    private void formatDependency(Dependency dep, Set<Integer> childrenAtDepths, boolean hasMoreSiblings) {
+    private void formatDependency(Dependency dep, Set<Integer> childrenAtDepths, boolean hasMoreSiblings, boolean hasHiddenChildren) {
         StringBuilder rowFormat = new StringBuilder();
         List<Object> arguments = new ArrayList<>();
 
@@ -255,6 +380,10 @@ public class DependenciesTool extends AbstractGraphTool {
                 rowFormat.append(" %s");
                 arguments.add(version);
             });
+        }
+
+        if (hasHiddenChildren) {
+            rowFormat.append(" (*)");
         }
 
         printOutput(rowFormat.append("%n").toString(), arguments.toArray());
