@@ -201,8 +201,6 @@ public class DependenciesTool extends AbstractGraphTool {
         _root,
     }
 
-    private Predicate<String> scopeFilter = scope -> true;
-
     private int level = Integer.MAX_VALUE;
 
     private boolean noReport;
@@ -217,10 +215,6 @@ public class DependenciesTool extends AbstractGraphTool {
         super(name);
         graphTool().setProperty("bdio.metadataLabel", DTT._Metadata.name());
         graphTool().setProperty("bdio.rootLabel", DTT._root.name());
-    }
-
-    public void setScopeFilter(Predicate<String> scopeFilter) {
-        this.scopeFilter = scopeFilter;
     }
 
     public void setLevel(int level) {
