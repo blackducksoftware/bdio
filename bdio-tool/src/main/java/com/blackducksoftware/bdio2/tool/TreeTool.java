@@ -147,7 +147,7 @@ public class TreeTool extends AbstractFileTool {
 
     @Override
     protected void printUsage() {
-        printOutput("usage: %s [-dfisDFQ] [-L level] [--noreport]%n", name());
+        printOutput("usage: %s [-dfisDFQ] [-L level] [--noreport] [file ...]%n", name());
     }
 
     @Override
