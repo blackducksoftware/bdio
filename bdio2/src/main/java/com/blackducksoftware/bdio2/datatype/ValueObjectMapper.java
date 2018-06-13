@@ -19,6 +19,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -39,7 +40,6 @@ import com.blackducksoftware.common.base.ExtraOptionals;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
 
 /**
@@ -131,20 +131,19 @@ public class ValueObjectMapper {
     private final ImmutableSet<String> embeddedTypes;
 
     /**
-     * The keys which should be treated as multi-valued fields.
+     * Function mapping of property keys to the collector used to aggregate the values.
      */
-    private final ImmutableSet<String> multiValueKeys;
-
-    /**
-     * Function for producing a collector when dealing with multi-valued fields.
-     */
-    private final Collector<? super Object, ?, ?> multiValueCollector;
+    private final Function<String, Collector<? super Object, ?, ?>> valueCollector;
 
     private ValueObjectMapper(Builder builder) {
         handlers = ImmutableMap.copyOf(builder.handlers);
         embeddedTypes = ImmutableSet.copyOf(builder.embeddedTypes);
-        multiValueKeys = ImmutableSet.copyOf(builder.multiValueKeys);
-        multiValueCollector = Objects.requireNonNull(builder.multiValueCollector);
+
+        // Build the value collector with a customized multi-value collector
+        Predicate<String> multiValueKeys = ImmutableSet.copyOf(builder.multiValueKeys)::contains;
+        Collector<? super Object, ?, ?> multiValueCollector = Objects.requireNonNull(builder.multiValueCollector);
+        Collector<? super Object, ?, ?> singleValueCollector = Objects.requireNonNull(builder.singleValueCollector);
+        valueCollector = key -> multiValueKeys.test(key) ? multiValueCollector : singleValueCollector;
     }
 
     /**
@@ -152,43 +151,31 @@ public class ValueObjectMapper {
      */
     @Nullable
     public Object fromFieldValue(String key, @Nullable Object input) {
-        if (multiValueKeys.contains(key) && !(input instanceof List<?>)) {
-            return fromFieldValue(Lists.newArrayList(input));
-        } else {
-            return fromFieldValue(input);
-        }
+        return fromFieldValue(input).collect(valueCollector.apply(key));
     }
 
-    /**
-     * Internal implementation; does not require the field key name for forced multi-value checks.
-     */
-    @Nullable
-    private Object fromFieldValue(@Nullable Object input) {
+    private Stream<Object> fromFieldValue(@Nullable Object input) {
         if (input instanceof List<?>) {
             // Recursively process list elements
-            return ((List<?>) input).stream().map(this::fromFieldValue).collect(multiValueCollector);
-        } else if (mappingOf(input, JsonLdConsts.VALUE).isPresent()) {
-            // A map that contains "@value" is a value object we can convert to a Java object
-            Map<?, ?> valueObject = (Map<?, ?>) input;
-            String type = (String) valueObject.get(JsonLdConsts.TYPE);
-            Object value = valueObject.get(JsonLdConsts.VALUE);
-            if (hasCorrectType(type, value)) {
-                // Likely a primitive, JSON-LD deserialization doesn't use any Java type information
-                return value;
-            } else {
-                // Needs coercion to the desired Java type
-                return handlers.getOrDefault(type, DatatypeSupport.Default()).deserialize(value);
+            return ((List<?>) input).stream().flatMap(x -> fromFieldValue(x));
+        } else if (input instanceof Map<?, ?>) {
+            Map<?, ?> mapInput = (Map<?, ?>) input;
+
+            // Simple references
+            if (mapInput.size() == 1 && mapInput.containsKey(JsonLdConsts.ID)) {
+                return Stream.of(mapInput.get(JsonLdConsts.ID));
             }
-        } else {
-            Optional<Object> id = mappingOf(input, JsonLdConsts.ID);
-            if (id.isPresent() && ((Map<?, ?>) input).size() == 1) {
-                // It was simple reference
-                return id.get();
-            } else {
-                // It was a JSON literal or embedded object
-                return input;
+
+            // Value objects
+            Object value = mapInput.get(JsonLdConsts.VALUE);
+            if (value != null) {
+                DatatypeHandler<?> handler = handlerForType(mapInput.get(JsonLdConsts.TYPE));
+                return Stream.of(handler.isInstance(value) ? value : handler.deserialize(value));
             }
         }
+
+        // It was a JSON literal or embedded object
+        return Stream.of(input);
     }
 
     /**
@@ -196,7 +183,7 @@ public class ValueObjectMapper {
      */
     @Nullable
     public Object toValueObject(@Nullable Object value) {
-        if (hasCorrectType(null, value)) {
+        if (handlerForType(null).isInstance(value)) {
             return value;
         } else {
             assert value != null : "null is a primitive";
@@ -249,10 +236,23 @@ public class ValueObjectMapper {
     }
 
     /**
-     * Checks to make sure a value conforms to the expected type.
+     * Returns the datatype handler for the specified type. If the supplied value is a collection, the first type value
+     * for which there exists a registered handler will be used. If no handler can be found, the default datatype
+     * handler will be returned.
      */
-    private boolean hasCorrectType(@Nullable String type, @Nullable Object value) {
-        return handlers.getOrDefault(type, DatatypeSupport.Default()).isInstance(value);
+    private DatatypeHandler<?> handlerForType(@Nullable Object type) {
+        if (type instanceof String) {
+            return handlers.getOrDefault(type, DatatypeSupport.Default());
+        } else if (type instanceof Collection<?>) {
+            for (Object t : ((Collection<?>) type)) {
+                // Note that this will effectively ignore non-string values in the collection
+                DatatypeHandler<?> handler = handlers.get(t);
+                if (handler != null) {
+                    return handler;
+                }
+            }
+        }
+        return DatatypeSupport.Default();
     }
 
     /**
@@ -289,6 +289,8 @@ public class ValueObjectMapper {
 
         private Collector<? super Object, ?, ?> multiValueCollector;
 
+        private Collector<? super Object, ?, ?> singleValueCollector;
+
         public Builder() {
             // Add the standard BDIO datatype handlers
             for (Bdio.Datatype datatype : Bdio.Datatype.values()) {
@@ -302,8 +304,16 @@ public class ValueObjectMapper {
                 }
             }
 
-            // Collect multi-valued fields in an array list
+            // These are the types that BDIO expects to be multi-valued
+            for (Bdio.DataProperty bdioDataProperty : Bdio.DataProperty.values()) {
+                if (bdioDataProperty.container() != Bdio.Container.single) {
+                    multiValueKeys.add(bdioDataProperty.toString());
+                }
+            }
+
+            // Configure the collection behavior based on property cardinality
             multiValueCollector = Collectors.toList();
+            singleValueCollector = Collectors.reducing(null, (a, b) -> a != null ? a : b);
         }
 
         public Builder useDatatypeHandler(String type, DatatypeHandler<?> handler) {
