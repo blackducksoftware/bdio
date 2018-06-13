@@ -109,6 +109,15 @@ public class RxJavaJsonLdProcessing implements BdioDocument.JsonLdProcessing {
 
         @Override
         protected List<Object> applyOnce(Object input, JsonLdOptions options) throws JsonLdError {
+            if (input instanceof Map<?, ?>) {
+                Map<?, ?> inputMap = (Map<?, ?>) input;
+                if (inputMap.size() == 1 && inputMap.containsKey(JsonLdConsts.ID)) {
+                    // Preserve inputs that are a single identifier
+                    List<Object> result = new ArrayList<>();
+                    result.add(new LinkedHashMap<>(inputMap));
+                    return result;
+                }
+            }
             return JsonLdProcessor.expand(input, options);
         }
     }
