@@ -193,7 +193,6 @@ public abstract class BdioDocument {
             // TODO How can we verify these casts? What does the JSON-LD library do?
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> nodeList = (List<Map<String, Object>>) nodes;
-            // TODO Sort these while we have the in memory list?
             return nodeList;
         } else {
             return new ArrayList<>(0);

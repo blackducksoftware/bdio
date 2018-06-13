@@ -229,7 +229,11 @@ class LegacyScanContainerEmitter implements Emitter {
         @Nullable
         public List<Digest> fingerprint() {
             // Be sure to return null instead of empty here because we don't want to serialize the empty list
-            return signatures.isEmpty() ? null : signatures.entrySet().stream()
+            if (signatures.isEmpty()) {
+                return null;
+            }
+
+            return signatures.entrySet().stream()
                     .map(e -> new Digest.Builder().algorithm(algorithmName(e.getKey())).value(e.getValue()).build())
                     .collect(collectingAndThen(toList(), l -> l.isEmpty() ? null : l));
         }

@@ -19,6 +19,7 @@ import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static com.github.jsonldjava.core.JsonLdProcessor.compact;
 import static java.util.Comparator.comparing;
 import static org.apache.tinkerpop.gremlin.structure.Direction.OUT;
+import static org.apache.tinkerpop.gremlin.structure.VertexProperty.Cardinality.single;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -38,7 +39,6 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Graph.Features.VertexFeatures;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 
@@ -119,21 +119,16 @@ class GraphReaderWrapper extends GraphIoWrapper {
         Vertex persisted = map.get(baseVertex);
         if (persisted != null) {
             // Update properties
-            Iterator<VertexProperty<Object>> properties = baseVertex.properties();
-            while (properties.hasNext()) {
-                VertexProperty<Object> vp = properties.next();
-                persisted.property(vertexFeatures.getCardinality(vp.key()), vp.key(), vp.value());
-            }
+            baseVertex.properties().forEachRemaining(vp -> persisted.property(single, vp.key(), vp.value()));
 
             // Update edges
             Iterator<Edge> edges = baseVertex.edges(Direction.OUT);
             if (edges.hasNext()) {
                 // Worst case scenario. We need to get the old key, which means a linear search...
+                // The problem is that `baseVertex` can be used for a lookup, but it's not the actual key
                 for (StarVertex existingUnpersistedVertex : map.keySet()) {
                     if (existingUnpersistedVertex.equals(baseVertex)) {
-                        edges.forEachRemaining(e -> {
-                            existingUnpersistedVertex.addEdge(e.label(), e.inVertex());
-                        });
+                        edges.forEachRemaining(e -> existingUnpersistedVertex.addEdge(e.label(), e.inVertex()));
                         break;
                     }
                 }
@@ -226,6 +221,7 @@ class GraphReaderWrapper extends GraphIoWrapper {
                     .ifPresent(properties);
 
             Optional.ofNullable(node.get(JsonLdConsts.TYPE))
+                    // TODO Validate that the label is a String, we can't support multiple values!
                     .map(label -> Maps.immutableEntry(T.label, label))
                     .ifPresent(properties);
 
