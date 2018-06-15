@@ -44,7 +44,7 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
 
     protected SqlgGraphReaderWrapper(SqlgGraph sqlgGraph, GraphMapper mapper, List<TraversalStrategy<?>> strategies, Optional<Object> expandContext,
             int batchSize) {
-        super(sqlgGraph, mapper, strategies, expandContext, batchSize);
+        super(sqlgGraph, mapper, strategies, expandContext, batchSize != 10_000 ? batchSize : 2_000);
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
     }
 
