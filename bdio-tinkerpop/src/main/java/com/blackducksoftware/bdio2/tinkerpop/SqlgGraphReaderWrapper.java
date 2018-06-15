@@ -32,6 +32,12 @@ import org.umlg.sqlg.structure.SqlgGraph;
 class SqlgGraphReaderWrapper extends GraphReaderWrapper {
 
     /**
+     * Until issue #296 is resolved we cannot flush or commit concurrently because of the potential for interleaving
+     * {@code COPY} statements getting assigned the wrong identifier.
+     */
+    private static final Object flushLock = new Object();
+
+    /**
      * Flag indicating if the graph supports batch mode or not.
      */
     private final boolean supportsBatchMode;
@@ -48,17 +54,26 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
     }
 
     @Override
-    public void flushTx() {
-        if (supportsBatchMode) {
-            graph().tx().flush();
-        }
-    }
-
-    @Override
     public void startBatchTx() {
         // (Re-)enable batch mode if it is supported
         if (supportsBatchMode) {
             graph().tx().normalBatchModeOn();
+        }
+    }
+
+    @Override
+    public void flushTx() {
+        if (supportsBatchMode) {
+            synchronized (flushLock) {
+                graph().tx().flush();
+            }
+        }
+    }
+
+    @Override
+    public void commitTx() {
+        synchronized (flushLock) {
+            super.commitTx();
         }
     }
 
