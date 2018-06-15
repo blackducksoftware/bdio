@@ -85,6 +85,13 @@ class GraphReaderWrapper extends GraphIoWrapper {
     }
 
     /**
+     * Used to flush the current transaction. The default implementation commits the transaction.
+     */
+    public void flushTx() {
+        commitTx();
+    }
+
+    /**
      * Used to initiate batch processing.
      */
     public void startBatchTx() {
@@ -92,12 +99,12 @@ class GraphReaderWrapper extends GraphIoWrapper {
     }
 
     /**
-     * Used to perform batch commits, each invocation increments the mutation count and {@link #commitTx()} is called on
-     * batch boundaries.
+     * Used to perform batch flushing, each invocation increments the mutation count and {@link #flushTx()} is called
+     * on batch boundaries.
      */
-    public void batchCommitTx() {
+    public void batchFlushTx() {
         if (count.incrementAndGet() % batchSize == 0) {
-            commitTx();
+            flushTx();
             startBatchTx();
         }
     }
@@ -140,7 +147,7 @@ class GraphReaderWrapper extends GraphIoWrapper {
         }
 
         // Batch commit update or insertion
-        batchCommitTx();
+        batchFlushTx();
         return map;
     }
 

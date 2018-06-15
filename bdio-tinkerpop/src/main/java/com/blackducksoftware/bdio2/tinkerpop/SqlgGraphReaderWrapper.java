@@ -48,9 +48,15 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
     }
 
     @Override
+    public void flushTx() {
+        if (supportsBatchMode) {
+            graph().tx().flush();
+        }
+    }
+
+    @Override
     public void startBatchTx() {
         // (Re-)enable batch mode if it is supported
-        super.startBatchTx();
         if (supportsBatchMode) {
             graph().tx().normalBatchModeOn();
         }

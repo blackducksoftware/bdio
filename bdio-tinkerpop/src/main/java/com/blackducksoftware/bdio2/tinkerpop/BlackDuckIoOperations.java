@@ -309,7 +309,7 @@ public final class BlackDuckIoOperations {
                     properties.add(v);
                 });
                 files.put(path, wrapper().graph().addVertex(properties.build().toArray()));
-                wrapper().batchCommitTx();
+                wrapper().batchFlushTx();
             }
             wrapper().commitTx();
         }
@@ -333,7 +333,7 @@ public final class BlackDuckIoOperations {
                         properties.add(v);
                     });
                     e.getValue().addEdge(Bdio.ObjectProperty.parent.name(), parent, properties.build().toArray());
-                    wrapper().batchCommitTx();
+                    wrapper().batchFlushTx();
                 }
             }
             wrapper().commitTx();
@@ -392,7 +392,7 @@ public final class BlackDuckIoOperations {
                                 or(has(Bdio.DataProperty.byteCount.name()), has(Bdio.DataProperty.contentType.name()))
                                         .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString()),
                                 property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY.toString()))
-                        .sideEffect(t -> wrapper().batchCommitTx())
+                        .sideEffect(t -> wrapper().batchFlushTx())
                         .iterate();
             }
 

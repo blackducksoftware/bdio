@@ -94,7 +94,7 @@ public final class BlackDuckIoReader implements GraphReader {
 
                     // Setup batch commits
                     .doOnSubscribe(x -> wrapper.startBatchTx())
-                    .doOnNext(x -> wrapper.batchCommitTx())
+                    .doOnNext(x -> wrapper.batchFlushTx())
                     .doOnError(x -> wrapper.rollbackTx())
                     .doOnComplete(wrapper::commitTx)
 
