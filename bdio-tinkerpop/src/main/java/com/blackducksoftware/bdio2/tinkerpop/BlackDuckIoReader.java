@@ -23,36 +23,28 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.sql.SQLException;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.function.Function;
-
-import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
-import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.io.GraphReader;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
-import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
-import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarEdge;
-import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 
-import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 
 import io.reactivex.Flowable;
+import io.reactivex.plugins.RxJavaPlugins;
 
 /**
- * A {@link GraphReader} that constructs a graph from a BDIO repreresentation.
+ * A {@link GraphReader} that constructs a graph from a BDIO representation.
  *
  * @author jgustie
  */
@@ -78,27 +70,15 @@ public final class BlackDuckIoReader implements GraphReader {
 
         try {
             Flowable<Object> entries = doc.read(inputStream).publish().autoConnect(2);
-            doc.metadata(entries).singleOrError().subscribe(wrapper::createMetadata);
+
+            // Just call the default onError handler directly instead of wrapping it in OnErrorNotImplementedException
+            doc.metadata(entries).singleOrError().subscribe(wrapper::createMetadata, RxJavaPlugins::onError);
+
             doc.jsonLd(entries)
-                    // Convert entries to individual nodes
                     .frame(wrapper.mapper().frame())
-                    .flatMapIterable(BdioDocument::toGraphNodes)
-
-                    // Convert nodes to vertices
-                    .map(node -> toVertex(node, null, null, Direction.OUT, wrapper))
-
-                    // Collect all of the vertices in a map, creating the actual vertices in the graph as we go
-                    // THIS IS THE PART WHERE WE READ THE WHOLE GRAPH INTO MEMORY SO WE CAN CREATE THE EDGES
-                    .reduce(new HashMap<>(), wrapper::toMap)
-                    .flatMapObservable(wrapper::createEdges)
-
-                    // Setup batch commits
-                    .doOnSubscribe(x -> wrapper.startBatchTx())
-                    .doOnNext(x -> wrapper.batchFlushTx())
-                    .doOnError(x -> wrapper.rollbackTx())
+                    .compose(new BlackDuckIoReaderImpl(wrapper)::readNodes)
                     .doOnComplete(wrapper::commitTx)
-
-                    // Ignore values, propagate errors
+                    .doOnError(x -> wrapper.rollbackTx())
                     .blockingSubscribe();
 
         } catch (RuntimeException e) {
@@ -189,40 +169,6 @@ public final class BlackDuckIoReader implements GraphReader {
     @Override
     public <C> C readObject(InputStream inputStream, Class<? extends C> clazz) throws IOException {
         throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Creates an in-memory vertex from the supplied node data.
-     */
-    private StarVertex toVertex(Map<String, Object> node,
-            @Nullable Function<Attachable<Vertex>, Vertex> vertexAttachMethod,
-            @Nullable Function<Attachable<Edge>, Edge> edgeAttachMethod,
-            Direction attachEdgesOfThisDirection,
-            GraphReaderWrapper wrapper) {
-        // Create a new StarGraph whose primary vertex is the converted node
-        StarGraph starGraph = StarGraph.open();
-        StarVertex vertex = (StarVertex) starGraph.addVertex(wrapper.getNodeProperties(node, true));
-        if (vertexAttachMethod != null) {
-            vertex.attach(vertexAttachMethod);
-        }
-
-        // Add outgoing edges for object properties (if requested)
-        if (attachEdgesOfThisDirection == Direction.BOTH || attachEdgesOfThisDirection == Direction.OUT) {
-            for (Map.Entry<String, Object> property : node.entrySet()) {
-                if (wrapper.mapper().isObjectPropertyKey(property.getKey())) {
-                    wrapper.mapper().valueObjectMapper().fromReferenceValueObject(property.getValue())
-                            .map(id -> starGraph.addVertex(T.id, wrapper.generateId(id)))
-                            .map(inVertex -> (StarEdge) vertex.addEdge(property.getKey(), inVertex))
-                            .forEach(edge -> {
-                                if (edgeAttachMethod != null) {
-                                    edge.attach(edgeAttachMethod);
-                                }
-                            });
-                }
-            }
-        }
-
-        return vertex;
     }
 
     public static Builder build() {

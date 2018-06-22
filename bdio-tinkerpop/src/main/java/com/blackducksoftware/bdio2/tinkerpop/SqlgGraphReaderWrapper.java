@@ -15,14 +15,40 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.blackducksoftware.common.base.ExtraOptionals.and;
+import static com.blackducksoftware.common.base.ExtraStreams.ofType;
+import static java.lang.Boolean.FALSE;
+import static java.util.stream.Collectors.joining;
+
+import java.lang.reflect.Array;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.IntStream;
+import java.util.function.BiConsumer;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
+import org.umlg.sqlg.structure.PropertyType;
+import org.umlg.sqlg.structure.RecordId;
+import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
+import org.umlg.sqlg.structure.topology.Topology;
+
+import com.blackducksoftware.bdio2.BdioMetadata;
+import com.github.jsonldjava.core.JsonLdConsts;
+import com.google.common.collect.Lists;
 
 /**
  * Specialization of the read graph context to use when the underlying graph is a Sqlg graph.
@@ -81,40 +107,93 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
     }
 
     @Override
-    public Object[] getNodeProperties(Map<String, Object> node, boolean includeSpecial) {
-        Object[] result = super.getNodeProperties(node, includeSpecial);
-
-        // Until issue #294 is resolved we cannot include ZonedDateTime instances when normal batch mode is enabled
-
-        // The bug impacts batch mode when one vertex has the value and the other does not; e.g. one file has a last
-        // modified time and the other does not. Since we cannot inspect the entire vertex cache to determine if we need
-        // to strip ZonedDateTime instances (or really any property type with a postfix, we just don't use `Period` or
-        // `Duration`), the best we can do is make a guess based on the property values we see.
-
-        // If `includeSpecial == false` we are most likely processing metadata, there will only be a single vertex
-        // created for that vertex label therefore the bug will not occur.
-
-        // Otherwise only 'Annotation', 'File' and 'Vulnerability' are affected
-
-        if (includeSpecial && graph().tx().isInNormalBatchMode() && hasZonedDateTime(result)) {
-            return IntStream.range(0, result.length)
-                    .filter(i -> i % 2 == 0)
-                    .filter(i -> !(result[i + 1] instanceof ZonedDateTime))
-                    .flatMap(i -> IntStream.of(i, i + 1))
-                    .mapToObj(i -> result[i])
-                    .toArray();
+    public void createMetadata(BdioMetadata metadata) {
+        // If we are streaming, we cannot create a new metadata vertex unless it is also streamed
+        if (graph().tx().isInStreamingBatchMode()) {
+            mapper().metadataLabel().ifPresent(metadataLabel -> {
+                Object[] metadataKeyValues = getMetadataProperties(metadata);
+                Vertex metadataVertex = traversal().V().hasLabel(metadataLabel).tryNext().orElse(null);
+                if (metadataVertex != null) {
+                    ElementHelper.attachProperties(metadataVertex, metadataKeyValues);
+                } else {
+                    flushTx();
+                    graph().streamVertex(metadataKeyValues);
+                    flushTx();
+                }
+            });
+        } else {
+            super.createMetadata(metadata);
         }
-
-        return result;
     }
 
-    private static boolean hasZonedDateTime(Object[] keyValuePairs) {
-        for (int i = 1; i < keyValuePairs.length; i += 2) {
-            if (keyValuePairs[i] instanceof ZonedDateTime) {
-                return true;
-            }
+    @Override
+    public GraphTraversal<?, Collection<Vertex>> groupByMultiple(String label, String groupByKey) {
+        // This is much faster to compute in the database
+        String whereClause = strategies()
+                .flatMap(ofType(PartitionStrategy.class))
+                .filter(ps -> !ps.getReadPartitions().isEmpty())
+                .map(ps -> new StringBuilder()
+                        .append(graph().getSqlDialect().maybeWrapInQoutes(ps.getPartitionKey()))
+                        .append(ps.getReadPartitions().size() == 1 ? " = " : " IN (")
+                        .append(ps.getReadPartitions().stream()
+                                .map(rp -> graph().getSqlDialect().valueToValuesString(PropertyType.STRING, rp))
+                                .collect(joining(", ")))
+                        .append(ps.getReadPartitions().size() == 1 ? "" : ")"))
+                .collect(joining(" ) AND ( "));
+
+        return traversal().inject(SchemaTable.from(graph(), label))
+                .flatMap(t -> {
+                    SchemaTable schemaTable = t.get();
+                    StringBuilder sql = new StringBuilder()
+                            .append("SELECT array_agg(")
+                            .append(graph().getSqlDialect().maybeWrapInQoutes(Topology.ID))
+                            .append(") FROM ")
+                            .append(graph().getSqlDialect().maybeWrapInQoutes(schemaTable.getSchema()))
+                            .append('.')
+                            .append(graph().getSqlDialect().maybeWrapInQoutes(schemaTable.withPrefix(Topology.VERTEX_PREFIX).getTable()));
+                    if (!whereClause.isEmpty()) {
+                        sql.append(" WHERE (").append(whereClause).append(" )");
+                    }
+                    sql.append(" GROUP BY ")
+                            .append(graph().getSqlDialect().maybeWrapInQoutes(groupByKey))
+                            .append(" HAVING count(1) > 1")
+                            .append(graph().getSqlDialect().needsSemicolon() ? ";" : "");
+
+                    Connection conn = graph().tx().getConnection();
+                    try (PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
+                        try (ResultSet rs = preparedStatement.executeQuery()) {
+                            List<Object[]> result = new ArrayList<>();
+                            while (rs.next()) {
+                                Object array = rs.getArray(1).getArray();
+                                Object[] row = new Object[Array.getLength(array)];
+                                for (int i = 0; i < row.length; ++i) {
+                                    row[i] = RecordId.from(schemaTable, (Long) Array.get(array, i));
+                                }
+                                Arrays.sort(row);
+                                result.add(row);
+                            }
+                            return result.iterator();
+                        }
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .map(t -> Lists.newArrayList(graph().vertices(t.get())));
+    }
+
+    @Override
+    public void getNodeDataProperties(Map<String, Object> node, BiConsumer<Object, Object> dataPropertyHandler, boolean includeId) {
+        // Sqlg issue #294 workaround
+        BiConsumer<Object, Object> handler = dataPropertyHandler;
+        boolean isMetadata = and(Optional.ofNullable(node.get(JsonLdConsts.TYPE)), mapper().metadataLabel(), Objects::equals).orElse(FALSE);
+        if (!isMetadata && (graph().tx().isInNormalBatchMode() || graph().tx().isInStreamingBatchMode())) {
+            handler = (key, value) -> {
+                if (!(value instanceof ZonedDateTime)) {
+                    dataPropertyHandler.accept(key, value);
+                }
+            };
         }
-        return false;
+        super.getNodeDataProperties(node, handler, includeId);
     }
 
 }

@@ -18,40 +18,35 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static com.github.jsonldjava.core.JsonLdProcessor.compact;
 import static java.util.Comparator.comparing;
-import static org.apache.tinkerpop.gremlin.structure.Direction.OUT;
-import static org.apache.tinkerpop.gremlin.structure.VertexProperty.Cardinality.single;
+import static org.apache.tinkerpop.gremlin.process.traversal.P.gt;
+import static org.apache.tinkerpop.gremlin.process.traversal.Scope.local;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
+import static org.apache.tinkerpop.gremlin.structure.Column.values;
 
-import java.util.Collections;
-import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
-import java.util.stream.Stream;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
-import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Graph.Features.VertexFeatures;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
-import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 
 import com.blackducksoftware.bdio2.BdioMetadata;
-import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-
-import io.reactivex.Observable;
-import io.reactivex.plugins.RxJavaPlugins;
 
 /**
  * Context used when performing a
@@ -119,70 +114,17 @@ class GraphReaderWrapper extends GraphIoWrapper {
     }
 
     /**
-     * Performs the reduction to a map.
+     * Returns a traversal over vertices with the specified label where grouping on the specified key returns multiple
+     * values. This is useful for finding conflicts on properties that should maintain uniqueness but do not have
+     * database constraints.
      */
-    public final Map<StarVertex, Vertex> toMap(Map<StarVertex, Vertex> map, StarVertex baseVertex) {
-        Vertex persisted = map.get(baseVertex);
-        if (persisted != null) {
-            // Update properties
-            baseVertex.properties().forEachRemaining(vp -> persisted.property(single, vp.key(), vp.value()));
-
-            // Update edges
-            Iterator<Edge> edges = baseVertex.edges(Direction.OUT);
-            if (edges.hasNext()) {
-                // Worst case scenario. We need to get the old key, which means a linear search...
-                // The problem is that `baseVertex` can be used for a lookup, but it's not the actual key
-                for (StarVertex existingUnpersistedVertex : map.keySet()) {
-                    if (existingUnpersistedVertex.equals(baseVertex)) {
-                        edges.forEachRemaining(e -> existingUnpersistedVertex.addEdge(e.label(), e.inVertex()));
-                        break;
-                    }
-                }
-            }
-        } else {
-            // Create the new vertex
-            boolean includeId = vertexFeatures.willAllowId(baseVertex.id());
-            map.put(baseVertex, graph().addVertex(ElementHelper.getProperties(baseVertex, includeId, true, Collections.emptySet())));
-        }
-
-        // Batch commit update or insertion
-        batchFlushTx();
-        return map;
-    }
-
-    /**
-     * Given a map of in-memory vertices to their persisted counterparts, create the edges from the in-memory vertices
-     * using the persisted identifiers.
-     */
-    public final Observable<Edge> createEdges(Map<StarVertex, Vertex> persistedVertices) {
-        return Observable.fromIterable(persistedVertices.keySet())
-
-                // Gets all the outbound edges from in-memory (StarVertex) vertices
-                .flatMapIterable(kv -> (Iterable<Edge>) (() -> kv.edges(Direction.OUT)))
-
-                // Connect the edges and store their properties
-                .map(e -> {
-                    // Look up the vertices
-                    Vertex cachedOutV = persistedVertices.get(e.outVertex());
-                    Vertex cachedInV = persistedVertices.get(e.inVertex());
-                    if (cachedInV == null) {
-                        throw new NodeDoesNotExistException(e.outVertex().id(), e.label(), e.inVertex().id());
-                    }
-
-                    // First try to find an existing edge
-                    Iterator<Edge> edges = cachedOutV.edges(OUT, e.label());
-                    while (edges.hasNext()) {
-                        Edge edge = edges.next();
-                        if (edge.inVertex().equals(cachedInV)) {
-                            return edge;
-                        }
-                    }
-
-                    // Create a new edge
-                    Edge edge = cachedOutV.addEdge(e.label(), cachedInV);
-                    forEachPartition(edge::property);
-                    return edge;
-                });
+    public GraphTraversal<?, Collection<Vertex>> groupByMultiple(String label, String groupByKey) {
+        GraphTraversalSource g = traversal();
+        // TODO Do we need to ensure order stability on inner collections?
+        return g.V().hasLabel(label)
+                .group().by(groupByKey).unfold()
+                .where(select(values).count(local).is(gt(1)))
+                .select(values);
     }
 
     /**
@@ -190,72 +132,91 @@ class GraphReaderWrapper extends GraphIoWrapper {
      */
     public void createMetadata(BdioMetadata metadata) {
         mapper().metadataLabel().ifPresent(metadataLabel -> {
+            // Find or create the one vertex with the metadata label and attach the properties
             GraphTraversalSource g = traversal();
-
-            // Find or create the one vertex with the metadata label
-            Vertex vertex = g.V().hasLabel(metadataLabel).tryNext()
-                    .orElseGet(() -> g.addV(metadataLabel).next());
-
-            // Preserve the identifier (if present and configured)
-            if (metadata.id() != null) {
-                mapper().identifierKey().ifPresent(key -> vertex.property(key, metadata.id()));
-            }
-
-            try {
-                Map<String, Object> compactMetadata = compact(metadata, mapper().context(), bdioOptions().jsonLdOptions());
-                ElementHelper.attachProperties(vertex, getNodeProperties(compactMetadata, false));
-            } catch (JsonLdError e) {
-                // If we wrapped this and re-threw it, it would go back to the document's metadata single which is
-                // subscribed to without an error handler, subsequently it would get wrapped in a
-                // OnErrorNotImplementedException and passed to `RxJavaPlugins.onError`. So. Just call it directly.
-                RxJavaPlugins.onError(e);
-            }
+            Vertex vertex = g.V().hasLabel(metadataLabel).tryNext().orElseGet(() -> g.addV(metadataLabel).next());
+            ElementHelper.attachProperties(vertex, getMetadataProperties(metadata));
         });
+    }
+
+    /**
+     * Returns key/values pairs for the data properties of the graph metadata.
+     */
+    public Object[] getMetadataProperties(BdioMetadata metadata) {
+        try {
+            Map<String, Object> compactMetadata = compact(metadata, mapper().context(), bdioOptions().jsonLdOptions());
+            mapper().metadataLabel().ifPresent(label -> compactMetadata.put(JsonLdConsts.TYPE, label));
+            return getNodeProperties(compactMetadata, false);
+        } catch (JsonLdError e) {
+            // TODO We need to improve error handling for `createMetadata`, right now we just ignore everything
+            throw new RuntimeException(e);
+        }
     }
 
     /**
      * Returns key/value pairs for the data properties of the specified BDIO node.
      */
-    public Object[] getNodeProperties(Map<String, Object> node, boolean includeSpecial) {
-        Stream.Builder<Map.Entry<?, ?>> properties = Stream.builder();
+    public Object[] getNodeProperties(Map<String, Object> node, boolean includeId) {
+        List<Object> properties = new ArrayList<>(node.size());
+        getNodeDataProperties(node, (k, v) -> {
+            properties.add(k);
+            properties.add(v);
+        }, includeId);
+        return properties.toArray();
+    }
 
-        // Special properties that can be optionally included
-        if (includeSpecial) {
+    /**
+     * Extracts the data properties of the specified node.
+     */
+    public void getNodeDataProperties(Map<String, Object> node, BiConsumer<Object, Object> dataPropertyHandler, boolean includeId) {
+        // Include the identifier if requested
+        if (includeId) {
             Optional.ofNullable(node.get(JsonLdConsts.ID))
                     .map(this::generateId)
-                    .map(id -> Maps.immutableEntry(T.id, id))
-                    .ifPresent(properties);
-
-            Optional.ofNullable(node.get(JsonLdConsts.TYPE))
-                    // TODO Validate that the label is a String, we can't support multiple values!
-                    .map(label -> Maps.immutableEntry(T.label, label))
-                    .ifPresent(properties);
-
-            forEachPartition((k, v) -> properties.add(Maps.immutableEntry(k, v)));
-
-            mapper().identifierKey().ifPresent(key -> {
-                Optional.ofNullable(node.get(JsonLdConsts.ID))
-                        .map(id -> Maps.immutableEntry(key, id))
-                        .ifPresent(properties);
-            });
+                    .ifPresent(id -> dataPropertyHandler.accept(T.id, id));
         }
+
+        // Graph label
+        Optional.ofNullable(node.get(JsonLdConsts.TYPE))
+                // TODO Validate that the label is a String, we can't support multiple values!
+                .ifPresent(label -> dataPropertyHandler.accept(T.label, label));
+
+        // Write partitions (because we are not always performing modifications through a strategy)
+        forEachPartition(dataPropertyHandler);
+
+        // BDIO identifier preservation
+        mapper().identifierKey().ifPresent(key -> {
+            if (node instanceof BdioMetadata) {
+                Optional.ofNullable(((BdioMetadata) node).id()).ifPresent(id -> dataPropertyHandler.accept(key, id));
+            } else {
+                Optional.ofNullable(node.get(JsonLdConsts.ID)).ifPresent(id -> dataPropertyHandler.accept(key, id));
+            }
+        });
 
         // Data properties
         Maps.transformEntries(node, mapper().valueObjectMapper()::fromFieldValue).entrySet().stream()
                 .filter(e -> mapper().isDataPropertyKey(e.getKey()))
                 .sorted(comparing(Map.Entry::getKey))
-                .forEachOrdered(properties);
+                .forEachOrdered(e -> dataPropertyHandler.accept(e.getKey(), e.getValue()));
 
         // Unknown properties
-        mapper().preserveUnknownProperties(node, (k, v) -> properties.add(Maps.immutableEntry(k, v)));
-
-        // Convert the whole thing into an array
-        return properties.build()
-                .flatMap(e -> Stream.of(e.getKey(), e.getValue()))
-                .toArray();
+        mapper().preserveUnknownProperties(node, dataPropertyHandler);
     }
 
-    public Object generateId(Object id) {
+    /**
+     * Extracts the object properties of the specified node.
+     */
+    public void getNodeObjectProperties(Map<String, Object> node, BiConsumer<String, Object> consumer) {
+        for (Map.Entry<String, Object> property : node.entrySet()) {
+            if (mapper().isObjectPropertyKey(property.getKey())) {
+                mapper().valueObjectMapper().fromReferenceValueObject(property.getValue())
+                        .map(this::generateId)
+                        .forEach(id -> consumer.accept(property.getKey(), id));
+            }
+        }
+    }
+
+    private Object generateId(Object id) {
         // If user supplied identifiers are not supported this value will only be used by the star graph elements
         // (for example, this is the identifier used by star vertices prior to being attached, and is later used to look
         // up the persisted identifier of the star edge incoming vertex)
