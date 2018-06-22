@@ -312,7 +312,7 @@ public class ValueObjectMapper {
             }
 
             // Configure the collection behavior based on property cardinality
-            multiValueCollector = Collectors.toList();
+            multiValueCollector = Collectors.toList(); // TODO Should this filter out null values?
             singleValueCollector = Collectors.reducing(null, (a, b) -> a != null ? a : b);
         }
 

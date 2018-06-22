@@ -19,6 +19,7 @@ import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
 
+import java.util.Objects;
 import java.util.stream.Collector;
 
 import org.apache.tinkerpop.gremlin.structure.io.AbstractIoRegistry;
@@ -43,7 +44,8 @@ public class SqlgIoRegistryBdio extends AbstractIoRegistry {
         register(BlackDuckIo.class, null, new MultiValueCollectorRegistration() {
             @Override
             public Collector<? super Object, ?, ?> collector() {
-                return collectingAndThen(mapping(Object::toString, toList()), l -> l.toArray(new String[l.size()]));
+                return collectingAndThen(mapping(o -> Objects.toString(o, null), toList()),
+                        l -> l.stream().allMatch(Objects::isNull) ? null : l.toArray(new String[l.size()]));
             }
         });
 
