@@ -185,7 +185,7 @@ public class GraphMapper {
      * Preserves all of the unknown properties. If there are no unknown properties in the supplied node map, then the
      * supplied action is not invoked.
      */
-    public void preserveUnknownProperties(Map<String, Object> node, BiConsumer<String, Object> propertyConsumer) {
+    public void preserveUnknownProperties(Map<String, Object> node, BiConsumer<? super String, ? super Object> propertyConsumer) {
         if (tokens.unknownKey() != null) {
             // If framing did not recognize the attribute, it will still have a scheme or prefix separator
             // This implementation of the check is probably a lot easier then looking at all the possible keys

@@ -112,7 +112,7 @@ class GraphReaderWrapper extends GraphIoWrapper {
     /**
      * Accepts each partition key and write partition value.
      */
-    public void forEachPartition(BiConsumer<String, String> consumer) {
+    public void forEachPartition(BiConsumer<? super String, ? super String> consumer) {
         strategies()
                 .flatMap(ofType(PartitionStrategy.class))
                 .filter(s -> s.getWritePartition() != null)
