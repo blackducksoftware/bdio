@@ -44,6 +44,7 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
 
     protected SqlgGraphReaderWrapper(SqlgGraph sqlgGraph, GraphMapper mapper, List<TraversalStrategy<?>> strategies, Optional<Object> expandContext,
             int batchSize) {
+        // Sqlg issue #296 workaround: the extra synchronization overhead requires a smaller default batch size
         super(sqlgGraph, mapper, strategies, expandContext, batchSize != 10_000 ? batchSize : 2_000);
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
     }
@@ -64,6 +65,7 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
     @Override
     public void flushTx() {
         if (supportsBatchMode) {
+            // Sqlg issue #296 workaround
             synchronized (flushLock) {
                 graph().tx().flush();
             }
@@ -72,6 +74,7 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
 
     @Override
     public void commitTx() {
+        // Sqlg issue #296 workaround
         synchronized (flushLock) {
             super.commitTx();
         }

@@ -85,10 +85,10 @@ class GraphReaderWrapper extends GraphIoWrapper {
     }
 
     /**
-     * Used to flush the current transaction. The default implementation commits the transaction.
+     * Used to flush the current transaction.
      */
     public void flushTx() {
-        commitTx();
+        // By default, do nothing
     }
 
     /**
@@ -105,7 +105,6 @@ class GraphReaderWrapper extends GraphIoWrapper {
     public void batchFlushTx() {
         if (count.incrementAndGet() % batchSize == 0) {
             flushTx();
-            startBatchTx();
         }
     }
 
