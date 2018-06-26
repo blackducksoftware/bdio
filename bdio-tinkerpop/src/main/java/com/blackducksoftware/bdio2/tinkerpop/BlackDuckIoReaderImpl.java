@@ -44,11 +44,14 @@ import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 import org.umlg.sqlg.structure.SqlgGraph;
 
+import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import com.google.common.hash.BloomFilter;
+import com.google.common.hash.Funnel;
 
 import io.reactivex.Flowable;
 
@@ -122,7 +125,7 @@ class BlackDuckIoReaderImpl {
         /**
          * Callback to invoke after each node type is flushed.
          */
-        private final Consumer<String> onFlush;
+        private final Runnable onFlush;
 
         /**
          * The current "last seen type".
@@ -140,7 +143,7 @@ class BlackDuckIoReaderImpl {
          */
         private final List<Map<String, Object>> buffer = new ArrayList<>();
 
-        public VertexCollector(Consumer<Map<String, Object>> nodeConsumer, Consumer<String> onFlush) {
+        public VertexCollector(Consumer<Map<String, Object>> nodeConsumer, Runnable onFlush) {
             this.nodeConsumer = Objects.requireNonNull(nodeConsumer);
             this.onFlush = Objects.requireNonNull(onFlush);
         }
@@ -179,7 +182,7 @@ class BlackDuckIoReaderImpl {
                 }
 
                 // Record the flush
-                onFlush.accept(type);
+                onFlush.run();
             }
 
             // Make sure we get back to an empty state
@@ -197,6 +200,29 @@ class BlackDuckIoReaderImpl {
     private static class EdgeCollector {
 
         /**
+         * Funnel used for hashing vertex identifiers.
+         */
+        private static Funnel<Object> VERTEX_IDENTIFIER_FUNNEL = (id, sink) -> {
+            if (id instanceof String) {
+                sink.putUnencodedChars((String) id);
+            } else {
+                // TODO What should we do here?
+                throw new ClassCastException("Expected identifier to be a string: " + id);
+            }
+        };
+
+        /**
+         * Bloom filter factory, accounts for expected insertions.
+         */
+        private static BloomFilter<Object> newIdentifierSet(String label) {
+            if (label.equals(Bdio.Class.File.name())) {
+                return BloomFilter.create(VERTEX_IDENTIFIER_FUNNEL, 10_000_000);
+            } else {
+                return BloomFilter.create(VERTEX_IDENTIFIER_FUNNEL, 1_000_000);
+            }
+        }
+
+        /**
          * Functional reference to the Sqlg bulk add edges API.
          */
         private final BulkEdgeConsumer edgeConsumer;
@@ -207,29 +233,34 @@ class BlackDuckIoReaderImpl {
         private final Pair<String, String> idFields;
 
         /**
+         * Callback to flatten persisted vertices by label.
+         */
+        private final Consumer<String> doFlatten;
+
+        /**
          * Callback to invoke when performing a flush.
          */
         private final Runnable onFlush;
 
         /**
-         * This is a mapping of vertex identifiers to their label, eventually it will contain every identifier from the
-         * entire input. That can be a lot of identifiers.
+         * Mapping of vertex label types to their probabilistic identifier sets.
          */
-        private final Map<Object, String> vertexLabelCache = new HashMap<>();
+        private final Map<String, BloomFilter<Object>> vertexLabelCache = new HashMap<>();
 
         /**
          * Representation of the edges.
          */
         private final Multimap<EdgeKey, Pair<Object, Object>> edges = HashMultimap.create();
 
-        public EdgeCollector(BulkEdgeConsumer edgeConsumer, String identifierKey, Runnable onFlush) {
+        public EdgeCollector(BulkEdgeConsumer edgeConsumer, String identifierKey, Consumer<String> doFlatten, Runnable onFlush) {
             this.edgeConsumer = Objects.requireNonNull(edgeConsumer);
             this.idFields = Pair.of(Objects.requireNonNull(identifierKey), identifierKey);
+            this.doFlatten = Objects.requireNonNull(doFlatten);
             this.onFlush = Objects.requireNonNull(onFlush);
         }
 
         public void addVertexLabel(String vertexLabel, Object vertexId) {
-            vertexLabelCache.put(vertexId, vertexLabel);
+            vertexLabelCache.computeIfAbsent(vertexLabel, EdgeCollector::newIdentifierSet).put(vertexId);
         }
 
         public void addEdge(String outVertexLabel, Object outVertexId, String edgeLabel, Object inVertexId) {
@@ -239,50 +270,51 @@ class BlackDuckIoReaderImpl {
         public EdgeCollector combine(EdgeCollector other) {
             // Combine the state of the other collector into this collector
             checkArgument(idFields.equals(other.idFields), "mismatched identifier fields");
-            vertexLabelCache.putAll(other.vertexLabelCache);
+            for (Map.Entry<String, BloomFilter<Object>> label : other.vertexLabelCache.entrySet()) {
+                vertexLabelCache.merge(label.getKey(), label.getValue(), (a, b) -> {
+                    a.putAll(b);
+                    return a;
+                });
+            }
             edges.putAll(other.edges);
-
-            // Now that we have combined state, see what edges we can flush out of memory
-            flush();
             return this;
         }
 
         public void finish() {
-            // Flush the final results
-            flush();
+            // Flatten the labels that were encountered
+            vertexLabelCache.keySet().forEach(doFlatten);
 
-            // If there is anything left, it means there was a bad reference
-            if (!edges.isEmpty()) {
-                Map.Entry<EdgeKey, Pair<Object, Object>> first = edges.entries().iterator().next();
-                String edgeLabel = first.getKey().edgeLabel;
-                Object nodeIdentifier = first.getValue().getLeft();
-                Object missingNodeIdentifier = first.getValue().getRight();
-                throw new RuntimeException(new NodeDoesNotExistException(nodeIdentifier, edgeLabel, missingNodeIdentifier));
-            }
-        }
-
-        private void flush() {
             for (Map.Entry<EdgeKey, Collection<Pair<Object, Object>>> edge : edges.asMap().entrySet()) {
                 String edgeLabel = edge.getKey().edgeLabel;
                 String outVertexLabel = edge.getKey().outVertexLabel;
 
-                // Group the identifier pairs by available in-vertex labels, leave anything we don't have a mapping for
-                Map<String, Collection<Pair<Object, Object>>> availableEdges = new HashMap<>();
-                for (Iterator<Pair<Object, Object>> uids = edge.getValue().iterator(); uids.hasNext();) {
-                    Pair<Object, Object> uid = uids.next();
-                    String inVertexLabel = vertexLabelCache.get(uid.getRight());
-                    if (inVertexLabel != null) {
-                        availableEdges.computeIfAbsent(inVertexLabel, x -> new ArrayList<>()).add(uid);
-                        uids.remove();
+                // Group the identifier pairs by available in-vertex labels
+                Multimap<String, Pair<Object, Object>> availableEdges = HashMultimap.create();
+                for (Pair<Object, Object> uid : edge.getValue()) {
+                    // This is where things get tricky. Since the JSON-LD "edge" is just a reference, we need to
+                    // reconstruct the "in-vertex" label. Caching the entire identifier set is prohibitive, thus the
+                    // bloom filters keyed by label. Only one bloom filter should claim an identifier, however there may
+                    // be multiple matches in the false-positive case. We can accept false-positives by asking Sqlg to
+                    // bulk create an edge to a vertex that does not exist (bulk edge creation is accomplished using a
+                    // JOIN that will not produce an edge row for the false-positives).
+                    boolean found = false;
+                    for (Map.Entry<String, BloomFilter<Object>> idsByType : vertexLabelCache.entrySet()) {
+                        if (idsByType.getValue().mightContain(uid.getRight())) {
+                            availableEdges.put(idsByType.getKey(), uid);
+                            found = true;
+                        }
+                    }
+
+                    // If no bloom filter matched, we definitely never saw the requested identifier and should fail
+                    if (!found) {
+                        throw new RuntimeException(new NodeDoesNotExistException(uid.getLeft(), edgeLabel, uid.getRight()));
                     }
                 }
 
                 // If we found anything, stream it to the database and flush
-                if (!availableEdges.isEmpty()) {
-                    // TODO Write partitions on the edges?!
-                    availableEdges.forEach((inVertexLabel, uids) -> edgeConsumer.accept(outVertexLabel, inVertexLabel, edgeLabel, idFields, uids));
-                    onFlush.run();
-                }
+                // TODO Write partitions on the edges?!
+                availableEdges.asMap().forEach((inVertexLabel, uids) -> edgeConsumer.accept(outVertexLabel, inVertexLabel, edgeLabel, idFields, uids));
+                onFlush.run();
             }
         }
     }
@@ -319,10 +351,12 @@ class BlackDuckIoReaderImpl {
         return framedEntries
                 .map(BdioDocument::toGraphNodes)
                 .map(nodes -> {
-                    try (VertexCollector collectVertices = new VertexCollector(this::streamNode, this::flush)) {
+                    try (VertexCollector collectVertices = new VertexCollector(this::streamNode, wrapper::flushTx)) {
                         nodes.stream().sorted(BlackDuckIoReaderImpl::nodeTypeOrder).forEach(collectVertices);
                     }
-                    return nodes.stream().reduce(new EdgeCollector(sqlgGraph::bulkAddEdges, wrapper.mapper().identifierKey().get(), wrapper::flushTx),
+
+                    return nodes.stream().reduce(
+                            new EdgeCollector(sqlgGraph::bulkAddEdges, wrapper.mapper().identifierKey().get(), this::flattenVertices, wrapper::flushTx),
                             this::aggregateEdges, EdgeCollector::combine);
                 })
                 .reduce(EdgeCollector::combine)
@@ -364,10 +398,7 @@ class BlackDuckIoReaderImpl {
         ((SqlgGraph) wrapper.graph()).streamVertex(wrapper.getNodeProperties(node, false));
     }
 
-    private void flush(String type) {
-        // Flush the streamed nodes
-        wrapper.flushTx();
-
+    private void flattenVertices(String type) {
         // Collapse any split nodes (i.e. nodes with the same JSON-LD identifier)
         wrapper.groupByMultiple(type, wrapper.mapper().identifierKey().get())
                 .forEachRemaining(duplicates -> duplicates.stream().reduce((left, right) -> {
@@ -375,12 +406,12 @@ class BlackDuckIoReaderImpl {
                     right.properties().forEachRemaining(vp -> left.property(single, vp.key(), vp.value()));
                     right.remove();
 
-                    // Periodically flush if this is too large
+                    // Periodically flush
                     wrapper.batchFlushTx();
                     return left;
                 }));
 
-        // Flush the collapsed nodes
+        // Flush the remaining results
         wrapper.flushTx();
     }
 
