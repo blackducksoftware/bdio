@@ -86,7 +86,8 @@ class GraphReaderWrapper extends GraphIoWrapper {
      * Used to flush the current transaction.
      */
     public void flushTx() {
-        // By default, do nothing
+        // Reset the count so that direct invocations do not conflict with repeated calls to `batchFlushTx()`
+        count.set(0);
     }
 
     /**

@@ -105,6 +105,7 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
 
     @Override
     public void flushTx() {
+        super.flushTx();
         if (supportsBatchMode) {
             // Sqlg issue #296 workaround
             synchronized (flushLock) {
