@@ -294,17 +294,21 @@ class SqlgNodeAccumulator extends NodeAccumulator {
     /**
      * This can be extremely inefficient when there are a significant number of "split nodes".
      */
+    @SuppressWarnings("ReturnValueIgnored")
     private void flattenVertices(String type) {
         // Collapse any split nodes (i.e. nodes with the same JSON-LD identifier)
         wrapper().groupByMultiple(type, wrapper().mapper().identifierKey().get())
-                .forEachRemaining(duplicates -> duplicates.stream().reduce((left, right) -> {
-                    wrapper().mergeProperties(left, right);
-                    right.remove();
+                .forEachRemaining(duplicates -> {
+                    // Ignore the result of the reduction, it will just be the first element from `duplicates`
+                    duplicates.stream().reduce((left, right) -> {
+                        wrapper().mergeProperties(left, right);
+                        right.remove();
 
-                    // Periodically flush
-                    wrapper().batchFlushTx();
-                    return left;
-                }));
+                        // Periodically flush
+                        wrapper().batchFlushTx();
+                        return left;
+                    });
+                });
 
         // Flush the remaining results
         wrapper().flushTx();

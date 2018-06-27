@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -25,11 +26,14 @@ import java.util.function.Supplier;
 
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
-import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
-import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerVertex;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedEdge;
+import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedFactory;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 
@@ -42,8 +46,10 @@ import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 class TinkerGraphNodeAccumulator extends NodeAccumulator {
 
     public static boolean acceptWrapper(GraphReaderWrapper wrapper) {
-        return wrapper.graph() instanceof TinkerGraph;
+        return wrapper.graph().configuration().getString(Graph.GRAPH, "").endsWith(".TinkerGraph");
     }
+
+    private static final String PLACEHOLDER_LABEL = "vertex";
 
     public TinkerGraphNodeAccumulator(GraphReaderWrapper wrapper) {
         super(wrapper);
@@ -60,7 +66,7 @@ class TinkerGraphNodeAccumulator extends NodeAccumulator {
     @Override
     public void finish() throws NodeDoesNotExistException {
         // Fail if there are any place holders left
-        Optional<Edge> anyPlaceHolderEdge = graph().traversal().V().hasLabel(TinkerVertex.DEFAULT_LABEL).inE().tryNext();
+        Optional<Edge> anyPlaceHolderEdge = graph().traversal().V().hasLabel(PLACEHOLDER_LABEL).inE().tryNext();
         if (anyPlaceHolderEdge.isPresent()) {
             throw new NodeDoesNotExistException(
                     anyPlaceHolderEdge.get().outVertex().id(),
@@ -73,17 +79,12 @@ class TinkerGraphNodeAccumulator extends NodeAccumulator {
         Object[] keyValues = wrapper().getNodeProperties(node, true);
         return single(graph().vertices(ElementHelper.getIdValue(keyValues).get()),
                 v -> {
-                    if (v.label().equals(TinkerVertex.DEFAULT_LABEL)) {
-                        // If the existing vertex has a default label, it is a place holder that must be replaced
-                        Vertex replacementVertex = graph().addVertex(keyValues);
-
-                        // Place holders only have incoming edges (and identifiers)
-                        v.edges(Direction.IN).forEachRemaining(e -> {
-                            Edge replacementEdge = e.outVertex().addEdge(e.label(), replacementVertex);
-                            e.properties().forEachRemaining(p -> replacementEdge.property(p.key(), p.value()));
-                        });
+                    if (v.label().equals(PLACEHOLDER_LABEL)) {
+                        // Detach the edges and recreate them on a replacement vertex
+                        List<DetachedEdge> edges = IteratorUtils.list(IteratorUtils.map(v.edges(Direction.IN), e -> DetachedFactory.detach(e, true)));
                         v.remove();
-
+                        Vertex replacementVertex = graph().addVertex(keyValues);
+                        edges.forEach(e -> e.attach(Attachable.Method.create(graph())));
                         return replacementVertex;
                     } else {
                         // Attach the additional properties
@@ -115,7 +116,7 @@ class TinkerGraphNodeAccumulator extends NodeAccumulator {
     }
 
     private static Object[] placeHolder(Object id) {
-        return new Object[] { T.id, id };
+        return new Object[] { T.id, id, T.label, PLACEHOLDER_LABEL };
     }
 
 }

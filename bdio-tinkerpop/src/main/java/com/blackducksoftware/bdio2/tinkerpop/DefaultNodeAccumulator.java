@@ -32,8 +32,8 @@ import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph;
 import org.apache.tinkerpop.gremlin.structure.util.star.StarGraph.StarVertex;
 
 import com.blackducksoftware.bdio2.NodeDoesNotExistException;
-
-import io.reactivex.Flowable;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Streams;
 
 /**
  * Node accumulator used when reading into a generic graph. This accumulator loads the entire input into memory to
@@ -91,36 +91,14 @@ class DefaultNodeAccumulator extends NodeAccumulator {
     }
 
     @Override
-    public void finish() {
-        Flowable.fromIterable(persistedVertices.keySet())
-
-                // Gets all the outbound edges from in-memory (StarVertex) vertices
-                .flatMapIterable(kv -> (Iterable<Edge>) (() -> kv.edges(OUT)))
-
-                // Connect the edges and store their properties
-                .forEach(e -> {
-                    // Look up the vertices
-                    Vertex cachedOutV = persistedVertices.get(e.outVertex());
-                    Vertex cachedInV = persistedVertices.get(e.inVertex());
-                    if (cachedInV == null) {
-                        // TODO How do we ensure this propogates out cleanly?
-                        throw new NodeDoesNotExistException(e.outVertex().id(), e.label(), e.inVertex().id());
-                    }
-
-                    // First try to find an existing edge
-                    Iterator<Edge> edges = cachedOutV.edges(OUT, e.label());
-                    while (edges.hasNext()) {
-                        Edge edge = edges.next();
-                        if (edge.inVertex().equals(cachedInV)) {
-                            return;
-                        }
-                    }
-
-                    // Create a new edge
-                    Edge edge = cachedOutV.addEdge(e.label(), cachedInV);
-                    wrapper().forEachPartition(edge::property);
-                    wrapper().batchFlushTx();
-                });
+    public void finish() throws NodeDoesNotExistException {
+        try {
+            addEdges();
+        } catch (RuntimeException e) {
+            // Unwrap NodeDoesNotExistException
+            Throwables.propagateIfPossible(e.getCause(), NodeDoesNotExistException.class);
+            throw e;
+        }
     }
 
     private StarVertex createVertex(Map<String, Object> node) {
@@ -129,4 +107,31 @@ class DefaultNodeAccumulator extends NodeAccumulator {
         wrapper().getNodeObjectProperties(node, (edgeLabel, inVertexId) -> vertex.addEdge(edgeLabel, starGraph.addVertex(T.id, inVertexId)));
         return vertex;
     }
+
+    private void addEdges() {
+        // Stream all the edges from the StarVertex keys in the persisted map
+        persistedVertices.keySet().stream().flatMap(v -> Streams.stream(v.edges(OUT))).forEach(e -> {
+            // Look up the vertices
+            Vertex cachedOutV = persistedVertices.get(e.outVertex());
+            Vertex cachedInV = persistedVertices.get(e.inVertex());
+            if (cachedInV == null) {
+                throw new RuntimeException(new NodeDoesNotExistException(e.outVertex().id(), e.label(), e.inVertex().id()));
+            }
+
+            // First try to find an existing edge
+            Iterator<Edge> edges = cachedOutV.edges(OUT, e.label());
+            while (edges.hasNext()) {
+                Edge edge = edges.next();
+                if (edge.inVertex().equals(cachedInV)) {
+                    return;
+                }
+            }
+
+            // Create a new edge
+            Edge edge = cachedOutV.addEdge(e.label(), cachedInV);
+            wrapper().forEachPartition(edge::property);
+            wrapper().batchFlushTx();
+        });
+    }
+
 }
