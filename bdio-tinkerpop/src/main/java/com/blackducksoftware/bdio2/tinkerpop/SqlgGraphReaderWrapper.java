@@ -39,7 +39,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.umlg.sqlg.structure.PropertyType;
 import org.umlg.sqlg.structure.RecordId;
 import org.umlg.sqlg.structure.SchemaTable;
@@ -99,14 +98,6 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
     }
 
     @Override
-    public void commitTx() {
-        // Sqlg issue #296 workaround
-        synchronized (flushLock) {
-            super.commitTx();
-        }
-    }
-
-    @Override
     public void createMetadata(BdioMetadata metadata) {
         // If we are streaming, we cannot create a new metadata vertex unless it is also streamed
         if (graph().tx().isInStreamingBatchMode()) {
@@ -114,7 +105,7 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                 Object[] metadataKeyValues = getMetadataProperties(metadata);
                 Vertex metadataVertex = traversal().V().hasLabel(metadataLabel).tryNext().orElse(null);
                 if (metadataVertex != null) {
-                    ElementHelper.attachProperties(metadataVertex, metadataKeyValues);
+                    mergeProperties(metadataVertex, null, metadataKeyValues);
                 } else {
                     flushTx();
                     graph().streamVertex(metadataKeyValues);
@@ -179,6 +170,14 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                     }
                 })
                 .map(t -> Lists.newArrayList(graph().vertices(t.get())));
+    }
+
+    @Override
+    public void commitTx() {
+        // Sqlg issue #296 workaround
+        synchronized (flushLock) {
+            super.commitTx();
+        }
     }
 
     @Override

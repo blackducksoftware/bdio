@@ -24,6 +24,7 @@ import java.io.UncheckedIOException;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.function.Function;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
@@ -36,7 +37,10 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.io.GraphReader;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
+import org.reactivestreams.Publisher;
+import org.umlg.sqlg.structure.SqlgGraph;
 
+import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 
@@ -76,7 +80,7 @@ public final class BlackDuckIoReader implements GraphReader {
 
             doc.jsonLd(entries)
                     .frame(wrapper.mapper().frame())
-                    .compose(new BlackDuckIoReaderImpl(wrapper)::readNodes)
+                    .compose(framedEntries -> readNodes(wrapper, framedEntries))
                     .doOnComplete(wrapper::commitTx)
                     .doOnError(x -> wrapper.rollbackTx())
                     .blockingSubscribe();
@@ -93,6 +97,42 @@ public final class BlackDuckIoReader implements GraphReader {
 
             // Add a check above and throw a BlackDuckIoReadGraphException with a nice message instead
             throw new IllegalStateException("Unexpected checked exception in readGraph", failure);
+        }
+    }
+
+    /**
+     * Reads framed JSON-LD input into the graph.
+     *
+     * @see SqlgNodeAccumulator
+     * @see TinkerGraphNodeAccumulator
+     * @see DefaultNodeAccumulator
+     */
+    private Publisher<?> readNodes(GraphReaderWrapper wrapper, Flowable<Map<String, Object>> framedEntries) {
+        // `framedEntries` is a sequence of node lists, each list should have an upper bound around 2^15 elements
+        if (SqlgNodeAccumulator.acceptWrapper(wrapper)) {
+            return framedEntries
+                    .map(BdioDocument::toGraphNodes)
+                    .map(nodes -> nodes.stream()
+                            .sorted(SqlgNodeAccumulator::nodeTypeOrder)
+                            .reduce(new SqlgNodeAccumulator(wrapper), SqlgNodeAccumulator::addNode, SqlgNodeAccumulator::combine)
+                            .streamVertices())
+                    .reduce(SqlgNodeAccumulator::combine)
+                    .doOnSuccess(SqlgNodeAccumulator::finish)
+                    .doOnSubscribe(x -> ((SqlgGraph) wrapper.graph()).tx().streamingBatchModeOn())
+                    .toFlowable();
+        } else if (TinkerGraphNodeAccumulator.acceptWrapper(wrapper)) {
+            return framedEntries
+                    .flatMapIterable(BdioDocument::toGraphNodes)
+                    .reduce(new TinkerGraphNodeAccumulator(wrapper), TinkerGraphNodeAccumulator::addNode)
+                    .doOnSuccess(TinkerGraphNodeAccumulator::finish)
+                    .toFlowable();
+        } else {
+            return framedEntries
+                    .flatMapIterable(BdioDocument::toGraphNodes)
+                    .reduce(new DefaultNodeAccumulator(wrapper), DefaultNodeAccumulator::addNode)
+                    .doOnSuccess(DefaultNodeAccumulator::finish)
+                    .doOnSubscribe(x -> wrapper.startBatchTx())
+                    .toFlowable();
         }
     }
 

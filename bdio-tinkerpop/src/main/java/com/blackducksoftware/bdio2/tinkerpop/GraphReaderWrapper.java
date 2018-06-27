@@ -22,6 +22,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.P.gt;
 import static org.apache.tinkerpop.gremlin.process.traversal.Scope.local;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
 import static org.apache.tinkerpop.gremlin.structure.Column.values;
+import static org.apache.tinkerpop.gremlin.structure.VertexProperty.Cardinality.single;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,6 +31,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
+
+import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
@@ -213,6 +216,16 @@ class GraphReaderWrapper extends GraphIoWrapper {
                         .map(this::generateId)
                         .forEach(id -> consumer.accept(property.getKey(), id));
             }
+        }
+    }
+
+    public void mergeProperties(Vertex target, @Nullable Vertex source, Object... keyValues) {
+        // TODO 'single' force overwrite, can we detect multiple (e.g. file fingerprints) from the mapper?
+        if (source != null) {
+            source.properties().forEachRemaining(vp -> target.property(single, vp.key(), vp.value()));
+        }
+        if (keyValues.length > 0) {
+            ElementHelper.attachProperties(target, single, keyValues);
         }
     }
 
