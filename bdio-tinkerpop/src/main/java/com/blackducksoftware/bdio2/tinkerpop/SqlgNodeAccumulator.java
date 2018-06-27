@@ -241,6 +241,14 @@ class SqlgNodeAccumulator extends NodeAccumulator {
         // Flatten the labels that were encountered
         identifierTypes.keySet().forEach(this::flattenVertices);
 
+        // Get the list of properties that go on all edges
+        List<Object> edgePropertyList = new ArrayList<>();
+        wrapper().forEachPartition((k, v) -> {
+            edgePropertyList.add(k);
+            edgePropertyList.add(v);
+        });
+        Object[] edgeProperties = edgePropertyList.toArray();
+
         // Drain the buffer
         for (Map.Entry<SqlgNodeAccumulator.EdgeKey, Collection<Pair<Object, Object>>> edge : edges.asMap().entrySet()) {
             String edgeLabel = edge.getKey().edgeLabel;
@@ -248,9 +256,8 @@ class SqlgNodeAccumulator extends NodeAccumulator {
             if (!effectiveEdges.isEmpty()) {
                 String outVertexLabel = edge.getKey().outVertexLabel;
                 Pair<String, String> idFields = Pair.of(wrapper().mapper().identifierKey().get(), wrapper().mapper().identifierKey().get());
-
-                // TODO Write partitions on the edges?!
-                effectiveEdges.asMap().forEach((inVertexLabel, uids) -> graph().bulkAddEdges(outVertexLabel, inVertexLabel, edgeLabel, idFields, uids));
+                effectiveEdges.asMap()
+                        .forEach((inVertexLabel, uids) -> wrapper().bulkAddEdges(outVertexLabel, inVertexLabel, edgeLabel, idFields, uids, edgeProperties));
 
                 // Record the flush so we can stream a different type of edge
                 wrapper().flushTx();
