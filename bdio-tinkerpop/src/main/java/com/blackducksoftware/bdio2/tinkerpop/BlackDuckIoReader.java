@@ -143,7 +143,7 @@ public final class BlackDuckIoReader implements GraphReader {
         // Blocking subscribe uses a raw RuntimeException to wrap checked exceptions so check the actual type
         if (failure.getClass().equals(RuntimeException.class) || failure instanceof UncheckedIOException) {
             // Only unwrap checked exceptions
-            if (!(failure.getCause() instanceof RuntimeException)) {
+            if (failure.getCause() != null && !(failure.getCause() instanceof RuntimeException)) {
                 return failure.getCause();
             }
         }
