@@ -43,6 +43,8 @@ import com.blackducksoftware.common.value.Product;
 import com.blackducksoftware.common.value.ProductList;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.io.JsonEOFException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -78,7 +80,7 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
         if (metadata == null) {
             if (jp.nextToken() != null) {
                 if (!jp.isExpectedStartObjectToken()) {
-                    throw new IOException("expected start object:  " + jp.getCurrentToken());
+                    throw JsonMappingException.from(jp, "expected start object");
                 }
 
                 parseMetadata(jp);
@@ -155,7 +157,7 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
 
         // Make sure we are actually looking at a "list"
         if (jp.nextToken() == null || !jp.isExpectedStartArrayToken()) {
-            throw new IOException("expected start array: " + jp.getCurrentToken());
+            throw JsonMappingException.from(jp, "expected start array");
         }
 
         // Add the root object to the graph
@@ -198,7 +200,7 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
         }
 
         // We should hit the end of the array before we run out of tokens
-        throw new IOException("Unexpected end of stream");
+        throw new JsonEOFException(jp, jp.currentToken(), "unexpected end of stream");
     }
 
     /**

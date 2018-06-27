@@ -68,11 +68,11 @@ import com.blackducksoftware.common.value.Digest;
 import com.blackducksoftware.common.value.Product;
 import com.blackducksoftware.common.value.ProductList;
 import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.io.IOContext;
 import com.fasterxml.jackson.core.util.JsonParserDelegate;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Joiner;
@@ -360,7 +360,7 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
                 }
                 return result;
             } else {
-                throw new JsonParseException(this, "unexpected field value token: " + currToken);
+                throw JsonMappingException.from(this, "unexpected field value token");
             }
         }
 
@@ -420,7 +420,7 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
         if (metadata == null) {
             if (jp.nextToken() != null) {
                 if (!jp.isExpectedStartArrayToken()) {
-                    throw new IOException("expected start array:  " + jp.getCurrentToken());
+                    throw JsonMappingException.from(jp, "expected start array");
                 }
 
                 parseMetadata(jp);
