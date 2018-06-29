@@ -15,10 +15,14 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.blackducksoftware.bdio2.tinkerpop.GraphMapper.FILE_PARENT_KEY;
 import static com.blackducksoftware.common.base.ExtraOptionals.and;
 import static java.lang.Boolean.FALSE;
 import static org.umlg.sqlg.structure.SqlgGraph.TRANSACTION_MUST_BE_IN;
 import static org.umlg.sqlg.structure.topology.Topology.EDGE_PREFIX;
+import static org.umlg.sqlg.structure.topology.Topology.ID;
+import static org.umlg.sqlg.structure.topology.Topology.IN_VERTEX_COLUMN_END;
+import static org.umlg.sqlg.structure.topology.Topology.OUT_VERTEX_COLUMN_END;
 import static org.umlg.sqlg.structure.topology.Topology.VERTEX_PREFIX;
 
 import java.lang.reflect.Method;
@@ -26,6 +30,7 @@ import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.ZonedDateTime;
 import java.util.Base64;
 import java.util.Collection;
@@ -39,9 +44,11 @@ import java.util.function.BiConsumer;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.umlg.sqlg.sql.dialect.PostgresDialect;
 import org.umlg.sqlg.sql.dialect.SqlBulkDialect;
+import org.umlg.sqlg.sql.dialect.SqlDialect;
 import org.umlg.sqlg.structure.BatchManager;
 import org.umlg.sqlg.structure.PropertyType;
 import org.umlg.sqlg.structure.SchemaTable;
@@ -51,9 +58,11 @@ import org.umlg.sqlg.structure.topology.Topology;
 import org.umlg.sqlg.structure.topology.VertexLabel;
 import org.umlg.sqlg.util.SqlgUtil;
 
+import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * Specialization of the read graph context to use when the underlying graph is a Sqlg graph.
@@ -272,6 +281,138 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
             SchemaTable outSchemaTable = SchemaTable.from(self, outVertexLabel);
             SchemaTable inSchemaTable = SchemaTable.from(self, inVertexLabel);
             sqlBulkDialect.bulkAddEdges(self, outSchemaTable, inSchemaTable, edgeLabel, idFields, uids);
+        }
+    }
+
+    protected static class SqlgAddMissingFileParentsOperation extends BlackDuckIoOperations.AddMissingFileParentsOperation {
+        public SqlgAddMissingFileParentsOperation(GraphReaderWrapper wrapper) {
+            super(wrapper);
+        }
+
+        @Override
+        protected void createParentEdges(GraphTraversalSource g, GraphMapper mapper) {
+            SqlgGraph sqlgGraph = (SqlgGraph) wrapper().graph();
+            SqlDialect dialect = sqlgGraph.getSqlDialect();
+            SchemaTable file = SchemaTable.from(sqlgGraph, Bdio.Class.File.name()).withPrefix(VERTEX_PREFIX);
+            SchemaTable parent = SchemaTable.from(sqlgGraph, Bdio.ObjectProperty.parent.name()).withPrefix(EDGE_PREFIX);
+
+            Map<String, PropertyType> properties = new HashMap<>();
+            properties.put(wrapper().mapper().implicitKey().get(), PropertyType.BOOLEAN);
+            wrapper().forEachPartition((k, v) -> properties.put(k, PropertyType.from(v)));
+            sqlgGraph.getTopology().ensureEdgeLabelExist(Bdio.ObjectProperty.parent.name(), file.withOutPrefix(), file.withOutPrefix(), properties);
+
+            StringBuilder sql = new StringBuilder();
+            sql.append("INSERT INTO ")
+                    .append(dialect.maybeWrapInQoutes(parent.getTable()))
+                    .append(" (")
+                    .append(dialect.maybeWrapInQoutes(wrapper().mapper().implicitKey().get()));
+            wrapper().forEachPartition((k, v) -> sql.append(", ").append(dialect.maybeWrapInQoutes(k)));
+            sql.append(", ")
+                    .append(dialect.maybeWrapInQoutes(file.withOutPrefix() + IN_VERTEX_COLUMN_END))
+                    .append(", ")
+                    .append(dialect.maybeWrapInQoutes(file.withOutPrefix() + OUT_VERTEX_COLUMN_END))
+                    .append(")\n  SELECT true");
+            wrapper().forEachPartition((k, v) -> sql.append(", ").append(dialect.valueToValuesString(properties.get(k), v)));
+            sql.append(", p.")
+                    .append(dialect.maybeWrapInQoutes(ID))
+                    .append(", c.")
+                    .append(dialect.maybeWrapInQoutes(ID))
+                    .append(" FROM ")
+                    .append(dialect.maybeWrapInQoutes(file.getTable()))
+                    .append(" p JOIN ")
+                    .append(dialect.maybeWrapInQoutes(file.getTable()))
+                    .append(" c ON p.")
+                    .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()))
+                    .append(" = c.")
+                    .append(dialect.maybeWrapInQoutes(FILE_PARENT_KEY))
+                    .append(dialect.needsSemicolon() ? ";" : "");
+
+            executeUpdate(sqlgGraph, sql);
+        }
+    }
+
+    protected static class SqlgImplyFileSystemTypeOperation extends BlackDuckIoOperations.ImplyFileSystemTypeOperation {
+        public SqlgImplyFileSystemTypeOperation(GraphReaderWrapper wrapper) {
+            super(wrapper);
+        }
+
+        @Override
+        protected void updateDirectoryTypes(GraphTraversalSource g) {
+            SqlgGraph sqlgGraph = (SqlgGraph) g.getGraph();
+            updateFileSystemType(sqlgGraph, Bdio.FileSystemType.DIRECTORY_ARCHIVE);
+            updateFileSystemType(sqlgGraph, Bdio.FileSystemType.DIRECTORY);
+        }
+
+        private static void updateFileSystemType(SqlgGraph sqlgGraph, Bdio.FileSystemType fileSystemType) {
+            SqlDialect dialect = sqlgGraph.getSqlDialect();
+            SchemaTable file = SchemaTable.from(sqlgGraph, Bdio.Class.File.name()).withPrefix(VERTEX_PREFIX);
+            SchemaTable parent = SchemaTable.from(sqlgGraph, Bdio.ObjectProperty.parent.name()).withPrefix(EDGE_PREFIX);
+
+            // Make sure everything we are about to query is properly constructed
+            VertexLabel fileLabel = sqlgGraph.getTopology().ensureVertexLabelExist(file.getSchema(), file.withOutPrefix().getTable());
+            sqlgGraph.getTopology().ensureEdgeLabelExist(parent.withOutPrefix().getTable(), fileLabel, fileLabel, ImmutableMap.of());
+            sqlgGraph.getTopology().ensureVertexLabelPropertiesExist(file.getSchema(), file.withOutPrefix().getTable(), ImmutableMap.of(
+                    Bdio.DataProperty.fileSystemType.name(), PropertyType.STRING,
+                    Bdio.DataProperty.byteCount.name(), PropertyType.LONG,
+                    Bdio.DataProperty.contentType.name(), PropertyType.STRING));
+
+            StringBuilder sql = new StringBuilder();
+            sql.append("\nUPDATE\n\t")
+                    .append(dialect.maybeWrapInQoutes(file.getSchema()))
+                    .append('.')
+                    .append(dialect.maybeWrapInQoutes(file.getTable()))
+                    .append("\nSET\n\t")
+                    .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.fileSystemType.name()))
+                    .append(" = ")
+                    .append(dialect.valueToValuesString(PropertyType.STRING, fileSystemType.toString()))
+                    .append("\nFROM\n\t")
+                    .append(dialect.maybeWrapInQoutes(parent.getSchema()))
+                    .append('.')
+                    .append(dialect.maybeWrapInQoutes(parent.getTable()))
+                    .append("\nWHERE\n\t")
+                    .append(dialect.maybeWrapInQoutes(file.getTable()))
+                    .append('.')
+                    .append(dialect.maybeWrapInQoutes(Topology.ID))
+                    .append(" = ")
+                    .append(dialect.maybeWrapInQoutes(parent.getTable()))
+                    .append('.')
+                    .append(dialect.maybeWrapInQoutes(file.withOutPrefix() + Topology.IN_VERTEX_COLUMN_END));
+            if (fileSystemType == Bdio.FileSystemType.DIRECTORY_ARCHIVE) {
+                sql.append(" AND (")
+                        .append(dialect.maybeWrapInQoutes(file.getTable()))
+                        .append(".")
+                        .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.byteCount.name()))
+                        .append(" IS NOT NULL OR ")
+                        .append(dialect.maybeWrapInQoutes(file.getTable()))
+                        .append(".")
+                        .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.contentType.name()))
+                        .append(" IS NOT NULL)");
+            } else if (fileSystemType == Bdio.FileSystemType.DIRECTORY) {
+                sql.append(" AND ")
+                        .append(dialect.maybeWrapInQoutes(file.getTable()))
+                        .append(".")
+                        .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.fileSystemType.name()))
+                        .append(" IS NULL");
+            } else {
+                throw new IllegalArgumentException("file system type must be DIRECTORY or DIRECTORY_ARCHIVE");
+            }
+            if (dialect.needsSemicolon()) {
+                sql.append(";");
+            }
+
+            executeUpdate(sqlgGraph, sql);
+        }
+    }
+
+    /**
+     * Helper to execute a raw SQL update against a Sqlg graph.
+     */
+    private static void executeUpdate(SqlgGraph sqlgGraph, CharSequence sql) {
+        Connection conn = sqlgGraph.tx().getConnection();
+        try (Statement statement = conn.createStatement()) {
+            statement.executeUpdate(sql.toString());
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
 

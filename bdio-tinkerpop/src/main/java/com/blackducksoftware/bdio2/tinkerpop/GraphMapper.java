@@ -46,6 +46,8 @@ import com.google.common.collect.Maps;
  */
 public class GraphMapper {
 
+    public static final String FILE_PARENT_KEY = "_parent";
+
     /**
      * The JSON object mapper used to preserve unknown values.
      */

@@ -15,24 +15,22 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
+import static com.blackducksoftware.bdio2.tinkerpop.GraphMapper.FILE_PARENT_KEY;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static org.apache.tinkerpop.gremlin.process.traversal.P.eq;
+import static org.apache.tinkerpop.gremlin.process.traversal.P.without;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.V;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.has;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.or;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.property;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -40,28 +38,18 @@ import java.util.stream.Stream;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
-import org.slf4j.LoggerFactory;
-import org.umlg.sqlg.sql.dialect.SqlDialect;
-import org.umlg.sqlg.structure.PropertyType;
-import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
-import org.umlg.sqlg.structure.SqlgVertex;
-import org.umlg.sqlg.structure.topology.Topology;
-import org.umlg.sqlg.structure.topology.VertexLabel;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.bdio2.tinkerpop.SqlgGraphReaderWrapper.SqlgAddMissingFileParentsOperation;
+import com.blackducksoftware.bdio2.tinkerpop.SqlgGraphReaderWrapper.SqlgImplyFileSystemTypeOperation;
 import com.blackducksoftware.bdio2.tinkerpop.sqlg.strategy.SqlgGraphAddPropertyStrategy;
-import com.blackducksoftware.bdio2.tinkerpop.sqlg.strategy.SqlgGraphCountStrategy;
 import com.blackducksoftware.common.value.HID;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 
 /**
  * Graph based operations to perform on BDIO data.
@@ -147,10 +135,19 @@ public final class BlackDuckIoOperations {
      */
     public void applySemanticRules(Graph graph) {
         GraphReaderWrapper wrapper = graphWrapper.apply(graph);
-        new IdentifyRootOperation(wrapper).run();
-        new AddMissingFileParentsOperation(wrapper).run();
-        new AddMissingProjectDependenciesOperation(wrapper).run();
-        new ImplyFileSystemTypeOperation(wrapper).run();
+        List<Operation> operations = new ArrayList<>();
+
+        // If we have an optimized implementation use that instead
+        operations.add(new IdentifyRootOperation(wrapper));
+        operations.add(graph instanceof SqlgGraph
+                ? new SqlgAddMissingFileParentsOperation(wrapper)
+                : new AddMissingFileParentsOperation(wrapper));
+        operations.add(new AddMissingProjectDependenciesOperation(wrapper));
+        operations.add(graph instanceof SqlgGraph
+                ? new SqlgImplyFileSystemTypeOperation(wrapper)
+                : new ImplyFileSystemTypeOperation(wrapper));
+
+        operations.forEach(Operation::run);
     }
 
     public static Builder build() {
@@ -218,7 +215,6 @@ public final class BlackDuckIoOperations {
      * <p>
      * Note that is not currently an error to provide multiple roots.
      */
-    @VisibleForTesting
     protected static class IdentifyRootOperation extends Operation {
         public IdentifyRootOperation(GraphReaderWrapper wrapper) {
             super(wrapper, m -> m.rootLabel().isPresent() && m.metadataLabel().isPresent() && m.implicitKey().isPresent());
@@ -248,7 +244,6 @@ public final class BlackDuckIoOperations {
     /**
      * Adds parent edges between files based on their path values.
      */
-    @VisibleForTesting
     protected static class AddMissingFileParentsOperation extends Operation {
         public AddMissingFileParentsOperation(GraphReaderWrapper wrapper) {
             super(wrapper, m -> m.implicitKey().isPresent());
@@ -256,95 +251,64 @@ public final class BlackDuckIoOperations {
 
         @Override
         protected void execute(GraphTraversalSource g, GraphMapper mapper) {
-            // With a database like Sqlg, it's faster to assume we are starting from scratch
+            // TODO At some point we need to support explicit parent edges...
             g.E().hasLabel(Bdio.ObjectProperty.parent.name()).drop().iterate();
+
+            removeBaseFileParents(g);
             wrapper().commitTx();
 
-            // Get the list of base paths
-            Set<String> basePaths = g.V()
-                    .out(Bdio.ObjectProperty.base.name())
-                    .<String> values(Bdio.DataProperty.path.name())
-                    .toSet();
+            createMissingFiles(g, mapper);
+            wrapper().commitTx();
 
-            // Index all of the files by path
-            // NOTE: This potentially takes a lot of memory as we are loading full files
-            // TODO Can we reduce the footprint somehow? We only need ID and path...
-            long fileCount = g.withStrategies(SqlgGraphCountStrategy.instance()).V().hasLabel(Bdio.Class.File.name()).count().next();
-            Map<String, Vertex> files = Maps.newHashMapWithExpectedSize(Math.toIntExact(fileCount));
-            g.V().hasLabel(Bdio.Class.File.name()).has(Bdio.DataProperty.path.name()).forEachRemaining(v -> {
-                files.put(v.value(Bdio.DataProperty.path.name()), v);
-            });
-
-            // Update the graph
-            createMissingFileParentVertices(mapper, files, basePaths);
-            createFileParentEdges(mapper, files, basePaths);
+            createParentEdges(g, mapper);
         }
 
-        private void createMissingFileParentVertices(GraphMapper mapper, Map<String, Vertex> files, Set<String> basePaths) {
-            // Find the missing files using the HID
-            Set<String> missingFilePaths = new HashSet<>();
-            for (String path : files.keySet()) {
-                String parentPath = path;
-                while (parentPath != null && !basePaths.contains(parentPath)) {
-                    parentPath = HID.from(parentPath)
-                            .tryParent()
-                            .map(HID::toUriString)
-                            .filter(p -> !files.containsKey(p))
-                            .filter(missingFilePaths::add)
-                            .orElse(null);
-                }
-            }
+        protected void removeBaseFileParents(GraphTraversalSource g) {
+            // Base files must not have a parent property or we will walk right past them to the root
+            g.V().out(Bdio.ObjectProperty.base.name()).properties(FILE_PARENT_KEY).drop().iterate();
+        }
 
-            // Create File vertices for all the missing paths
+        protected void createMissingFiles(GraphTraversalSource g, GraphMapper mapper) {
             wrapper().startBatchTx();
-            for (String path : missingFilePaths) {
-                Stream.Builder<Object> properties = Stream.builder()
-                        .add(T.label).add(Bdio.Class.File.name())
-                        .add(Bdio.DataProperty.path.name()).add(path)
-                        .add(Bdio.DataProperty.fileSystemType.name()).add(Bdio.FileSystemType.DIRECTORY.toString())
-                        .add(mapper.implicitKey().get()).add(Boolean.TRUE);
-                mapper.identifierKey().ifPresent(key -> properties.add(key).add(BdioObject.randomId()));
-                wrapper().forEachPartition((k, v) -> {
-                    properties.add(k);
-                    properties.add(v);
-                });
-                files.put(path, wrapper().graph().addVertex(properties.build().toArray()));
-                wrapper().batchFlushTx();
+
+            // Loop until we can't find anymore missing files
+            long implicitCreation = 1;
+            while (implicitCreation > 0) {
+                implicitCreation = g.V().hasLabel(Bdio.Class.File.name())
+                        .as("f").values(Bdio.DataProperty.path.name()).dedup().aggregate("paths")
+                        .select("f").values(FILE_PARENT_KEY).where(without("paths"))
+                        .dedup().as("path")
+                        .addV(Bdio.Class.File.name())
+                        .property(Bdio.DataProperty.path.name(), select("path"))
+                        .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY.toString())
+                        .property(mapper.implicitKey().get(), Boolean.TRUE)
+                        .property(FILE_PARENT_KEY, select("path").map(t -> HID.from(t.get()).tryParent().map(HID::toUriString).orElse(null)))
+                        .sideEffect(t -> {
+                            mapper.identifierKey().ifPresent(key -> t.get().property(key, BdioObject.randomId()));
+                            wrapper().batchFlushTx();
+                        })
+                        .count().next();
             }
-            wrapper().commitTx();
         }
 
-        private void createFileParentEdges(GraphMapper mapper, Map<String, Vertex> files, Set<String> basePaths) {
-            // Create parent edges
+        protected void createParentEdges(GraphTraversalSource g, GraphMapper mapper) {
             wrapper().startBatchTx();
-            for (Map.Entry<String, Vertex> e : files.entrySet()) {
-                Optional<String> parentPath = Optional.of(e.getKey())
-                        .filter(p -> !basePaths.contains(p))
-                        .map(HID::from)
-                        .flatMap(HID::tryParent)
-                        .map(HID::toUriString);
-                if (parentPath.isPresent()) {
-                    Vertex parent = parentPath.map(files::get)
-                            .orElseThrow(illegalState("missing parent: %s", e.getKey()));
-                    Stream.Builder<Object> properties = Stream.builder()
-                            .add(mapper.implicitKey().get()).add(Boolean.TRUE);
-                    wrapper().forEachPartition((k, v) -> {
-                        properties.add(k);
-                        properties.add(v);
-                    });
-                    e.getValue().addEdge(Bdio.ObjectProperty.parent.name(), parent, properties.build().toArray());
-                    wrapper().batchFlushTx();
-                }
-            }
-            wrapper().commitTx();
-        }
 
+            // Iterate over all the files with a "_parent" property and create the edge back up to the parent
+            g.V()
+                    .hasLabel(Bdio.Class.File.name())
+                    .as("child").values(FILE_PARENT_KEY).as("pp").select("child")
+                    .addE(Bdio.ObjectProperty.parent.name())
+                    .to(V().hasLabel(Bdio.Class.File.name())
+                            .as("parent").values(Bdio.DataProperty.path.name()).where(eq("pp")).<Vertex> select("parent"))
+                    .property(mapper.implicitKey().get(), Boolean.TRUE)
+                    .iterate();
+        }
     }
 
     /**
      * Creates dependencies for components which are not otherwise part of the dependency graph.
      */
-    @VisibleForTesting
     protected static class AddMissingProjectDependenciesOperation extends Operation {
         public AddMissingProjectDependenciesOperation(GraphReaderWrapper wrapper) {
             super(wrapper, m -> m.rootLabel().isPresent() && m.implicitKey().isPresent());
@@ -371,37 +335,40 @@ public final class BlackDuckIoOperations {
     /**
      * Implies the file system type based on the available vertex data.
      */
-    @VisibleForTesting
     protected static class ImplyFileSystemTypeOperation extends Operation {
         public ImplyFileSystemTypeOperation(GraphReaderWrapper wrapper) {
             super(wrapper, m -> true);
         }
 
-        @SuppressWarnings("unchecked")
         @Override
         protected void execute(GraphTraversalSource g, GraphMapper mapper) {
-            if (g.getGraph() instanceof SqlgGraph) {
-                SqlgGraph sqlgGraph = (SqlgGraph) g.getGraph();
-                updateFileSystemType(sqlgGraph, Bdio.FileSystemType.DIRECTORY_ARCHIVE);
-                updateFileSystemType(sqlgGraph, Bdio.FileSystemType.DIRECTORY);
-            } else {
-                wrapper().startBatchTx();
-                g.V().out(Bdio.ObjectProperty.parent.name())
-                        .hasNot(Bdio.DataProperty.fileSystemType.name())
-                        .coalesce(
-                                or(has(Bdio.DataProperty.byteCount.name()), has(Bdio.DataProperty.contentType.name()))
-                                        .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString()),
-                                property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY.toString()))
-                        .sideEffect(t -> wrapper().batchFlushTx())
-                        .iterate();
-            }
+            updateDirectoryTypes(g);
+            updateSymlinkTypes(g);
+            updateRegularTypes(g);
+        }
 
+        @SuppressWarnings("unchecked")
+        protected void updateDirectoryTypes(GraphTraversalSource g) {
+            wrapper().startBatchTx();
+            g.V().out(Bdio.ObjectProperty.parent.name())
+                    .hasNot(Bdio.DataProperty.fileSystemType.name())
+                    .coalesce(
+                            or(has(Bdio.DataProperty.byteCount.name()), has(Bdio.DataProperty.contentType.name()))
+                                    .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString()),
+                            property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY.toString()))
+                    .sideEffect(t -> wrapper().batchFlushTx())
+                    .iterate();
+        }
+
+        protected void updateSymlinkTypes(GraphTraversalSource g) {
             g.withStrategies(SqlgGraphAddPropertyStrategy.instance()).V().hasLabel(Bdio.Class.File.name())
                     .hasNot(Bdio.DataProperty.fileSystemType.name())
                     .has(Bdio.DataProperty.linkPath.name())
                     .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.SYMLINK.toString())
                     .iterate();
+        }
 
+        protected void updateRegularTypes(GraphTraversalSource g) {
             g.withStrategies(SqlgGraphAddPropertyStrategy.instance()).V().hasLabel(Bdio.Class.File.name())
                     .hasNot(Bdio.DataProperty.fileSystemType.name())
                     .has(Bdio.DataProperty.encoding.name())
@@ -413,76 +380,6 @@ public final class BlackDuckIoOperations {
                     .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.REGULAR.toString())
                     .iterate();
         }
-
-        /**
-         * This is a very ugly optimization for a specific case that was extremely expensive to compute in Sqlg.
-         */
-        private static void updateFileSystemType(SqlgGraph sqlgGraph, Bdio.FileSystemType fileSystemType) {
-            SqlDialect dialect = sqlgGraph.getSqlDialect();
-            SchemaTable fileTable = SchemaTable.of(dialect.getPublicSchema(), Bdio.Class.File.name()).withPrefix(Topology.VERTEX_PREFIX);
-            SchemaTable parentTable = SchemaTable.of(dialect.getPublicSchema(), Bdio.ObjectProperty.parent.name()).withPrefix(Topology.EDGE_PREFIX);
-
-            // Make sure everything we are about to query is properly constructed
-            VertexLabel fileLabel = sqlgGraph.getTopology().ensureVertexLabelExist(fileTable.getSchema(), fileTable.withOutPrefix().getTable());
-            sqlgGraph.getTopology().ensureEdgeLabelExist(parentTable.withOutPrefix().getTable(), fileLabel, fileLabel, ImmutableMap.of());
-            sqlgGraph.getTopology().ensureVertexLabelPropertiesExist(fileTable.getSchema(), fileTable.withOutPrefix().getTable(), ImmutableMap.of(
-                    Bdio.DataProperty.fileSystemType.name(), PropertyType.STRING,
-                    Bdio.DataProperty.byteCount.name(), PropertyType.LONG,
-                    Bdio.DataProperty.contentType.name(), PropertyType.STRING));
-
-            StringBuilder sql = new StringBuilder();
-            sql.append("\nUPDATE\n\t")
-                    .append(dialect.maybeWrapInQoutes(fileTable.getSchema()))
-                    .append('.')
-                    .append(dialect.maybeWrapInQoutes(fileTable.getTable()))
-                    .append("\nSET\n\t")
-                    .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.fileSystemType.name()))
-                    .append(" = ")
-                    .append(dialect.valueToValuesString(PropertyType.STRING, fileSystemType.toString()))
-                    .append("\nFROM\n\t")
-                    .append(dialect.maybeWrapInQoutes(parentTable.getSchema()))
-                    .append('.')
-                    .append(dialect.maybeWrapInQoutes(parentTable.getTable()))
-                    .append("\nWHERE\n\t")
-                    .append(dialect.maybeWrapInQoutes(fileTable.getTable()))
-                    .append('.')
-                    .append(dialect.maybeWrapInQoutes(Topology.ID))
-                    .append(" = ")
-                    .append(dialect.maybeWrapInQoutes(parentTable.getTable()))
-                    .append('.')
-                    .append(dialect.maybeWrapInQoutes(fileTable.withOutPrefix() + Topology.IN_VERTEX_COLUMN_END));
-            if (fileSystemType == Bdio.FileSystemType.DIRECTORY_ARCHIVE) {
-                sql.append(" AND (")
-                        .append(dialect.maybeWrapInQoutes(fileTable.getTable()))
-                        .append(".")
-                        .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.byteCount.name()))
-                        .append(" IS NOT NULL OR ")
-                        .append(dialect.maybeWrapInQoutes(fileTable.getTable()))
-                        .append(".")
-                        .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.contentType.name()))
-                        .append(" IS NOT NULL)");
-            } else if (fileSystemType == Bdio.FileSystemType.DIRECTORY) {
-                sql.append(" AND ")
-                        .append(dialect.maybeWrapInQoutes(fileTable.getTable()))
-                        .append(".")
-                        .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.fileSystemType.name()))
-                        .append(" IS NULL");
-            } else {
-                throw new IllegalArgumentException("file system type must be DIRECTORY or DIRECTORY_ARCHIVE");
-            }
-            if (dialect.needsSemicolon()) {
-                sql.append(";");
-            }
-
-            LoggerFactory.getLogger(SqlgVertex.class).debug("{}", sql);
-            Connection conn = sqlgGraph.tx().getConnection();
-            try (Statement statement = conn.createStatement()) {
-                statement.executeUpdate(sql.toString());
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
     }
 
 }

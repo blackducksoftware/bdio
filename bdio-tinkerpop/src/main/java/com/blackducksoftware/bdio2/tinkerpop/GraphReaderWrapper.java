@@ -38,7 +38,9 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
+import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioMetadata;
+import com.blackducksoftware.common.value.HID;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.google.common.base.Joiner;
@@ -185,6 +187,19 @@ class GraphReaderWrapper extends GraphIoWrapper {
 
         // Unknown properties
         mapper().preserveUnknownProperties(node, dataPropertyHandler);
+
+        // File parents
+        if (node.containsKey(Bdio.DataProperty.path.name())) {
+            Object parent;
+            try {
+                parent = Optional.ofNullable(node.get(Bdio.DataProperty.path.name()))
+                        .map(HID::from).flatMap(HID::tryParent).map(HID::toUriString)
+                        .orElse(null);
+            } catch (IllegalArgumentException e) {
+                parent = null;
+            }
+            dataPropertyHandler.accept(GraphMapper.FILE_PARENT_KEY, parent);
+        }
     }
 
     /**
