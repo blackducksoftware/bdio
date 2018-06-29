@@ -193,6 +193,23 @@ public class DependenciesTool extends AbstractGraphTool {
 
     }
 
+    public enum TraversalTruncate {
+        /**
+         * Do not truncate the traversal, show every transitive dependency.
+         */
+        NONE,
+
+        /**
+         * Only show the first occurrence of each transitive dependency.
+         */
+        FIRST_OCCURRENCE,
+
+        /**
+         * Show all transitive dependencies, but only expand each one once.
+         */
+        EXPAND_ONCE,
+    }
+
     /**
      * (D)ependency (T)ool (T)okens.
      */
@@ -205,7 +222,7 @@ public class DependenciesTool extends AbstractGraphTool {
 
     private boolean noReport;
 
-    private boolean showAllDependencies;
+    private TraversalTruncate truncate = TraversalTruncate.EXPAND_ONCE;
 
     private boolean showIdentifiers;
 
@@ -225,8 +242,8 @@ public class DependenciesTool extends AbstractGraphTool {
         this.noReport = noReport;
     }
 
-    public void setShowAllDependencies(boolean showAllDependencies) {
-        this.showAllDependencies = showAllDependencies;
+    public void setTruncate(TraversalTruncate truncate) {
+        this.truncate = Objects.requireNonNull(truncate);
     }
 
     public void setShowIdentifiers(boolean showIdentifiers) {
@@ -239,13 +256,14 @@ public class DependenciesTool extends AbstractGraphTool {
 
     @Override
     protected void printUsage() {
-        printOutput("usage: %s [-ain] [-L <level>] [--noreport] [file ...]%n", name());
+        printOutput("usage: %s [-in] [-a | -u] [-L <level>] [--noreport] [file ...]%n", name());
     }
 
     @Override
     protected void printHelp() {
         Map<String, String> options = new LinkedHashMap<>();
         options.put("-a", "Do not skip previously listed dependencies.");
+        options.put("-u", "Display only unique dependencies.");
         options.put("-i", "Print identifiers for each dependency.");
         options.put("-n", "Include the namespace with the dependency identifier.");
         options.put("-L level", "Descend only level dependencies deep.");
@@ -262,7 +280,10 @@ public class DependenciesTool extends AbstractGraphTool {
     protected Tool parseArguments(String[] args) throws Exception {
         for (String arg : options(args)) {
             if (arg.equals("-a")) {
-                setShowAllDependencies(true);
+                setTruncate(TraversalTruncate.NONE);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("-u")) {
+                setTruncate(TraversalTruncate.FIRST_OCCURRENCE);
                 args = removeFirst(arg, args);
             } else if (arg.equals("-i")) {
                 setShowIdentifiers(true);
@@ -305,7 +326,8 @@ public class DependenciesTool extends AbstractGraphTool {
                 dependencies.removeLast();
             }
 
-            if (dep.parentDepth() == level) {
+            if (dep.parentDepth() == level
+                    || (truncate == TraversalTruncate.FIRST_OCCURRENCE && distinctDependencies.contains(dep.id()))) {
                 continue;
             }
 
@@ -313,7 +335,7 @@ public class DependenciesTool extends AbstractGraphTool {
             boolean showChildren = !children.isCyclicDependency();
             if (showChildren) {
                 if (children.hasNext()) {
-                    showChildren = distinctDependencies.add(dep.id()) || showAllDependencies;
+                    showChildren = distinctDependencies.add(dep.id()) || truncate == TraversalTruncate.NONE;
                     if (showChildren) {
                         dependencies.addLast(children);
                     } else {
