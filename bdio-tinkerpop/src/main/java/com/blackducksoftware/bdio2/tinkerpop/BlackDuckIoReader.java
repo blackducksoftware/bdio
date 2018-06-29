@@ -115,7 +115,7 @@ public final class BlackDuckIoReader implements GraphReader {
                     .map(nodes -> nodes.stream()
                             .sorted(SqlgNodeAccumulator::nodeTypeOrder)
                             .reduce(new SqlgNodeAccumulator(wrapper), SqlgNodeAccumulator::addNode, SqlgNodeAccumulator::combine)
-                            .streamVertices())
+                            .flush())
                     .reduce(SqlgNodeAccumulator::combine)
                     .doOnSuccess(SqlgNodeAccumulator::finish)
                     .doOnSubscribe(x -> ((SqlgGraph) wrapper.graph()).tx().streamingBatchModeOn())

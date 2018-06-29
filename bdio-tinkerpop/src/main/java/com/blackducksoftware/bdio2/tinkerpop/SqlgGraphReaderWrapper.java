@@ -16,23 +16,17 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.common.base.ExtraOptionals.and;
-import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static java.lang.Boolean.FALSE;
-import static java.util.stream.Collectors.joining;
 import static org.umlg.sqlg.structure.SqlgGraph.TRANSACTION_MUST_BE_IN;
 import static org.umlg.sqlg.structure.topology.Topology.EDGE_PREFIX;
 import static org.umlg.sqlg.structure.topology.Topology.VERTEX_PREFIX;
 
-import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
@@ -45,14 +39,11 @@ import java.util.function.BiConsumer;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.umlg.sqlg.sql.dialect.PostgresDialect;
 import org.umlg.sqlg.sql.dialect.SqlBulkDialect;
 import org.umlg.sqlg.structure.BatchManager;
 import org.umlg.sqlg.structure.PropertyType;
-import org.umlg.sqlg.structure.RecordId;
 import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgExceptions;
 import org.umlg.sqlg.structure.SqlgGraph;
@@ -63,7 +54,6 @@ import org.umlg.sqlg.util.SqlgUtil;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 
 /**
  * Specialization of the read graph context to use when the underlying graph is a Sqlg graph.
@@ -132,61 +122,6 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
         } else {
             super.createMetadata(metadata);
         }
-    }
-
-    @Override
-    public GraphTraversal<?, Collection<Vertex>> groupByMultiple(String label, String groupByKey) {
-        // This is much faster to compute in the database
-        String whereClause = strategies()
-                .flatMap(ofType(PartitionStrategy.class))
-                .filter(ps -> !ps.getReadPartitions().isEmpty())
-                .map(ps -> new StringBuilder()
-                        .append(graph().getSqlDialect().maybeWrapInQoutes(ps.getPartitionKey()))
-                        .append(ps.getReadPartitions().size() == 1 ? " = " : " IN (")
-                        .append(ps.getReadPartitions().stream()
-                                .map(rp -> graph().getSqlDialect().valueToValuesString(PropertyType.STRING, rp))
-                                .collect(joining(", ")))
-                        .append(ps.getReadPartitions().size() == 1 ? "" : ")"))
-                .collect(joining(" ) AND ( "));
-
-        return traversal().inject(SchemaTable.from(graph(), label))
-                .flatMap(t -> {
-                    SchemaTable schemaTable = t.get();
-                    StringBuilder sql = new StringBuilder()
-                            .append("SELECT array_agg(")
-                            .append(graph().getSqlDialect().maybeWrapInQoutes(Topology.ID))
-                            .append(") FROM ")
-                            .append(graph().getSqlDialect().maybeWrapInQoutes(schemaTable.getSchema()))
-                            .append('.')
-                            .append(graph().getSqlDialect().maybeWrapInQoutes(schemaTable.withPrefix(Topology.VERTEX_PREFIX).getTable()));
-                    if (!whereClause.isEmpty()) {
-                        sql.append(" WHERE (").append(whereClause).append(" )");
-                    }
-                    sql.append(" GROUP BY ")
-                            .append(graph().getSqlDialect().maybeWrapInQoutes(groupByKey))
-                            .append(" HAVING count(1) > 1")
-                            .append(graph().getSqlDialect().needsSemicolon() ? ";" : "");
-
-                    Connection conn = graph().tx().getConnection();
-                    try (PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
-                        try (ResultSet rs = preparedStatement.executeQuery()) {
-                            List<Object[]> result = new ArrayList<>();
-                            while (rs.next()) {
-                                Object array = rs.getArray(1).getArray();
-                                Object[] row = new Object[Array.getLength(array)];
-                                for (int i = 0; i < row.length; ++i) {
-                                    row[i] = RecordId.from(schemaTable, (Long) Array.get(array, i));
-                                }
-                                Arrays.sort(row);
-                                result.add(row);
-                            }
-                            return result.iterator();
-                        }
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
-                    }
-                })
-                .map(t -> Lists.newArrayList(graph().vertices(t.get())));
     }
 
     @Override

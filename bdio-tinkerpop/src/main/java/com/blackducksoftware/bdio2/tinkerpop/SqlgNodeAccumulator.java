@@ -15,10 +15,18 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static java.util.stream.Collectors.joining;
 
+import java.lang.reflect.Array;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -26,12 +34,20 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.umlg.sqlg.structure.PropertyType;
+import org.umlg.sqlg.structure.RecordId;
+import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
+import org.umlg.sqlg.structure.topology.Topology;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.PrimitiveSink;
@@ -188,7 +204,7 @@ class SqlgNodeAccumulator extends NodeAccumulator {
 
             // Detect type changes (assumes we are invoked with sorted input!)
             if (!outVertexLabel.equals(type)) {
-                streamVertices();
+                flush();
                 type = outVertexLabel;
             }
 
@@ -214,7 +230,7 @@ class SqlgNodeAccumulator extends NodeAccumulator {
         return this;
     }
 
-    public SqlgNodeAccumulator streamVertices() {
+    public SqlgNodeAccumulator flush() {
         if (!nodes.isEmpty() && !schema.isEmpty()) {
             // Drain the buffer
             for (Map<String, Object> node : nodes) {
@@ -279,7 +295,6 @@ class SqlgNodeAccumulator extends NodeAccumulator {
             throws NodeDoesNotExistException {
 
         // Kind of like a non-distinct "group-by" operation
-        // TODO What about duplicates?
         Multimap<String, Pair<Object, Object>> result = HashMultimap.create();
         for (Pair<Object, Object> uid : uids) {
             boolean found = false;
@@ -303,8 +318,10 @@ class SqlgNodeAccumulator extends NodeAccumulator {
      */
     @SuppressWarnings("ReturnValueIgnored")
     private void flattenVertices(String type) {
+        // TODO This needs to be optimized, it can take 10x longer then the actual import
+
         // Collapse any split nodes (i.e. nodes with the same JSON-LD identifier)
-        wrapper().groupByMultiple(type, wrapper().mapper().identifierKey().get())
+        groupByMultiple(type, wrapper().mapper().identifierKey().get())
                 .forEachRemaining(duplicates -> {
                     // Ignore the result of the reduction, it will just be the first element from `duplicates`
                     duplicates.stream().reduce((left, right) -> {
@@ -319,5 +336,59 @@ class SqlgNodeAccumulator extends NodeAccumulator {
 
         // Flush the remaining results
         wrapper().flushTx();
+    }
+
+    private GraphTraversal<?, Collection<Vertex>> groupByMultiple(String label, String groupByKey) {
+        // This is much faster to compute in the database
+        String whereClause = wrapper().strategies()
+                .flatMap(ofType(PartitionStrategy.class))
+                .filter(ps -> !ps.getReadPartitions().isEmpty())
+                .map(ps -> new StringBuilder()
+                        .append(graph().getSqlDialect().maybeWrapInQoutes(ps.getPartitionKey()))
+                        .append(ps.getReadPartitions().size() == 1 ? " = " : " IN (")
+                        .append(ps.getReadPartitions().stream()
+                                .map(rp -> graph().getSqlDialect().valueToValuesString(PropertyType.STRING, rp))
+                                .collect(joining(", ")))
+                        .append(ps.getReadPartitions().size() == 1 ? "" : ")"))
+                .collect(joining(" ) AND ( "));
+
+        return wrapper().traversal().inject(SchemaTable.from(graph(), label))
+                .flatMap(t -> {
+                    SchemaTable schemaTable = t.get();
+                    StringBuilder sql = new StringBuilder()
+                            .append("SELECT array_agg(")
+                            .append(graph().getSqlDialect().maybeWrapInQoutes(Topology.ID))
+                            .append(") FROM ")
+                            .append(graph().getSqlDialect().maybeWrapInQoutes(schemaTable.getSchema()))
+                            .append('.')
+                            .append(graph().getSqlDialect().maybeWrapInQoutes(schemaTable.withPrefix(Topology.VERTEX_PREFIX).getTable()));
+                    if (!whereClause.isEmpty()) {
+                        sql.append(" WHERE (").append(whereClause).append(" )");
+                    }
+                    sql.append(" GROUP BY ")
+                            .append(graph().getSqlDialect().maybeWrapInQoutes(groupByKey))
+                            .append(" HAVING count(1) > 1")
+                            .append(graph().getSqlDialect().needsSemicolon() ? ";" : "");
+
+                    Connection conn = graph().tx().getConnection();
+                    try (PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
+                        try (ResultSet rs = preparedStatement.executeQuery()) {
+                            List<Object[]> result = new ArrayList<>();
+                            while (rs.next()) {
+                                Object array = rs.getArray(1).getArray();
+                                Object[] row = new Object[Array.getLength(array)];
+                                for (int i = 0; i < row.length; ++i) {
+                                    row[i] = RecordId.from(schemaTable, (Long) Array.get(array, i));
+                                }
+                                Arrays.sort(row);
+                                result.add(row);
+                            }
+                            return result.iterator();
+                        }
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .map(t -> Lists.newArrayList(graph().vertices(t.get())));
     }
 }

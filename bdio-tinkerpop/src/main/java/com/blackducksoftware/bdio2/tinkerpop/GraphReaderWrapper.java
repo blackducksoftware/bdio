@@ -18,14 +18,9 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static com.github.jsonldjava.core.JsonLdProcessor.compact;
 import static java.util.Comparator.comparing;
-import static org.apache.tinkerpop.gremlin.process.traversal.P.gt;
-import static org.apache.tinkerpop.gremlin.process.traversal.Scope.local;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
-import static org.apache.tinkerpop.gremlin.structure.Column.values;
 import static org.apache.tinkerpop.gremlin.structure.VertexProperty.Cardinality.single;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,7 +30,6 @@ import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -115,20 +109,6 @@ class GraphReaderWrapper extends GraphIoWrapper {
                 .flatMap(ofType(PartitionStrategy.class))
                 .filter(s -> s.getWritePartition() != null)
                 .forEachOrdered(s -> consumer.accept(s.getPartitionKey(), s.getWritePartition()));
-    }
-
-    /**
-     * Returns a traversal over vertices with the specified label where grouping on the specified key returns multiple
-     * values. This is useful for finding conflicts on properties that should maintain uniqueness but do not have
-     * database constraints.
-     */
-    public GraphTraversal<?, Collection<Vertex>> groupByMultiple(String label, String groupByKey) {
-        GraphTraversalSource g = traversal();
-        // TODO Do we need to ensure order stability on inner collections?
-        return g.V().hasLabel(label)
-                .group().by(groupByKey).unfold()
-                .where(select(values).count(local).is(gt(1)))
-                .select(values);
     }
 
     /**
