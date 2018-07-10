@@ -311,7 +311,7 @@ public final class Linter {
                     { "SingleRoot.MultipleRoots", "Multiple roots" },
                     { "SingleRoot.MissingRoot", "Missing root" },
                     { "UnreferencedNode.UnreferencedNode", "Unreferenced node" },
-                    { "ValidFilePath.PathNotNormalized", "File path should be normalized" },
+                    { "ValidFilePath.PathNotNormalized", "File path should be normalized, expected: {0}" },
                     { "ValidFilePath.String", "Path should be a string" },
                     { "ValidIdentifier.Absolute", "Node identifiers should be absolute" },
                     { "ValidIdentifier.Scheme", "Node identifier scheme is questionable" },

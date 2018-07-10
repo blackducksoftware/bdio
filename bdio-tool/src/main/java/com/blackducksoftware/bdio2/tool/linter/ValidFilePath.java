@@ -16,15 +16,15 @@
 package com.blackducksoftware.bdio2.tool.linter;
 
 import java.util.Map;
-import java.util.Objects;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
 import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 import com.blackducksoftware.common.value.HID;
-import com.github.jsonldjava.core.JsonLdConsts;
 
 public class ValidFilePath implements RawNodeRule {
 
@@ -32,12 +32,13 @@ public class ValidFilePath implements RawNodeRule {
     public Stream<Violation> validate(Map<String, Object> input) {
         ViolationBuilder result = new ViolationBuilder(this, input);
 
-        if (Objects.equals(input.get(JsonLdConsts.TYPE), Bdio.Class.File.toString())) {
-            Object path = input.get(Bdio.DataProperty.path.toString());
+        if (RawNodeRule.types(input).anyMatch(Predicate.isEqual(Bdio.Class.File.toString()))) {
+            ValueObjectMapper valueObjectMapper = ValueObjectMapper.getContextValueObjectMapper();
+            Object path = valueObjectMapper.fromFieldValue(Bdio.DataProperty.path.toString(), input.get(Bdio.DataProperty.path.toString()));
             if (path instanceof String) {
                 HID hid = HID.from(path);
                 if (!path.equals(hid.toUriString())) {
-                    result.error("PathNotNormalized");
+                    result.error("PathNotNormalized", hid.toUriString());
                 }
             } else if (path != null) {
                 result.error("String");
