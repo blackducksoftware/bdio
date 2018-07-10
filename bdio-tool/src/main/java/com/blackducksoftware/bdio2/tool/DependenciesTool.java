@@ -160,20 +160,21 @@ public class DependenciesTool extends AbstractGraphTool {
 
         private final Set<String> distinctPathElements;
 
-        public DependencyIterator(Dependency root) {
-            this(Iterators.singletonIterator(root), ImmutableSet.of());
+        public DependencyIterator(Dependency root, Set<String> distinctPathElements) {
+            this(Iterators.singletonIterator(root), distinctPathElements);
         }
 
         private DependencyIterator(Iterator<Dependency> delegate, Set<String> distinctPathElements) {
             this.delegate = Objects.requireNonNull(delegate);
-            this.distinctPathElements = ImmutableSet.copyOf(distinctPathElements);
+            this.distinctPathElements = distinctPathElements;
         }
 
         public DependencyIterator children(Dependency parent, Supplier<Iterator<Dependency>> children) {
             if (distinctPathElements.contains(parent.id())) {
                 return new DependencyIterator(CYCLIC_DEPENDENCY_ITERATOR, distinctPathElements);
             } else {
-                return new DependencyIterator(children.get(), Sets.union(distinctPathElements, Collections.singleton(parent.id())));
+                Set<String> filter = Sets.union(distinctPathElements, Collections.singleton(parent.id()));
+                return new DependencyIterator(Iterators.filter(children.get(), d -> !filter.contains(d.id())), filter);
             }
         }
 
@@ -312,7 +313,8 @@ public class DependenciesTool extends AbstractGraphTool {
         Set<String> distinctDependencies = new HashSet<>(); // TODO Track this for all scopes also?
 
         // Find the base file in the graph
-        dependencies.addFirst(root(g).map(DependencyIterator::new)
+        Set<String> distinctChildren = truncate != TraversalTruncate.FIRST_OCCURRENCE ? ImmutableSet.of() : distinctDependencies;
+        dependencies.addFirst(root(g).map(r -> new DependencyIterator(r, distinctChildren))
                 .orElseThrow(illegalState("No root object found")));
 
         while (!dependencies.isEmpty()) {
@@ -333,9 +335,10 @@ public class DependenciesTool extends AbstractGraphTool {
 
             DependencyIterator children = i.children(dep, () -> dep.children(g));
             boolean showChildren = !children.isCyclicDependency();
+            boolean isDistinct = distinctDependencies.add(dep.id());
             if (showChildren) {
                 if (children.hasNext()) {
-                    showChildren = distinctDependencies.add(dep.id()) || truncate == TraversalTruncate.NONE;
+                    showChildren = isDistinct || truncate == TraversalTruncate.NONE;
                     if (showChildren) {
                         dependencies.addLast(children);
                     } else {
