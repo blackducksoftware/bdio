@@ -158,6 +158,7 @@ class SqlgGraphInitializer {
                 if (bdioClass == Bdio.Class.File) {
                     // TODO Instead of non-unique, we need a unique on _partition/path (or just path)
                     nonUniqueIndexNames.add(Bdio.DataProperty.path.name());
+                    nonUniqueIndexNames.add(GraphMapper.FILE_PARENT_KEY);
                 }
                 ensureVertexLabelExist(bdioClass.name(), columns, nonUniqueIndexNames, wrapper);
             }

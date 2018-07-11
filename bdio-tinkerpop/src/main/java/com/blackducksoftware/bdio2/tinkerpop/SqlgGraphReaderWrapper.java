@@ -29,6 +29,7 @@ import java.lang.reflect.Method;
 import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.ZonedDateTime;
@@ -62,6 +63,8 @@ import org.umlg.sqlg.util.SqlgUtil;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioMetadata;
+import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.common.value.HID;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -320,6 +323,61 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
     protected static class SqlgAddMissingFileParentsOperation extends BlackDuckIoOperations.AddMissingFileParentsOperation {
         public SqlgAddMissingFileParentsOperation(GraphReaderWrapper wrapper) {
             super(wrapper);
+        }
+
+        @Override
+        protected void createMissingFiles(GraphTraversalSource g, GraphMapper mapper) {
+            // Same approach as the super: iterate over the list of missing parents until we stop finding them
+            SqlgGraph sqlgGraph = (SqlgGraph) wrapper().graph();
+            SqlDialect dialect = sqlgGraph.getSqlDialect();
+            SchemaTable file = SchemaTable.from(sqlgGraph, Bdio.Class.File.name()).withPrefix(VERTEX_PREFIX);
+
+            StringBuilder sql = new StringBuilder();
+            sql.append("SELECT DISTINCT m.")
+                    .append(dialect.maybeWrapInQoutes(GraphMapper.FILE_PARENT_KEY))
+                    .append(" FROM ")
+                    .append(dialect.maybeWrapInQoutes(file.getTable()))
+                    .append(" m LEFT JOIN ")
+                    .append(dialect.maybeWrapInQoutes(file.getTable()))
+                    .append(" f ON m.")
+                    .append(dialect.maybeWrapInQoutes(GraphMapper.FILE_PARENT_KEY))
+                    .append(" = f.")
+                    .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()))
+                    .append(" WHERE m.")
+                    .append(dialect.maybeWrapInQoutes(GraphMapper.FILE_PARENT_KEY))
+                    .append(" IS NOT NULL AND f.")
+                    .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()))
+                    .append(" IS NULL")
+                    .append(dialect.needsSemicolon() ? ";" : "");
+
+            wrapper().startBatchTx();
+            Connection conn = sqlgGraph.tx().getConnection();
+            try (PreparedStatement statement = conn.prepareStatement(sql.toString())) {
+                int created;
+                do {
+                    created = 0;
+                    try (ResultSet resultSet = statement.executeQuery()) {
+                        while (resultSet.next()) {
+                            created++;
+                            String path = resultSet.getString(1);
+                            String parentPath = HID.from(path).tryParent().map(HID::toUriString).orElse(null);
+                            g.V().addV(Bdio.Class.File.name())
+                                    .property(Bdio.DataProperty.path.name(), path)
+                                    .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY.toString())
+                                    .property(mapper.implicitKey().get(), Boolean.TRUE)
+                                    .property(FILE_PARENT_KEY, parentPath)
+                                    .sideEffect(t -> {
+                                        mapper.identifierKey().ifPresent(key -> t.get().property(key, BdioObject.randomId()));
+                                        wrapper().batchFlushTx();
+                                    })
+                                    .iterate();
+                        }
+                        wrapper().flushTx();
+                    }
+                } while (created > 0);
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         @Override
