@@ -36,6 +36,7 @@ import javax.annotation.Nullable;
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.model.Dependency;
 import com.blackducksoftware.bdio2.model.File;
+import com.blackducksoftware.common.base.ExtraUUIDs;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -89,6 +90,11 @@ class LegacyUtilities {
      * Object mapper used for parsing legacy scan container objects.
      */
     private static final ObjectMapper SCAN_CONTAINER_OBJECT_MAPPER = new ObjectMapper().registerModule(LegacyScanContainerModule.INSTANCE);
+
+    /**
+     * UUID name space identifier to use for name based UUIDs representing a legacy dependency mapping.
+     */
+    private static final UUID DEPENDENCY_IDENTIFIER_NS = UUID.fromString("24ac915b-3be8-4a7d-8840-11fe8e84b680");
 
     /**
      * Returns a Jackson object mapper configured to parse legacy scan container objects.
@@ -260,8 +266,8 @@ class LegacyUtilities {
      * as the graph label from the BOM name.
      */
     public static String toNameUri(String name) {
-        // TODO This should be prefixed with a namespace UUID
-        return "urn:uuid:" + UUID.nameUUIDFromBytes(name.getBytes(UTF_8));
+        // NOTE: We cannot use a namespace prefix here for compatibility reasons
+        return ExtraUUIDs.toUriString(UUID.nameUUIDFromBytes(name.getBytes(UTF_8)));
     }
 
     /**
@@ -309,8 +315,7 @@ class LegacyUtilities {
         Stream<Object> dependsOn = valueObjectMapper.fromReferenceValueObject(dep.get(Bdio.ObjectProperty.dependsOn.toString()));
         Stream<Object> license = valueObjectMapper.fromReferenceValueObject(dep.get(Bdio.ObjectProperty.license.toString()));
         byte[] name = Stream.concat(dependsOn, license).map(Object::toString).collect(joining(">,<", "<", ">")).getBytes(UTF_8);
-        // TODO This should be prefixed with a namespace UUID
-        return "urn:uuid:" + UUID.nameUUIDFromBytes(name);
+        return ExtraUUIDs.toUriString(ExtraUUIDs.nameUUIDFromBytes(DEPENDENCY_IDENTIFIER_NS, name));
     }
 
 }

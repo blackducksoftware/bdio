@@ -32,6 +32,7 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.common.base.ExtraStrings;
+import com.blackducksoftware.common.base.ExtraUUIDs;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.Streams;
 
@@ -84,7 +85,7 @@ public class BdioObject extends AbstractMap<String, Object> {
      * Returns a new random identifier.
      */
     public static String randomId() {
-        return "urn:uuid:" + UUID.randomUUID();
+        return ExtraUUIDs.toUriString(UUID.randomUUID());
     }
 
     @Override
