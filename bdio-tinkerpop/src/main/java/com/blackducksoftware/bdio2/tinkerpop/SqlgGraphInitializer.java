@@ -20,6 +20,9 @@ import static org.umlg.sqlg.structure.PropertyType.JSON;
 import static org.umlg.sqlg.structure.PropertyType.STRING;
 import static org.umlg.sqlg.structure.topology.IndexType.NON_UNIQUE;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -63,6 +66,7 @@ class SqlgGraphInitializer {
 
     public Stream<GraphInitializer> stream() {
         return Stream.<GraphInitializer> builder()
+                .add(new BdioSqlFunctionGraphInitializer())
                 .add(new BdioMetadataGraphInitializer())
                 .add(new BdioVertexGraphInitializer())
                 .add(new BdioEdgeGraphInitializer())
@@ -81,6 +85,34 @@ class SqlgGraphInitializer {
         }
 
         protected abstract void initialize(SqlgGraphReaderWrapper wrapper);
+    }
+
+    private static class BdioSqlFunctionGraphInitializer extends AbstractSqlgGraphInitializer {
+        @Override
+        public Step initializationStep() {
+            return Step.START;
+        }
+
+        @Override
+        protected void initialize(SqlgGraphReaderWrapper wrapper) {
+            // Used for flattening split nodes, from https://wiki.postgresql.org/wiki/First/last_(aggregate)
+            List<String> queries = new ArrayList<>();
+            queries.add("CREATE OR REPLACE FUNCTION public.first_agg ( anyelement, anyelement )"
+                    + "\nRETURNS anyelement LANGUAGE SQL IMMUTABLE STRICT AS $$"
+                    + "\n\tSELECT $1;"
+                    + "\n$$;");
+            queries.add("DROP AGGREGATE IF EXISTS public.first ( anyelement );");
+            queries.add("CREATE AGGREGATE public.first( sfunc = first_agg, stype = anyelement, basetype = anyelement );");
+
+            Connection conn = wrapper.graph().tx().getConnection();
+            try (Statement statement = conn.createStatement()) {
+                for (String query : queries) {
+                    statement.executeUpdate(query);
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     private static class BdioMetadataGraphInitializer extends AbstractSqlgGraphInitializer {

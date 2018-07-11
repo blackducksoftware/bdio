@@ -15,39 +15,36 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.stream.Collectors.joining;
 
-import java.lang.reflect.Array;
+import java.security.SecureRandom;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.umlg.sqlg.sql.dialect.SqlDialect;
 import org.umlg.sqlg.structure.PropertyType;
-import org.umlg.sqlg.structure.RecordId;
 import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
+import org.umlg.sqlg.structure.topology.PropertyColumn;
 import org.umlg.sqlg.structure.topology.Topology;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.PrimitiveSink;
@@ -265,7 +262,7 @@ class SqlgNodeAccumulator extends NodeAccumulator {
         });
         Object[] edgeProperties = edgePropertyList.toArray();
 
-        // Drain the buffer
+        // Drain the edge buffer
         for (Map.Entry<SqlgNodeAccumulator.EdgeKey, Collection<Pair<Object, Object>>> edge : edges.asMap().entrySet()) {
             String edgeLabel = edge.getKey().edgeLabel;
             Multimap<String, Pair<Object, Object>> effectiveEdges = findEdgesByInVertexLabel(edgeLabel, edge.getValue());
@@ -316,79 +313,107 @@ class SqlgNodeAccumulator extends NodeAccumulator {
     /**
      * This can be extremely inefficient when there are a significant number of "split nodes".
      */
-    @SuppressWarnings("ReturnValueIgnored")
-    private void flattenVertices(String type) {
-        // TODO This needs to be optimized, it can take 10x longer then the actual import
+    private void flattenVertices(String label) {
+        SqlgGraph sqlgGraph = wrapper().graph();
+        SqlDialect dialect = sqlgGraph.getSqlDialect();
+        SchemaTable table = SchemaTable.from(sqlgGraph, label).withPrefix(Topology.VERTEX_PREFIX);
 
-        // Collapse any split nodes (i.e. nodes with the same JSON-LD identifier)
-        groupByMultiple(type, wrapper().mapper().identifierKey().get())
-                .forEachRemaining(duplicates -> {
-                    // Ignore the result of the reduction, it will just be the first element from `duplicates`
-                    duplicates.stream().reduce((left, right) -> {
-                        wrapper().mergeProperties(left, right);
-                        right.remove();
+        SecureRandom random = new SecureRandom();
+        byte bytes[] = new byte[6];
+        random.nextBytes(bytes);
+        String tempTableName = Base64.getEncoder().encodeToString(bytes);
+        tempTableName = dialect.needsTemporaryTablePrefix() ? dialect.temporaryTablePrefix() + tempTableName : tempTableName;
+        StringBuilder sql = new StringBuilder();
 
-                        // Periodically flush
-                        wrapper().batchFlushTx();
-                        return left;
-                    });
-                });
+        // We cannot have an empty property map after we remove our GROUP BY key
+        Map<String, PropertyColumn> properties = new LinkedHashMap<>(sqlgGraph.getTopology().getPropertiesFor(table));
+        properties.remove(wrapper().mapper().identifierKey().get());
+        if (properties.isEmpty()) {
+            sqlgGraph.getTopology().ensureVertexLabelPropertiesExist(label, Collections.singletonMap("_flatten_dummy", PropertyType.from(0)));
+            properties.putAll(sqlgGraph.getTopology().getPropertiesFor(table));
+            properties.remove(wrapper().mapper().identifierKey().get());
+        }
 
-        // Flush the remaining results
-        wrapper().flushTx();
+        List<String> whereClauses = new ArrayList<>();
+        wrapper().forEachPartition((k, v) -> whereClauses.add(dialect.maybeWrapInQoutes(k) + " = " + dialect.valueToValuesString(PropertyType.STRING, v)));
+        String whereClause = whereClauses.isEmpty() ? "" : whereClauses.stream().collect(joining(" AND ", " WHERE ", ""));
+
+        sql.setLength(0);
+        sql.append(dialect.createTemporaryTableStatement())
+                .append(dialect.maybeWrapInQoutes(tempTableName))
+                .append(" ON COMMIT DROP AS (")
+                .append("\nSELECT ")
+                .append("\n  first(").append(dialect.maybeWrapInQoutes(Topology.ID)).append(") AS ").append(dialect.maybeWrapInQoutes(Topology.ID)).append(",")
+                .append("\n  ").append(dialect.maybeWrapInQoutes(wrapper().mapper().identifierKey().get())).append(",")
+                .append(properties.keySet().stream().map(k -> new StringBuilder()
+                        .append("\n  first(")
+                        .append(dialect.maybeWrapInQoutes(k))
+                        .append(") AS ")
+                        .append(dialect.maybeWrapInQoutes(k)))
+                        .collect(joining(", ")))
+                .append("\nFROM (SELECT * FROM ")
+                .append(dialect.maybeWrapInQoutes(table.getTable()))
+                .append(whereClause)
+                .append(" ORDER BY ")
+                .append(dialect.maybeWrapInQoutes(wrapper().mapper().identifierKey().get()))
+                .append(", ")
+                .append(dialect.maybeWrapInQoutes(Topology.ID))
+                .append(") t GROUP BY ")
+                .append(dialect.maybeWrapInQoutes(wrapper().mapper().identifierKey().get()))
+                .append(" HAVING COUNT(1) > 1\n) WITH DATA")
+                .append(dialect.needsSemicolon() ? ";" : "");
+        String createTempTableQuery = sql.toString();
+
+        sql.setLength(0);
+        sql.append("DELETE FROM ")
+                .append(dialect.maybeWrapInQoutes(table.getTable()))
+                .append(" USING ")
+                .append(dialect.maybeWrapInQoutes(tempTableName))
+                .append(whereClause.isEmpty() ? " WHERE " : whereClause + " AND ")
+                .append(dialect.maybeWrapInQoutes(table.getTable()))
+                .append(".")
+                .append(dialect.maybeWrapInQoutes(wrapper().mapper().identifierKey().get()))
+                .append(" = ")
+                .append(dialect.maybeWrapInQoutes(tempTableName))
+                .append(".")
+                .append(dialect.maybeWrapInQoutes(wrapper().mapper().identifierKey().get()))
+                .append(dialect.needsSemicolon() ? ";" : "");
+        String deleteQuery = sql.toString();
+
+        sql.setLength(0);
+        sql.append("INSERT INTO ")
+                .append(dialect.maybeWrapInQoutes(table.getTable()))
+                .append(" (")
+                .append(dialect.maybeWrapInQoutes(Topology.ID))
+                .append(", ")
+                .append(dialect.maybeWrapInQoutes(wrapper().mapper().identifierKey().get()))
+                .append(", ")
+                .append(properties.keySet().stream().map(dialect::maybeWrapInQoutes).collect(joining(", ")))
+                .append(") SELECT ")
+                .append(dialect.maybeWrapInQoutes(Topology.ID))
+                .append(", ")
+                .append(dialect.maybeWrapInQoutes(wrapper().mapper().identifierKey().get()))
+                .append(", ")
+                .append(properties.keySet().stream().map(dialect::maybeWrapInQoutes).collect(joining(", ")))
+                .append(" FROM ")
+                .append(dialect.maybeWrapInQoutes(tempTableName))
+                .append(dialect.needsSemicolon() ? ";" : "");
+        String insertQuery = sql.toString();
+
+        Connection conn = sqlgGraph.tx().getConnection();
+        try (Statement statement = conn.createStatement()) {
+            // Believe it or not, it is the deleteQuery that is the long pole here
+            statement.executeUpdate(createTempTableQuery);
+            statement.executeUpdate(deleteQuery);
+            int insertCount = statement.executeUpdate(insertQuery);
+
+            // If we touched enough rows, make sure we clean up after
+            if (insertCount > 10_000) {
+                wrapper().vacuumAnalyze(table);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    private GraphTraversal<?, Collection<Vertex>> groupByMultiple(String label, String groupByKey) {
-        // This is much faster to compute in the database
-        String whereClause = wrapper().strategies()
-                .flatMap(ofType(PartitionStrategy.class))
-                .filter(ps -> !ps.getReadPartitions().isEmpty())
-                .map(ps -> new StringBuilder()
-                        .append(graph().getSqlDialect().maybeWrapInQoutes(ps.getPartitionKey()))
-                        .append(ps.getReadPartitions().size() == 1 ? " = " : " IN (")
-                        .append(ps.getReadPartitions().stream()
-                                .map(rp -> graph().getSqlDialect().valueToValuesString(PropertyType.STRING, rp))
-                                .collect(joining(", ")))
-                        .append(ps.getReadPartitions().size() == 1 ? "" : ")"))
-                .collect(joining(" ) AND ( "));
-
-        return wrapper().traversal().inject(SchemaTable.from(graph(), label))
-                .flatMap(t -> {
-                    SchemaTable schemaTable = t.get();
-                    StringBuilder sql = new StringBuilder()
-                            .append("SELECT array_agg(")
-                            .append(graph().getSqlDialect().maybeWrapInQoutes(Topology.ID))
-                            .append(") FROM ")
-                            .append(graph().getSqlDialect().maybeWrapInQoutes(schemaTable.getSchema()))
-                            .append('.')
-                            .append(graph().getSqlDialect().maybeWrapInQoutes(schemaTable.withPrefix(Topology.VERTEX_PREFIX).getTable()));
-                    if (!whereClause.isEmpty()) {
-                        sql.append(" WHERE (").append(whereClause).append(" )");
-                    }
-                    sql.append(" GROUP BY ")
-                            .append(graph().getSqlDialect().maybeWrapInQoutes(groupByKey))
-                            .append(" HAVING count(1) > 1")
-                            .append(graph().getSqlDialect().needsSemicolon() ? ";" : "");
-
-                    Connection conn = graph().tx().getConnection();
-                    try (PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
-                        try (ResultSet rs = preparedStatement.executeQuery()) {
-                            List<Object[]> result = new ArrayList<>();
-                            while (rs.next()) {
-                                Object array = rs.getArray(1).getArray();
-                                Object[] row = new Object[Array.getLength(array)];
-                                for (int i = 0; i < row.length; ++i) {
-                                    row[i] = RecordId.from(schemaTable, (Long) Array.get(array, i));
-                                }
-                                Arrays.sort(row);
-                                result.add(row);
-                            }
-                            return result.iterator();
-                        }
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
-                    }
-                })
-                .map(t -> Lists.newArrayList(graph().vertices(t.get())));
-    }
 }

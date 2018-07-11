@@ -32,8 +32,10 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.ZonedDateTime;
+import java.util.ArrayDeque;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +84,11 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
      */
     private final boolean supportsBatchMode;
 
+    /**
+     * Tables that need to be vacuumed and analyzed.
+     */
+    private final Deque<SchemaTable> vacuumAnalyzeTables = new ArrayDeque<>();
+
     protected SqlgGraphReaderWrapper(SqlgGraph sqlgGraph, GraphMapper mapper, List<TraversalStrategy<?>> strategies, Optional<Object> expandContext,
             int batchSize) {
         // Sqlg issue #296 workaround: the extra synchronization overhead requires a smaller default batch size
@@ -92,6 +99,13 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
     @Override
     public SqlgGraph graph() {
         return (SqlgGraph) super.graph();
+    }
+
+    /**
+     * Schedules the specified table to vacuumed and analyzed after the next commit.
+     */
+    void vacuumAnalyze(SchemaTable table) {
+        vacuumAnalyzeTables.push(table);
     }
 
     @Override
@@ -138,6 +152,25 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
         // Sqlg issue #296 workaround
         synchronized (flushLock) {
             super.commitTx();
+
+            // Now that we have committed, we can vacuum
+            if (!vacuumAnalyzeTables.isEmpty()) {
+                try (Connection conn = graph().getConnection()) {
+                    try (Statement statement = conn.createStatement()) {
+                        SqlDialect dialect = graph().getSqlDialect();
+                        while (!vacuumAnalyzeTables.isEmpty()) {
+                            SchemaTable table = vacuumAnalyzeTables.pop();
+                            StringBuilder sql = new StringBuilder();
+                            sql.append("VACUUM ANALYZE ")
+                                    .append(dialect.maybeWrapInQoutes(table.getTable()))
+                                    .append(dialect.needsSemicolon() ? ";" : "");
+                            statement.execute(sql.toString());
+                        }
+                    }
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
     }
 
