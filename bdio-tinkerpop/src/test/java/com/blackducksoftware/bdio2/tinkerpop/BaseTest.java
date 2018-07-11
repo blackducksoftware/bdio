@@ -15,6 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
+import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static com.blackducksoftware.common.base.ExtraStrings.afterLast;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.junit.Assume.assumeFalse;
@@ -44,6 +45,8 @@ import org.junit.runners.Parameterized.Parameters;
 import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.util.SqlgUtil;
 
+import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoOperations.AdminGraphInitializer;
+import com.blackducksoftware.bdio2.tinkerpop.GraphInitializer.Step;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Resources;
@@ -206,6 +209,13 @@ public abstract class BaseTest {
             graph.tx().commit();
             graph.close();
             graph = GraphFactory.open(configuration);
+
+            // Run the START admin initializations
+            GraphReaderWrapper wrapper = new BlackDuckIoCore(graph).readerWrapper();
+            new SqlgGraphInitializer().stream()
+                    .flatMap(ofType(AdminGraphInitializer.class))
+                    .filter(i -> i.initializationStep() == Step.START)
+                    .forEach(i -> i.initialize(wrapper));
         }
     }
 
