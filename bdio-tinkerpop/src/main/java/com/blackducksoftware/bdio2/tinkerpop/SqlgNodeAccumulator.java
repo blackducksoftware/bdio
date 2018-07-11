@@ -270,7 +270,7 @@ class SqlgNodeAccumulator extends NodeAccumulator {
                 String outVertexLabel = edge.getKey().outVertexLabel;
                 Pair<String, String> idFields = Pair.of(wrapper().mapper().identifierKey().get(), wrapper().mapper().identifierKey().get());
                 effectiveEdges.asMap()
-                        .forEach((inVertexLabel, uids) -> wrapper().bulkAddEdges(outVertexLabel, inVertexLabel, edgeLabel, idFields, uids, edgeProperties));
+                        .forEach((inVertexLabel, uids) -> graph().bulkAddEdges(outVertexLabel, inVertexLabel, edgeLabel, idFields, uids, edgeProperties));
 
                 // Record the flush so we can stream a different type of edge
                 wrapper().flushTx();
