@@ -373,6 +373,16 @@ public class Bdio {
         byteCount("https://blackducksoftware.github.io/bdio#hasByteCount", Container.single),
 
         /**
+         * The time interval (start and end instant) over which the published data was captured.
+         * <p>
+         * Note that due to it's nature the capture interval may not be known when the named graph metadata is recorded;
+         * publishers may choose to include an additional final entry consisting entirely of metadata for this purpose.
+         */
+        @Domain(metadata = true)
+        @DataPropertyRange(Datatype.Default) // TODO Interval type?
+        captureInterval("https://blackducksoftware.github.io/bdio#hasCaptureInterval", Container.single),
+
+        /**
          * A comment used to annotate a BDIO entity.
          */
         @Domain({ Class.Annotation })
@@ -653,6 +663,7 @@ public class Bdio {
         // TODO UUID (or use anyURI with 'urn:uuid:')?
         // TODO Token (like HTTP, not XML)?
         // TODO SPDX license expression? Do they have one already?
+        // TODO Additional time types? Interval? Duration? Period?
 
         ;
 

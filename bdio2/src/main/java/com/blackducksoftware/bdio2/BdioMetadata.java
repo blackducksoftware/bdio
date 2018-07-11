@@ -193,6 +193,23 @@ public final class BdioMetadata extends BdioObject {
     }
 
     /**
+     * Sets the interval over which the named graph was created.
+     */
+    public BdioMetadata captureInterval(@Nullable String captureInterval) {
+        putData(Bdio.DataProperty.captureInterval, captureInterval);
+        return this;
+    }
+
+    /**
+     * Sets the capture interval based on start and end times.
+     *
+     * @see #captureInterval(String)
+     */
+    public BdioMetadata captureInterval(@Nullable ZonedDateTime start, @Nullable ZonedDateTime end) {
+        return captureInterval(start != null && end != null ? start + "/" + end : null);
+    }
+
+    /**
      * Sets the time at which the named graph was created.
      */
     public BdioMetadata creationDateTime(@Nullable ZonedDateTime creation) {

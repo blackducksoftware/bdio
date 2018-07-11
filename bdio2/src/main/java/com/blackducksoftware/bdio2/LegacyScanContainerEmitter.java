@@ -32,6 +32,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayDeque;
 import java.util.Date;
 import java.util.Deque;
@@ -285,6 +286,9 @@ class LegacyScanContainerEmitter implements Emitter {
         private final ZonedDateTime createdOn;
 
         @Nullable
+        private final Long timeToScan;
+
+        @Nullable
         private final String hostName;
 
         @Nullable
@@ -308,6 +312,7 @@ class LegacyScanContainerEmitter implements Emitter {
         public LegacyScanContainer(
                 @Nullable @JsonProperty("baseDir") String baseDir,
                 @Nullable @JsonProperty("createdOn") Date createdOn,
+                @Nullable @JsonProperty("timeToScan") Long timeToScan,
                 @Nullable @JsonProperty("hostName") String hostName,
                 @Nullable @JsonProperty("name") String name,
                 @Nullable @JsonProperty("project") String project,
@@ -317,6 +322,7 @@ class LegacyScanContainerEmitter implements Emitter {
                 @Nullable @JsonProperty("signatureVersion") String signatureVersion) {
             this.baseDir = baseDir;
             this.createdOn = createdOn != null ? createdOn.toInstant().atZone(ZoneOffset.UTC) : null;
+            this.timeToScan = timeToScan;
             this.hostName = hostName;
             this.name = name;
             this.project = project;
@@ -333,6 +339,7 @@ class LegacyScanContainerEmitter implements Emitter {
                     .name(name.map(n -> String.format("%s <%s>", n, baseDir)).orElseGet(() -> String.format("<%s>", baseDir)))
                     .creator(null, hostName)
                     .creationDateTime(createdOn)
+                    .captureInterval(createdOn, createdOn != null && timeToScan != null ? createdOn.plus(timeToScan, ChronoUnit.MILLIS) : null)
                     .publisher(new ProductList.Builder()
                             .addProduct(new Product.Builder()
                                     .name("ScanClient")

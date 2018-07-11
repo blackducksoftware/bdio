@@ -87,6 +87,7 @@
       "@id" : "https://blackducksoftware.github.io/bdio#hasByteCount",
       "@type" : "xsd:long"
     },
+    "captureInterval" : "https://blackducksoftware.github.io/bdio#hasCaptureInterval",
     "comment" : "https://blackducksoftware.github.io/bdio#hasComment",
     "contentType" : {
       "@id" : "https://blackducksoftware.github.io/bdio#hasContentType",

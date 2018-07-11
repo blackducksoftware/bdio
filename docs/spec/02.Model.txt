@@ -172,6 +172,13 @@
 : _Domain: `File`_
 : _Range: `Long`_
 
+`captureInterval`
+: `https://blackducksoftware.github.io/bdio#hasCaptureInterval`
+: The time interval (start and end instant) over which the published data was captured.
+: Note that due to it's nature the capture interval may not be known when the named graph metadata is recorded; publishers may choose to include an additional final entry consisting entirely of metadata for this purpose.
+: _Domain: `@graph`_
+: _Range: `Default`_
+
 `comment`
 : `https://blackducksoftware.github.io/bdio#hasComment`
 : A comment used to annotate a BDIO entity.

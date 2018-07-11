@@ -24,6 +24,8 @@ import static com.blackducksoftware.bdio2.LegacyUtilities.toFileUri;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -99,11 +101,13 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
         metadata = new BdioMetadata();
         String project = null;
         String release = null;
+        ZonedDateTime createdOn = null;
+        Long timeToScan = null;
         String fieldName = jp.nextFieldName();
         while (fieldName != null) {
             switch (fieldName) {
             case "scanNodeList":
-                finishMetadata(jp, metadata, project, release);
+                finishMetadata(jp, metadata, project, release, createdOn, timeToScan);
                 return;
             case "hostName":
                 hostName = jp.nextTextValue();
@@ -124,7 +128,10 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
                 break;
             case "createdOn":
                 jp.nextToken();
-                metadata.creationDateTime(jp.readValueAs(Date.class).toInstant().atZone(ZoneOffset.UTC));
+                createdOn = jp.readValueAs(Date.class).toInstant().atZone(ZoneOffset.UTC);
+                break;
+            case "timeToScan":
+                timeToScan = jp.getLongValue();
                 break;
             case "project":
                 project = jp.nextTextValue();
@@ -142,7 +149,12 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
         }
     }
 
-    private void finishMetadata(JsonParser jp, BdioMetadata metadata, @Nullable String project, @Nullable String release) throws IOException {
+    private void finishMetadata(JsonParser jp, BdioMetadata metadata, @Nullable String project, @Nullable String release,
+            @Nullable ZonedDateTime createdOn, @Nullable Long timeToScan) throws IOException {
+        // Set the creation time and capture interval
+        metadata.creationDateTime(createdOn);
+        metadata.captureInterval(createdOn, createdOn != null && timeToScan != null ? createdOn.plus(timeToScan, ChronoUnit.MILLIS) : null);
+
         // Add the metadata identifier and adjust the name to preserve the base directory
         Optional<String> name = Optional.ofNullable((String) metadata.get(Bdio.DataProperty.name.toString()));
         metadata.id(name.map(LegacyUtilities::toNameUri).orElseGet(() -> toFileUri(hostName, baseDir, null)));
