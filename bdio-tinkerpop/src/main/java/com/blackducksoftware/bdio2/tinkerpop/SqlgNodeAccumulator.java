@@ -321,8 +321,7 @@ class SqlgNodeAccumulator extends NodeAccumulator {
         SecureRandom random = new SecureRandom();
         byte bytes[] = new byte[6];
         random.nextBytes(bytes);
-        String tempTableName = Base64.getEncoder().encodeToString(bytes);
-        tempTableName = dialect.needsTemporaryTablePrefix() ? dialect.temporaryTablePrefix() + tempTableName : tempTableName;
+        String tempTableName = (dialect.needsTemporaryTablePrefix() ? dialect.temporaryTablePrefix() : "") + Base64.getEncoder().encodeToString(bytes);
         StringBuilder sql = new StringBuilder();
 
         // We cannot have an empty property map after we remove our GROUP BY key
@@ -334,9 +333,8 @@ class SqlgNodeAccumulator extends NodeAccumulator {
             properties.remove(wrapper().mapper().identifierKey().get());
         }
 
-        List<String> whereClauses = new ArrayList<>();
-        wrapper().forEachPartition((k, v) -> whereClauses.add(dialect.maybeWrapInQoutes(k) + " = " + dialect.valueToValuesString(PropertyType.STRING, v)));
-        String whereClause = whereClauses.isEmpty() ? "" : whereClauses.stream().collect(joining(" AND ", " WHERE ", ""));
+        Map<String, String> partitions = new LinkedHashMap<>();
+        wrapper().forEachPartition(partitions::put);
 
         sql.setLength(0);
         sql.append(dialect.createTemporaryTableStatement())
@@ -353,7 +351,11 @@ class SqlgNodeAccumulator extends NodeAccumulator {
                         .collect(joining(", ")))
                 .append("\nFROM (SELECT * FROM ")
                 .append(dialect.maybeWrapInQoutes(table.getTable()))
-                .append(whereClause)
+                .append(partitions.isEmpty()
+                        ? ""
+                        : partitions.entrySet().stream()
+                                .map(e -> dialect.maybeWrapInQoutes(e.getKey()) + " = " + dialect.valueToValuesString(PropertyType.STRING, e.getValue()))
+                                .collect(joining(" AND ", " WHERE ", "")))
                 .append(" ORDER BY ")
                 .append(dialect.maybeWrapInQoutes(wrapper().mapper().identifierKey().get()))
                 .append(", ")
@@ -369,7 +371,7 @@ class SqlgNodeAccumulator extends NodeAccumulator {
                 .append(dialect.maybeWrapInQoutes(table.getTable()))
                 .append(" USING ")
                 .append(dialect.maybeWrapInQoutes(tempTableName))
-                .append(whereClause.isEmpty() ? " WHERE " : whereClause + " AND ")
+                .append(" WHERE ")
                 .append(dialect.maybeWrapInQoutes(table.getTable()))
                 .append(".")
                 .append(dialect.maybeWrapInQoutes(wrapper().mapper().identifierKey().get()))
@@ -377,6 +379,21 @@ class SqlgNodeAccumulator extends NodeAccumulator {
                 .append(dialect.maybeWrapInQoutes(tempTableName))
                 .append(".")
                 .append(dialect.maybeWrapInQoutes(wrapper().mapper().identifierKey().get()))
+                .append(partitions.isEmpty()
+                        ? ""
+                        : partitions.entrySet().stream()
+                                .map(e -> dialect.maybeWrapInQoutes(table.getTable())
+                                        + "."
+                                        + dialect.maybeWrapInQoutes(e.getKey())
+                                        + " = "
+                                        + dialect.valueToValuesString(PropertyType.STRING, e.getValue())
+                                        + " AND "
+                                        + dialect.maybeWrapInQoutes(tempTableName)
+                                        + "."
+                                        + dialect.maybeWrapInQoutes(e.getKey())
+                                        + " = "
+                                        + dialect.valueToValuesString(PropertyType.STRING, e.getValue()))
+                                .collect(joining(" AND ", " AND ", "")))
                 .append(dialect.needsSemicolon() ? ";" : "");
         String deleteQuery = sql.toString();
 
