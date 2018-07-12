@@ -17,6 +17,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static com.github.jsonldjava.core.JsonLdProcessor.compact;
+import static java.nio.charset.StandardCharsets.UTF_16BE;
 import static java.util.Comparator.comparing;
 import static org.apache.tinkerpop.gremlin.structure.VertexProperty.Cardinality.single;
 
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 
@@ -40,12 +42,14 @@ import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioMetadata;
+import com.blackducksoftware.common.base.ExtraUUIDs;
 import com.blackducksoftware.common.value.HID;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.hash.Hashing;
 
 /**
  * Context used when performing a
@@ -55,6 +59,12 @@ import com.google.common.collect.Maps;
  * @author jgustie
  */
 class GraphReaderWrapper extends GraphIoWrapper {
+
+    /**
+     * UUID namespace to use for converting JSON-LD "@id" values when the underlying graph is configured to use UUID
+     * identifiers.
+     */
+    private static final UUID COMPOSITE_IDENTIFIER_NAME_SPACE = ExtraUUIDs.fromString("d51a24f4-3ab9-4ac1-ba32-6295399acf5f");
 
     /**
      * The number of mutations between commits.
@@ -158,7 +168,7 @@ class GraphReaderWrapper extends GraphIoWrapper {
         // Include the identifier if requested
         if (includeId) {
             Optional.ofNullable(node.get(JsonLdConsts.ID))
-                    .map(this::generateId)
+                    .map(this::convertId)
                     .ifPresent(id -> dataPropertyHandler.accept(T.id, id));
         }
 
@@ -209,7 +219,7 @@ class GraphReaderWrapper extends GraphIoWrapper {
         for (Map.Entry<String, Object> property : node.entrySet()) {
             if (mapper().isObjectPropertyKey(property.getKey())) {
                 mapper().valueObjectMapper().fromReferenceValueObject(property.getValue())
-                        .map(this::generateId)
+                        .map(this::convertId)
                         .forEach(id -> consumer.accept(property.getKey(), id));
             }
         }
@@ -225,28 +235,43 @@ class GraphReaderWrapper extends GraphIoWrapper {
         }
     }
 
-    private Object generateId(Object id) {
-        // If user supplied identifiers are not supported this value will only be used by the star graph elements
-        // (for example, this is the identifier used by star vertices prior to being attached, and is later used to look
-        // up the persisted identifier of the star edge incoming vertex)
-        if (vertexFeatures.supportsUserSuppliedIds() && strategies().anyMatch(s -> s instanceof PartitionStrategy)) {
-            // The effective identifier must include the write partition value to avoid problems where the
-            // same node imported into separate partitions gets recreated instead merged
-            ImmutableMap.Builder<String, Object> mapIdBuilder = ImmutableMap.builder();
-            mapIdBuilder.put(JsonLdConsts.ID, id);
-            forEachPartition(mapIdBuilder::put);
-            Map<String, Object> mapId = mapIdBuilder.build();
-            if (vertexFeatures.willAllowId(mapId)) {
-                return mapId;
+    /**
+     * Converts a JSON-LD "@id" value into something that can be used by the graph database. Note that the converted
+     * value may not be used by the underlying database, it may only be required for caching references between nodes.
+     */
+    protected Object convertId(Object id) {
+        if (vertexFeatures.supportsUserSuppliedIds()) {
+            String stringId;
+            if (strategies().anyMatch(s -> s instanceof PartitionStrategy)) {
+                // If the graph supports "user supplied identifiers" and we are using a partition strategy the "primary
+                // key" must account for both the raw identifier in the document and the partition strategy, otherwise
+                // reading the same document into different partitions would conflict with each other.
+                ImmutableMap.Builder<String, Object> mapIdBuilder = ImmutableMap.builder();
+                mapIdBuilder.put(JsonLdConsts.ID, id);
+                forEachPartition(mapIdBuilder::put);
+                Map<String, Object> mapId = mapIdBuilder.build();
+                if (vertexFeatures.willAllowId(mapId)) {
+                    return mapId;
+                }
+
+                stringId = Joiner.on("\",\"").withKeyValueSeparator("\"=\"")
+                        .appendTo(new StringBuilder().append("{\""), mapId).append("\"}").toString();
+            } else {
+                // The "@id" should already be a string if it is valid
+                stringId = id.toString();
             }
 
-            String stringId = Joiner.on("\",\"").withKeyValueSeparator("\"=\"").appendTo(new StringBuilder().append("{\""), mapId).append("\"}").toString();
-            if (vertexFeatures.willAllowId(stringId)) {
+            // The default implementations will blindly accept strings without checking them
+            if (vertexFeatures.willAllowId(Long.valueOf(0L))) {
+                return Hashing.farmHashFingerprint64().hashUnencodedChars(stringId).asLong();
+            } else if (vertexFeatures.willAllowId(ExtraUUIDs.nilUUID())) {
+                return ExtraUUIDs.nameUUIDFromBytes(COMPOSITE_IDENTIFIER_NAME_SPACE, stringId.getBytes(UTF_16BE));
+            } else if (vertexFeatures.willAllowId(stringId)) {
                 return stringId;
             }
-
-            // TODO For numeric IDs we could hash the string representation? Similar for UUID IDs?
         }
+
+        // Nothing we can do with the conversion, just allow the raw identifier back out in hopes that it works
         return id;
     }
 
