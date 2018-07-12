@@ -141,6 +141,9 @@ class GraphReaderWrapper extends GraphIoWrapper {
     public Object[] getMetadataProperties(BdioMetadata metadata) {
         try {
             Map<String, Object> compactMetadata = compact(metadata, mapper().context(), bdioOptions().jsonLdOptions());
+            if (metadata.size() == 1 && metadata.containsKey(JsonLdConsts.ID)) {
+                compactMetadata.put(JsonLdConsts.ID, metadata.get(JsonLdConsts.ID));
+            }
             mapper().metadataLabel().ifPresent(label -> compactMetadata.put(JsonLdConsts.TYPE, label));
             return getNodeProperties(compactMetadata, false);
         } catch (JsonLdError e) {

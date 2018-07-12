@@ -119,6 +119,17 @@ public class BlackDuckIoReaderTest extends BaseTest {
     }
 
     @Test
+    public void readIdOnlyMetadata() throws Exception {
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+
+        InputStream inputStream = BdioTest.zipJsonBytes(metadata.asNamedGraph());
+        new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id)).readGraph(inputStream);
+
+        Vertex namedGraph = graph.traversal().V().hasLabel(TT.Metadata).next();
+        assertThat(namedGraph.property(TT.id).orElse(null)).isEqualTo(metadata.id());
+    }
+
+    @Test
     public void readFile() throws Exception {
         BdioMetadata metadata = BdioMetadata.createRandomUUID();
         File fileModel = new File(BdioObject.randomId());
