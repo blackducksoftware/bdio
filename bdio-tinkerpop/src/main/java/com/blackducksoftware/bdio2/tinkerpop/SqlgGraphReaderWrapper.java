@@ -178,7 +178,7 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
             SqlDialect dialect = sqlgGraph.getSqlDialect();
             SchemaTable file = SchemaTable.from(sqlgGraph, Bdio.Class.File.name()).withPrefix(VERTEX_PREFIX);
 
-            sqlgGraph.getTopology().ensureVertexLabelPropertiesExist(file.getSchema(), file.getTable(), ImmutableMap.of(
+            sqlgGraph.getTopology().ensureVertexLabelPropertiesExist(file.getSchema(), file.withOutPrefix().getTable(), ImmutableMap.of(
                     Bdio.DataProperty.path.name(), PropertyType.STRING,
                     GraphMapper.FILE_PARENT_KEY, PropertyType.STRING));
 
