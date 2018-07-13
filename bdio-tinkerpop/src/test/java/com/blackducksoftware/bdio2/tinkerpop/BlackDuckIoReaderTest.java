@@ -25,6 +25,7 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.ZonedDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -214,6 +215,21 @@ public class BlackDuckIoReaderTest extends BaseTest {
     }
 
     @Test
+    public void readFileWithAndWithoutFingerprint() throws Exception {
+        // Kind of an edge case for the optimized Sqlg reading
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+        File fileModel0 = new File(BdioObject.randomId());
+        File fileModel1 = new File(BdioObject.randomId());
+        File fileModel2 = new File(fileModel1.id());
+        fileModel1.fingerprint(singleton(Digest.of("sha1", "2d05a5f70ffb6fbf6fcbf65bb6f4cd48a8b2592a")));
+
+        InputStream inputStream = BdioTest.zipJsonBytes(
+                metadata.asNamedGraph(Lists.newArrayList(fileModel0, fileModel1)),
+                metadata.asNamedGraph(Lists.newArrayList(fileModel2), JsonLdConsts.ID));
+        new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id)).readGraph(inputStream);
+    }
+
+    @Test
     public void splitNode() throws Exception {
         BdioMetadata metadata = BdioMetadata.createRandomUUID();
         File fileModel1 = new File(BdioObject.randomId());
@@ -233,6 +249,45 @@ public class BlackDuckIoReaderTest extends BaseTest {
 
         assertThat(file.property(Bdio.DataProperty.byteCount.name()).isPresent()).isTrue();
         assertThat(file.property(Bdio.DataProperty.contentType.name()).isPresent()).isTrue();
+    }
+
+    @Test
+    public void complexSplitNode() throws Exception {
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+        File fileModel1_1 = new File(BdioObject.randomId());
+        File fileModel1_2 = new File(fileModel1_1.id());
+        File fileModel1_3 = new File(fileModel1_1.id());
+        File fileModel1_4 = new File(fileModel1_1.id());
+
+        File fileModel2_1 = new File(BdioObject.randomId());
+        File fileModel2_2 = new File(fileModel2_1.id());
+
+        fileModel1_1.byteCount(103L);
+        fileModel1_2.contentType(ContentType.parse("text/plain"));
+        fileModel1_3.fingerprint(Collections.singleton(Digest.of("test", "abc")));
+        fileModel1_4.path("file:/testing1");
+
+        fileModel2_1.path("file:/testing2");
+        fileModel2_2.byteCount(101L);
+
+        InputStream inputStream = BdioTest.zipJsonBytes(
+                metadata.asNamedGraph(Lists.newArrayList(fileModel1_1, fileModel2_1)),
+                metadata.asNamedGraph(Lists.newArrayList(fileModel1_2, fileModel2_2, fileModel1_3), JsonLdConsts.ID),
+                metadata.asNamedGraph(Lists.newArrayList(fileModel1_4), JsonLdConsts.ID));
+        new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id)).readGraph(inputStream);
+
+        GraphTraversalSource g = graph.traversal();
+        assertThat(g.V().hasLabel(Bdio.Class.File.name()).count().next()).isEqualTo(2);
+
+        Vertex file1 = g.V().hasLabel(Bdio.Class.File.name()).has(TT.id, fileModel1_1.id()).next();
+        assertThat(file1.property(Bdio.DataProperty.byteCount.name()).isPresent()).isTrue();
+        assertThat(file1.property(Bdio.DataProperty.contentType.name()).isPresent()).isTrue();
+        assertThat(file1.property(Bdio.DataProperty.fingerprint.name()).isPresent()).isTrue();
+        assertThat(file1.property(Bdio.DataProperty.path.name()).isPresent()).isTrue();
+
+        Vertex file2 = g.V().hasLabel(Bdio.Class.File.name()).has(TT.id, fileModel2_1.id()).next();
+        assertThat(file2.property(Bdio.DataProperty.byteCount.name()).isPresent()).isTrue();
+        assertThat(file2.property(Bdio.DataProperty.path.name()).isPresent()).isTrue();
     }
 
     @Test
