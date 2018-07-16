@@ -29,7 +29,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.ZonedDateTime;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
@@ -158,7 +157,8 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
         boolean isMetadata = and(Optional.ofNullable(node.get(JsonLdConsts.TYPE)), mapper().metadataLabel(), Objects::equals).orElse(FALSE);
         if (!isMetadata && (graph().tx().isInNormalBatchMode() || graph().tx().isInStreamingBatchMode())) {
             handler = (key, value) -> {
-                if (!(value instanceof ZonedDateTime)) {
+                if (!key.equals(Bdio.DataProperty.creationDateTime.name())
+                        && !key.equals(Bdio.DataProperty.lastModifiedDateTime.name())) {
                     dataPropertyHandler.accept(key, value);
                 }
             };
