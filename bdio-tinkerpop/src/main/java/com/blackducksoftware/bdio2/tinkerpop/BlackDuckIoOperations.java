@@ -282,8 +282,8 @@ public final class BlackDuckIoOperations {
                         .property(Bdio.DataProperty.path.name(), select("path"))
                         .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY.toString())
                         .property(mapper.implicitKey().get(), Boolean.TRUE)
-                        .property(FILE_PARENT_KEY, select("path").map(t -> HID.from(t.get()).tryParent().map(HID::toUriString).orElse(null)))
                         .sideEffect(t -> {
+                            HID.from(t.path("path")).tryParent().map(HID::toUriString).ifPresent(v -> t.get().property(FILE_PARENT_KEY, v));
                             mapper.identifierKey().ifPresent(key -> t.get().property(key, BdioObject.randomId()));
                             wrapper().batchFlushTx();
                         })

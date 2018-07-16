@@ -37,9 +37,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.umlg.sqlg.sql.dialect.SqlDialect;
 import org.umlg.sqlg.structure.PropertyType;
@@ -208,19 +210,29 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                     created = 0;
                     try (ResultSet resultSet = statement.executeQuery()) {
                         while (resultSet.next()) {
-                            created++;
                             String path = resultSet.getString(1);
-                            String parentPath = HID.from(path).tryParent().map(HID::toUriString).orElse(null);
-                            g.V().addV(Bdio.Class.File.name())
-                                    .property(Bdio.DataProperty.path.name(), path)
-                                    .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY.toString())
-                                    .property(mapper.implicitKey().get(), Boolean.TRUE)
-                                    .property(FILE_PARENT_KEY, parentPath)
-                                    .sideEffect(t -> {
-                                        mapper.identifierKey().ifPresent(key -> t.get().property(key, BdioObject.randomId()));
-                                        wrapper().batchFlushTx();
-                                    })
-                                    .iterate();
+
+                            Stream.Builder<Object> properties = Stream.builder();
+                            properties.add(T.label).add(Bdio.Class.File.name());
+                            mapper.identifierKey().ifPresent(key -> {
+                                properties.add(key);
+                                properties.add(BdioObject.randomId());
+                            });
+                            wrapper().forEachPartition((k, v) -> {
+                                properties.add(k);
+                                properties.add(v);
+                            });
+                            properties.add(Bdio.DataProperty.path.name()).add(path);
+                            properties.add(Bdio.DataProperty.fileSystemType.name()).add(Bdio.FileSystemType.DIRECTORY.toString());
+                            HID.from(path).tryParent().map(HID::toUriString).ifPresent(fileParent -> {
+                                properties.add(FILE_PARENT_KEY);
+                                properties.add(fileParent);
+                            });
+                            properties.add(mapper.implicitKey().get()).add(Boolean.TRUE);
+                            sqlgGraph.addVertex(properties.build().toArray());
+
+                            wrapper().batchFlushTx();
+                            created++;
                         }
                         wrapper().flushTx();
                     }
