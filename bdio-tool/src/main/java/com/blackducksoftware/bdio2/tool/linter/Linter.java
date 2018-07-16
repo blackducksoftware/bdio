@@ -310,7 +310,7 @@ public final class Linter {
                     { "SingleRoot.MultipleMetadata", "Multiple metadata instances" },
                     { "SingleRoot.MultipleRoots", "Multiple roots" },
                     { "SingleRoot.MissingRoot", "Missing root" },
-                    { "UnreferencedNode.UnreferencedNode", "Unreferenced node" },
+                    { "UnreferencedNode.UnreferencedNode", "Unreferenced {0} node" },
                     { "ValidFilePath.PathNotNormalized", "File path should be normalized, expected: {0}" },
                     { "ValidFilePath.String", "Path should be a string" },
                     { "ValidIdentifier.Absolute", "Node identifiers should be absolute" },
@@ -346,6 +346,7 @@ public final class Linter {
                 .add(new ObjectPropertyRange())
                 .add(new SemanticRules())
                 .add(new SingleRoot())
+                .add(new UnreferencedNode())
                 .add(new ValidFilePath())
                 .add(new ValidIdentifier())
                 .build();

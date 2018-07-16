@@ -16,7 +16,7 @@
 package com.blackducksoftware.bdio2.tool.linter;
 
 import static org.apache.tinkerpop.gremlin.process.traversal.P.neq;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.in;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.bothE;
 
 import java.util.stream.Stream;
 
@@ -31,8 +31,9 @@ public class UnreferencedNode implements CompletedGraphRule {
     @Override
     public Stream<Violation> validate(GraphTraversalSource input) {
         ViolationBuilder result = new ViolationBuilder(this);
-        input.V().hasLabel(neq(Linter.LT._Metadata.name())).not(in())
-                .forEachRemaining(v -> result.target(v).warning("UnreferencedNode"));
+        input.V().hasLabel(neq(Linter.LT._Metadata.name()))
+                .where(bothE().count().is(0))
+                .forEachRemaining(v -> result.target(v).warning("UnreferencedNode", v.label()));
         return result.build();
     }
 
