@@ -295,6 +295,7 @@ public final class Linter {
                     { "DataPropertyRange.Invalid", "Invalid value for {0}: {1}" },
                     { "DataPropertyRange.UnsupportedCharset", "Unsupported encoding" },
                     { "Domain.PropertyNotAllowed", "Property not allowed on {0}: {1}" },
+                    { "FileTree.NonBaseTree", "Path does not have a known ancestor base path: {0}" },
                     { "ImpliedFileSystemTypeConflict.Parent", "Files with children should have a directory type" },
                     { "ImpliedFileSystemTypeConflict.ByteCount", "Files with sizes should have a regular type" },
                     { "ImpliedFileSystemTypeConflict.LinkPath", "Files with link paths should have symbolic link type" },
@@ -302,6 +303,9 @@ public final class Linter {
                     { "Metadata.DefaultNamedGraphIdentififer", "Named graph has default identifier" },
                     { "Metadata.MismatchedGraphLabel", "BDIO entries have different labels" },
                     { "Metadata.PropertyNotAllowed", "Property not allowed on @graph: {0}" },
+                    { "Metadata.MissingPrimaryPublisherVersion", "The primary publisher should include a version: {0}" },
+                    { "Metadata.ReservedLegacyPublisher", "Product name reserved for identifying legacy inputs: {0}" },
+                    { "Metadata.Invalid", "Invalid value for {0}: {1}" },
                     { "MissingFilePath.PathNotPresent", "File is missing path property" },
                     { "MissingProjectName.HasVersion", "Project has version but no name" },
                     { "MissingProjectName.NameNotPresent", "Project with no name should be a FileCollection" },
@@ -312,9 +316,11 @@ public final class Linter {
                     { "SingleRoot.MissingRoot", "Missing root" },
                     { "UnreferencedNode.UnreferencedNode", "Unreferenced {0} node" },
                     { "ValidFilePath.PathNotNormalized", "File path should be normalized, expected: {0}" },
+                    { "ValidFilePath.NestedBaseScheme", "Scheme ''{0}'' should only be used as the inner-most scheme" },
+                    { "ValidFilePath.UnknownBaseScheme", "Unexpected inner-most scheme on path : {0}" },
                     { "ValidFilePath.String", "Path should be a string" },
                     { "ValidIdentifier.Absolute", "Node identifiers should be absolute" },
-                    { "ValidIdentifier.Scheme", "Node identifier scheme is questionable" },
+                    { "ValidIdentifier.DegradedScheme", "Node identifier scheme is questionable" },
                     { "ValidIdentifier.MissingAuthority", "Hierarchical URI scheme should include an authority" },
                     { "ValidIdentifier.Invalid", "Node identifier is not a valid URI" },
                     { "ValidIdentifier.UUID", "Node identifier use 'urn:' scheme (i.e. 'urn:uuid:')" },
@@ -329,15 +335,12 @@ public final class Linter {
     public static Stream<Rule<?>> loadAllRules() {
         // TODO More then two license edges that are not all the same type
         // TODO Multiple canonical edges (e.g. "x -c-> y -c-> z" instead of "x -c-> z")
-        // TODO Unreferenced/disconnected vertices
-        // TODO Missing version number on primary publisher product
-        // TODO Explicit use of the legacy publisher identifiers
         // TODO Unsupported "range" values (e.g. using "chars" without an encoding)
-        // TODO Files that are "above" or "outside" the base directory
         // TODO Namespaced values with no namespace definition
         return Stream.<Rule<?>> builder()
                 .add(new DataPropertyRange())
                 .add(new Domain())
+                .add(new FileTree())
                 .add(new ImpliedFileSystemTypeConflict())
                 .add(new Metadata())
                 .add(new MissingFilePath())

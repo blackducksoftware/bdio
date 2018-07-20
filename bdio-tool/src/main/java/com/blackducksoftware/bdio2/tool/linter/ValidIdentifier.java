@@ -37,30 +37,29 @@ public class ValidIdentifier implements RawNodeRule {
             try {
                 // TODO We want RFC 3986 parsing, not RFC 2396
                 URI uri = new URI((String) id);
-                if (!uri.isAbsolute()) {
-                    // Identifier should have a scheme
-                    result.warning("Absolute");
-                } else if (Ascii.equalsIgnoreCase(uri.getScheme(), "about")
-                        || Ascii.equalsIgnoreCase(uri.getScheme(), "chrome")
-                        || Ascii.equalsIgnoreCase(uri.getScheme(), "data")
-                        || Ascii.equalsIgnoreCase(uri.getScheme(), "mailto")) {
+                if (uri.isAbsolute()) {
                     // These schemes are not good identifiers to use in the graph
-                    result.warning("Scheme");
-                } else if (Ascii.equalsIgnoreCase(uri.getScheme(), "file")
-                        || Ascii.equalsIgnoreCase(uri.getScheme(), "ftp")
-                        || Ascii.equalsIgnoreCase(uri.getScheme(), "http")
-                        || Ascii.equalsIgnoreCase(uri.getScheme(), "https")) {
+                    if (UriSchemes.isDegradedScheme(uri.getScheme())) {
+                        result.warning("DegradedScheme");
+                    }
+
                     // These schemes should include an authority when used in the graph to avoid ambiguity
-                    if (uri.getAuthority() == null) {
+                    if (UriSchemes.isAuthorityScheme(uri.getScheme()) && uri.getAuthority() == null) {
                         result.warning("MissingAuthority");
                     }
-                } else if (Ascii.equalsIgnoreCase(uri.getScheme(), "uuid")) {
+
                     // "uuid:" isn't a scheme, it should be "urn:uuid:"
-                    result.warning("UUID");
+                    if (Ascii.equalsIgnoreCase(uri.getScheme(), "uuid")) {
+                        result.warning("UUID");
+                    }
+
+                    // TODO Use of "mvn:g/a/v" vs. "mvn:g:a:v" (first is "correct")
+                    // See `https://www.iana.org/assignments/uri-schemes/prov/mvn` for examples
+                    // TODO Package URL ("pkg") format
+                } else {
+                    // Identifier should have a scheme
+                    result.warning("Absolute");
                 }
-                // TODO Use of "mvn:g/a/v" vs. "mvn:g:a:v" (first is "correct")
-                // See `https://www.iana.org/assignments/uri-schemes/prov/mvn` for examples
-                // TODO Package URL ("pkg") format
             } catch (URISyntaxException e) {
                 // Identifier should be a valid URI
                 result.error("Invalid", e);

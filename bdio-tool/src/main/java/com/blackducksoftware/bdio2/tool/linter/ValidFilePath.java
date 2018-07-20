@@ -37,8 +37,23 @@ public class ValidFilePath implements RawNodeRule {
             Object path = valueObjectMapper.fromFieldValue(Bdio.DataProperty.path.toString(), input.get(Bdio.DataProperty.path.toString()));
             if (path instanceof String) {
                 HID hid = HID.from(path);
+
+                // Make sure the path is in normal form
                 if (!path.equals(hid.toUriString())) {
+                    // TODO Should we force normalize everything and make this a warning?
                     result.error("PathNotNormalized", hid.toUriString());
+                }
+
+                // Sanity check the schemes
+                HID container = hid;
+                while (container.hasContainer()) {
+                    if (UriSchemes.isBaseScheme(container.getScheme())) {
+                        result.error("NestedBaseScheme", container.getScheme());
+                    }
+                    container = container.getContainer();
+                }
+                if (!UriSchemes.isBaseScheme(container.getScheme())) {
+                    result.warning("UnknownBaseScheme", container.getScheme());
                 }
             } else if (path != null) {
                 result.error("String");

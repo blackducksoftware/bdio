@@ -15,15 +15,19 @@
  */
 package com.blackducksoftware.bdio2.tool.linter;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawEntryRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
 import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
+import com.blackducksoftware.common.value.ProductList;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Enums;
 
@@ -42,9 +46,6 @@ public class Metadata implements RawEntryRule {
         if (input instanceof Map<?, ?> && ((Map<?, ?>) input).containsKey(JsonLdConsts.GRAPH)) {
             Map<?, ?> bdioEntry = (Map<?, ?>) input;
 
-            // TODO The bdioEntry map should run through the DataPropertyRange validation
-            // How do we pass the violation builder to another validator?
-
             // The identifier should always be present
             if (!bdioEntry.containsKey(JsonLdConsts.ID) || Objects.equals(bdioEntry.get(JsonLdConsts.ID), JsonLdConsts.DEFAULT)) {
                 result.warning("DefaultNamedGraphIdentififer");
@@ -57,6 +58,7 @@ public class Metadata implements RawEntryRule {
                 }
             }
 
+            // TODO Is it even possible to use object properties on metadata?
             for (Bdio.ObjectProperty objectProperty : Bdio.ObjectProperty.values()) {
                 if (bdioEntry.containsKey(objectProperty.toString())) {
                     if (!Enums.getField(objectProperty).getAnnotation(Bdio.Domain.class).metadata()) {
@@ -65,13 +67,43 @@ public class Metadata implements RawEntryRule {
                 }
             }
 
+            ValueObjectMapper valueObjectMapper = ValueObjectMapper.getContextValueObjectMapper();
             for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
-                if (bdioEntry.containsKey(dataProperty.toString())) {
-                    if (!Enums.getField(dataProperty).getAnnotation(Bdio.Domain.class).metadata()) {
+                String key = dataProperty.toString();
+                if (bdioEntry.containsKey(key)) {
+                    if (Enums.getField(dataProperty).getAnnotation(Bdio.Domain.class).metadata()) {
+                        // TODO This repeats the logic from DataPropertyRange validation, we should make it more generic
+                        try {
+                            Object rawValue = valueObjectMapper.fromFieldValue(key, bdioEntry.get(key));
+
+                            Collection<?> values;
+                            if (rawValue instanceof Collection<?>) {
+                                values = (Collection<?>) rawValue;
+                            } else if (rawValue != null) {
+                                values = Collections.singleton(rawValue);
+                            } else {
+                                values = Collections.emptyList();
+                            }
+
+                            for (Object value : values) {
+                                if (key.equals(Bdio.DataProperty.publisher.toString())) {
+                                    ProductList productList = ProductList.from(value);
+                                    if (productList.primary().version() == null) {
+                                        result.warning("MissingPrimaryPublisherVersion", productList);
+                                    }
+                                    productList.tryFind(p -> p.name().equals("LegacyBdio1xEmitter") || p.name().equals("LegacyScanContainerEmitter"))
+                                            .ifPresent(p -> result.error("ReservedLegacyPublisher", p.name()));
+                                }
+                            }
+                        } catch (Exception e) {
+                            result.error("Invalid", e, key, bdioEntry.get(key));
+                        }
+                    } else {
                         result.error("PropertyNotAllowed", dataProperty.name());
                     }
                 }
             }
+
         } else if (input instanceof List<?>) {
             // A list is valid input, however, it makes it impossible to label the named graph
             result.warning("DefaultNamedGraphIdentififer");
