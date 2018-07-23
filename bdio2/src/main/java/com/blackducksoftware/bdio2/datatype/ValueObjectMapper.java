@@ -16,6 +16,7 @@
 package com.blackducksoftware.bdio2.datatype;
 
 import static com.google.common.base.Preconditions.checkState;
+import static java.util.stream.Collectors.toList;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -185,6 +186,11 @@ public class ValueObjectMapper {
     public Object toValueObject(@Nullable Object value) {
         if (handlerForType(null).isInstance(value)) {
             return value;
+        } else if (value instanceof List) {
+            return ((List<?>) value).stream().map(this::toValueObject).collect(toList());
+        } else if (value.getClass().isArray()) {
+            // TODO This is the opposite of a multi-value collector that produces arrays instead of list
+            return Arrays.stream((Object[]) value).map(this::toValueObject).collect(toList());
         } else {
             assert value != null : "null is a primitive";
             for (Map.Entry<String, DatatypeHandler<?>> datatype : handlers.entrySet()) {

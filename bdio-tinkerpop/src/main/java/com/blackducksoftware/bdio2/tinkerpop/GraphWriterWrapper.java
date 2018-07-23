@@ -17,7 +17,6 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static com.github.jsonldjava.core.JsonLdProcessor.expand;
-import static org.apache.tinkerpop.gremlin.structure.util.ElementHelper.propertyValueMap;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,7 +33,6 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 /**
@@ -62,13 +60,18 @@ class GraphWriterWrapper extends GraphIoWrapper {
                         metadata.id(vertex.value(key));
                     });
                     try {
-                        Object expandedMetadata = Iterables.getOnlyElement(expand(propertyValueMap(vertex), bdioOptions().jsonLdOptions()), null);
-                        if (expandedMetadata instanceof Map<?, ?>) {
-                            ((Map<?, ?>) expandedMetadata).forEach((key, value) -> {
-                                if (key instanceof String) {
-                                    metadata.put((String) key, value);
-                                }
-                            });
+                        Map<String, Object> metadataProperties = new LinkedHashMap<>();
+                        vertex.properties().forEachRemaining(vp -> {
+                            // TODO Some properties come back without type information; how do we restore it?
+                            // e.g. a product list will get serialized without it's type
+                            metadataProperties.put(vp.key(), mapper().valueObjectMapper().toValueObject(vp.value()));
+                        });
+                        for (Object expanded : expand(metadataProperties, bdioOptions().jsonLdOptions())) {
+                            if (expanded instanceof Map<?, ?>) {
+                                ((Map<?, ?>) expanded).forEach((k, v) -> {
+                                    metadata.put((String) k, v);
+                                });
+                            }
                         }
                     } catch (JsonLdError e) {
                         // TODO How should we handle this?
@@ -102,7 +105,8 @@ class GraphWriterWrapper extends GraphIoWrapper {
 
     private boolean isIgnoredKey(String key) {
         Predicate<String> isKey = Predicate.isEqual(key);
-        return mapper().identifierKey().filter(isKey).isPresent()
+        return isKey.test(GraphMapper.FILE_PARENT_KEY)
+                || mapper().identifierKey().filter(isKey).isPresent()
                 || mapper().implicitKey().filter(isKey).isPresent()
                 || strategies().flatMap(ofType(PartitionStrategy.class))
                         .map(PartitionStrategy::getPartitionKey).anyMatch(isKey);
