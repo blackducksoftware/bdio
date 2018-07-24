@@ -173,7 +173,10 @@ public class DependenciesTool extends AbstractGraphTool {
             if (distinctPathElements.contains(parent.id())) {
                 return new DependencyIterator(CYCLIC_DEPENDENCY_ITERATOR, distinctPathElements);
             } else {
-                Set<String> filter = Sets.union(distinctPathElements, Collections.singleton(parent.id()));
+                // It is possible that the root element re-appears in the dependency graph
+                Set<String> filter = parent.depth() > 0
+                        ? Sets.union(distinctPathElements, Collections.singleton(parent.id()))
+                        : distinctPathElements;
                 return new DependencyIterator(Iterators.filter(children.get(), d -> !filter.contains(d.id())), filter);
             }
         }
