@@ -131,7 +131,7 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
                 createdOn = jp.readValueAs(Date.class).toInstant().atZone(ZoneOffset.UTC);
                 break;
             case "timeToScan":
-                timeToScan = jp.getLongValue();
+                timeToScan = jp.nextLongValue(0L);
                 break;
             case "project":
                 project = jp.nextTextValue();
