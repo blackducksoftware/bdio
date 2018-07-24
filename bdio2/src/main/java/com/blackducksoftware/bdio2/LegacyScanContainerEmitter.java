@@ -358,7 +358,7 @@ class LegacyScanContainerEmitter implements Emitter {
 
             Predicate<LegacyScanNode> isBase = LegacyScanNode.isBase(baseDir);
             Optional<LegacyScanNode> baseScanNode = Optional.ofNullable(scanNodeList.get(0L)).filter(isBase);
-            if (!baseScanNode.isPresent()) {
+            if (!baseScanNode.isPresent() && !scanNodeList.isEmpty()) {
                 baseScanNode = Optional.of(getLast(scanNodeList.values())).filter(isBase); // O(1)
                 if (!baseScanNode.isPresent()) {
                     baseScanNode = scanNodeList.values().stream().filter(isBase).findFirst(); // O(n)
