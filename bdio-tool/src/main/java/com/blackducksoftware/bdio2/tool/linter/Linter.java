@@ -295,7 +295,7 @@ public final class Linter {
                     { "DataPropertyRange.Invalid", "Invalid value for {0}: {1}" },
                     { "DataPropertyRange.UnsupportedCharset", "Unsupported encoding" },
                     { "Domain.PropertyNotAllowed", "Property not allowed on {0}: {1}" },
-                    { "FileTree.NonBaseTree", "Path does not have a known ancestor base path: {0}" },
+                    { "FileTree.NonBaseTree", "Path does not have a base path ancestor: {0}" },
                     { "ImpliedFileSystemTypeConflict.Parent", "Files with children should have a directory type" },
                     { "ImpliedFileSystemTypeConflict.ByteCount", "Files with sizes should have a regular type" },
                     { "ImpliedFileSystemTypeConflict.LinkPath", "Files with link paths should have symbolic link type" },

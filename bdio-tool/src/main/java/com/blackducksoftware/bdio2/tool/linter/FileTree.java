@@ -15,16 +15,18 @@
  */
 package com.blackducksoftware.bdio2.tool.linter;
 
-import java.util.Set;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.as;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.in;
+
 import java.util.stream.Stream;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.tool.linter.Linter.CompletedGraphRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
 import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
-import com.blackducksoftware.common.value.HID;
 
 public class FileTree implements CompletedGraphRule {
 
@@ -32,25 +34,17 @@ public class FileTree implements CompletedGraphRule {
     public Stream<Violation> validate(GraphTraversalSource input) {
         ViolationBuilder result = new ViolationBuilder(this);
 
-        // Collect the base paths
-        Set<HID> basePaths = input.E().hasLabel(Bdio.ObjectProperty.base.name())
-                .inV()
-                .values(Bdio.DataProperty.path.name())
-                .map(t -> HID.from(t.get()))
-                .toSet();
-
-        // Validate every path against the base path
         input.V()
                 .hasLabel(Bdio.Class.File.name())
                 .has(Bdio.DataProperty.path.name())
+                .match(as("file").outE(Bdio.ObjectProperty.parent.name()).count().is(0),
+                        as("file").inE(Bdio.ObjectProperty.base.name()).count().is(0))
+                .<Vertex> select("file")
+                .emit().repeat(in(Bdio.ObjectProperty.parent.name()))
+                .hasNot(Linter.LT._implicit.name())
                 .forEachRemaining(file -> {
-                    HID path = HID.from(file.value(Bdio.DataProperty.path.name()));
-                    if (!basePaths.contains(path) && !basePaths.stream().anyMatch(base -> path.isAncestor(base))) {
-                        result.target(file).error("NonBaseTree", path.toUriString());
-                    }
+                    result.target(file).error("NonBaseTree", file.<String> value(Bdio.DataProperty.path.name()));
                 });
-
-        // TODO Should we also check that the parents terminate at bases?
 
         return result.build();
     }
