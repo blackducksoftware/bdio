@@ -17,6 +17,8 @@ package com.blackducksoftware.bdio2.tool;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.stream.Collectors.joining;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.as;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.in;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -31,8 +33,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.tinkerpop.gremlin.process.traversal.Scope;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.google.common.collect.Iterators;
@@ -220,6 +224,7 @@ public class TreeTool extends AbstractFileTool {
         // Find the base file(s) in the graph
         baseFiles(g).map(Iterators::singletonIterator).forEach(fileNodes::addFirst);
         checkState(!fileNodes.isEmpty(), "No base file found");
+        checkUndeclaredRoot(g);
 
         // Do our pre-order traversal, formatting each file node
         // TODO Cycle detection when following links?
@@ -325,6 +330,27 @@ public class TreeTool extends AbstractFileTool {
             }
             printOutput("%n");
         }
+    }
+
+    /**
+     * Print a warning if there are files that do not have parents and aren't declared as a base file.
+     */
+    private void checkUndeclaredRoot(GraphTraversalSource g) {
+        g.V()
+                .hasLabel(Bdio.Class.File.name())
+                .has(Bdio.DataProperty.path.name())
+                .match(as("file").outE(Bdio.ObjectProperty.parent.name()).count().is(0),
+                        as("file").inE(Bdio.ObjectProperty.base.name()).count().is(0))
+                .<Vertex> select("file")
+                .emit().repeat(in(Bdio.ObjectProperty.parent.name()))
+                .hasNot(GraphTool.DEFAULT_IMPLICIT_KEY)
+                .limit(Scope.local, 1)
+                .sideEffect(t -> {
+                    String basePath = ((Vertex) t.path("file")).value(Bdio.DataProperty.path.name());
+                    String viaPath = ((Vertex) t.get()).value(Bdio.DataProperty.path.name());
+                    printMessage("WARNING: found undeclared base '%s' (via. path '%s')%n", basePath, viaPath);
+                })
+                .iterate();
     }
 
     /**
