@@ -195,6 +195,14 @@ public final class Linter {
             return this;
         }
 
+        /**
+         * Compose the results of another rule.
+         */
+        public <T> ViolationBuilder compose(Rule<T> rule, T input) {
+            rule.validate(input).forEach(result);
+            return this;
+        }
+
         // Errors
 
         public ViolationBuilder error(String message) {
@@ -319,12 +327,14 @@ public final class Linter {
                     { "ValidFilePath.NestedBaseScheme", "Scheme ''{0}'' should only be used as the inner-most scheme" },
                     { "ValidFilePath.UnknownBaseScheme", "Unexpected inner-most scheme on path : {0}" },
                     { "ValidFilePath.String", "Path should be a string" },
-                    { "ValidIdentifier.Absolute", "Node identifiers should be absolute" },
-                    { "ValidIdentifier.DegradedScheme", "Node identifier scheme is questionable" },
+                    { "ValidIdentifier.LikelyMissingScheme", "Identifier appears to be missing a scheme (e.g. ''http://'')" },
+                    { "ValidIdentifier.Absolute", "Identifiers should be absolute" },
+                    { "ValidIdentifier.DegradedScheme", "Identifier scheme is questionable" },
                     { "ValidIdentifier.MissingAuthority", "Hierarchical URI scheme should include an authority" },
-                    { "ValidIdentifier.Invalid", "Node identifier is not a valid URI" },
-                    { "ValidIdentifier.UUID", "Node identifier use 'urn:' scheme (i.e. 'urn:uuid:')" },
-                    { "ValidIdentifier.String", "Node identifier should be a string" },
+                    { "ValidIdentifier.Invalid", "Identifier is not a valid URI" },
+                    { "ValidIdentifier.FilePort", "Identifier using ''file:'' scheme should not include a port number" },
+                    { "ValidIdentifier.UUID", "Identifier should use ''urn:'' scheme (i.e. ''urn:uuid:'')" },
+                    { "ValidIdentifier.String", "Identifier should be a string" },
             };
         }
     }

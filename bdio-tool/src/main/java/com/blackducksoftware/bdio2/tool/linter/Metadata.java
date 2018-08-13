@@ -30,6 +30,7 @@ import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 import com.blackducksoftware.common.value.ProductList;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Enums;
+import com.google.common.collect.ImmutableMap;
 
 public class Metadata implements RawEntryRule {
 
@@ -52,6 +53,7 @@ public class Metadata implements RawEntryRule {
             } else {
                 Object id = bdioEntry.get(JsonLdConsts.ID);
                 if (this.id == null) {
+                    result.compose(new ValidIdentifier(), ImmutableMap.of(JsonLdConsts.ID, bdioEntry.get(JsonLdConsts.ID)));
                     this.id = id;
                 } else if (!this.id.equals(id)) {
                     result.error("MismatchedGraphLabel");

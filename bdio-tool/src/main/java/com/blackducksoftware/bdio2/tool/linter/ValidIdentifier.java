@@ -23,8 +23,10 @@ import java.util.stream.Stream;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
 import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
+import com.blackducksoftware.common.base.ExtraStrings;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Ascii;
+import com.google.common.net.HostAndPort;
 
 public class ValidIdentifier implements RawNodeRule {
 
@@ -37,7 +39,9 @@ public class ValidIdentifier implements RawNodeRule {
             try {
                 // TODO We want RFC 3986 parsing, not RFC 2396
                 URI uri = new URI((String) id);
-                if (uri.isAbsolute()) {
+                if (isLikelyMissingScheme(uri)) {
+                    result.warning("LikelyMissingScheme");
+                } else if (uri.isAbsolute()) {
                     // These schemes are not good identifiers to use in the graph
                     if (UriSchemes.isDegradedScheme(uri.getScheme())) {
                         result.warning("DegradedScheme");
@@ -46,6 +50,11 @@ public class ValidIdentifier implements RawNodeRule {
                     // These schemes should include an authority when used in the graph to avoid ambiguity
                     if (UriSchemes.isAuthorityScheme(uri.getScheme()) && uri.getAuthority() == null) {
                         result.warning("MissingAuthority");
+                    }
+
+                    // The "file:" scheme does not allow ports
+                    if (Ascii.equalsIgnoreCase(uri.getScheme(), "file") && uri.getPort() >= 0) {
+                        result.warning("FilePort");
                     }
 
                     // "uuid:" isn't a scheme, it should be "urn:uuid:"
@@ -70,6 +79,22 @@ public class ValidIdentifier implements RawNodeRule {
         }
 
         return result.build();
+    }
+
+    private static boolean isLikelyMissingScheme(URI uri) {
+        // We are looking for "example.com:123/x/y.z" instead of "http://example.com:123/x/y/z"
+        if (uri.isOpaque() && uri.getSchemeSpecificPart().indexOf('/') > 0
+                && uri.isAbsolute() && uri.getScheme().indexOf('.') >= 0) {
+            // If what looks to be the first path segment is a valid port number, things just got really suspicious
+            String firstPathSegment = ExtraStrings.beforeFirst(uri.getSchemeSpecificPart(), '/');
+            try {
+                HostAndPort.fromParts(uri.getScheme(), Integer.parseInt(firstPathSegment));
+                return true;
+            } catch (RuntimeException e) {
+                return false;
+            }
+        }
+        return false;
     }
 
 }
