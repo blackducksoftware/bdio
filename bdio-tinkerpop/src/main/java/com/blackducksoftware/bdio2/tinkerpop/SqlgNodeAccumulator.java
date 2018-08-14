@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.stream.Collectors.joining;
+import static org.umlg.sqlg.structure.topology.Topology.EDGE_PREFIX;
 
 import java.security.SecureRandom;
 import java.sql.Connection;
@@ -252,6 +253,7 @@ class SqlgNodeAccumulator extends NodeAccumulator {
     @Override
     public void finish() throws NodeDoesNotExistException {
         // Flatten the labels that were encountered
+        flush();
         identifierTypes.keySet().forEach(this::flattenVertices);
 
         // Get the list of properties that go on all edges
@@ -261,6 +263,7 @@ class SqlgNodeAccumulator extends NodeAccumulator {
             edgePropertyList.add(v);
         });
         Object[] edgeProperties = edgePropertyList.toArray();
+        Pair<String, String> idFields = Pair.of(wrapper().mapper().identifierKey().get(), wrapper().mapper().identifierKey().get());
 
         // Drain the edge buffer
         for (Map.Entry<SqlgNodeAccumulator.EdgeKey, Collection<Pair<Object, Object>>> edge : edges.asMap().entrySet()) {
@@ -268,9 +271,10 @@ class SqlgNodeAccumulator extends NodeAccumulator {
             Multimap<String, Pair<Object, Object>> effectiveEdges = findEdgesByInVertexLabel(edgeLabel, edge.getValue());
             if (!effectiveEdges.isEmpty()) {
                 String outVertexLabel = edge.getKey().outVertexLabel;
-                Pair<String, String> idFields = Pair.of(wrapper().mapper().identifierKey().get(), wrapper().mapper().identifierKey().get());
-                effectiveEdges.asMap()
-                        .forEach((inVertexLabel, uids) -> graph().bulkAddEdges(outVertexLabel, inVertexLabel, edgeLabel, idFields, uids, edgeProperties));
+                effectiveEdges.asMap().forEach((inVertexLabel, uids) -> {
+                    graph().bulkAddEdges(outVertexLabel, inVertexLabel, edgeLabel, idFields, uids, edgeProperties);
+                    wrapper().vacuumAnalyze(SchemaTable.from(graph(), edgeLabel).withPrefix(EDGE_PREFIX), uids.size());
+                });
 
                 // Record the flush so we can stream a different type of edge
                 wrapper().flushTx();
@@ -425,9 +429,7 @@ class SqlgNodeAccumulator extends NodeAccumulator {
             int insertCount = statement.executeUpdate(insertQuery);
 
             // If we touched enough rows, make sure we clean up after
-            if (insertCount > 10_000) {
-                wrapper().vacuumAnalyze(table);
-            }
+            wrapper().vacuumAnalyze(table, insertCount);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

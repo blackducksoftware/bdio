@@ -88,8 +88,10 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
     /**
      * Schedules the specified table to vacuumed and analyzed after the next commit.
      */
-    void vacuumAnalyze(SchemaTable table) {
-        vacuumAnalyzeTables.push(table);
+    void vacuumAnalyze(SchemaTable table, int mutations) {
+        if (mutations > 10_000) {
+            vacuumAnalyzeTables.push(table);
+        }
     }
 
     @Override
