@@ -382,21 +382,28 @@ public class GraphTool extends Tool {
      */
     protected Optional<Object> getExpandContext(URI id) {
         if (id != null && id.getPath() != null) {
-            // If we have a path to look at, always return a context
-            Object context = Bdio.ContentType.forFileName(id.getPath());
-            if (context == Bdio.ContentType.JSON) {
-                if (expandContext == null) {
-                    // Modify the expand context so we only print this message once
-                    printDebugMessage("Using default BDIO context for JSON%n");
-                    expandContext = Bdio.Context.DEFAULT;
+            try {
+                // If we have a path to look at, always return a context
+                Object context = Bdio.ContentType.forFileName(id.getPath());
+                if (context == Bdio.ContentType.JSON) {
+                    if (expandContext == null) {
+                        // Modify the expand context so we only print this message once
+                        printDebugMessage("Using default BDIO context for JSON%n");
+                        expandContext = Bdio.Context.DEFAULT;
+                    }
+                    context = expandContext;
                 }
-                context = expandContext;
+                return Optional.of(context);
+            } catch (IllegalArgumentException e) {
+                // This just means we couldn't imply the content type
+                if (expandContext == null) {
+                    printMessage("Unable to determine the input content type, you may need to specify the JSON-LD context using the --context option%n");
+                }
             }
-            return Optional.of(context);
-        } else {
-            // Fall back to the value of the --context argument
-            return Optional.ofNullable(expandContext);
         }
+
+        // Fall back to the value of the --context argument
+        return Optional.ofNullable(expandContext);
     }
 
     private PartitionStrategy multiInputPartition(URI input, Configuration configuration) {
