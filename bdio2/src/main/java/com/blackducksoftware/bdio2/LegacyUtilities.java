@@ -16,6 +16,7 @@
 package com.blackducksoftware.bdio2;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Locale.US;
 import static java.util.stream.Collectors.joining;
 
 import java.net.URI;
@@ -92,9 +93,16 @@ class LegacyUtilities {
     private static final ObjectMapper SCAN_CONTAINER_OBJECT_MAPPER = new ObjectMapper().registerModule(LegacyScanContainerModule.INSTANCE);
 
     /**
+     * UUID name space identifier to use for name based UUIDs generated from legacy emitters.
+     */
+    // This is a version 3 UUID using the URL name space on the name
+    // "https://blackducksoftware.github.io/bdio#LegacyEmitter"
+    private static final UUID LEGACY_EMITTER_NS = ExtraUUIDs.fromString("d4bb9cdd-d89c-3a42-af03-393e0be722e4");
+
+    /**
      * UUID name space identifier to use for name based UUIDs representing a legacy dependency mapping.
      */
-    private static final UUID DEPENDENCY_IDENTIFIER_NS = UUID.fromString("24ac915b-3be8-4a7d-8840-11fe8e84b680");
+    private static final UUID DEPENDENCY_IDENTIFIER_NS = ExtraUUIDs.fromString("24ac915b-3be8-4a7d-8840-11fe8e84b680");
 
     /**
      * Returns a Jackson object mapper configured to parse legacy scan container objects.
@@ -266,8 +274,8 @@ class LegacyUtilities {
      * as the graph label from the BOM name.
      */
     public static String toNameUri(String name) {
-        // NOTE: We cannot use a namespace prefix here for compatibility reasons
-        return ExtraUUIDs.toUriString(UUID.nameUUIDFromBytes(name.getBytes(UTF_8)));
+        // IMPORTANT: This logic is permanent
+        return ExtraUUIDs.toUriString(ExtraUUIDs.nameUUIDFromBytes(LEGACY_EMITTER_NS, name.toLowerCase(US).getBytes(UTF_8)));
     }
 
     /**
