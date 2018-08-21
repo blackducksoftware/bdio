@@ -10,7 +10,7 @@ The "root" of the BDIO data is a top-level object (one of: "Project", "Container
 The relationship between a file node and it's parent need not be explicitly defined provided that the resolved absolute hierarchical path can be used to unambiguously identify the parent file.
 
 ### Missing Project Dependencies
-TODO Should we allow project dependencies to be implied for unreachable components? What would we use as scope, etc.?
+The relationship between a component and the root object need not be explicity defined: any component that is not associated with a dependency is assumed to be a dependency of the root object. Processors MUST NOT assume any default values for the implicit dependency node necessary to describe the connection between the component and the root object.
 
 ## Preservation of Unknown Data
 Publishers may choose to include data in a BDIO data set that is not part of the BDIO model, this data will come in the form of JSON-LD types or terms not defined by this specification. Processors MUST preserve this unknown data when handling BDIO, however any data which is not reachable from the root project SHOULD be ignored and does not need to preserved.
