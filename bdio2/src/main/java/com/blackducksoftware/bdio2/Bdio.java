@@ -186,6 +186,13 @@ public class Bdio {
             this.iri = Objects.requireNonNull(iri);
         }
 
+        public boolean root() {
+            return this == Class.Project
+                    || this == Class.Container
+                    || this == Class.Repository
+                    || this == Class.FileCollection;
+        }
+
         public boolean embedded() {
             return this == Class.Annotation
                     || this == Class.Dependency

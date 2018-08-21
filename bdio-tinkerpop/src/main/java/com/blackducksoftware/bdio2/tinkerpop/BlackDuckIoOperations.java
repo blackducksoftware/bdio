@@ -16,6 +16,7 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.bdio2.tinkerpop.GraphMapper.FILE_PARENT_KEY;
+import static com.blackducksoftware.common.base.ExtraCollectors.enumNames;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static org.apache.tinkerpop.gremlin.process.traversal.P.eq;
 import static org.apache.tinkerpop.gremlin.process.traversal.P.without;
@@ -35,6 +36,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -47,6 +49,7 @@ import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.bdio2.tinkerpop.SqlgGraphReaderWrapper.SqlgAddMissingFileParentsOperation;
 import com.blackducksoftware.bdio2.tinkerpop.SqlgGraphReaderWrapper.SqlgImplyFileSystemTypeOperation;
 import com.blackducksoftware.bdio2.tinkerpop.sqlg.strategy.SqlgGraphAddPropertyStrategy;
+import com.blackducksoftware.common.base.ExtraStreams;
 import com.blackducksoftware.common.value.HID;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
@@ -226,10 +229,7 @@ public final class BlackDuckIoOperations {
             g.E().hasLabel(mapper.rootLabel().get()).drop().iterate();
 
             // Recreate root edges between the root vertices and metadata vertices
-            g.V().hasLabel(Bdio.Class.Project.name(),
-                    Bdio.Class.Container.name(),
-                    Bdio.Class.Repository.name(),
-                    Bdio.Class.FileCollection.name())
+            g.V().hasLabel(P.within(ExtraStreams.stream(Bdio.Class.class).filter(Bdio.Class::root).collect(enumNames())))
                     .not(inE(Bdio.ObjectProperty.subproject.name()))
                     .not(inE(Bdio.ObjectProperty.previousVersion.name()))
                     .as("root")
