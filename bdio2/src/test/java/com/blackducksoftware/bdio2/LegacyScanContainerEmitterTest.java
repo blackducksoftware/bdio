@@ -108,7 +108,7 @@ public class LegacyScanContainerEmitterTest {
                 + "}").asByteSource(UTF_8).openStream();
         Map<?, ?> metadata = (Map<?, ?>) emitterFactory.apply(inputStream).stream().limit(1).collect(onlyElement());
         assertThat(mapper.fromFieldValue(nameKey, metadata.get(nameKey)))
-                .isEqualTo("Test Metadata 1 </test>");
+                .isEqualTo("Test Metadata 1");
         assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
                 .isEqualTo(ProductList.from("ScanClient/0.0.0.0 (signature 7.0.0) LegacyScanContainerEmitter"));
         assertThat(mapper.fromFieldValue(creationDateTimeKey, metadata.get(creationDateTimeKey)))

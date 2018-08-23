@@ -155,10 +155,9 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
         metadata.creationDateTime(createdOn);
         metadata.captureInterval(createdOn, createdOn != null && timeToScan != null ? createdOn.plus(timeToScan, ChronoUnit.MILLIS) : null);
 
-        // Add the metadata identifier and adjust the name to preserve the base directory
+        // Compute the metadata identifier using the name
         Optional<String> name = Optional.ofNullable((String) metadata.get(Bdio.DataProperty.name.toString()));
         metadata.id(name.map(LegacyUtilities::toNameUri).orElseGet(() -> toFileUri(hostName, baseDir, null)));
-        metadata.name(name.map(n -> String.format("%s <%s>", n, baseDir)).orElseGet(() -> String.format("<%s>", baseDir)));
 
         // Merge in additional product information for this code
         metadata.merge(publisher(new Product.Builder()

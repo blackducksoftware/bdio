@@ -336,7 +336,7 @@ class LegacyScanContainerEmitter implements Emitter {
             Optional<String> name = ExtraStrings.ofEmpty(this.name);
             return new BdioMetadata()
                     .id(name.map(LegacyUtilities::toNameUri).orElseGet(() -> toFileUri(hostName, baseDir, null)))
-                    .name(name.map(n -> String.format("%s <%s>", n, baseDir)).orElseGet(() -> String.format("<%s>", baseDir)))
+                    .name(name.orElse(null))
                     .creator(null, hostName)
                     .creationDateTime(createdOn)
                     .captureInterval(createdOn, createdOn != null && timeToScan != null ? createdOn.plus(timeToScan, ChronoUnit.MILLIS) : null)

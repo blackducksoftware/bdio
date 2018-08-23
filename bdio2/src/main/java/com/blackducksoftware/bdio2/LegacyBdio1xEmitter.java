@@ -444,9 +444,9 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
                 // Convert the BillOfMaterials node into BDIO metadata
                 metadata = new BdioMetadata().id(beforeLast(currentId(), '#'));
 
-                // Preserve legacy semantics for name handling
+                // If we have a name, use it to overwrite the identifier as well
                 Optional<String> name = currentValue("spdx:name").filter(s -> !s.isEmpty());
-                name.map(n -> String.format("%s <%s>", n, metadata.id())).ifPresent(metadata::name);
+                name.ifPresent(metadata::name);
                 name.map(LegacyUtilities::toNameUri).ifPresent(metadata::id);
 
                 convertCreationInfo(metadata::creationDateTime, metadata::creator, metadata::publisher);
