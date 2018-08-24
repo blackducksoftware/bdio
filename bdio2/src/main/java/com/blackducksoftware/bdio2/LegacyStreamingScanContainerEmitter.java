@@ -20,6 +20,7 @@ import static com.blackducksoftware.bdio2.LegacyUtilities.estimateEntryOverhead;
 import static com.blackducksoftware.bdio2.LegacyUtilities.estimateSize;
 import static com.blackducksoftware.bdio2.LegacyUtilities.scanContainerObjectMapper;
 import static com.blackducksoftware.bdio2.LegacyUtilities.toFileUri;
+import static com.blackducksoftware.bdio2.LegacyUtilities.toNameUri;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,7 +32,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -155,9 +155,14 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
         metadata.creationDateTime(createdOn);
         metadata.captureInterval(createdOn, createdOn != null && timeToScan != null ? createdOn.plus(timeToScan, ChronoUnit.MILLIS) : null);
 
-        // Compute the metadata identifier using the name
-        Optional<String> name = Optional.ofNullable((String) metadata.get(Bdio.DataProperty.name.toString()));
-        metadata.id(name.map(LegacyUtilities::toNameUri).orElseGet(() -> toFileUri(hostName, baseDir, null)));
+        // Compute the metadata name and identifier
+        String name = (String) metadata.get(Bdio.DataProperty.name.toString());
+        if (name != null) {
+            metadata.id(toNameUri(name));
+        } else {
+            metadata.id(toFileUri(hostName, baseDir, null));
+            metadata.name(hostName + "#" + baseDir);
+        }
 
         // Merge in additional product information for this code
         metadata.merge(publisher(new Product.Builder()
