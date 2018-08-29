@@ -228,13 +228,14 @@ public final class BlackDuckIoOperations {
             // Drop any existing root edges
             g.E().hasLabel(mapper.rootLabel().get()).drop().iterate();
 
+            // Get the identifier (technically there should only be one) of the metadata vertex
+            Object[] metadataId = g.V().hasLabel(mapper.metadataLabel().get()).id().toList().toArray();
+
             // Recreate root edges between the root vertices and metadata vertices
             g.V().hasLabel(P.within(ExtraStreams.stream(Bdio.Class.class).filter(Bdio.Class::root).collect(enumNames())))
-                    .not(inE(Bdio.ObjectProperty.subproject.name()))
-                    .not(inE(Bdio.ObjectProperty.previousVersion.name()))
+                    .where(inE(Bdio.ObjectProperty.subproject.name(), Bdio.ObjectProperty.previousVersion.name()).count().is(0))
                     .as("root")
-                    .V().hasLabel(mapper.metadataLabel().get())
-                    .addE(mapper.rootLabel().get()).to("root")
+                    .V(metadataId).addE(mapper.rootLabel().get()).to("root")
                     .property(mapper.implicitKey().get(), Boolean.TRUE)
                     .iterate();
         }
