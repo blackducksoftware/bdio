@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2.tool;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 
 import java.time.ZonedDateTime;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.Optional;
@@ -89,10 +90,11 @@ public abstract class AbstractFileTool extends AbstractGraphTool {
                     .orElse(Bdio.FileSystemType.REGULAR);
         }
 
-        public Iterator<FileNode> children(GraphTraversalSource g) {
+        public Iterator<FileNode> children(GraphTraversalSource g, Comparator<FileNode> sortOrder) {
             return g.V(vertex)
                     .in(Bdio.ObjectProperty.parent.name())
-                    .map(t -> new FileNode(t.get(), depth + 1));
+                    .map(t -> new FileNode(t.get(), depth + 1))
+                    .order().by(sortOrder);
         }
     }
 

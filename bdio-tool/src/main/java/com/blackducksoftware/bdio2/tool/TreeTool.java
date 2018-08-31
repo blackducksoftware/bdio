@@ -247,7 +247,7 @@ public class TreeTool extends AbstractFileTool {
                 continue;
             }
 
-            Iterator<FileNode> children = fn.children(g);
+            Iterator<FileNode> children = fn.children(g, this::sort);
             if (children.hasNext()) {
                 fileNodes.addLast(children);
                 directoryCount++;
@@ -263,6 +263,18 @@ public class TreeTool extends AbstractFileTool {
 
         // Print a summary report
         printReport(directoryCount, fileCount);
+    }
+
+    /**
+     * Compares two file nodes for display in the tree.
+     */
+    private int sort(FileNode f1, FileNode f2) {
+        // TODO Alternate sort orders?
+        // -v : Sort the output by version (?)
+        // -r : Sort the output in reverse alphabetic order
+        // -t : Sort the output by last modification time instead of alphabetically
+        // --dirsfirst : List direcotries before files
+        return f1.name().compareTo(f2.name());
     }
 
     /**
