@@ -17,6 +17,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -76,7 +77,7 @@ class TinkerGraphNodeAccumulator extends NodeAccumulator {
     }
 
     private Vertex createVertex(Map<String, Object> node) {
-        Object[] keyValues = wrapper().getNodeProperties(node, true);
+        Object[] keyValues = stripNulls(wrapper().getNodeProperties(node, true));
         return single(graph().vertices(ElementHelper.getIdValue(keyValues).get()),
                 v -> {
                     if (v.label().equals(PLACEHOLDER_LABEL)) {
@@ -117,6 +118,22 @@ class TinkerGraphNodeAccumulator extends NodeAccumulator {
 
     private static Object[] placeHolder(Object id) {
         return new Object[] { T.id, id, T.label, PLACEHOLDER_LABEL };
+    }
+
+    private static Object[] stripNulls(Object[] keyValues) {
+        for (Object o : keyValues) {
+            if (o == null) {
+                List<Object> list = new ArrayList<>(keyValues.length - 2);
+                for (int i = 1; i < keyValues.length; i += 2) {
+                    if (keyValues[i] != null) {
+                        list.add(keyValues[i - 1]);
+                        list.add(keyValues[i]);
+                    }
+                }
+                return list.toArray();
+            }
+        }
+        return keyValues;
     }
 
 }

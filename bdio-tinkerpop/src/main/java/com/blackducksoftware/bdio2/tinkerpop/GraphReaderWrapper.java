@@ -211,6 +211,7 @@ class GraphReaderWrapper extends GraphIoWrapper {
             } catch (IllegalArgumentException e) {
                 parent = null;
             }
+            // IMPORTANT: This must be allowed to return `null` otherwise we will break Sqlg streaming
             dataPropertyHandler.accept(GraphMapper.FILE_PARENT_KEY, parent);
         }
     }
