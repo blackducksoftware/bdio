@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.umlg.sqlg.structure.PropertyType;
+import org.umlg.sqlg.structure.topology.EdgeLabel;
 import org.umlg.sqlg.structure.topology.PropertyColumn;
 import org.umlg.sqlg.structure.topology.Topology;
 import org.umlg.sqlg.structure.topology.VertexLabel;
@@ -175,11 +176,6 @@ class SqlgGraphInitializer {
 
         @Override
         protected void initialize(SqlgGraphReaderWrapper wrapper) {
-            // In general we do not store BDIO information on edges, however there are a few common properties we use
-            Map<String, PropertyType> properties = new TreeMap<>();
-            wrapper.forEachPartition((c, p) -> properties.put(c, STRING));
-            wrapper.mapper().implicitKey().ifPresent(c -> properties.put(c, BOOLEAN));
-
             Topology topology = wrapper.graph().getTopology();
             for (Bdio.ObjectProperty objectProperty : Bdio.ObjectProperty.values()) {
                 List<VertexLabel> range = objectRange(objectProperty)
@@ -192,22 +188,18 @@ class SqlgGraphInitializer {
                         .flatMap(d -> Arrays.stream(d.value()))
                         .map(Bdio.Class::name)
                         .map(topology::ensureVertexLabelExist)
-                        .forEach(d -> {
-                            for (VertexLabel r : range) {
-                                topology.ensureEdgeLabelExist(objectProperty.name(), d, r, properties);
-                            }
-                        });
+                        .forEach(d -> range.forEach(r -> ensureEdgeLabelExist(objectProperty.name(), d, r, wrapper)));
             }
 
             wrapper.mapper().rootLabel().ifPresent(l -> {
                 wrapper.mapper().metadataLabel()
                         .map(topology::ensureVertexLabelExist)
                         .ifPresent(d -> {
-                            // TODO Where do we define "top-level" objects needed for the range?
-                            Stream.of(Bdio.Class.Container, Bdio.Class.FileCollection, Bdio.Class.Project, Bdio.Class.Repository)
+                            ExtraStreams.stream(Bdio.Class.class)
+                                    .filter(Bdio.Class::root)
                                     .map(Bdio.Class::name)
                                     .map(topology::ensureVertexLabelExist)
-                                    .forEach(r -> topology.ensureEdgeLabelExist(l, d, r, properties));
+                                    .forEach(r -> ensureEdgeLabelExist(l, d, r, wrapper));
                         });
             });
         }
@@ -252,6 +244,28 @@ class SqlgGraphInitializer {
                 .forEach(properties -> vertexLabel.ensureIndexExists(NON_UNIQUE, properties));
 
         return vertexLabel;
+    }
+
+    private static EdgeLabel ensureEdgeLabelExist(String label, VertexLabel out, VertexLabel in, SqlgGraphReaderWrapper wrapper) {
+        // Unlike vertices, there is only one set of properties for edges
+        Map<String, PropertyType> columns = new TreeMap<>();
+        List<String> nonUniqueIndexNames = new ArrayList<>();
+
+        wrapper.forEachPartition((c, p) -> {
+            columns.put(c, STRING);
+            nonUniqueIndexNames.add(c);
+        });
+        wrapper.mapper().implicitKey().ifPresent(c -> {
+            columns.put(c, BOOLEAN);
+        });
+
+        EdgeLabel edgeLabel = wrapper.graph().getTopology().ensureEdgeLabelExist(label, out, in, columns);
+        nonUniqueIndexNames.stream()
+                .flatMap(((Function<String, Optional<PropertyColumn>>) edgeLabel::getProperty).andThen(Streams::stream))
+                .map(Collections::singletonList)
+                .forEach(properties -> edgeLabel.ensureIndexExists(NON_UNIQUE, properties));
+
+        return edgeLabel;
     }
 
     private static Stream<Bdio.Domain> domain(Enum<?> e) {
