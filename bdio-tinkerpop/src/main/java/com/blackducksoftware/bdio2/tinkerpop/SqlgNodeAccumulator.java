@@ -238,6 +238,7 @@ class SqlgNodeAccumulator extends NodeAccumulator {
                     effectiveNode.putAll(node);
                 }
                 graph().streamVertex(wrapper().getNodeProperties(effectiveNode, false));
+                wrapper().batchFlushTx();
             }
 
             // Record the flush so we can stream a different type of vertex
