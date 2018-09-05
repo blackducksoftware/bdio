@@ -37,6 +37,7 @@ import org.apache.tinkerpop.gremlin.structure.io.GraphWriter;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 
 import com.blackducksoftware.bdio2.BdioWriter;
+import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.github.jsonldjava.core.JsonLdConsts;
 
@@ -65,10 +66,17 @@ public class BlackDuckIoWriter implements GraphWriter {
     }
 
     /**
-     * {@inheritDoc}
+     * Writes the supplied graph to one or more output streams (partitioning based on size).
+     *
+     * @param out
+     *            the supplier of output streams to write the graph to
+     * @param graph
+     *            the graph to write
+     * @throws IOException
+     *             if an error occurs writing the graph
+     * @see {@link #writeGraph(OutputStream, Graph)}
      */
-    @Override
-    public void writeGraph(OutputStream outputStream, Graph graph) throws IOException {
+    public void writeGraph(StreamSupplier out, Graph graph) throws IOException {
         GraphWriterWrapper wrapper = graphWrapper.apply(graph);
         RxJavaBdioDocument document = new RxJavaBdioDocument(wrapper.bdioOptions());
 
@@ -86,11 +94,19 @@ public class BlackDuckIoWriter implements GraphWriter {
 
                     // TODO How do exceptions come through here?
                     .buffer(batchSize)
-                    .blockingSubscribe(document.write(wrapper.createMetadata(), new BdioWriter.BdioFile(outputStream)));
+                    .blockingSubscribe(document.write(wrapper.createMetadata(), out));
         } catch (UncheckedIOException e) {
             // TODO We loose the stack of the unchecked wrapper: `e.getCause().addSuppressed(e)`?
             throw e.getCause();
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void writeGraph(OutputStream outputStream, Graph graph) throws IOException {
+        writeGraph(new BdioWriter.BdioFile(outputStream), graph);
     }
 
     /**
