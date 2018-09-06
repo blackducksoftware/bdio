@@ -308,6 +308,9 @@ class LegacyScanContainerEmitter implements Emitter {
         @Nullable
         private final String signatureVersion;
 
+        @Nullable
+        private final String ownerEntityKeyToken;
+
         @JsonCreator
         public LegacyScanContainer(
                 @Nullable @JsonProperty("baseDir") String baseDir,
@@ -319,7 +322,8 @@ class LegacyScanContainerEmitter implements Emitter {
                 @Nullable @JsonProperty("release") String release,
                 @Nullable @JsonProperty("scanNodeList") List<LegacyScanNode> scanNodeList,
                 @Nullable @JsonProperty("scannerVersion") String scannerVersion,
-                @Nullable @JsonProperty("signatureVersion") String signatureVersion) {
+                @Nullable @JsonProperty("signatureVersion") String signatureVersion,
+                @Nullable @JsonProperty("ownerEntityKeyToken") String ownerEntityKeyToken) {
             this.baseDir = baseDir;
             this.createdOn = createdOn != null ? createdOn.toInstant().atZone(ZoneOffset.UTC) : null;
             this.timeToScan = timeToScan;
@@ -330,6 +334,7 @@ class LegacyScanContainerEmitter implements Emitter {
             this.scanNodeList = scanNodeList != null ? Maps.uniqueIndex(scanNodeList, scanNode -> scanNode.id) : ImmutableMap.of();
             this.scannerVersion = scannerVersion;
             this.signatureVersion = signatureVersion;
+            this.ownerEntityKeyToken = ownerEntityKeyToken;
         }
 
         public BdioMetadata metadata() {
@@ -341,11 +346,7 @@ class LegacyScanContainerEmitter implements Emitter {
                     .creationDateTime(createdOn)
                     .captureInterval(createdOn, createdOn != null && timeToScan != null ? createdOn.plus(timeToScan, ChronoUnit.MILLIS) : null)
                     .publisher(new ProductList.Builder()
-                            .addProduct(new Product.Builder()
-                                    .name("ScanClient")
-                                    .version(scannerVersion)
-                                    .comment("(signature " + signatureVersion + ")")
-                                    .build())
+                            .addProduct(scanClient())
                             .addProduct(new Product.Builder()
                                     .simpleName(LegacyScanContainerEmitter.class)
                                     .implementationVersion(LegacyScanContainerEmitter.class)
@@ -383,6 +384,17 @@ class LegacyScanContainerEmitter implements Emitter {
                     .path(scanNode.path(baseDir, scanNodeList::get))
                     .byteCount(scanNode.byteCount())
                     .fingerprint(scanNode.fingerprint()));
+        }
+
+        private Product scanClient() {
+            Product.Builder scanClient = new Product.Builder()
+                    .name("ScanClient")
+                    .version(scannerVersion)
+                    .addCommentText("signature %s", signatureVersion);
+            if (ownerEntityKeyToken != null && ownerEntityKeyToken.startsWith("SP#")) {
+                scanClient.addCommentText("snippets");
+            }
+            return scanClient.build();
         }
     }
 

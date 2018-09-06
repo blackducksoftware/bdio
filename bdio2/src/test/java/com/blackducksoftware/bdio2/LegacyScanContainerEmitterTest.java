@@ -99,6 +99,7 @@ public class LegacyScanContainerEmitterTest {
         InputStream inputStream = CharSource.wrap("{"
                 + "\"scannerVersion\": \"0.0.0.0\","
                 + "\"signatureVersion\": \"7.0.0\","
+                + "\"ownerEntityToken\": \"SP#example.com-test\","
                 + "\"createdOn\": \"2016-11-22T16:33:20.000Z\","
                 + "\"timeToScan\": 111,"
                 + "\"name\": \"Test Metadata 1\","
@@ -110,7 +111,7 @@ public class LegacyScanContainerEmitterTest {
         assertThat(mapper.fromFieldValue(nameKey, metadata.get(nameKey)))
                 .isEqualTo("Test Metadata 1");
         assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
-                .isEqualTo(ProductList.from("ScanClient/0.0.0.0 (signature 7.0.0) LegacyScanContainerEmitter"));
+                .isEqualTo(ProductList.from("ScanClient/0.0.0.0 (signature 7.0.0) (snippets) LegacyScanContainerEmitter"));
         assertThat(mapper.fromFieldValue(creationDateTimeKey, metadata.get(creationDateTimeKey)))
                 .isEqualTo(ZonedDateTime.parse("2016-11-22T16:33:20.000Z"));
         assertThat(mapper.fromFieldValue(creatorKey, metadata.get(creatorKey)))

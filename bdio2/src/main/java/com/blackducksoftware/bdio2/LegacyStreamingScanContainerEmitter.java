@@ -123,6 +123,11 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
             case "signatureVersion":
                 metadata.merge(publisher(scanClient().addCommentText("signature %s", jp.nextTextValue()).build()));
                 break;
+            case "ownerEntityKeyToken":
+                if (Strings.nullToEmpty(jp.nextTextValue()).startsWith("SP#")) {
+                    metadata.merge(publisher(scanClient().addCommentText("snippets").build()));
+                }
+                break;
             case "name":
                 metadata.name(Strings.emptyToNull(jp.nextTextValue()));
                 break;
