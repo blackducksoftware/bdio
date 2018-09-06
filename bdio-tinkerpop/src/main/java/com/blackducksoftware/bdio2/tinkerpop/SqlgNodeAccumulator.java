@@ -57,7 +57,8 @@ import com.google.common.hash.PrimitiveSink;
 class SqlgNodeAccumulator extends NodeAccumulator {
 
     public static boolean acceptWrapper(GraphReaderWrapper wrapper) {
-        return wrapper instanceof SqlgGraphReaderWrapper && wrapper.mapper().identifierKey().isPresent();
+        // TODO There is a bug when using partitions and bulk edge inserts
+        return false;
     }
 
     /**
