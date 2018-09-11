@@ -184,6 +184,13 @@ public class GraphMapper {
     }
 
     /**
+     * Returns additional injected documents.
+     */
+    public void injectedDocuments(BiConsumer<String, CharSequence> injectDocument) {
+        tokens.injectedDocuments().forEach(injectDocument);
+    }
+
+    /**
      * Preserves all of the unknown properties. If there are no unknown properties in the supplied node map, then the
      * supplied action is not invoked.
      */

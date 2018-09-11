@@ -46,6 +46,11 @@ import com.google.common.collect.ImmutableSet;
 public class DefaultBlackDuckIoTokens implements BlackDuckIoTokens {
 
     /**
+     * The mapping of document URLs to their contents.
+     */
+    private final ImmutableMap<String, CharSequence> injectedDocuments;
+
+    /**
      * The mapping of vertex labels to {@code @type} IRIs. Does not include the metadata vertex label.
      */
     private final ImmutableMap<String, String> classes;
@@ -96,6 +101,7 @@ public class DefaultBlackDuckIoTokens implements BlackDuckIoTokens {
     private final Optional<String> implicitKey;
 
     private DefaultBlackDuckIoTokens(Builder builder) {
+        injectedDocuments = ImmutableMap.copyOf(builder.injectedDocuments);
         classes = ImmutableMap.copyOf(builder.classes);
         embeddedClasses = ImmutableSet.copyOf(builder.embeddedClasses);
         dataProperties = ImmutableMap.copyOf(builder.dataProperties);
@@ -116,6 +122,11 @@ public class DefaultBlackDuckIoTokens implements BlackDuckIoTokens {
         checkState(!identifierKey.filter(dataProperties::containsKey).isPresent(), "identifierKey conflict");
         checkState(!unknownKey.filter(dataProperties::containsKey).isPresent(), "unknownKey conflict");
         checkState(!implicitKey.filter(dataProperties::containsKey).isPresent(), "implicitKey conflict");
+    }
+
+    @Override
+    public Map<String, CharSequence> injectedDocuments() {
+        return injectedDocuments;
     }
 
     @Override
@@ -191,6 +202,8 @@ public class DefaultBlackDuckIoTokens implements BlackDuckIoTokens {
             return (DefaultBlackDuckIoTokens) tokens;
         }
         DefaultBlackDuckIoTokens.Builder builder = DefaultBlackDuckIoTokens.build();
+
+        tokens.injectedDocuments().forEach(builder::addInjectedDocument);
         tokens.classes().forEach(builder::addClass);
         tokens.embeddedClasses().forEach(label -> builder.addEmbeddedClass(label, tokens.classes().get(label)));
         tokens.dataProperties().forEach(builder::addDataProperty);
@@ -205,6 +218,8 @@ public class DefaultBlackDuckIoTokens implements BlackDuckIoTokens {
     }
 
     public static final class Builder {
+
+        private final Map<String, CharSequence> injectedDocuments;
 
         private final Map<String, String> classes;
 
@@ -232,6 +247,7 @@ public class DefaultBlackDuckIoTokens implements BlackDuckIoTokens {
         private String implicitKey;
 
         private Builder() {
+            injectedDocuments = new LinkedHashMap<>();
             classes = new LinkedHashMap<>();
             embeddedClasses = new LinkedHashSet<>();
             for (Bdio.Class bdioClass : Bdio.Class.values()) {
@@ -254,6 +270,11 @@ public class DefaultBlackDuckIoTokens implements BlackDuckIoTokens {
             for (Bdio.ObjectProperty bdioObjectProperty : Bdio.ObjectProperty.values()) {
                 objectProperties.put(bdioObjectProperty.name(), bdioObjectProperty.toString());
             }
+        }
+
+        public Builder addInjectedDocument(String url, CharSequence content) {
+            injectedDocuments.put(Objects.requireNonNull(url), Objects.requireNonNull(content));
+            return this;
         }
 
         public Builder addClass(String label, String iri) {

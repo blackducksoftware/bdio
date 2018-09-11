@@ -29,6 +29,14 @@ import javax.annotation.Nullable;
 public interface BlackDuckIoTokens {
 
     /**
+     * The mapping of document URIs to their (hopefully cached) contents. Used by JSON-LD when loading remote documents
+     * by URL to avoid the network (generally for commonly used JSON-LD contexts).
+     */
+    default Map<String, CharSequence> injectedDocuments() {
+        return Collections.emptyMap();
+    }
+
+    /**
      * The mapping of vertex labels to {@code @type} IRIs. Does not include the metadata vertex label.
      */
     default Map<String, String> classes() {

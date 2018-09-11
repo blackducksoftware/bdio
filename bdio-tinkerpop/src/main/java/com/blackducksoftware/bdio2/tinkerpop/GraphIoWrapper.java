@@ -67,6 +67,7 @@ abstract class GraphIoWrapper {
 
         BdioOptions.Builder optionsBuilder = new BdioOptions.Builder();
         optionsBuilder.expandContext(expandContext.orElseGet(mapper::context));
+        mapper.injectedDocuments(optionsBuilder::injectDocument);
         bdioOptions = optionsBuilder.build();
 
         // Store extra references that will be needed frequently
