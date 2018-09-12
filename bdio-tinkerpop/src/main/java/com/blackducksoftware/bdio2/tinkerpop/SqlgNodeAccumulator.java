@@ -18,10 +18,14 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.stream.Collectors.joining;
+import static org.umlg.sqlg.structure.SqlgGraph.TRANSACTION_MUST_BE_IN;
 import static org.umlg.sqlg.structure.topology.Topology.EDGE_PREFIX;
+import static org.umlg.sqlg.structure.topology.Topology.VERTEX_PREFIX;
 
+import java.lang.reflect.Method;
 import java.security.SecureRandom;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -33,18 +37,27 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
+import org.umlg.sqlg.sql.dialect.PostgresDialect;
 import org.umlg.sqlg.sql.dialect.SqlDialect;
+import org.umlg.sqlg.structure.BatchManager;
 import org.umlg.sqlg.structure.PropertyType;
 import org.umlg.sqlg.structure.SchemaTable;
+import org.umlg.sqlg.structure.SqlgExceptions;
 import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.structure.topology.PropertyColumn;
 import org.umlg.sqlg.structure.topology.Topology;
+import org.umlg.sqlg.structure.topology.VertexLabel;
+import org.umlg.sqlg.util.SqlgUtil;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.github.jsonldjava.core.JsonLdConsts;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.hash.BloomFilter;
@@ -58,8 +71,7 @@ import com.google.common.hash.PrimitiveSink;
 class SqlgNodeAccumulator extends NodeAccumulator {
 
     public static boolean acceptWrapper(GraphReaderWrapper wrapper) {
-        // TODO There is a bug when using partitions and bulk edge inserts
-        return false;
+        return wrapper instanceof SqlgGraphReaderWrapper && wrapper.mapper().identifierKey().isPresent();
     }
 
     /**
@@ -254,9 +266,13 @@ class SqlgNodeAccumulator extends NodeAccumulator {
 
     @Override
     public void finish() throws NodeDoesNotExistException {
-        // Flatten the labels that were encountered
+        // Commit all the vertices to the database
         flush();
+        wrapper().commitTx();
+
+        // Flatten the labels that were encountered
         identifierTypes.keySet().forEach(this::flattenVertices);
+        wrapper().commitTx();
 
         // Get the list of properties that go on all edges
         List<Object> edgePropertyList = new ArrayList<>();
@@ -268,13 +284,14 @@ class SqlgNodeAccumulator extends NodeAccumulator {
         Pair<String, String> idFields = Pair.of(wrapper().mapper().identifierKey().get(), wrapper().mapper().identifierKey().get());
 
         // Drain the edge buffer
+        graph().tx().streamingBatchModeOn();
         for (Map.Entry<SqlgNodeAccumulator.EdgeKey, Collection<Pair<Object, Object>>> edge : edges.asMap().entrySet()) {
             String edgeLabel = edge.getKey().edgeLabel;
             Multimap<String, Pair<Object, Object>> effectiveEdges = findEdgesByInVertexLabel(edgeLabel, edge.getValue());
             if (!effectiveEdges.isEmpty()) {
                 String outVertexLabel = edge.getKey().outVertexLabel;
                 effectiveEdges.asMap().forEach((inVertexLabel, uids) -> {
-                    graph().bulkAddEdges(outVertexLabel, inVertexLabel, edgeLabel, idFields, uids, edgeProperties);
+                    bulkAddEdges(outVertexLabel, inVertexLabel, edgeLabel, idFields, uids, edgeProperties);
                     wrapper().vacuumAnalyze(SchemaTable.from(graph(), edgeLabel).withPrefix(EDGE_PREFIX), uids.size());
                 });
 
@@ -283,6 +300,7 @@ class SqlgNodeAccumulator extends NodeAccumulator {
             }
         }
 
+        // Free the buffers
         edges.clear();
         identifierTypes.clear();
     }
@@ -435,6 +453,150 @@ class SqlgNodeAccumulator extends NodeAccumulator {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @VisibleForTesting
+    <LL, RR> void bulkAddEdges(String outVertexLabel, String inVertexLabel, String edgeLabel,
+            Pair<String, String> idFields, Collection<Pair<LL, RR>> uids, Object... keyValues) {
+        SqlgGraph sqlgGraph = graph();
+        if (!sqlgGraph.tx().isInStreamingBatchMode() && !sqlgGraph.tx().isInStreamingWithLockBatchMode()) {
+            throw SqlgExceptions.invalidMode(TRANSACTION_MUST_BE_IN
+                    + BatchManager.BatchModeType.STREAMING + " or "
+                    + BatchManager.BatchModeType.STREAMING_WITH_LOCK + " mode for bulkAddEdges");
+        } else if (uids.isEmpty()) {
+            return;
+        }
+
+        // Basically a hack to duplicate a bunch of the Sqlg code to manage a partitioned bulk-add
+        class BulkAddEdgeDialect extends PostgresDialect {
+            // @formatter:off
+            @Override
+            public <L, R> void bulkAddEdges(SqlgGraph sqlgGraph, SchemaTable out, SchemaTable in, String edgeLabel, Pair<String, String> idFields, Collection<Pair<L, R>> uids, Map<String, PropertyType> edgeColumns, Map<String, Object> edgePropertyMap) {
+                if (!sqlgGraph.tx().isInStreamingBatchMode() && !sqlgGraph.tx().isInStreamingWithLockBatchMode()) {
+                    throw SqlgExceptions.invalidMode("Transaction must be in " + BatchManager.BatchModeType.STREAMING + " or " + BatchManager.BatchModeType.STREAMING_WITH_LOCK + " mode for bulkAddEdges");
+                }
+                if (!uids.isEmpty()) {
+                    //createVertexLabel temp table and copy the uids into it
+                    Map<String, PropertyType> columns = new HashMap<>();
+                    Map<String, PropertyType> outProperties = sqlgGraph.getTopology().getTableFor(out.withPrefix(VERTEX_PREFIX));
+                    Map<String, PropertyType> inProperties = sqlgGraph.getTopology().getTableFor(in.withPrefix(VERTEX_PREFIX));
+                    PropertyType outPropertyType;
+                    if (idFields.getLeft().equals(Topology.ID)) {
+                        outPropertyType = PropertyType.INTEGER;
+                    } else {
+                        outPropertyType = outProperties.get(idFields.getLeft());
+                    }
+                    PropertyType inPropertyType;
+                    if (idFields.getRight().equals(Topology.ID)) {
+                        inPropertyType = PropertyType.INTEGER;
+                    } else {
+                        inPropertyType = inProperties.get(idFields.getRight());
+                    }
+                    columns.put("out", outPropertyType);
+                    columns.put("in", inPropertyType);
+                    SecureRandom random = new SecureRandom();
+                    byte bytes[] = new byte[6];
+                    random.nextBytes(bytes);
+                    String tmpTableIdentified = Base64.getEncoder().encodeToString(bytes);
+                    tmpTableIdentified = Topology.BULK_TEMP_EDGE + tmpTableIdentified;
+                    sqlgGraph.getTopology().getPublicSchema().createTempTable(tmpTableIdentified, columns);
+                    this._copyInBulkTempEdges(sqlgGraph, SchemaTable.of(out.getSchema(), tmpTableIdentified), uids, outPropertyType, inPropertyType);
+                    //executeRegularQuery copy from select. select the edge ids to copy into the new table by joining on the temp table
+
+                    Optional<VertexLabel> outVertexLabelOptional = sqlgGraph.getTopology().getVertexLabel(out.getSchema(), out.getTable());
+                    Optional<VertexLabel> inVertexLabelOptional = sqlgGraph.getTopology().getVertexLabel(in.getSchema(), in.getTable());
+                    Preconditions.checkState(outVertexLabelOptional.isPresent(), "Out VertexLabel must be present. Not found for %s", out.toString());
+                    Preconditions.checkState(inVertexLabelOptional.isPresent(), "In VertexLabel must be present. Not found for %s", in.toString());
+
+                    //noinspection OptionalGetWithoutIsPresent
+                    sqlgGraph.getTopology().ensureEdgeLabelExist(edgeLabel, outVertexLabelOptional.get(), inVertexLabelOptional.get(), edgeColumns);
+
+                    StringBuilder sql = new StringBuilder("INSERT INTO \n");
+                    sql.append(this.maybeWrapInQoutes(out.getSchema()));
+                    sql.append(".");
+                    sql.append(this.maybeWrapInQoutes(EDGE_PREFIX + edgeLabel));
+                    sql.append(" (");
+                    sql.append(this.maybeWrapInQoutes(out.getSchema() + "." + out.getTable() + Topology.OUT_VERTEX_COLUMN_END));
+                    sql.append(",");
+                    sql.append(this.maybeWrapInQoutes(in.getSchema() + "." + in.getTable() + Topology.IN_VERTEX_COLUMN_END));
+                    edgePropertyMap.keySet().forEach(k -> sql.append(',').append(this.maybeWrapInQoutes(k)));
+                    sql.append(") \n");
+                    sql.append("select _out.\"ID\" as \"");
+                    sql.append(out.getSchema() + "." + out.getTable() + Topology.OUT_VERTEX_COLUMN_END);
+                    sql.append("\", _in.\"ID\" as \"");
+                    sql.append(in.getSchema() + "." + in.getTable() + Topology.IN_VERTEX_COLUMN_END);
+                    sql.append("\"");
+                    edgePropertyMap.forEach((k, v) -> {
+                        sql.append(',');
+                        sql.append(this.valueToValuesString(edgeColumns.get(k), v));
+                        sql.append(" as ");
+                        sql.append(this.maybeWrapInQoutes(k));
+                    });
+                    sql.append(" FROM ");
+                    sql.append(this.maybeWrapInQoutes(in.getSchema()));
+                    sql.append(".");
+                    sql.append(this.maybeWrapInQoutes(VERTEX_PREFIX + in.getTable()));
+                    sql.append(" _in join ");
+                    sql.append(this.maybeWrapInQoutes(tmpTableIdentified) + " ab on ab.in = _in." + this.maybeWrapInQoutes(idFields.getRight()) + " join ");
+                    sql.append(this.maybeWrapInQoutes(out.getSchema()));
+                    sql.append(".");
+                    sql.append(this.maybeWrapInQoutes(VERTEX_PREFIX + out.getTable()));
+                    sql.append(" _out on ab.out = _out." + this.maybeWrapInQoutes(idFields.getLeft()));
+                    // MODIFICATION START
+                    addPartitions(sql);
+                    // MODIFICATION END
+                    if (logger.isDebugEnabled()) {
+                        logger.debug(sql.toString());
+                    }
+                    Connection conn = sqlgGraph.tx().getConnection();
+                    try (PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
+                        preparedStatement.executeUpdate();
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+            // @formatter:on
+
+            /**
+             * Reflective hack to avoid duplicating too much functionality from the super class.
+             */
+            private <L, R> void _copyInBulkTempEdges(SqlgGraph sqlgGraph, SchemaTable schemaTable,
+                    Collection<Pair<L, R>> uids, PropertyType inPropertyType, PropertyType outPropertyType) {
+                try {
+                    Method m = PostgresDialect.class.getDeclaredMethod("copyInBulkTempEdges",
+                            SqlgGraph.class, SchemaTable.class, Collection.class, PropertyType.class, PropertyType.class);
+                    m.setAccessible(true);
+                    m.invoke(this, sqlgGraph, schemaTable, uids, inPropertyType, outPropertyType);
+                } catch (ReflectiveOperationException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            /**
+             * Adds a "WHERE" clause to an existing bulk edge insert to account for partitions.
+             */
+            private void addPartitions(StringBuilder sql) {
+                Map<String, String> partitions = new LinkedHashMap<>();
+                wrapper().forEachPartition(partitions::put);
+                sql.append(partitions.isEmpty() ? ""
+                        : partitions.entrySet().stream()
+                                .map(e -> new StringBuilder()
+                                        .append("_in.").append(this.maybeWrapInQoutes(e.getKey()))
+                                        .append(" = ").append(this.valueToValuesString(PropertyType.STRING, e.getValue()))
+                                        .append(" AND _out.").append(this.maybeWrapInQoutes(e.getKey()))
+                                        .append(" = ").append(this.valueToValuesString(PropertyType.STRING, e.getValue()))
+                                        .toString())
+                                .collect(joining(" AND ", " WHERE ", "")))
+                        .append(needsSemicolon() ? ";" : "");
+            }
+        }
+
+        BulkAddEdgeDialect dialect = new BulkAddEdgeDialect();
+        SchemaTable outSchemaTable = SchemaTable.from(sqlgGraph, outVertexLabel);
+        SchemaTable inSchemaTable = SchemaTable.from(sqlgGraph, inVertexLabel);
+        Triple<Map<String, PropertyType>, Map<String, Object>, Map<String, Object>> keyValueMapTriple = SqlgUtil.validateVertexKeysValues(dialect, keyValues);
+        dialect.bulkAddEdges(sqlgGraph, outSchemaTable, inSchemaTable, edgeLabel, idFields, uids, keyValueMapTriple.getLeft(), keyValueMapTriple.getRight());
     }
 
 }
