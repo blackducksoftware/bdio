@@ -21,8 +21,10 @@ import static com.google.common.base.Strings.repeat;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.id;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -51,6 +53,7 @@ import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.util.SqlgUtil;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIo;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoCore;
@@ -432,6 +435,8 @@ public class GraphTool extends Tool {
             return GraphTool::dump;
         case "summary":
             return GraphTool::summary;
+        case "write":
+            return GraphTool::write;
         default:
             // TODO Use reflection to create a consumer?
             throw new UnsupportedOperationException("unable to create listener: " + listener);
@@ -521,6 +526,28 @@ public class GraphTool extends Tool {
         out.format("===================%n");
         g.E().group().by(T.label).by(__.count()).next().entrySet()
                 .forEach(e -> out.format("  %s = %s%n", e.getKey(), e.getValue()));
+    }
+
+    /**
+     * Helper to write a graph as BDIO back to standard output.
+     */
+    public static void write(Graph graph) {
+        write(graph, new BdioConsoleStreamSupplier(System.out));
+    }
+
+    /**
+     * Helper to write a graph as BDIO back to the specified streams (e.g. a BDIO file or console).
+     */
+    public static void write(Graph graph, StreamSupplier out) {
+        try {
+            new BlackDuckIoCore(graph)
+                    .withExpandContext(Bdio.Context.DEFAULT)
+                    .withGraphConfiguration()
+                    .writer()
+                    .writeGraph(out, graph);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
 }
