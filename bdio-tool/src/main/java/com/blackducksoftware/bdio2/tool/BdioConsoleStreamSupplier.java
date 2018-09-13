@@ -41,7 +41,7 @@ public class BdioConsoleStreamSupplier implements StreamSupplier {
      * The delimiter to use between entries. Not that the delimiter is given two arguments: the current entry number
      * (starting at -1) and the default entry name.
      */
-    private final String entryDelimiter = "%n%n";
+    private String entryDelimiter;
 
     /**
      * The number on entries.
@@ -49,7 +49,12 @@ public class BdioConsoleStreamSupplier implements StreamSupplier {
     private final AtomicInteger entryCount = new AtomicInteger(-1);
 
     public BdioConsoleStreamSupplier(PrintStream out) {
+        this(out, "%n%n");
+    }
+
+    public BdioConsoleStreamSupplier(PrintStream out, String entryDelimiter) {
         this.out = Objects.requireNonNull(out);
+        this.entryDelimiter = Objects.requireNonNull(entryDelimiter);
     }
 
     @Override
