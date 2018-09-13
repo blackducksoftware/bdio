@@ -196,8 +196,12 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                     .append(" f ON m.")
                     .append(dialect.maybeWrapInQoutes(GraphMapper.FILE_PARENT_KEY))
                     .append(" = f.")
-                    .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()))
-                    .append(" WHERE m.")
+                    .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()));
+            wrapper().forEachPartition((k, v) -> sql.append(" AND m.")
+                    .append(dialect.maybeWrapInQoutes(k))
+                    .append(" = f.")
+                    .append(dialect.maybeWrapInQoutes(k)));
+            sql.append(" WHERE m.")
                     .append(dialect.maybeWrapInQoutes(GraphMapper.FILE_PARENT_KEY))
                     .append(" IS NOT NULL AND f.")
                     .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()))
@@ -279,8 +283,16 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                     .append(" c ON p.")
                     .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()))
                     .append(" = c.")
-                    .append(dialect.maybeWrapInQoutes(FILE_PARENT_KEY))
-                    .append(dialect.needsSemicolon() ? ";" : "");
+                    .append(dialect.maybeWrapInQoutes(FILE_PARENT_KEY));
+            wrapper().forEachPartition((k, v) -> sql.append(" AND p.")
+                    .append(dialect.maybeWrapInQoutes(k))
+                    .append(" = ")
+                    .append(dialect.valueToValuesString(PropertyType.STRING, v))
+                    .append(" AND c.")
+                    .append(dialect.maybeWrapInQoutes(k))
+                    .append(" = ")
+                    .append(dialect.valueToValuesString(PropertyType.STRING, v)));
+            sql.append(dialect.needsSemicolon() ? ";" : "");
 
             executeUpdate(sqlgGraph, sql);
         }
@@ -298,7 +310,7 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
             updateFileSystemType(sqlgGraph, Bdio.FileSystemType.DIRECTORY);
         }
 
-        private static void updateFileSystemType(SqlgGraph sqlgGraph, Bdio.FileSystemType fileSystemType) {
+        private void updateFileSystemType(SqlgGraph sqlgGraph, Bdio.FileSystemType fileSystemType) {
             SqlDialect dialect = sqlgGraph.getSqlDialect();
             SchemaTable file = SchemaTable.from(sqlgGraph, Bdio.Class.File.name()).withPrefix(VERTEX_PREFIX);
             SchemaTable parent = SchemaTable.from(sqlgGraph, Bdio.ObjectProperty.parent.name()).withPrefix(EDGE_PREFIX);
@@ -332,6 +344,12 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                     .append(dialect.maybeWrapInQoutes(parent.getTable()))
                     .append('.')
                     .append(dialect.maybeWrapInQoutes(file.withOutPrefix() + Topology.IN_VERTEX_COLUMN_END));
+            wrapper().forEachPartition((k, v) -> sql.append(" AND ")
+                    .append(dialect.maybeWrapInQoutes(file.getTable()))
+                    .append('.')
+                    .append(dialect.maybeWrapInQoutes(k))
+                    .append(" = ")
+                    .append(dialect.valueToValuesString(PropertyType.STRING, v)));
             if (fileSystemType == Bdio.FileSystemType.DIRECTORY_ARCHIVE) {
                 sql.append(" AND (")
                         .append(dialect.maybeWrapInQoutes(file.getTable()))
