@@ -15,18 +15,26 @@
  */
 package com.blackducksoftware.bdio2.tool.linter;
 
+import static java.util.stream.Collectors.joining;
+import static org.apache.tinkerpop.gremlin.process.traversal.P.gt;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.as;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.in;
 
 import java.util.stream.Stream;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.tinkerpop.util.VertexProperties;
 import com.blackducksoftware.bdio2.tool.linter.Linter.CompletedGraphRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
 import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
+import com.blackducksoftware.common.value.HID;
+import com.google.common.collect.Streams;
+import com.google.common.net.UrlEscapers;
 
 public class FileTree implements CompletedGraphRule {
 
@@ -44,6 +52,25 @@ public class FileTree implements CompletedGraphRule {
                 .hasNot(Linter.LT._implicit.name())
                 .forEachRemaining(file -> {
                     result.target(file).error("NonBaseTree", file.<String> value(Bdio.DataProperty.path.name()));
+                });
+
+        input.V()
+                .hasLabel(Bdio.Class.File.name())
+                .has(Bdio.DataProperty.path.name())
+                .where(in(Bdio.ObjectProperty.parent.name())
+                        .<String> values(Bdio.DataProperty.path.name())
+                        .filter(t -> t.get().endsWith("#/"))
+                        .count().is(gt(1)))
+                .forEachRemaining(file -> {
+                    result.target(file).error("MultipleChildSchemes", new StringBuilder()
+                            .append(Streams.stream(file.edges(Direction.IN, Bdio.ObjectProperty.parent.name()))
+                                    .map(Edge::outVertex)
+                                    .flatMap(v -> Streams.stream(VertexProperties.objectValue(v, Bdio.DataProperty.path)))
+                                    .map(p -> HID.from(p).getScheme())
+                                    .distinct().collect(joining("|", "{", "}:")))
+                            .append(UrlEscapers.urlPathSegmentEscaper().escape(file.<String> value(Bdio.DataProperty.path.name())))
+                            .append("#/")
+                            .toString());
                 });
 
         return result.build();
