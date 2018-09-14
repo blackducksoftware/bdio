@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static com.blackducksoftware.common.base.ExtraStrings.afterLast;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.Lists.asList;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeNoException;
 
@@ -124,6 +125,17 @@ public abstract class BaseTest {
                 .partitionKey(TT.partition)
                 .writePartition(id)
                 .readPartitions(id)
+                .create();
+    }
+
+    /**
+     * Creates a partition with the specified read/write partition value.
+     */
+    protected static PartitionStrategy testPartition(String write, String firstRead, String... restRead) {
+        return PartitionStrategy.build()
+                .partitionKey(TT.partition)
+                .writePartition(write)
+                .readPartitions(asList(firstRead, restRead))
                 .create();
     }
 

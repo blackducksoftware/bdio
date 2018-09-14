@@ -20,8 +20,11 @@ import static com.google.common.truth.Truth8.assertThat;
 import static com.google.common.truth.TruthJUnit.assume;
 import static java.util.Collections.singleton;
 
+import java.util.Arrays;
+
 import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
@@ -145,6 +148,39 @@ public class SqlgGraphReaderWrapperTest extends BaseTest {
         assertThat(g.V(fileFooA).values(Bdio.DataProperty.fileSystemType.name()).tryNext()).isEmpty();
 
         // TODO More detailed verification
+    }
+
+    @Test
+    public void addMissingFileParent_multipleReadPartitions() {
+        assume().that(graph).isInstanceOf(SqlgGraph.class);
+        SqlgGraph sqlgGraph = (SqlgGraph) graph;
+
+        Vertex projectA = sqlgGraph.addVertex(T.label, Bdio.Class.Project.name(),
+                "p1", "a", "p2", "1");
+        Vertex baseFileA = sqlgGraph.addVertex(T.label, Bdio.Class.File.name(),
+                Bdio.DataProperty.path.name(), "file:///foo",
+                "p1", "a", "p2", "1");
+        projectA.addEdge(Bdio.ObjectProperty.base.name(), baseFileA, TT.partition, "a");
+        sqlgGraph.addVertex(T.label, Bdio.Class.File.name(),
+                Bdio.DataProperty.path.name(), "file:///foo/bar/gus",
+                GraphMapper.FILE_PARENT_KEY, "file:///foo/bar",
+                "p1", "a", "p2", "2");
+        sqlgGraph.tx().commit();
+
+        new SqlgGraphReaderWrapper.SqlgAddMissingFileParentsOperation(new GraphIoWrapperFactory()
+                .mapper(GraphMapper.build().tokens(testTokens(TT.implicit))::create)
+                .addStrategies(Arrays.asList(
+                        PartitionStrategy.build().partitionKey("p1").writePartition("a").readPartitions("a").create(),
+                        PartitionStrategy.build().partitionKey("p2").writePartition("3").readPartitions("1", "2", "3").create()))
+                .wrapReader(graph))
+                        .run();
+
+        GraphTraversalSource g = graph.traversal();
+        assertThat(g.V().hasLabel(Bdio.Class.File.name()).count().next()).isEqualTo(3);
+        assertThat(g.E().hasLabel(Bdio.ObjectProperty.parent.name()).count().next()).isEqualTo(2);
+        assertThat(g.V().has(Bdio.Class.File.name(), Bdio.DataProperty.path.name(), "file:///foo").values("p2").next()).isEqualTo("1");
+        assertThat(g.V().has(Bdio.Class.File.name(), Bdio.DataProperty.path.name(), "file:///foo/bar").values("p2").next()).isEqualTo("3");
+        assertThat(g.V().has(Bdio.Class.File.name(), Bdio.DataProperty.path.name(), "file:///foo/bar/gus").values("p2").next()).isEqualTo("2");
     }
 
 }

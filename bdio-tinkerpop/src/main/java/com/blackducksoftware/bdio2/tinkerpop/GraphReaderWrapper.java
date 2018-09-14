@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
@@ -121,6 +122,16 @@ class GraphReaderWrapper extends GraphIoWrapper {
                 .flatMap(ofType(PartitionStrategy.class))
                 .filter(s -> s.getWritePartition() != null)
                 .forEachOrdered(s -> consumer.accept(s.getPartitionKey(), s.getWritePartition()));
+    }
+
+    /**
+     * Accepts each partition key and set of read partition values.
+     */
+    public void forEachReadPartition(BiConsumer<? super String, ? super Set<String>> consumer) {
+        strategies()
+                .flatMap(ofType(PartitionStrategy.class))
+                .filter(s -> !s.getReadPartitions().isEmpty())
+                .forEachOrdered(s -> consumer.accept(s.getPartitionKey(), s.getReadPartitions()));
     }
 
     /**

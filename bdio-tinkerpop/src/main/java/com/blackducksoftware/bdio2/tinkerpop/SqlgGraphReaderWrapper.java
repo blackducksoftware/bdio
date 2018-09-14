@@ -17,7 +17,10 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.bdio2.tinkerpop.GraphMapper.FILE_PARENT_KEY;
 import static com.blackducksoftware.common.base.ExtraOptionals.and;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static java.lang.Boolean.FALSE;
+import static java.util.stream.Collectors.joining;
+import static org.umlg.sqlg.structure.PropertyType.STRING;
 import static org.umlg.sqlg.structure.topology.Topology.EDGE_PREFIX;
 import static org.umlg.sqlg.structure.topology.Topology.ID;
 import static org.umlg.sqlg.structure.topology.Topology.IN_VERTEX_COLUMN_END;
@@ -30,6 +33,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -197,16 +201,20 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                     .append(dialect.maybeWrapInQoutes(GraphMapper.FILE_PARENT_KEY))
                     .append(" = f.")
                     .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()));
-            wrapper().forEachPartition((k, v) -> sql.append(" AND m.")
+            wrapper().forEachReadPartition((k, r) -> sql.append(" AND f.")
                     .append(dialect.maybeWrapInQoutes(k))
-                    .append(" = f.")
-                    .append(dialect.maybeWrapInQoutes(k)));
+                    .append(" IN ")
+                    .append(r.stream().map(v -> dialect.valueToValuesString(STRING, v)).collect(joining(", ", "(", ")"))));
             sql.append(" WHERE m.")
                     .append(dialect.maybeWrapInQoutes(GraphMapper.FILE_PARENT_KEY))
                     .append(" IS NOT NULL AND f.")
                     .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()))
-                    .append(" IS NULL")
-                    .append(dialect.needsSemicolon() ? ";" : "");
+                    .append(" IS NULL");
+            wrapper().forEachReadPartition((k, r) -> sql.append(" AND m.")
+                    .append(dialect.maybeWrapInQoutes(k))
+                    .append(" IN ")
+                    .append(r.stream().map(v -> dialect.valueToValuesString(STRING, v)).collect(joining(", ", "(", ")"))));
+            sql.append(dialect.needsSemicolon() ? ";" : "");
 
             wrapper().startBatchTx();
             Connection conn = sqlgGraph.tx().getConnection();
@@ -284,14 +292,16 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                     .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()))
                     .append(" = c.")
                     .append(dialect.maybeWrapInQoutes(FILE_PARENT_KEY));
-            wrapper().forEachPartition((k, v) -> sql.append(" AND p.")
-                    .append(dialect.maybeWrapInQoutes(k))
-                    .append(" = ")
-                    .append(dialect.valueToValuesString(PropertyType.STRING, v))
-                    .append(" AND c.")
-                    .append(dialect.maybeWrapInQoutes(k))
-                    .append(" = ")
-                    .append(dialect.valueToValuesString(PropertyType.STRING, v)));
+            wrapper().forEachReadPartition((k, r) -> {
+                for (String t : Arrays.asList("p", "c")) {
+                    sql.append(" AND ").append(t).append('.').append(dialect.maybeWrapInQoutes(k));
+                    if (r.size() == 1) {
+                        sql.append(" = ").append(dialect.valueToValuesString(STRING, getOnlyElement(r)));
+                    } else {
+                        sql.append(" IN ").append(r.stream().map(v -> dialect.valueToValuesString(STRING, v)).collect(joining(", ", "(", ")")));
+                    }
+                }
+            });
             sql.append(dialect.needsSemicolon() ? ";" : "");
 
             executeUpdate(sqlgGraph, sql);
@@ -344,12 +354,12 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                     .append(dialect.maybeWrapInQoutes(parent.getTable()))
                     .append('.')
                     .append(dialect.maybeWrapInQoutes(file.withOutPrefix() + Topology.IN_VERTEX_COLUMN_END));
-            wrapper().forEachPartition((k, v) -> sql.append(" AND ")
+            wrapper().forEachReadPartition((k, r) -> sql.append(" AND ")
                     .append(dialect.maybeWrapInQoutes(file.getTable()))
                     .append('.')
                     .append(dialect.maybeWrapInQoutes(k))
-                    .append(" = ")
-                    .append(dialect.valueToValuesString(PropertyType.STRING, v)));
+                    .append(" IN ")
+                    .append(r.stream().map(v -> dialect.valueToValuesString(STRING, v)).collect(joining(", ", "(", ")"))));
             if (fileSystemType == Bdio.FileSystemType.DIRECTORY_ARCHIVE) {
                 sql.append(" AND (")
                         .append(dialect.maybeWrapInQoutes(file.getTable()))
