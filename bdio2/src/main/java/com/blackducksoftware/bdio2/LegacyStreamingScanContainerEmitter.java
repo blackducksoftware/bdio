@@ -21,6 +21,7 @@ import static com.blackducksoftware.bdio2.LegacyUtilities.estimateSize;
 import static com.blackducksoftware.bdio2.LegacyUtilities.scanContainerObjectMapper;
 import static com.blackducksoftware.bdio2.LegacyUtilities.toFileUri;
 import static com.blackducksoftware.bdio2.LegacyUtilities.toNameUri;
+import static com.blackducksoftware.common.base.ExtraStrings.removeSuffix;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -114,7 +115,7 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
                 metadata.creator(null, hostName);
                 break;
             case "baseDir":
-                baseDir = jp.nextTextValue();
+                baseDir = removeSuffix(jp.nextTextValue(), "/");
                 isBase = LegacyScanNode.isBase(baseDir);
                 break;
             case "scannerVersion":

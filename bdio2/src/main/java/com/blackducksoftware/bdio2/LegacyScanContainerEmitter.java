@@ -23,6 +23,7 @@ import static com.blackducksoftware.common.base.ExtraStrings.afterLast;
 import static com.blackducksoftware.common.base.ExtraStrings.beforeLast;
 import static com.blackducksoftware.common.base.ExtraStrings.ensureDelimiter;
 import static com.blackducksoftware.common.base.ExtraStrings.ensurePrefix;
+import static com.blackducksoftware.common.base.ExtraStrings.removeSuffix;
 import static com.google.common.collect.Iterables.getLast;
 import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.toList;
@@ -324,7 +325,7 @@ class LegacyScanContainerEmitter implements Emitter {
                 @Nullable @JsonProperty("scannerVersion") String scannerVersion,
                 @Nullable @JsonProperty("signatureVersion") String signatureVersion,
                 @Nullable @JsonProperty("ownerEntityKeyToken") String ownerEntityKeyToken) {
-            this.baseDir = baseDir;
+            this.baseDir = removeSuffix(baseDir, "/");
             this.createdOn = createdOn != null ? createdOn.toInstant().atZone(ZoneOffset.UTC) : null;
             this.timeToScan = timeToScan;
             this.hostName = hostName;
