@@ -91,7 +91,9 @@ class SqlgGraphInitializer {
     private static class BdioSqlFunctionGraphInitializer extends AbstractSqlgGraphInitializer {
         @Override
         public Step initializationStep() {
-            return Step.START;
+            // Since we are not calling through the `Topology`, we need to invoke this last so someone else can acquire
+            // the topology write lock for us (`Topology.lock` isn't visible).
+            return Step.FINISH;
         }
 
         @Override
