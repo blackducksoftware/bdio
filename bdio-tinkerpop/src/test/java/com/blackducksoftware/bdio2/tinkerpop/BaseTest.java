@@ -222,11 +222,11 @@ public abstract class BaseTest {
             graph.close();
             graph = GraphFactory.open(configuration);
 
-            // Run the START admin initializations
+            // Run the FINISH admin initializations
             GraphReaderWrapper wrapper = new BlackDuckIoCore(graph).readerWrapper();
             new SqlgGraphInitializer().stream()
                     .flatMap(ofType(AdminGraphInitializer.class))
-                    .filter(i -> i.initializationStep() == Step.START)
+                    .filter(i -> i.initializationStep() == Step.FINISH)
                     .forEach(i -> i.initialize(wrapper));
         }
     }
