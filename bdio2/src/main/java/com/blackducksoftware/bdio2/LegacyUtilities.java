@@ -263,7 +263,7 @@ class LegacyUtilities {
      */
     public static String toFileUri(@Nullable String hostName, @Nullable String baseDir, @Nullable String fragment) {
         try {
-            return new URI("file", hostName, baseDir, fragment).toString();
+            return new URI("file", hostName, baseDir, fragment).toASCIIString();
         } catch (URISyntaxException e) {
             return fragment != null ? baseDir + '#' + fragment : baseDir;
         }
