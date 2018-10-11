@@ -17,6 +17,7 @@ package com.blackducksoftware.bdio2.model;
 
 import java.time.ZonedDateTime;
 import java.util.Collection;
+import java.util.List;
 
 import javax.annotation.Nullable;
 
@@ -44,6 +45,11 @@ public final class File extends BdioObject {
 
     public File note(Note note) {
         putObject(Bdio.ObjectProperty.note, note);
+        return this;
+    }
+
+    public File buildOptions(List<String> buildOptions) {
+        putData(Bdio.DataProperty.buildOptions, buildOptions);
         return this;
     }
 

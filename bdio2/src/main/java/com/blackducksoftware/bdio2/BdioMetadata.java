@@ -26,6 +26,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -189,6 +190,11 @@ public final class BdioMetadata extends BdioObject {
      */
     public BdioMetadata name(@Nullable String name) {
         putData(Bdio.DataProperty.name, name);
+        return this;
+    }
+
+    public BdioMetadata captureOptions(@Nullable List<String> captureOptions) {
+        putData(Bdio.DataProperty.captureOptions, captureOptions);
         return this;
     }
 
