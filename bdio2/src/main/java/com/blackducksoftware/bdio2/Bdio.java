@@ -372,12 +372,21 @@ public class Bdio {
         buildNumber("https://blackducksoftware.github.io/bdio#hasBuildNumber", Container.single),
 
         /**
+         * The argument vector of the process that produced a file.
+         */
+        @Domain({ Class.File })
+        @DataPropertyRange(Datatype.Default)
+        buildOptions("https://blackducksoftware.github.io/bdio#hasBuildOptions", Container.ordered),
+
+        /**
          * The size (in bytes) of a file.
          */
         @Domain({ Class.File })
         @DataPropertyRange(Datatype.Long)
         // The name "byte count" does not conflict with "size" or "length" and is less ambiguous
         byteCount("https://blackducksoftware.github.io/bdio#hasByteCount", Container.single),
+
+        // TODO Do we need blockSize? Would that be metadata or would blockCount be per file?
 
         /**
          * The time interval (start and end instant) over which the published data was captured.
@@ -388,6 +397,13 @@ public class Bdio {
         @Domain(metadata = true)
         @DataPropertyRange(Datatype.Default) // TODO Interval type?
         captureInterval("https://blackducksoftware.github.io/bdio#hasCaptureInterval", Container.single),
+
+        /**
+         * The argument vector of publisher process used to capture the data.
+         */
+        @Domain(metadata = true)
+        @DataPropertyRange(Datatype.Default)
+        captureOptions("https://blackducksoftware.github.io/bdio#hasCaptureOptions", Container.ordered),
 
         /**
          * A comment used to annotate a BDIO entity.
@@ -409,7 +425,6 @@ public class Bdio {
          */
         @Domain({ Class.Component, Class.License, Class.Project, Class.Repository, Class.Vulnerability })
         @DataPropertyRange(Datatype.Default)
-        // TODO Is this a good name? Back to repository?
         context("https://blackducksoftware.github.io/bdio#hasContext", Container.single),
 
         /**
@@ -475,6 +490,7 @@ public class Bdio {
         /**
          * The symbolic link target of a file.
          */
+        // This must be a path because we may not have a `File` for the link target
         @Domain({ Class.File })
         @DataPropertyRange(Datatype.Default)
         linkPath("https://blackducksoftware.github.io/bdio#hasLinkPath", Container.single),
@@ -665,7 +681,6 @@ public class Bdio {
         Products("https://blackducksoftware.github.io/bdio#Products"),
 
         // TODO AnyURI("http://www.w3.org/2001/XMLSchema#anyURI")
-        // TODO Boolean("http://www.w3.org/2001/XMLSchema#boolean")
         // TODO Language("http://www.w3.org/2001/XMLSchema#language")
         // TODO UUID (or use anyURI with 'urn:uuid:')?
         // TODO Token (like HTTP, not XML)?

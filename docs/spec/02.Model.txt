@@ -166,6 +166,12 @@
 : _Domain: `@graph`_
 : _Range: `Default`_
 
+`buildOptions`
+: `https://blackducksoftware.github.io/bdio#hasBuildOptions`
+: The argument vector of the process that produced a file.
+: _Domain: `File`_
+: _Range: `Default`_
+
 `byteCount`
 : `https://blackducksoftware.github.io/bdio#hasByteCount`
 : The size (in bytes) of a file.
@@ -176,6 +182,12 @@
 : `https://blackducksoftware.github.io/bdio#hasCaptureInterval`
 : The time interval (start and end instant) over which the published data was captured.
 : Note that due to it's nature the capture interval may not be known when the named graph metadata is recorded; publishers may choose to include an additional final entry consisting entirely of metadata for this purpose.
+: _Domain: `@graph`_
+: _Range: `Default`_
+
+`captureOptions`
+: `https://blackducksoftware.github.io/bdio#hasCaptureOptions`
+: The argument vector of publisher process used to capture the data.
 : _Domain: `@graph`_
 : _Range: `Default`_
 
