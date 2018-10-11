@@ -265,7 +265,7 @@ class LegacyScanContainerEmitter implements Emitter {
          *           this reduces the overhead of heavy use.
          */
         public static Predicate<LegacyScanNode> isBase(String baseDir) {
-            String baseUri = toFileUri(null, baseDir, null);
+            String baseUri = HID.valueOf("file:" + baseDir).toUriString();
             String baseArchiveUri = "file:" + beforeLast(baseDir, '/') + "/";
             String baseName = afterLast(baseDir, '/');
             return scanNode -> Objects.equals(scanNode.uri, baseUri)
