@@ -31,6 +31,8 @@ import static java.util.stream.Collectors.toList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
@@ -265,13 +267,17 @@ class LegacyScanContainerEmitter implements Emitter {
          *           this reduces the overhead of heavy use.
          */
         public static Predicate<LegacyScanNode> isBase(String baseDir) {
-            String baseUri = HID.valueOf("file:" + baseDir).toUriString();
-            String baseArchiveUri = "file:" + beforeLast(baseDir, '/') + "/";
-            String baseName = afterLast(baseDir, '/');
-            return scanNode -> Objects.equals(scanNode.uri, baseUri)
-                    || (Objects.equals("/", scanNode.path)
-                            && Objects.equals(scanNode.archiveUri, baseArchiveUri)
-                            && Objects.equals(scanNode.name, baseName));
+            try {
+                String baseUri = HID.valueOf(new URI("file", null, baseDir, null).toString()).toUriString();
+                String baseArchiveUri = "file:" + beforeLast(baseDir, '/') + "/";
+                String baseName = afterLast(baseDir, '/');
+                return scanNode -> Objects.equals(scanNode.uri, baseUri)
+                        || (Objects.equals("/", scanNode.path)
+                                && Objects.equals(scanNode.archiveUri, baseArchiveUri)
+                                && Objects.equals(scanNode.name, baseName));
+            } catch (URISyntaxException e) {
+                throw new IllegalArgumentException(e.getMessage(), e);
+            }
         }
     }
 
