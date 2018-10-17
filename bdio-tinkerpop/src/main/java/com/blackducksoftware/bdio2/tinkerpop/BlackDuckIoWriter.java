@@ -216,6 +216,11 @@ public class BlackDuckIoWriter implements GraphWriter {
             return this;
         }
 
+        public Builder base(String base) {
+            wrapperFactory.base(base);
+            return this;
+        }
+
         @Override
         public BlackDuckIoWriter create() {
             return new BlackDuckIoWriter(this);

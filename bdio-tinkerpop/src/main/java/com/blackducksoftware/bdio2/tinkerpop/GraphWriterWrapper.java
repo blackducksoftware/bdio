@@ -44,8 +44,8 @@ import com.google.common.collect.Lists;
  */
 class GraphWriterWrapper extends GraphIoWrapper {
 
-    protected GraphWriterWrapper(Graph graph, GraphMapper mapper, List<TraversalStrategy<?>> strategies) {
-        super(graph, mapper, strategies, Optional.empty());
+    protected GraphWriterWrapper(Graph graph, GraphMapper mapper, List<TraversalStrategy<?>> strategies, Optional<String> base) {
+        super(graph, mapper, strategies, base, Optional.empty());
     }
 
     /**

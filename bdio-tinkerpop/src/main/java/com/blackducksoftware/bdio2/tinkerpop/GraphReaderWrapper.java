@@ -82,8 +82,9 @@ class GraphReaderWrapper extends GraphIoWrapper {
      */
     private final VertexFeatures vertexFeatures;
 
-    protected GraphReaderWrapper(Graph graph, GraphMapper mapper, List<TraversalStrategy<?>> strategies, Optional<Object> expandContext, int batchSize) {
-        super(graph, mapper, strategies, expandContext);
+    protected GraphReaderWrapper(Graph graph, GraphMapper mapper, List<TraversalStrategy<?>> strategies,
+            Optional<String> base, Optional<Object> expandContext, int batchSize) {
+        super(graph, mapper, strategies, base, expandContext);
         this.batchSize = batchSize;
         this.count = new AtomicLong();
         vertexFeatures = graph.features().vertex();

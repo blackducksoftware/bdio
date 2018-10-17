@@ -51,6 +51,8 @@ public final class BlackDuckIoCore {
 
     private final BlackDuckIoVersion version;
 
+    private final Optional<String> base;
+
     private final Optional<Object> expandContext;
 
     private final Optional<BlackDuckIoTokens> tokens;
@@ -62,34 +64,40 @@ public final class BlackDuckIoCore {
     }
 
     public BlackDuckIoCore(Graph graph, BlackDuckIoVersion version) {
-        this(graph, version, Optional.empty(), Optional.empty(), ImmutableList.of());
+        this(graph, version, Optional.empty(), Optional.empty(), Optional.empty(), ImmutableList.of());
     }
 
     private BlackDuckIoCore(Graph graph, BlackDuckIoVersion version,
-            Optional<Object> expandContext, Optional<BlackDuckIoTokens> tokens, ImmutableList<TraversalStrategy<?>> strategies) {
+            Optional<String> base, Optional<Object> expandContext,
+            Optional<BlackDuckIoTokens> tokens, ImmutableList<TraversalStrategy<?>> strategies) {
         this.graph = Objects.requireNonNull(graph);
         this.version = Objects.requireNonNull(version);
         this.tokens = Objects.requireNonNull(tokens);
+        this.base = Objects.requireNonNull(base);
         this.expandContext = Objects.requireNonNull(expandContext);
         this.strategies = Objects.requireNonNull(strategies);
     }
 
     // Configuration
 
+    public BlackDuckIoCore withBase(String base) {
+        return new BlackDuckIoCore(graph, version, Optional.of(base), expandContext, tokens, strategies);
+    }
+
     public BlackDuckIoCore withExpandContext(Object expandContext) {
-        return new BlackDuckIoCore(graph, version, Optional.of(expandContext), tokens, strategies);
+        return new BlackDuckIoCore(graph, version, base, Optional.of(expandContext), tokens, strategies);
     }
 
     public BlackDuckIoCore withTokens(BlackDuckIoTokens tokens) {
-        return new BlackDuckIoCore(graph, version, expandContext, Optional.of(tokens), strategies);
+        return new BlackDuckIoCore(graph, version, base, expandContext, Optional.of(tokens), strategies);
     }
 
     public BlackDuckIoCore withStrategies(@SuppressWarnings("rawtypes") TraversalStrategy... strategies) {
-        return new BlackDuckIoCore(graph, version, expandContext, tokens, ImmutableList.copyOf(strategies));
+        return new BlackDuckIoCore(graph, version, base, expandContext, tokens, ImmutableList.copyOf(strategies));
     }
 
     public BlackDuckIoCore addStrategy(TraversalStrategy<?> strategy) {
-        return new BlackDuckIoCore(graph, version, expandContext, tokens,
+        return new BlackDuckIoCore(graph, version, base, expandContext, tokens,
                 ImmutableList.<TraversalStrategy<?>> builder().addAll(strategies).add(strategy).build());
     }
 
@@ -100,7 +108,7 @@ public final class BlackDuckIoCore {
         if (config.containsKey("partitionStrategy.partitionKey")) {
             strategies.add(PartitionStrategy.create(config.subset("partitionStrategy")));
         }
-        return new BlackDuckIoCore(graph, version, expandContext, Optional.of(tokens), strategies.build());
+        return new BlackDuckIoCore(graph, version, base, expandContext, Optional.of(tokens), strategies.build());
     }
 
     public BlackDuckIoCore withGraphConfiguration() {
@@ -143,6 +151,7 @@ public final class BlackDuckIoCore {
     public BlackDuckIoWriter writer() {
         BlackDuckIoWriter.Builder builder = io().writer();
         builder.mapper(mapper()).addStrategies(strategies);
+        base.ifPresent(builder::base);
         return builder.create();
     }
 

@@ -41,6 +41,8 @@ class GraphIoWrapperFactory {
 
     private List<TraversalStrategy<?>> strategies = new ArrayList<>();
 
+    private Optional<String> base = Optional.empty();
+
     private Optional<BlackDuckIoVersion> version = Optional.empty();
 
     private Optional<Object> expandContext = Optional.empty();
@@ -65,6 +67,11 @@ class GraphIoWrapperFactory {
         return this;
     }
 
+    public GraphIoWrapperFactory base(String base) {
+        this.base = Optional.of(base);
+        return this;
+    }
+
     public GraphIoWrapperFactory version(BlackDuckIoVersion version) {
         this.version = Optional.of(version);
         return this;
@@ -79,14 +86,14 @@ class GraphIoWrapperFactory {
         GraphMapper mapper = this.mapper.get();
         Optional<Object> expandContext = ExtraOptionals.or(version.flatMap(BlackDuckIoVersion::expandContext), () -> this.expandContext);
         if (graph instanceof SqlgGraph) {
-            return new SqlgGraphReaderWrapper((SqlgGraph) graph, mapper, strategies, expandContext, batchSize);
+            return new SqlgGraphReaderWrapper((SqlgGraph) graph, mapper, strategies, base, expandContext, batchSize);
         } else {
-            return new GraphReaderWrapper(graph, mapper, strategies, expandContext, batchSize);
+            return new GraphReaderWrapper(graph, mapper, strategies, base, expandContext, batchSize);
         }
     }
 
     public GraphWriterWrapper wrapWriter(Graph graph) {
-        return new GraphWriterWrapper(graph, mapper.get(), strategies);
+        return new GraphWriterWrapper(graph, mapper.get(), strategies, base);
     }
 
 }

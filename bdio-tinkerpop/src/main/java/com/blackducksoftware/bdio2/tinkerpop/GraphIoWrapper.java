@@ -60,13 +60,14 @@ abstract class GraphIoWrapper {
      */
     private final boolean supportsTransactions;
 
-    protected GraphIoWrapper(Graph graph, GraphMapper mapper, List<TraversalStrategy<?>> strategies, Optional<Object> expandContext) {
+    protected GraphIoWrapper(Graph graph, GraphMapper mapper, List<TraversalStrategy<?>> strategies, Optional<String> base, Optional<Object> expandContext) {
         this.graph = Objects.requireNonNull(graph);
         this.mapper = Objects.requireNonNull(mapper);
         this.strategies = Collections.unmodifiableList(TraversalStrategies.sortStrategies(strategies));
 
-        BdioOptions.Builder optionsBuilder = new BdioOptions.Builder();
-        optionsBuilder.expandContext(expandContext.orElseGet(mapper::context));
+        BdioOptions.Builder optionsBuilder = new BdioOptions.Builder()
+                .base(base.orElse(null))
+                .expandContext(expandContext.orElseGet(mapper::context));
         mapper.injectedDocuments(optionsBuilder::injectDocument);
         bdioOptions = optionsBuilder.build();
 

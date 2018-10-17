@@ -78,9 +78,9 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
      */
     private final Deque<SchemaTable> vacuumAnalyzeTables = new ArrayDeque<>();
 
-    protected SqlgGraphReaderWrapper(SqlgGraph sqlgGraph, GraphMapper mapper, List<TraversalStrategy<?>> strategies, Optional<Object> expandContext,
-            int batchSize) {
-        super(sqlgGraph, mapper, strategies, expandContext, batchSize);
+    protected SqlgGraphReaderWrapper(SqlgGraph sqlgGraph, GraphMapper mapper, List<TraversalStrategy<?>> strategies,
+            Optional<String> base, Optional<Object> expandContext, int batchSize) {
+        super(sqlgGraph, mapper, strategies, base, expandContext, batchSize);
         this.supportsBatchMode = sqlgGraph.features().supportsBatchMode();
     }
 
