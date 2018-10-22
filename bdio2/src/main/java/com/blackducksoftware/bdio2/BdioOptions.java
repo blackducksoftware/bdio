@@ -15,11 +15,11 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static com.github.jsonldjava.core.JsonLdError.Error.LOADING_INJECTED_CONTEXT_FAILED;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.LinkedHashMap;
@@ -73,7 +73,7 @@ public class BdioOptions {
             try {
                 result.getDocumentLoader().addInjectedDoc(injectedDoc.getKey(), injectedDoc.getValue().read());
             } catch (IOException e) {
-                throw new UncheckedIOException(e);
+                throw new JsonLdError(LOADING_INJECTED_CONTEXT_FAILED, injectedDoc.getKey(), e);
             }
         }
         return result;
