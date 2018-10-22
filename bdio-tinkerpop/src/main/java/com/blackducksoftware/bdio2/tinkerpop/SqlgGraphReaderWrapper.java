@@ -181,7 +181,6 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
 
         @Override
         protected void createMissingFiles(GraphTraversalSource g, GraphMapper mapper) {
-            // Same approach as the super: iterate over the list of missing parents until we stop finding them
             SqlgGraph sqlgGraph = (SqlgGraph) wrapper().graph();
             SqlDialect dialect = sqlgGraph.getSqlDialect();
             SchemaTable file = SchemaTable.from(sqlgGraph, Bdio.Class.File.name()).withPrefix(VERTEX_PREFIX);
@@ -216,41 +215,64 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                     .append(r.stream().map(v -> dialect.valueToValuesString(STRING, v)).collect(joining(", ", "(", ")"))));
             sql.append(dialect.needsSemicolon() ? ";" : "");
 
-            wrapper().startBatchTx();
+            // We use this query to test for existing parents
+            StringBuilder parentExistsSql = new StringBuilder();
+            parentExistsSql.append("SELECT 1 FROM ")
+                    .append(dialect.maybeWrapInQoutes(file.getTable()))
+                    .append(" WHERE ")
+                    .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()))
+                    .append(" = ? ");
+            wrapper().forEachReadPartition((k, r) -> parentExistsSql.append(" AND ")
+                    .append(dialect.maybeWrapInQoutes(k))
+                    .append(" IN ")
+                    .append(r.stream().map(v -> dialect.valueToValuesString(STRING, v)).collect(joining(", ", "(", ")"))));
+            parentExistsSql.append(dialect.needsSemicolon() ? ";" : "");
+
             Connection conn = sqlgGraph.tx().getConnection();
-            try (PreparedStatement statement = conn.prepareStatement(sql.toString())) {
-                int created;
-                do {
-                    created = 0;
-                    try (ResultSet resultSet = statement.executeQuery()) {
+            try (PreparedStatement parentExistsStatement = conn.prepareStatement(parentExistsSql.toString())) {
+                try (Statement statement = conn.createStatement()) {
+                    // Execute the big LEFT JOIN once to find the "deepest" missing parents
+                    try (ResultSet resultSet = statement.executeQuery(sql.toString())) {
+                        wrapper().startBatchTx();
                         while (resultSet.next()) {
                             String path = resultSet.getString(1);
+                            while (path != null) {
+                                Optional<String> parentPath = HID.from(path).tryParent().map(HID::toUriString);
+                                Stream.Builder<Object> properties = Stream.builder();
+                                properties.add(T.label).add(Bdio.Class.File.name());
+                                mapper.identifierKey().ifPresent(key -> {
+                                    properties.add(key);
+                                    properties.add(BdioObject.randomId());
+                                });
+                                wrapper().forEachPartition((k, v) -> {
+                                    properties.add(k);
+                                    properties.add(v);
+                                });
+                                properties.add(Bdio.DataProperty.path.name()).add(path);
+                                properties.add(Bdio.DataProperty.fileSystemType.name()).add(Bdio.FileSystemType.DIRECTORY.toString());
+                                parentPath.ifPresent(fileParent -> {
+                                    properties.add(FILE_PARENT_KEY);
+                                    properties.add(fileParent);
+                                });
+                                properties.add(mapper.implicitKey().get()).add(Boolean.TRUE);
+                                sqlgGraph.addVertex(properties.build().toArray());
+                                wrapper().batchFlushTx();
 
-                            Stream.Builder<Object> properties = Stream.builder();
-                            properties.add(T.label).add(Bdio.Class.File.name());
-                            mapper.identifierKey().ifPresent(key -> {
-                                properties.add(key);
-                                properties.add(BdioObject.randomId());
-                            });
-                            wrapper().forEachPartition((k, v) -> {
-                                properties.add(k);
-                                properties.add(v);
-                            });
-                            properties.add(Bdio.DataProperty.path.name()).add(path);
-                            properties.add(Bdio.DataProperty.fileSystemType.name()).add(Bdio.FileSystemType.DIRECTORY.toString());
-                            HID.from(path).tryParent().map(HID::toUriString).ifPresent(fileParent -> {
-                                properties.add(FILE_PARENT_KEY);
-                                properties.add(fileParent);
-                            });
-                            properties.add(mapper.implicitKey().get()).add(Boolean.TRUE);
-                            sqlgGraph.addVertex(properties.build().toArray());
-
-                            wrapper().batchFlushTx();
-                            created++;
+                                // Now use the computed parent to "walk" up the file hierarchy
+                                path = parentPath.orElse(null);
+                                if (path != null) {
+                                    parentExistsStatement.setString(1, path);
+                                    try (ResultSet parentExists = parentExistsStatement.executeQuery()) {
+                                        if (parentExists.next()) {
+                                            path = null;
+                                        }
+                                    }
+                                }
+                            }
                         }
                         wrapper().flushTx();
                     }
-                } while (created > 0);
+                }
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
