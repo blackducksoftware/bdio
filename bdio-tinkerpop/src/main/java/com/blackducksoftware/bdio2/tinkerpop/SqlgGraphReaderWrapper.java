@@ -17,6 +17,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.blackducksoftware.bdio2.tinkerpop.GraphMapper.FILE_PARENT_KEY;
 import static com.blackducksoftware.common.base.ExtraOptionals.and;
+import static com.blackducksoftware.common.base.ExtraStreams.ofType;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static java.lang.Boolean.FALSE;
 import static java.util.stream.Collectors.joining;
@@ -45,6 +46,7 @@ import java.util.stream.Stream;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.umlg.sqlg.sql.dialect.SqlDialect;
@@ -189,41 +191,32 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                     Bdio.DataProperty.path.name(), PropertyType.STRING,
                     GraphMapper.FILE_PARENT_KEY, PropertyType.STRING));
 
+            String whereClause = wrapper().strategies().count() == 0 ? ""
+                    : wrapper().strategies()
+                            .flatMap(ofType(PartitionStrategy.class))
+                            // TODO Major hack
+                            .filter(ps -> !ps.getPartitionKey().equals("document"))
+                            .map(ps -> new StringBuilder()
+                                    .append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(ps.getPartitionKey()))
+                                    .append(ps.getReadPartitions().size() == 1 ? " = " : " IN (")
+                                    .append(ps.getReadPartitions().stream()
+                                            .map(rp -> sqlgGraph.getSqlDialect().valueToValuesString(STRING, rp))
+                                            .collect(joining(", ")))
+                                    .append(ps.getReadPartitions().size() == 1 ? "" : ")"))
+                            .collect(joining(" ) AND ( ", " WHERE ( ", " )"));
+
             StringBuilder sql = new StringBuilder();
-            sql.append("SELECT DISTINCT m.")
+            sql.append("SELECT ")
                     .append(dialect.maybeWrapInQoutes(GraphMapper.FILE_PARENT_KEY))
                     .append(" FROM ")
                     .append(dialect.maybeWrapInQoutes(file.getTable()))
-                    .append(" m LEFT JOIN ")
-                    .append(dialect.maybeWrapInQoutes(file.getTable()))
-                    .append(" f ON m.")
-                    .append(dialect.maybeWrapInQoutes(GraphMapper.FILE_PARENT_KEY))
-                    .append(" = f.")
-                    .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()));
-            wrapper().forEachReadPartition((k, r) -> {
-                // TODO This is an extreme hack, ignore partition keys named "document"
-                if (!k.equals("document")) {
-                    sql.append(" AND m.")
-                            .append(dialect.maybeWrapInQoutes(k))
-                            .append(" = f.")
-                            .append(dialect.maybeWrapInQoutes(k));
-                }
-            });
-            sql.append(" WHERE m.")
-                    .append(dialect.maybeWrapInQoutes(GraphMapper.FILE_PARENT_KEY))
-                    .append(" IS NOT NULL AND f.")
+                    .append(whereClause)
+                    .append(" EXCEPT SELECT ")
                     .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()))
-                    .append(" IS NULL");
-            wrapper().forEachReadPartition((k, r) -> {
-                // TODO This is an extreme hack, ignore partition keys named "document"
-                if (!k.equals("document")) {
-                    sql.append(" AND m.")
-                            .append(dialect.maybeWrapInQoutes(k))
-                            .append(" IN ")
-                            .append(r.stream().map(v -> dialect.valueToValuesString(STRING, v)).collect(joining(", ", "(", ")")));
-                }
-            });
-            sql.append(dialect.needsSemicolon() ? ";" : "");
+                    .append(" FROM ")
+                    .append(dialect.maybeWrapInQoutes(file.getTable()))
+                    .append(whereClause)
+                    .append(dialect.needsSemicolon() ? ";" : "");
 
             // We use this query to test for existing parents
             StringBuilder parentExistsSql = new StringBuilder();
