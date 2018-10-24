@@ -200,19 +200,29 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                     .append(dialect.maybeWrapInQoutes(GraphMapper.FILE_PARENT_KEY))
                     .append(" = f.")
                     .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()));
-            wrapper().forEachReadPartition((k, r) -> sql.append(" AND f.")
-                    .append(dialect.maybeWrapInQoutes(k))
-                    .append(" IN ")
-                    .append(r.stream().map(v -> dialect.valueToValuesString(STRING, v)).collect(joining(", ", "(", ")"))));
+            wrapper().forEachReadPartition((k, r) -> {
+                // TODO This is an extreme hack, ignore partition keys named "document"
+                if (!k.equals("document")) {
+                    sql.append(" AND m.")
+                            .append(dialect.maybeWrapInQoutes(k))
+                            .append(" = f.")
+                            .append(dialect.maybeWrapInQoutes(k));
+                }
+            });
             sql.append(" WHERE m.")
                     .append(dialect.maybeWrapInQoutes(GraphMapper.FILE_PARENT_KEY))
                     .append(" IS NOT NULL AND f.")
                     .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()))
                     .append(" IS NULL");
-            wrapper().forEachReadPartition((k, r) -> sql.append(" AND m.")
-                    .append(dialect.maybeWrapInQoutes(k))
-                    .append(" IN ")
-                    .append(r.stream().map(v -> dialect.valueToValuesString(STRING, v)).collect(joining(", ", "(", ")"))));
+            wrapper().forEachReadPartition((k, r) -> {
+                // TODO This is an extreme hack, ignore partition keys named "document"
+                if (!k.equals("document")) {
+                    sql.append(" AND m.")
+                            .append(dialect.maybeWrapInQoutes(k))
+                            .append(" IN ")
+                            .append(r.stream().map(v -> dialect.valueToValuesString(STRING, v)).collect(joining(", ", "(", ")")));
+                }
+            });
             sql.append(dialect.needsSemicolon() ? ";" : "");
 
             // We use this query to test for existing parents
