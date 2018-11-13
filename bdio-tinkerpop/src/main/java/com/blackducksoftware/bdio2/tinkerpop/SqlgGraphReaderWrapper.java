@@ -318,12 +318,15 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                     .append(" = c.")
                     .append(dialect.maybeWrapInQoutes(FILE_PARENT_KEY));
             wrapper().forEachReadPartition((k, r) -> {
-                for (String t : Arrays.asList("p", "c")) {
-                    sql.append(" AND ").append(t).append('.').append(dialect.maybeWrapInQoutes(k));
-                    if (r.size() == 1) {
-                        sql.append(" = ").append(dialect.valueToValuesString(STRING, getOnlyElement(r)));
-                    } else {
-                        sql.append(" IN ").append(r.stream().map(v -> dialect.valueToValuesString(STRING, v)).collect(joining(", ", "(", ")")));
+                // TODO Major hack
+                if (!k.equals("document")) {
+                    for (String t : Arrays.asList("p", "c")) {
+                        sql.append(" AND ").append(t).append('.').append(dialect.maybeWrapInQoutes(k));
+                        if (r.size() == 1) {
+                            sql.append(" = ").append(dialect.valueToValuesString(STRING, getOnlyElement(r)));
+                        } else {
+                            sql.append(" IN ").append(r.stream().map(v -> dialect.valueToValuesString(STRING, v)).collect(joining(", ", "(", ")")));
+                        }
                     }
                 }
             });
