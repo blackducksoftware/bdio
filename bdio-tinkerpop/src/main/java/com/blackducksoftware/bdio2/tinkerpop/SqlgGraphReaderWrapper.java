@@ -385,6 +385,11 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                     .append(dialect.maybeWrapInQoutes(k))
                     .append(" IN ")
                     .append(r.stream().map(v -> dialect.valueToValuesString(STRING, v)).collect(joining(", ", "(", ")"))));
+            sql.append(" AND ")
+                    .append(dialect.maybeWrapInQoutes(file.getTable()))
+                    .append(".")
+                    .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.fileSystemType.name()))
+                    .append(" IS NULL");
             if (fileSystemType == Bdio.FileSystemType.DIRECTORY_ARCHIVE) {
                 sql.append(" AND (")
                         .append(dialect.maybeWrapInQoutes(file.getTable()))
@@ -395,13 +400,7 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                         .append(".")
                         .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.contentType.name()))
                         .append(" IS NOT NULL)");
-            } else if (fileSystemType == Bdio.FileSystemType.DIRECTORY) {
-                sql.append(" AND ")
-                        .append(dialect.maybeWrapInQoutes(file.getTable()))
-                        .append(".")
-                        .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.fileSystemType.name()))
-                        .append(" IS NULL");
-            } else {
+            } else if (fileSystemType != Bdio.FileSystemType.DIRECTORY) {
                 throw new IllegalArgumentException("file system type must be DIRECTORY or DIRECTORY_ARCHIVE");
             }
             if (dialect.needsSemicolon()) {

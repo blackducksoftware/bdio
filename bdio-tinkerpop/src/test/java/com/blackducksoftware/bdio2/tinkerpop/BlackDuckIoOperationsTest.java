@@ -174,8 +174,13 @@ public class BlackDuckIoOperationsTest extends BaseTest {
 
         BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.root, TT.implicit));
         bdio.readGraph(inputStream);
-        new BlackDuckIoOperations.AddMissingFileParentsOperation(bdio.readerWrapper()).run();
-        new BlackDuckIoOperations.ImplyFileSystemTypeOperation(bdio.readerWrapper()).run();
+        if (graph instanceof SqlgGraph) {
+            new SqlgGraphReaderWrapper.SqlgAddMissingFileParentsOperation(bdio.readerWrapper()).run();
+            new SqlgGraphReaderWrapper.SqlgImplyFileSystemTypeOperation(bdio.readerWrapper()).run();
+        } else {
+            new BlackDuckIoOperations.AddMissingFileParentsOperation(bdio.readerWrapper()).run();
+            new BlackDuckIoOperations.ImplyFileSystemTypeOperation(bdio.readerWrapper()).run();
+        }
 
         GraphTraversalSource g = graph.traversal();
         List<Vertex> files = g.V().hasLabel(Bdio.Class.File.name()).toList();
@@ -195,6 +200,51 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString());
             } else if (path.equals("zip:file:%2F%2F%2Ffoo%2Fbar%2Ftest.zip#test.txt")) {
                 assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.REGULAR_TEXT.toString());
+            }
+        }
+    }
+
+    @Test
+    public void implyFileSystemType_noOverwrite() throws IOException {
+        InputStream inputStream = new NamedGraphBuilder()
+                .fileCollection(f -> {})
+                .file(f -> f.path("file:///foo").fileSystemType(Bdio.FileSystemType.SYMLINK.toString()))
+                .relateToFirst(FileCollection.class, FileCollection::base)
+                .file(f -> f.path("file:///foo/bar").fileSystemType(Bdio.FileSystemType.SYMLINK.toString()))
+                .file(f -> f.path("file:///foo/gus").fileSystemType(Bdio.FileSystemType.SYMLINK.toString()))
+                .file(f -> f.path("file:///foo/bar/test.bin").fileSystemType(Bdio.FileSystemType.SYMLINK.toString()))
+                .file(f -> f.path("file:///foo/bar/test.zip").byteCount(1L).fileSystemType(Bdio.FileSystemType.SYMLINK.toString()))
+                .file(f -> f.path("zip:file:%2F%2F%2Ffoo%2Fbar%2Ftest.zip#test.txt").encoding("UTF-8").fileSystemType(Bdio.FileSystemType.SYMLINK.toString()))
+                .build();
+
+        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.root, TT.implicit));
+        bdio.readGraph(inputStream);
+        if (graph instanceof SqlgGraph) {
+            new SqlgGraphReaderWrapper.SqlgAddMissingFileParentsOperation(bdio.readerWrapper()).run();
+            new SqlgGraphReaderWrapper.SqlgImplyFileSystemTypeOperation(bdio.readerWrapper()).run();
+        } else {
+            new BlackDuckIoOperations.AddMissingFileParentsOperation(bdio.readerWrapper()).run();
+            new BlackDuckIoOperations.ImplyFileSystemTypeOperation(bdio.readerWrapper()).run();
+        }
+
+        GraphTraversalSource g = graph.traversal();
+        List<Vertex> files = g.V().hasLabel(Bdio.Class.File.name()).toList();
+        for (Vertex file : files) {
+            VertexProperty<String> fileSystemType = file.property(Bdio.DataProperty.fileSystemType.name());
+            assertThat(fileSystemType.isPresent()).isTrue();
+            String path = file.value(Bdio.DataProperty.path.name());
+            if (path.equals("file:///foo")) {
+                assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.SYMLINK.toString());
+            } else if (path.equals("file:///foo/bar")) {
+                assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.SYMLINK.toString());
+            } else if (path.equals("file:///foo/gus")) {
+                assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.SYMLINK.toString());
+            } else if (path.equals("file:///foo/bar/test.bin")) {
+                assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.SYMLINK.toString());
+            } else if (path.equals("file:///foo/bar/test.zip")) {
+                assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.SYMLINK.toString());
+            } else if (path.equals("zip:file:%2F%2F%2Ffoo%2Fbar%2Ftest.zip#test.txt")) {
+                assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.SYMLINK.toString());
             }
         }
     }
