@@ -30,8 +30,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioDocument;
-import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.blackducksoftware.bdio2.tool.linter.Linter;
 import com.blackducksoftware.bdio2.tool.linter.Linter.CompletedGraphRule;
@@ -134,9 +134,9 @@ public class LintTool extends AbstractGraphTool {
         if (rules.values().stream().anyMatch(r -> r instanceof RawEntryRule || r instanceof RawNodeRule)) {
             Stopwatch readTimer = Stopwatch.createStarted();
             for (Map.Entry<URI, ByteSource> input : graphTool().getInputs().entrySet()) {
-                BdioOptions.Builder options = new BdioOptions.Builder();
-                graphTool().getExpandContext(input.getKey()).ifPresent(options::expandContext);
-                RxJavaBdioDocument doc = new RxJavaBdioDocument(options.build());
+                BdioContext.Builder context = new BdioContext.Builder();
+                graphTool().getExpandContext(input.getKey()).ifPresent(context::expandContext);
+                RxJavaBdioDocument doc = new RxJavaBdioDocument(context.build());
                 doc.jsonLd(doc.read(input.getValue().openStream()))
                         .expand().flatMapIterable(x -> x)
                         .doOnNext(this::executeWithRawEntry)

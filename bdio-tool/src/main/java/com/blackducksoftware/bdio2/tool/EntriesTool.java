@@ -30,7 +30,7 @@ import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bdio2.BdioOptions;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.EmitterFactory;
 import com.blackducksoftware.common.base.ExtraStrings;
 import com.github.jsonldjava.utils.JsonUtils;
@@ -109,9 +109,9 @@ public class EntriesTool extends Tool {
     @Override
     public void execute() throws IOException {
         checkState(input != null, "input is not set");
-        BdioOptions options = new BdioOptions.Builder().build();
+        BdioContext context = new BdioContext.Builder().build();
         Consumer<Object> action = command != null ? this::execEntry : this::printEntry;
-        EmitterFactory.newEmitter(options, input.openBufferedStream()).stream().forEach(action);
+        EmitterFactory.newEmitter(context, input.openBufferedStream()).stream().forEach(action);
     }
 
     protected void printEntry(Object entry) {

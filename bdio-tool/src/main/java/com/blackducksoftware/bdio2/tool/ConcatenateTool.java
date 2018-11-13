@@ -27,10 +27,9 @@ import java.util.Optional;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bdio2.BdioDocument;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.BdioObject;
-import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.BdioWriter;
 import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
@@ -107,14 +106,14 @@ public class ConcatenateTool extends Tool {
     protected void execute() throws Exception {
         checkState(!inputs.isEmpty(), "input is not set");
 
-        RxJavaBdioDocument document = new RxJavaBdioDocument(new BdioOptions.Builder().build());
+        RxJavaBdioDocument document = new RxJavaBdioDocument(new BdioContext.Builder().build());
         StreamSupplier out = new BdioWriter.BdioFile(output.openStream());
 
         // Read all the configured inputs into a single sequence of entries
         Flowable<InputStream> data = Flowable.fromIterable(inputs).map(ByteSource::openStream);
 
         // Only collect limited entries for metadata if possible
-        BdioMetadata metadata = document.metadata(data.flatMap(in -> document.read(in).takeUntil((Predicate<Object>) BdioDocument::needsMoreMetadata)))
+        BdioMetadata metadata = document.metadata(data.flatMap(in -> document.read(in).takeUntil((Predicate<Object>) document::needsMoreMetadata)))
                 .blockingSingle(new BdioMetadata());
         completeMetadata(metadata);
 

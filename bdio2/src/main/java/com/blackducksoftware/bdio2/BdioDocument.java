@@ -28,7 +28,6 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
 import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.common.value.ProductList;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdOptions;
@@ -84,17 +83,14 @@ public abstract class BdioDocument {
     /**
      * The configuration options.
      */
-    private final BdioOptions options;
+    private final BdioContext context;
 
-    protected BdioDocument(BdioOptions options) {
-        this.options = Objects.requireNonNull(options);
+    protected BdioDocument(BdioContext context) {
+        this.context = Objects.requireNonNull(context);
     }
 
-    /**
-     * Returns the configuration options on this document for use by subclasses.
-     */
-    protected final BdioOptions options() {
-        return options;
+    protected final BdioContext context() {
+        return context;
     }
 
     /**
@@ -155,12 +151,12 @@ public abstract class BdioDocument {
      * We can stop processing metadata if we are looking at a legacy format because we only write metadata to the first
      * entry when we are converting.
      */
-    public static boolean needsMoreMetadata(Object entry) {
+    public boolean needsMoreMetadata(Object entry) {
         if (entry instanceof Map<?, ?>) {
             String key = Bdio.DataProperty.publisher.toString();
             Object value = ((Map<?, ?>) entry).get(key);
             if (value != null) {
-                ProductList products = ProductList.from(ValueObjectMapper.getContextValueObjectMapper().fromFieldValue(key, value));
+                ProductList products = ProductList.from(context.fromFieldValue(key, value));
                 if (products.tryFind(p -> p.name().equals(LegacyScanContainerEmitter.class.getSimpleName())
                         || p.name().equals(LegacyBdio1xEmitter.class.getSimpleName())).isPresent()) {
                     return true;

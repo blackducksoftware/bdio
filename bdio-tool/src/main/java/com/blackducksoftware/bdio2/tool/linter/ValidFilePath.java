@@ -20,7 +20,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
 import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
@@ -33,8 +33,8 @@ public class ValidFilePath implements RawNodeRule {
         ViolationBuilder result = new ViolationBuilder(this, input);
 
         if (RawNodeRule.types(input).anyMatch(Predicate.isEqual(Bdio.Class.File.toString()))) {
-            ValueObjectMapper valueObjectMapper = ValueObjectMapper.getContextValueObjectMapper();
-            Object path = valueObjectMapper.fromFieldValue(Bdio.DataProperty.path.toString(), input.get(Bdio.DataProperty.path.toString()));
+            BdioContext context = BdioContext.getActive();
+            Object path = context.fromFieldValue(Bdio.DataProperty.path.toString(), input.get(Bdio.DataProperty.path.toString()));
             if (path instanceof String) {
                 HID hid = HID.from(path);
 

@@ -21,7 +21,6 @@ import java.util.stream.Stream;
 
 import org.junit.Test;
 
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.common.value.ProductList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -156,7 +155,7 @@ public class BdioMetadataTest {
 
         assertThat(metadataFoo.merge(metadataBar))
                 .containsEntry(Bdio.DataProperty.publisher.toString(),
-                        new ValueObjectMapper.Builder().build().toValueObject(ProductList.parse("foo bar")));
+                        BdioContext.getActive().toFieldValue(Bdio.DataProperty.publisher.name(), ProductList.parse("foo bar")));
     }
 
 }

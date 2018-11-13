@@ -25,12 +25,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.common.value.ProductList;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.CharSource;
@@ -68,7 +68,7 @@ public class LegacyScanContainerEmitterTest {
         }
     }
 
-    private static final ValueObjectMapper mapper = ValueObjectMapper.getContextValueObjectMapper();
+    private static final BdioContext context = new BdioContext.Builder().expandContext(Bdio.Context.DEFAULT).build();
 
     private static final String nameKey = Bdio.DataProperty.name.toString();
 
@@ -79,6 +79,11 @@ public class LegacyScanContainerEmitterTest {
     private static final String creationDateTimeKey = Bdio.DataProperty.creationDateTime.toString();
 
     private static final String captureInterval = Bdio.DataProperty.captureInterval.toString();
+
+    @BeforeClass
+    public static void activateContext() {
+        context.activate();
+    }
 
     @Parameters(name = "{0}")
     public static Iterable<Function<InputStream, Emitter>> emitterFactories() {
@@ -108,15 +113,15 @@ public class LegacyScanContainerEmitterTest {
                 + "\"scanNodeList\": []"
                 + "}").asByteSource(UTF_8).openStream();
         Map<?, ?> metadata = (Map<?, ?>) emitterFactory.apply(inputStream).stream().limit(1).collect(onlyElement());
-        assertThat(mapper.fromFieldValue(nameKey, metadata.get(nameKey)))
+        assertThat(context.fromFieldValue(nameKey, metadata.get(nameKey)))
                 .isEqualTo("Test Metadata 1");
-        assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
+        assertThat(context.fromFieldValue(publisherKey, metadata.get(publisherKey)))
                 .isEqualTo(ProductList.from("ScanClient/0.0.0.0 (signature 7.0.0) (snippets) LegacyScanContainerEmitter"));
-        assertThat(mapper.fromFieldValue(creationDateTimeKey, metadata.get(creationDateTimeKey)))
+        assertThat(context.fromFieldValue(creationDateTimeKey, metadata.get(creationDateTimeKey)))
                 .isEqualTo(ZonedDateTime.parse("2016-11-22T16:33:20.000Z"));
-        assertThat(mapper.fromFieldValue(creatorKey, metadata.get(creatorKey)))
+        assertThat(context.fromFieldValue(creatorKey, metadata.get(creatorKey)))
                 .isEqualTo("@example.com");
-        assertThat(mapper.fromFieldValue(captureInterval, metadata.get(captureInterval)))
+        assertThat(context.fromFieldValue(captureInterval, metadata.get(captureInterval)))
                 .isEqualTo("2016-11-22T16:33:20Z/2016-11-22T16:33:20.111Z");
     }
 

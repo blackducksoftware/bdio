@@ -147,12 +147,13 @@ public final class BdioMetadata extends BdioObject {
                     throw new IllegalArgumentException("identifier mismatch: " + value + " (was expecting " + id() + ")");
                 }
             } else if (key.equals(Bdio.DataProperty.publisher.toString())) {
-                Object producer = get(key);
-                if (producer != null) {
+                Object publisher = get(key);
+                if (publisher != null) {
                     // Merges to create new producer
+                    BdioContext context = BdioContext.getActive();
                     ProductList.Builder builder = new ProductList.Builder();
-                    ProductList.from(mapper().fromFieldValue(key, producer)).forEach(builder::mergeProduct);
-                    ProductList.from(mapper().fromFieldValue(key, value)).forEach(builder::mergeProduct);
+                    ProductList.from(context.fromFieldValue(key, publisher)).forEach(builder::mergeProduct);
+                    ProductList.from(context.fromFieldValue(key, value)).forEach(builder::mergeProduct);
                     putData(Bdio.DataProperty.publisher, builder.build());
                 } else {
                     // Establishes a new producer
@@ -162,8 +163,9 @@ public final class BdioMetadata extends BdioObject {
                 Object creator = get(key);
                 if (creator != null) {
                     // Merges to create a new creator
-                    put(key, splitOnFirst(mapper().fromFieldValue(key, creator).toString(), '@',
-                            (user1, host1) -> splitOnFirst(mapper().fromFieldValue(key, value).toString(), '@', (user2, host2) -> {
+                    BdioContext context = BdioContext.getActive();
+                    put(key, splitOnFirst(context.fromFieldValue(key, creator).toString(), '@',
+                            (user1, host1) -> splitOnFirst(context.fromFieldValue(key, value).toString(), '@', (user2, host2) -> {
                                 return ensureDelimiter(isNullOrEmpty(user1) ? user2 : user1, "@", isNullOrEmpty(host1) ? host2 : host1);
                             })));
                 } else {

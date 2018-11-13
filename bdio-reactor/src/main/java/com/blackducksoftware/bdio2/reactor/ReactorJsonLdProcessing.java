@@ -20,8 +20,8 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.blackducksoftware.bdio2.BdioDocument;
-import com.blackducksoftware.bdio2.BdioOptions;
 import com.github.jsonldjava.core.JsonLdError;
+import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.JsonLdProcessor;
 
 import reactor.core.publisher.Flux;
@@ -38,9 +38,9 @@ public class ReactorJsonLdProcessing implements BdioDocument.JsonLdProcessing {
 
     private final Flux<Object> entries;
 
-    private final BdioOptions options;
+    private final JsonLdOptions options;
 
-    ReactorJsonLdProcessing(Flux<Object> entries, BdioOptions options) {
+    ReactorJsonLdProcessing(Flux<Object> entries, JsonLdOptions options) {
         this.entries = Objects.requireNonNull(entries);
         this.options = Objects.requireNonNull(options);
     }
@@ -54,7 +54,7 @@ public class ReactorJsonLdProcessing implements BdioDocument.JsonLdProcessing {
     public Flux<Map<String, Object>> compact(Object context) {
         return identity().compose(inputs -> inputs.flatMap(input -> {
             try {
-                return Flux.just(JsonLdProcessor.compact(input, context, options.jsonLdOptions()));
+                return Flux.just(JsonLdProcessor.compact(input, context, options));
             } catch (JsonLdError e) {
                 return Flux.error(e);
             }
@@ -65,7 +65,8 @@ public class ReactorJsonLdProcessing implements BdioDocument.JsonLdProcessing {
     public Flux<List<Object>> expand() {
         return identity().compose(inputs -> inputs.flatMap(input -> {
             try {
-                return Flux.just(JsonLdProcessor.expand(input, options.jsonLdOptions()));
+                // TODO The RxJava implementation has workarounds, why are they not here?
+                return Flux.just(JsonLdProcessor.expand(input, options));
             } catch (JsonLdError e) {
                 return Flux.error(e);
             }
@@ -76,7 +77,7 @@ public class ReactorJsonLdProcessing implements BdioDocument.JsonLdProcessing {
     public Flux<Object> flatten(Object context) {
         return identity().compose(inputs -> inputs.flatMap(input -> {
             try {
-                return Flux.just(JsonLdProcessor.flatten(input, context, options.jsonLdOptions()));
+                return Flux.just(JsonLdProcessor.flatten(input, context, options));
             } catch (JsonLdError e) {
                 return Flux.error(e);
             }
@@ -87,7 +88,8 @@ public class ReactorJsonLdProcessing implements BdioDocument.JsonLdProcessing {
     public Flux<Map<String, Object>> frame(Object frame) {
         return identity().compose(inputs -> inputs.flatMap(input -> {
             try {
-                return Flux.just(JsonLdProcessor.frame(input, frame, options.jsonLdOptions()));
+                // TODO The RxJava implementation has multiple workarounds, why are they not here?
+                return Flux.just(JsonLdProcessor.frame(input, frame, options));
             } catch (JsonLdError e) {
                 return Flux.error(e);
             }

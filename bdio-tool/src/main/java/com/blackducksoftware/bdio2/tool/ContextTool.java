@@ -24,7 +24,7 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.BdioOptions;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.github.jsonldjava.core.Context;
 import com.github.jsonldjava.core.DocumentLoader;
 import com.github.jsonldjava.core.JsonLdConsts;
@@ -87,8 +87,8 @@ public class ContextTool extends Tool {
         } else {
             // If we are not generating the default context, we can attempt to load it via the BDIO options class which
             // will have access to the explicit context versions
-            printJson(new BdioOptions.Builder().build()
-                    .jsonLdOptions()
+            printJson(new BdioContext.Builder().build()
+                    .options()
                     .getDocumentLoader()
                     .loadDocument(context)
                     .getDocument());

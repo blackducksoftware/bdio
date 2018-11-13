@@ -23,7 +23,7 @@ import java.util.Objects;
 import java.util.stream.Stream;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawEntryRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
 import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
@@ -69,14 +69,14 @@ public class Metadata implements RawEntryRule {
                 }
             }
 
-            ValueObjectMapper valueObjectMapper = ValueObjectMapper.getContextValueObjectMapper();
+            BdioContext context = BdioContext.getActive();
             for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
                 String key = dataProperty.toString();
                 if (bdioEntry.containsKey(key)) {
                     if (Enums.getField(dataProperty).getAnnotation(Bdio.Domain.class).metadata()) {
                         // TODO This repeats the logic from DataPropertyRange validation, we should make it more generic
                         try {
-                            Object rawValue = valueObjectMapper.fromFieldValue(key, bdioEntry.get(key));
+                            Object rawValue = context.fromFieldValue(key, bdioEntry.get(key));
 
                             Collection<?> values;
                             if (rawValue instanceof Collection<?>) {
