@@ -220,15 +220,12 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
 
             // We use this query to test for existing parents
             StringBuilder parentExistsSql = new StringBuilder();
+            String parentExistsWhereClause = " WHERE " + dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()) + " = ? ";
             parentExistsSql.append("SELECT 1 FROM ")
                     .append(dialect.maybeWrapInQoutes(file.getTable()))
-                    .append(" WHERE ")
-                    .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.path.name()))
-                    .append(" = ? ");
-            wrapper().forEachReadPartition((k, r) -> parentExistsSql.append(" AND ")
-                    .append(dialect.maybeWrapInQoutes(k))
-                    .append(" IN ")
-                    .append(r.stream().map(v -> dialect.valueToValuesString(STRING, v)).collect(joining(", ", "(", ")"))));
+                    .append(whereClause.isEmpty()
+                            ? parentExistsWhereClause
+                            : whereClause.replace(" WHERE ", parentExistsWhereClause + "AND "));
             parentExistsSql.append(dialect.needsSemicolon() ? ";" : "");
 
             Connection conn = sqlgGraph.tx().getConnection();
@@ -236,7 +233,6 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                 try (Statement statement = conn.createStatement()) {
                     // Execute the big LEFT JOIN once to find the "deepest" missing parents
                     try (ResultSet resultSet = statement.executeQuery(sql.toString())) {
-                        wrapper().startBatchTx();
                         while (resultSet.next()) {
                             String path = resultSet.getString(1);
                             while (path != null) {
@@ -259,7 +255,6 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                                 });
                                 properties.add(mapper.implicitKey().get()).add(Boolean.TRUE);
                                 sqlgGraph.addVertex(properties.build().toArray());
-                                wrapper().batchFlushTx();
 
                                 // Now use the computed parent to "walk" up the file hierarchy
                                 path = parentPath.orElse(null);
@@ -273,7 +268,6 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                                 }
                             }
                         }
-                        wrapper().flushTx();
                     }
                 }
             } catch (SQLException e) {

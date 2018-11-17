@@ -63,7 +63,11 @@ public class BlackDuckIoOperationsTest extends BaseTest {
 
         BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.implicit));
         bdio.readGraph(inputStream);
-        new BlackDuckIoOperations.AddMissingFileParentsOperation(bdio.readerWrapper()).run();
+        if (graph instanceof SqlgGraph) {
+            new SqlgGraphReaderWrapper.SqlgAddMissingFileParentsOperation(bdio.readerWrapper()).run();
+        } else {
+            new BlackDuckIoOperations.AddMissingFileParentsOperation(bdio.readerWrapper()).run();
+        }
 
         GraphTraversalSource g = graph.traversal();
 
