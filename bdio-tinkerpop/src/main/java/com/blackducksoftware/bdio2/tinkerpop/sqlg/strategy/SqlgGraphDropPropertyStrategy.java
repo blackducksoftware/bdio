@@ -32,10 +32,8 @@ import com.blackducksoftware.bdio2.tinkerpop.sqlg.step.SqlgGraphDropPropertyStep
 
 /**
  * Strategy to optimize a simple {@code g.V().properties("foo").drop().iterate()} query; it folds a
- * {@code SqlgGraphStep}
- * and the immediately proceeding {@code AddPropertyStep} into a single step, but only if that is the entire query. A
- * normal {@code AddPropertyStep} is just evaluated for side effects, this optimization prevents loading the actual
- * vertices so it can only be applied the property change is at the end of the traversal.
+ * {@code SqlgGraphStep}, {@code PropertiesStep} and {@code SqlgDropStepBarrier} into a single step, but only if that is
+ * the entire query and there are no open transaction.
  * <p>
  * <em>WARNING!</em> This was written with exactly zero knowledge of how TinkerPop or Sqlg internals work. There is a
  * good chance that it is not safe for general use!
