@@ -188,4 +188,37 @@ public class OptimizationTest extends BaseTest {
         assertThat(g.E().has("d", "1").count().next()).isEqualTo(1);
     }
 
+    @Test
+    public void simpleGraphDropProperty() {
+        graph.addVertex(T.label, Bdio.Class.File.name(), "a", "1", "b", "x");
+        graph.addVertex(T.label, Bdio.Class.File.name(), "a", "2", "b", "x");
+
+        // For the drop, the commit is important, we will actually bypass the optimization without because there is no
+        // way to efficiently update the thread locale transaction vertex cache
+        commit();
+
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphDropPropertyStrategy.instance());
+        g.V().hasLabel(Bdio.Class.File.name()).has("a", "1").properties("b").drop().iterate();
+
+        assertThat(g.V().hasLabel(Bdio.Class.File.name()).has("a", "1").properties("b").hasNext()).isFalse();
+        assertThat(g.V().hasLabel(Bdio.Class.File.name()).has("a", "2").properties("b").hasNext()).isTrue();
+    }
+
+    @Test
+    public void simpleGraphDropPropertyProfile() {
+        graph.addVertex(T.label, Bdio.Class.File.name(), "a", "1", "b", "x");
+        commit();
+
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphDropPropertyStrategy.instance());
+        long count = g.V().hasLabel(Bdio.Class.File.name()).has("a", "1").properties("b").drop().profile().next().getMetrics()
+                .stream().filter(m -> m.getCount(ELEMENT_COUNT_ID) != null).mapToLong(m -> m.getCount(ELEMENT_COUNT_ID)).sum();
+        if (graph instanceof SqlgGraph) {
+            // We should have been optimized so there is only one traverser
+            assertThat(count).isEqualTo(1L);
+        } else {
+            // There should have been a traverser for each file plus a traverser to drop the property
+            assertThat(count).isAtLeast(1L + 1L);
+        }
+    }
+
 }
