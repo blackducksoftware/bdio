@@ -22,6 +22,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.P.eq;
 import static org.apache.tinkerpop.gremlin.process.traversal.P.without;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.V;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.has;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasNot;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.or;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.property;
@@ -352,7 +353,9 @@ public final class BlackDuckIoOperations {
         protected void updateDirectoryTypes(GraphTraversalSource g) {
             wrapper().startBatchTx();
             g.V().out(Bdio.ObjectProperty.parent.name())
-                    .hasNot(Bdio.DataProperty.fileSystemType.name())
+                    .or(hasNot(Bdio.DataProperty.fileSystemType.name()),
+                            // TODO We should be checking for other types as well
+                            has(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.REGULAR.toString()))
                     .coalesce(
                             or(has(Bdio.DataProperty.byteCount.name()), has(Bdio.DataProperty.contentType.name()))
                                     .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.DIRECTORY_ARCHIVE.toString()),

@@ -214,7 +214,7 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 .fileCollection(f -> {})
                 .file(f -> f.path("file:///foo").fileSystemType(Bdio.FileSystemType.SYMLINK.toString()))
                 .relateToFirst(FileCollection.class, FileCollection::base)
-                .file(f -> f.path("file:///foo/bar").fileSystemType(Bdio.FileSystemType.SYMLINK.toString()))
+                .file(f -> f.path("file:///foo/bar").fileSystemType(Bdio.FileSystemType.REGULAR.toString()))
                 .file(f -> f.path("file:///foo/gus").fileSystemType(Bdio.FileSystemType.SYMLINK.toString()))
                 .file(f -> f.path("file:///foo/bar/test.bin").fileSystemType(Bdio.FileSystemType.SYMLINK.toString()))
                 .file(f -> f.path("file:///foo/bar/test.zip").byteCount(1L).fileSystemType(Bdio.FileSystemType.SYMLINK.toString()))
@@ -240,7 +240,8 @@ public class BlackDuckIoOperationsTest extends BaseTest {
             if (path.equals("file:///foo")) {
                 assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.SYMLINK.toString());
             } else if (path.equals("file:///foo/bar")) {
-                assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.SYMLINK.toString());
+                // This is the one exception to the "no overwrite"; a regular file with children is corrected
+                assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.DIRECTORY.toString());
             } else if (path.equals("file:///foo/gus")) {
                 assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.SYMLINK.toString());
             } else if (path.equals("file:///foo/bar/test.bin")) {

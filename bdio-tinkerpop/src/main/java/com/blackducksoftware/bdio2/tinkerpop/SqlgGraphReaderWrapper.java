@@ -382,11 +382,18 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                     .append(dialect.maybeWrapInQoutes(k))
                     .append(" IN ")
                     .append(r.stream().map(v -> dialect.valueToValuesString(STRING, v)).collect(joining(", ", "(", ")"))));
-            sql.append(" AND ")
+            sql.append(" AND (")
                     .append(dialect.maybeWrapInQoutes(file.getTable()))
                     .append(".")
                     .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.fileSystemType.name()))
-                    .append(" IS NULL");
+                    .append(" IS NULL OR")
+                    .append(dialect.maybeWrapInQoutes(file.getTable()))
+                    .append(".")
+                    .append(dialect.maybeWrapInQoutes(Bdio.DataProperty.fileSystemType.name()))
+                    .append(" = ")
+                    // TODO We should be checking for other types as well
+                    .append(dialect.valueToValuesString(PropertyType.STRING, Bdio.FileSystemType.REGULAR.toString()))
+                    .append(")");
             if (fileSystemType == Bdio.FileSystemType.DIRECTORY_ARCHIVE) {
                 sql.append(" AND (")
                         .append(dialect.maybeWrapInQoutes(file.getTable()))
