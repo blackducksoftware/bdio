@@ -53,11 +53,10 @@ public class OptimizationTest extends BaseTest {
         graph.addVertex(T.label, Bdio.Class.File.name());
 
         // Enable our optimization
-        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphCountStrategy.instance());
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgSimpleQueryStrategy.instance());
 
         // Regardless what the query plan is, this query should always return the same thing
         assertThat(g.V().hasLabel(Bdio.Class.File.name()).count().next()).isEqualTo(2);
-
     }
 
     @Test
@@ -65,7 +64,7 @@ public class OptimizationTest extends BaseTest {
         graph.addVertex(T.label, Bdio.Class.File.name());
         graph.addVertex(T.label, Bdio.Class.File.name());
 
-        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphCountStrategy.instance());
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgSimpleQueryStrategy.instance());
 
         long count = g.V().hasLabel(Bdio.Class.File.name()).count().profile().next().getMetrics()
                 .stream().mapToLong(m -> m.getCount(ELEMENT_COUNT_ID)).sum();
@@ -92,7 +91,7 @@ public class OptimizationTest extends BaseTest {
         PartitionStrategy b2 = PartitionStrategy.build().partitionKey("b").readPartitions("2").create();
 
         // Start the traversal source with our optimization
-        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphCountStrategy.instance());
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgSimpleQueryStrategy.instance());
 
         assertThat(g.V().hasLabel(Bdio.Class.File.name()).count().next()).named("no partition").isEqualTo(5L);
         assertThat(g.withStrategies(a1).V().hasLabel(Bdio.Class.File.name()).count().next()).named("a = 1").isEqualTo(2L);
@@ -104,7 +103,7 @@ public class OptimizationTest extends BaseTest {
     public void graphCountAndThenSum() {
         graph.addVertex(T.label, Bdio.Class.File.name());
         graph.addVertex(T.label, Bdio.Class.File.name());
-        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphCountStrategy.instance());
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgSimpleQueryStrategy.instance());
 
         // Kind of a dumb test, summing the single count, but verifies that a subsequent step doesn't flat out break
         assertThat(g.V().hasLabel(Bdio.Class.File.name()).count().sum().next()).isEqualTo(2L);
@@ -119,7 +118,7 @@ public class OptimizationTest extends BaseTest {
     public void simpleGraphAddProperty() {
         graph.addVertex(T.label, Bdio.Class.File.name(), "a", "1");
         graph.addVertex(T.label, Bdio.Class.File.name(), "a", "2");
-        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphAddPropertyStrategy.instance());
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgSimpleQueryStrategy.instance());
 
         g.V().hasLabel(Bdio.Class.File.name()).has("a", "1").property("b", "1").property("c", "2").iterate();
 
@@ -132,7 +131,7 @@ public class OptimizationTest extends BaseTest {
     @Test
     public void simpleGraphAddPropertyProfile() {
         graph.addVertex(T.label, Bdio.Class.File.name(), "a", "1");
-        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphAddPropertyStrategy.instance());
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgSimpleQueryStrategy.instance());
 
         long count = g.V().hasLabel(Bdio.Class.File.name()).has("a", "1").property("b", "1").profile().next().getMetrics()
                 .stream().mapToLong(m -> m.getCount(ELEMENT_COUNT_ID)).sum();
@@ -156,7 +155,7 @@ public class OptimizationTest extends BaseTest {
         PartitionStrategy a1 = PartitionStrategy.build().partitionKey("a").readPartitions("1").create();
 
         // Start the traversal source with our optimization
-        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphAddPropertyStrategy.instance());
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgSimpleQueryStrategy.instance());
 
         g.withStrategies(a1).V().hasLabel(Bdio.Class.File.name()).has("b", "1").property("c", "1").iterate();
         assertThat(g.V().has("c", "1").count().next()).isEqualTo(1);
@@ -168,7 +167,7 @@ public class OptimizationTest extends BaseTest {
         graph.addVertex(T.label, "b", "c", "1");
 
         // Start the traversal source with our optimization
-        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphAddPropertyStrategy.instance());
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgSimpleQueryStrategy.instance());
 
         g.V().has("c", "1").property("d", "1").iterate();
         assertThat(g.V().has("c", "1").count().next()).isEqualTo(2);
@@ -183,7 +182,7 @@ public class OptimizationTest extends BaseTest {
         graph.traversal().addE("y").from(b).to(c).iterate();
 
         // Start the traversal source with our optimization
-        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphAddPropertyStrategy.instance());
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgSimpleQueryStrategy.instance());
 
         g.E().hasLabel("x").property("d", "1").iterate();
         assertThat(g.E().has("d", "1").count().next()).isEqualTo(1);
@@ -198,7 +197,7 @@ public class OptimizationTest extends BaseTest {
         // way to efficiently update the thread locale transaction vertex cache
         commit();
 
-        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphDropPropertyStrategy.instance());
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgSimpleQueryStrategy.instance());
         g.V().hasLabel(Bdio.Class.File.name()).has("a", "1").properties("b").drop().iterate();
 
         assertThat(g.V().hasLabel(Bdio.Class.File.name()).has("a", "1").properties("b").hasNext()).isFalse();
@@ -213,7 +212,7 @@ public class OptimizationTest extends BaseTest {
         graph.addVertex(T.label, Bdio.Class.File.name(), "a", "4", "b", "2", "c", "x");
         commit();
 
-        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphDropPropertyStrategy.instance());
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgSimpleQueryStrategy.instance());
         g.V().hasLabel(Bdio.Class.File.name()).has("a", within("1", "2")).has("b", "1").properties("c").drop().iterate();
 
         assertThat(g.V().hasLabel(Bdio.Class.File.name()).has("a", "1").properties("c").hasNext()).isFalse();
@@ -227,7 +226,7 @@ public class OptimizationTest extends BaseTest {
         graph.addVertex(T.label, Bdio.Class.File.name(), "a", "1", "b", "x");
         commit();
 
-        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphDropPropertyStrategy.instance());
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgSimpleQueryStrategy.instance());
         long count = g.V().hasLabel(Bdio.Class.File.name()).has("a", "1").properties("b").drop().profile().next().getMetrics()
                 .stream().filter(m -> m.getCount(ELEMENT_COUNT_ID) != null).mapToLong(m -> m.getCount(ELEMENT_COUNT_ID)).sum();
         if (graph instanceof SqlgGraph) {

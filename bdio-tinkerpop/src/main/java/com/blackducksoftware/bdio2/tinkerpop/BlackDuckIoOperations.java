@@ -48,7 +48,7 @@ import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.bdio2.tinkerpop.SqlgGraphReaderWrapper.SqlgAddMissingFileParentsOperation;
 import com.blackducksoftware.bdio2.tinkerpop.SqlgGraphReaderWrapper.SqlgImplyFileSystemTypeOperation;
-import com.blackducksoftware.bdio2.tinkerpop.sqlg.strategy.SqlgGraphAddPropertyStrategy;
+import com.blackducksoftware.bdio2.tinkerpop.sqlg.strategy.SqlgSimpleQueryStrategy;
 import com.blackducksoftware.common.base.ExtraStreams;
 import com.blackducksoftware.common.value.HID;
 import com.google.common.collect.ComparisonChain;
@@ -362,7 +362,7 @@ public final class BlackDuckIoOperations {
         }
 
         protected void updateSymlinkTypes(GraphTraversalSource g) {
-            g.withStrategies(SqlgGraphAddPropertyStrategy.instance()).V().hasLabel(Bdio.Class.File.name())
+            g.withStrategies(SqlgSimpleQueryStrategy.instance()).V().hasLabel(Bdio.Class.File.name())
                     .hasNot(Bdio.DataProperty.fileSystemType.name())
                     .has(Bdio.DataProperty.linkPath.name())
                     .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.SYMLINK.toString())
@@ -370,13 +370,13 @@ public final class BlackDuckIoOperations {
         }
 
         protected void updateRegularTypes(GraphTraversalSource g) {
-            g.withStrategies(SqlgGraphAddPropertyStrategy.instance()).V().hasLabel(Bdio.Class.File.name())
+            g.withStrategies(SqlgSimpleQueryStrategy.instance()).V().hasLabel(Bdio.Class.File.name())
                     .hasNot(Bdio.DataProperty.fileSystemType.name())
                     .has(Bdio.DataProperty.encoding.name())
                     .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.REGULAR_TEXT.toString())
                     .iterate();
 
-            g.withStrategies(SqlgGraphAddPropertyStrategy.instance()).V().hasLabel(Bdio.Class.File.name())
+            g.withStrategies(SqlgSimpleQueryStrategy.instance()).V().hasLabel(Bdio.Class.File.name())
                     .hasNot(Bdio.DataProperty.fileSystemType.name())
                     .property(Bdio.DataProperty.fileSystemType.name(), Bdio.FileSystemType.REGULAR.toString())
                     .iterate();
