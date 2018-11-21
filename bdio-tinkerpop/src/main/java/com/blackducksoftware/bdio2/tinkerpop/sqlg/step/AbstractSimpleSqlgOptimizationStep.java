@@ -34,6 +34,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ProfileStep;
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics;
+import org.umlg.sqlg.predicate.Existence;
 import org.umlg.sqlg.sql.parse.SchemaTableTree;
 import org.umlg.sqlg.step.SqlgGraphStep;
 import org.umlg.sqlg.structure.PropertyType;
@@ -114,6 +115,12 @@ public abstract class AbstractSimpleSqlgOptimizationStep<S> extends AbstractStep
                 sql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(hasContainer.getKey()))
                         .append(" IS DISTINCT FROM ")
                         .append(sqlgGraph.getSqlDialect().valueToValuesString(propertyType, hasContainer.getValue()));
+            } else if (hasContainer.getBiPredicate() == Existence.NULL) {
+                sql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(hasContainer.getKey()))
+                        .append(" IS NULL");
+            } else if (hasContainer.getBiPredicate() == Existence.NOTNULL) {
+                sql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(hasContainer.getKey()))
+                        .append(" IS NOT NULL");
             } else if (hasContainer.getBiPredicate() == Contains.within) {
                 sql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(hasContainer.getKey()));
                 Collection<?> values = (Collection<?>) hasContainer.getValue();
