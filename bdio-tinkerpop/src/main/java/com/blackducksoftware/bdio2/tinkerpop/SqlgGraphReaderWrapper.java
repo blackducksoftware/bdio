@@ -326,7 +326,13 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
             });
             sql.append(dialect.needsSemicolon() ? ";" : "");
 
-            executeUpdate(sqlgGraph, sql);
+            Connection conn = sqlgGraph.tx().getConnection();
+            try (Statement statement = conn.createStatement()) {
+                statement.execute("SET CONSTRAINTS \"E_parent_public.File__I_fkey\" DEFERRED;");
+                statement.executeUpdate(sql.toString());
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -411,19 +417,12 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
                 sql.append(";");
             }
 
-            executeUpdate(sqlgGraph, sql);
-        }
-    }
-
-    /**
-     * Helper to execute a raw SQL update against a Sqlg graph.
-     */
-    private static void executeUpdate(SqlgGraph sqlgGraph, CharSequence sql) {
-        Connection conn = sqlgGraph.tx().getConnection();
-        try (Statement statement = conn.createStatement()) {
-            statement.executeUpdate(sql.toString());
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+            Connection conn = sqlgGraph.tx().getConnection();
+            try (Statement statement = conn.createStatement()) {
+                statement.executeUpdate(sql.toString());
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
