@@ -15,31 +15,22 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop.sqlg.step;
 
-import static com.blackducksoftware.common.base.ExtraOptionals.ofType;
 import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
 import static com.google.common.collect.MoreCollectors.toOptional;
 import static java.util.stream.Collectors.joining;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.AddPropertyStep;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.AbstractStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.Parameters;
-import org.apache.tinkerpop.gremlin.process.traversal.step.util.ProfileStep;
-import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
-import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.slf4j.LoggerFactory;
@@ -49,6 +40,10 @@ import org.umlg.sqlg.structure.PropertyType;
 import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.structure.SqlgVertex;
+import org.umlg.sqlg.structure.topology.AbstractLabel;
+import org.umlg.sqlg.structure.topology.EdgeLabel;
+import org.umlg.sqlg.structure.topology.PropertyColumn;
+import org.umlg.sqlg.structure.topology.VertexLabel;
 import org.umlg.sqlg.util.SqlgUtil;
 
 import com.google.common.collect.Maps;
@@ -62,22 +57,13 @@ import com.google.common.collect.Maps;
  *
  * @author jgustie
  */
-public class SqlgGraphAddPropertyStep<S> extends AbstractStep<S, S> {
+public class SqlgGraphAddPropertyStep<S> extends AbstractSimpleSqlgOptimizationStep<S> {
     private static final long serialVersionUID = 1L;
-
-    private final SqlgGraph sqlgGraph;
 
     private final LinkedHashMap<String, Object> properties;
 
-    private final Set<SchemaTableTree> rootSchemaTableTrees;
-
     public SqlgGraphAddPropertyStep(Traversal.Admin<?, ?> traversal, SqlgGraphStep<?, ?> replacedStep) {
-        super(traversal);
-        sqlgGraph = traversal.getGraph().flatMap(ofType(SqlgGraph.class))
-                .orElseThrow(illegalState("expected SqlgGraph"));
-
-        // Get the schema table tree for generating a WHERE clause
-        rootSchemaTableTrees = replacedStep.parseForStrategy();
+        super(traversal, replacedStep);
 
         // Store the properties being updated
         properties = new LinkedHashMap<>();
@@ -94,39 +80,17 @@ public class SqlgGraphAddPropertyStep<S> extends AbstractStep<S, S> {
     }
 
     @Override
-    protected Traverser.Admin<S> processNextStart() throws NoSuchElementException {
-        if (!rootSchemaTableTrees.isEmpty()) {
-            rootSchemaTableTrees.forEach(this::update);
-            rootSchemaTableTrees.clear();
-            if (getNextStep() instanceof ProfileStep<?>) {
-                // TODO Should we return a traverser with the count of updated rows so it looks like we did something?
-                ((ProfileStep<?>) getNextStep()).getMetrics().incrementCount(TraversalMetrics.TRAVERSER_COUNT_ID, 1);
-                ((ProfileStep<?>) getNextStep()).getMetrics().incrementCount(TraversalMetrics.ELEMENT_COUNT_ID, 1);
-            }
-        }
-
-        // Basically we flat map to nothing every time
-        throw FastNoSuchElementException.instance();
-    }
-
-    @Override
     public String toString() {
         return StringFactory.stepString(this, properties);
     }
 
-    private void update(SchemaTableTree rootSchemaTableTree) {
-        @SuppressWarnings("JdkObsolete") // This is the type required by the APIs being invoked
-        LinkedList<SchemaTableTree> distinctQueryStack = new LinkedList<>();
-        distinctQueryStack.add(rootSchemaTableTree);
-
+    @Override
+    protected void process(SqlgGraph sqlgGraph, SchemaTableTree rootSchemaTableTree, AbstractLabel label) {
         SchemaTable table = rootSchemaTableTree.getSchemaTable();
-
-        if (table.isVertexTable()) {
-            sqlgGraph.getTopology().ensureVertexLabelPropertiesExist(table.getSchema(), table.withOutPrefix().getTable(),
-                    Maps.transformValues(properties, PropertyType::from));
-        } else if (table.isEdgeTable()) {
-            sqlgGraph.getTopology().ensureEdgePropertiesExist(table.getSchema(), table.withOutPrefix().getTable(),
-                    Maps.transformValues(properties, PropertyType::from));
+        if (label instanceof VertexLabel) {
+            ((VertexLabel) label).ensurePropertiesExist(Maps.transformValues(properties, PropertyType::from));
+        } else if (label instanceof EdgeLabel) {
+            ((EdgeLabel) label).ensurePropertiesExist(Maps.transformValues(properties, PropertyType::from));
         }
 
         StringBuilder sql = new StringBuilder().append("\n")
@@ -149,18 +113,13 @@ public class SqlgGraphAddPropertyStep<S> extends AbstractStep<S, S> {
                         .map(k -> k + " = ?")
                         .collect(joining(",\n\t", "\t", "\n")));
 
-        String[] whereParts = rootSchemaTableTree.constructSql(distinctQueryStack).split("\\bWHERE\\b", 2);
-        if (whereParts.length == 2) {
-            sql.append("WHERE\n").append(whereParts[1]);
-        }
+        Map<String, PropertyType> propertyTypes = Maps.transformValues(label.getProperties(), PropertyColumn::getPropertyType);
+        appendWhereClause(sql, propertyTypes, rootSchemaTableTree.getHasContainers());
 
         LoggerFactory.getLogger(SqlgVertex.class).debug("{}", sql);
-
-        Connection conn = sqlgGraph.tx().getConnection();
-        try (PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
+        try (PreparedStatement preparedStatement = sqlgGraph.tx().getConnection().prepareStatement(sql.toString())) {
             List<ImmutablePair<PropertyType, Object>> typeAndValues = SqlgUtil.transformToTypeAndValue(properties);
-            int idx = SqlgUtil.setKeyValuesAsParameter(sqlgGraph, true, 1, preparedStatement, typeAndValues);
-            SqlgUtil.setParametersOnStatement(sqlgGraph, distinctQueryStack, preparedStatement, idx);
+            SqlgUtil.setKeyValuesAsParameter(sqlgGraph, true, 1, preparedStatement, typeAndValues);
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);

@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2.tinkerpop.sqlg.strategy;
 import static com.google.common.collect.Iterables.getLast;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth8.assertThat;
+import static org.apache.tinkerpop.gremlin.process.traversal.P.within;
 import static org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics.ELEMENT_COUNT_ID;
 
 import org.apache.commons.configuration.Configuration;
@@ -202,6 +203,23 @@ public class OptimizationTest extends BaseTest {
 
         assertThat(g.V().hasLabel(Bdio.Class.File.name()).has("a", "1").properties("b").hasNext()).isFalse();
         assertThat(g.V().hasLabel(Bdio.Class.File.name()).has("a", "2").properties("b").hasNext()).isTrue();
+    }
+
+    @Test
+    public void hasContainerGraphDropProperty() {
+        graph.addVertex(T.label, Bdio.Class.File.name(), "a", "1", "b", "1", "c", "x");
+        graph.addVertex(T.label, Bdio.Class.File.name(), "a", "2", "b", "1", "c", "x");
+        graph.addVertex(T.label, Bdio.Class.File.name(), "a", "3", "b", "1", "c", "x");
+        graph.addVertex(T.label, Bdio.Class.File.name(), "a", "4", "b", "2", "c", "x");
+        commit();
+
+        GraphTraversalSource g = graph.traversal().withStrategies(SqlgGraphDropPropertyStrategy.instance());
+        g.V().hasLabel(Bdio.Class.File.name()).has("a", within("1", "2")).has("b", "1").properties("c").drop().iterate();
+
+        assertThat(g.V().hasLabel(Bdio.Class.File.name()).has("a", "1").properties("c").hasNext()).isFalse();
+        assertThat(g.V().hasLabel(Bdio.Class.File.name()).has("a", "2").properties("c").hasNext()).isFalse();
+        assertThat(g.V().hasLabel(Bdio.Class.File.name()).has("a", "3").properties("c").hasNext()).isTrue();
+        assertThat(g.V().hasLabel(Bdio.Class.File.name()).has("a", "4").properties("c").hasNext()).isTrue();
     }
 
     @Test
