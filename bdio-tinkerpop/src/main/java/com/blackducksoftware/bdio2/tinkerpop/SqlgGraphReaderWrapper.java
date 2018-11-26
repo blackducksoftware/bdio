@@ -328,7 +328,6 @@ class SqlgGraphReaderWrapper extends GraphReaderWrapper {
 
             Connection conn = sqlgGraph.tx().getConnection();
             try (Statement statement = conn.createStatement()) {
-                statement.execute("SET CONSTRAINTS \"E_parent_public.File__I_fkey\" DEFERRED;");
                 statement.executeUpdate(sql.toString());
             } catch (SQLException e) {
                 throw new RuntimeException(e);
