@@ -88,7 +88,7 @@ public class ContextTool extends Tool {
             // If we are not generating the default context, we can attempt to load it via the BDIO options class which
             // will have access to the explicit context versions
             printJson(new BdioContext.Builder().build()
-                    .options()
+                    .jsonLdOptions()
                     .getDocumentLoader()
                     .loadDocument(context)
                     .getDocument());

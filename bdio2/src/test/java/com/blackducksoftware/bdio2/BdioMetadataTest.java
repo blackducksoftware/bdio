@@ -19,6 +19,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import java.util.stream.Stream;
 
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.blackducksoftware.common.value.ProductList;
@@ -31,6 +32,12 @@ import com.google.common.collect.Lists;
  * @author jgustie
  */
 public class BdioMetadataTest {
+
+    /**
+     * Rule for changing the active BDIO context.
+     */
+    @Rule
+    public Context context = Context.none();
 
     /**
      * Creating a named graph with no arguments should include everything from the original metadata.
@@ -147,11 +154,13 @@ public class BdioMetadataTest {
      */
     @Test
     public void mergeMetadataPublishers() {
+        context.usingCurentBdio();
+
         BdioMetadata metadataFoo = new BdioMetadata();
-        metadataFoo.putData(Bdio.DataProperty.publisher, ProductList.parse("foo"));
+        BdioContext.getActive().putFieldValue(metadataFoo, Bdio.DataProperty.publisher, ProductList.parse("foo"));
 
         BdioMetadata metadataBar = new BdioMetadata();
-        metadataBar.putData(Bdio.DataProperty.publisher, ProductList.parse("bar"));
+        BdioContext.getActive().putFieldValue(metadataBar, Bdio.DataProperty.publisher, ProductList.parse("bar"));
 
         assertThat(metadataFoo.merge(metadataBar))
                 .containsEntry(Bdio.DataProperty.publisher.toString(),

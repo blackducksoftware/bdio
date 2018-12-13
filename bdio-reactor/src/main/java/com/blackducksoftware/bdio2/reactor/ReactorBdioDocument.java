@@ -67,7 +67,7 @@ public class ReactorBdioDocument extends BdioDocument {
 
     @Override
     public ReactorJsonLdProcessing jsonLd(Publisher<Object> inputs) {
-        return new ReactorJsonLdProcessing(Flux.from(inputs), context().options());
+        return new ReactorJsonLdProcessing(Flux.from(inputs), context().jsonLdOptions());
     }
 
     @Override

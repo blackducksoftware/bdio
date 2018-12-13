@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2.model;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioObject;
 
 public final class FileCollection extends BdioObject {
@@ -27,17 +28,17 @@ public final class FileCollection extends BdioObject {
     }
 
     public FileCollection base(@Nullable File base) {
-        putObject(Bdio.ObjectProperty.base, base);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.base, base);
         return this;
     }
 
     public FileCollection dependency(Dependency dependency) {
-        putObject(Bdio.ObjectProperty.dependency, dependency);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.dependency, dependency);
         return this;
     }
 
     public FileCollection description(@Nullable Annotation description) {
-        putObject(Bdio.ObjectProperty.description, description);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.description, description);
         return this;
     }
 

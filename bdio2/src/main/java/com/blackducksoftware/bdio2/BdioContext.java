@@ -15,24 +15,23 @@
  */
 package com.blackducksoftware.bdio2;
 
-import static com.github.jsonldjava.core.JsonLdError.Error.LOADING_INJECTED_CONTEXT_FAILED;
-import static com.github.jsonldjava.shaded.com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.io.StringReader;
-import java.lang.reflect.Method;
+import java.io.UncheckedIOException;
 import java.net.URI;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.BinaryOperator;
-import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -45,10 +44,10 @@ import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
 import com.github.jsonldjava.core.RemoteDocument;
-import com.github.jsonldjava.shaded.com.google.common.collect.Streams;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.CharSource;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Streams;
 import com.google.common.io.Resources;
 
 /**
@@ -56,76 +55,105 @@ import com.google.common.io.Resources;
  *
  * @author jgustie
  */
-public class BdioContext {
+public final class BdioContext {
 
-    private static Predicate<String> STANDARD_EMBEDDED = Arrays.stream(Bdio.Class.values())
-            .filter(Bdio.Class::embedded)
-            .map(Object::toString)
-            .collect(toImmutableSet())::contains;
+    private static final ThreadLocal<BdioContext> ACTIVE_CONTEXT = new ThreadLocal<>();
 
-    public interface AutoClearContext extends AutoCloseable {
+    public final class ActiveContext implements Supplier<BdioContext>, AutoCloseable {
+        @Nullable
+        private final BdioContext originalContext;
+
+        private ActiveContext() {
+            originalContext = ACTIVE_CONTEXT.get();
+            ACTIVE_CONTEXT.set(BdioContext.this);
+        }
+
         @Override
-        void close();
+        public BdioContext get() {
+            return BdioContext.this;
+        }
+
+        @Override
+        public void close() {
+            ACTIVE_CONTEXT.set(originalContext);
+        }
     }
 
-    private static final ThreadLocal<BdioContext> activeContext = new InheritableThreadLocal<>();
-
     public static BdioContext getActive() {
-        BdioContext context = activeContext.get();
-        checkState(context != null, "there is no active context");
+        BdioContext context = ACTIVE_CONTEXT.get();
+        checkState(context != null, "missing active BDIO context");
         return context;
     }
 
+    public ActiveContext activate() {
+        return new ActiveContext();
+    }
+
     /**
-     * The BDIO value mapper to use. The value mapper typically handles type issues when dealing with different graph
-     * implementations.
+     * The BDIO value mapper to use for transforming between JSON-LD and Java objects.
      */
     private final BdioValueMapper valueMapper;
 
     /**
-     * The JSON-LD options to use.
+     * The document loader used to retrieve URL references found in JSON-LD.
      */
-    private final JsonLdOptions options;
+    private final DocumentLoader documentLoader;
 
     /**
-     * The JSON-LD parsed context.
+     * The set of IRIs representing types which should be embedded.
+     */
+    private final ImmutableSet<String> embeddedTypes;
+
+    /**
+     * The base URL.
+     */
+    @Nullable
+    private final String base;
+
+    /**
+     * The unparsed context.
+     */
+    @Nullable
+    private final Object expandContext;
+
+    /**
+     * The parsed context.
      */
     private final Context context;
 
-    /**
-     * We need to fall back to reflective hacks to access the type information from the context.
-     *
-     * @see <a href="https://github.com/jsonld-java/jsonld-java/issues/244">JSON-LD Java #244</a>
-     */
-    private final Method contextGetTypeMapping;
-
-    private final Predicate<String> embeddedTypes;
-
     private BdioContext(Builder builder) {
         this.valueMapper = Objects.requireNonNull(builder.valueMapper);
-        this.options = new JsonLdOptions(builder.base);
+        this.documentLoader = Objects.requireNonNull(builder.documentLoader);
+        this.embeddedTypes = ImmutableSet.copyOf(builder.embeddedTypes);
+        this.base = builder.base;
+        this.expandContext = builder.expandContext;
 
-        options.setExpandContext(builder.expandContext);
-        injectDocuments(options.getDocumentLoader(), builder.injectedDocuments);
-
-        this.context = new Context(options).parse(builder.expandContext);
-
-        try {
-            contextGetTypeMapping = Context.class.getDeclaredMethod("getTypeMapping", String.class);
-            contextGetTypeMapping.setAccessible(true);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("unable to access type mapping on JSON-LD context");
-        }
-
-        embeddedTypes = STANDARD_EMBEDDED;
+        // TODO We should have a different path for legacy BDIO contexts
+        this.context = new Context(jsonLdOptions()).parse(expandContext);
     }
 
-    public AutoClearContext activate() {
-        activeContext.set(this);
-        return () -> activeContext.remove();
+    Map<String, Object> serialize() {
+        return context.serialize();
     }
 
-    public JsonLdOptions options() {
+    String getTypeMapping(String property) {
+        return context.getTypeMapping(property);
+    }
+
+    Map<String, String> getPrefixes(boolean onlyCommonPrefixes) {
+        return context.getPrefixes(onlyCommonPrefixes);
+    }
+
+    /**
+     * Returns a new (mutable) JSON-LD options instance based on this context.
+     */
+    public JsonLdOptions jsonLdOptions() {
+        // TODO Technically both the documentLoader and potentially expandContext are mutable
+        JsonLdOptions options = new JsonLdOptions();
+        options.setDocumentLoader(documentLoader);
+        options.setBase(base);
+        options.setExpandContext(expandContext);
+        options.setOmitDefault(Boolean.TRUE);
         return options;
     }
 
@@ -133,20 +161,26 @@ public class BdioContext {
      * Converts a JSON-LD field value into a Java representation.
      */
     public Object fromFieldValue(String term, @Nullable Object input) {
-        return _fromFieldValue(input).collect(valueMapper.getCollector(context.getContainer(term)));
+        return _fromFieldValue(term, input).collect(valueMapper.getCollector(context.getContainer(term)));
     }
 
-    private Stream<Object> _fromFieldValue(@Nullable Object input) {
+    private Stream<Object> _fromFieldValue(String term, @Nullable Object input) {
         // The input will be coming out of the JSON-LD API so we should only be looking at lists, maps and literals
         if (input instanceof List<?>) {
             // Recursively process list object
-            return ((List<?>) input).stream().flatMap(this::_fromFieldValue);
+            return ((List<?>) input).stream().flatMap(e -> _fromFieldValue(term, e));
         } else if (input instanceof Map<?, ?>) {
             // Value object or relationship
             return Stream.of(valueMapper.fromFieldValue((Map<?, ?>) input));
         } else {
-            // Scalar (including null)
-            return Stream.of(input);
+            String type = context.getTypeMapping(term);
+            if (type != null && input != null) {
+                // Compacted value
+                return _fromFieldValue(term, ImmutableMap.of(JsonLdConsts.TYPE, type, JsonLdConsts.VALUE, input));
+            } else {
+                // Scalar (including null)
+                return Stream.of(input);
+            }
         }
     }
 
@@ -158,53 +192,86 @@ public class BdioContext {
     }
 
     private Object _toFieldValue(String term, @Nullable Object input) {
-        if (input == null || input instanceof Number || input instanceof Boolean) {
-            // Scalar
-            return input;
-        } else {
-            Object type = getTypeMapping(term);
-            if (input instanceof String) {
-                if (Objects.equals(type, JsonLdConsts.ID)) {
-                    // IRI
-                    input = ImmutableMap.of(type, input);
-                } else {
-                    // Scalar
-                    return input;
-                }
-            }
+        Object type = context.getTypeMapping(term);
+        if (input instanceof String && Objects.equals(type, JsonLdConsts.ID)) {
+            // IRI
+            input = ImmutableMap.of(type, input);
+        }
 
+        if (input != null) {
             return valueMapper.toFieldValue(type, input, this::isEmbedded);
+        } else {
+            // Scalar null
+            return input;
         }
     }
 
-    public boolean isDataProperty(String term) {
-        //
-        return false;
+    /**
+     * Tests to see if the specified term or fully qualified type should be embedded.
+     */
+    public boolean isEmbedded(@Nullable Object type) {
+        if (type instanceof List<?>) {
+            return ((List<?>) type).stream().anyMatch(this::isEmbedded);
+        } else if (embeddedTypes.contains(type)) {
+            return true;
+        } else {
+            String fullyQualified = context.getPrefixes(false).get(type);
+            if (fullyQualified != null) {
+                return isEmbedded(fullyQualified);
+            } else {
+                return false;
+            }
+        }
     }
 
-    public boolean isObjectProperty(String term) {
-        //
-        return false;
+    /**
+     * Returns the term used by this context for the supplied IRI.
+     */
+    public Optional<String> lookupTerm(String iri) {
+        // Special case for keywords
+        if (isKeyword(iri)) {
+            return Optional.of(iri);
+        }
+
+        Object definition = context.getInverse().get(iri);
+        if (definition instanceof Map<?, ?>) {
+            definition = ((Map<?, ?>) definition).values().iterator().next();
+            if (definition instanceof Map<?, ?>) {
+                definition = ((Map<?, ?>) definition).get(JsonLdConsts.TYPE);
+                if (definition instanceof Map<?, ?>) {
+                    return Optional.of(((Map<?, ?>) definition).values().iterator().next().toString());
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     /**
      * Get a field value from a map.
      */
-    Stream<?> getFieldValue(String key, Map<?, ?> values) {
+    public Stream<?> getFieldValue(Object field, Map<?, ?> values) {
+        String key = field.toString();
         return valueMapper.split(fromFieldValue(term(key), values.get(key)));
     }
 
     /**
      * Returns a field value to put in a map.
      */
-    Object putFieldValue(String key, Object value) {
-        return toFieldValue(term(key), value);
+    public Object putFieldValue(Map<String, Object> map, Object field, @Nullable Object value) {
+        String key = field.toString();
+        if (value == null) {
+            return map.computeIfPresent(key, this::computeFieldValueIfPresent);
+        } else if (map.containsKey(key)) {
+            return map.merge(key, value, mergeFieldValue(key));
+        } else {
+            return map.put(key, toFieldValue(term(key), value));
+        }
     }
 
     /**
      * Returns an operator for merging a non-{@literal null} value in a map.
      */
-    BinaryOperator<Object> mergeFieldValue(String key) {
+    private BinaryOperator<Object> mergeFieldValue(String key) {
         return (oldValue, input) -> {
             Objects.requireNonNull(input);
             String term = term(key);
@@ -223,7 +290,7 @@ public class BdioContext {
     /**
      * Returns the replacement value for a {@literal null} value in a map.
      */
-    Object computeFieldValueIfPresent(String key, Object oldValue) {
+    private Object computeFieldValueIfPresent(String key, Object oldValue) {
         String term = term(key);
         String container = context.getContainer(term);
         if (container == null || container.isEmpty() || container.equals(JsonLdConsts.NONE)) {
@@ -237,67 +304,54 @@ public class BdioContext {
      * Determines if this context is actually for a BDIO 1.x legacy format.
      */
     boolean isLegacyBdio() {
-        Object expandContext = options.getExpandContext();
         return Objects.equals(expandContext, Bdio.Context.VERSION_1_0.toString())
                 || Objects.equals(expandContext, Bdio.Context.VERSION_1_1.toString())
                 || Objects.equals(expandContext, Bdio.Context.VERSION_1_1_1.toString());
     }
 
     /**
-     * Tests to see if the specified fully qualified type should be embedded.
+     * Performs a reverse lookup for a term on a given IRI, failing if the term is not mapped.
      */
-    private boolean isEmbedded(Object type) {
-        if (type instanceof List<?>) {
-            return ((List<?>) type).stream().anyMatch(this::isEmbedded);
-        } else if (type instanceof String) {
-            return embeddedTypes.test((String) type);
-        } else {
-            return false;
-        }
+    private String term(String iri) {
+        return lookupTerm(iri).orElseThrow(illegalState("the current context does not support: %s", iri));
     }
 
     /**
-     * Performs a reverse lookup for a term on a given IRI.
+     * Returns a new builder from this context.
      */
-    private String term(String iri) {
-        Object definition = context.getInverse().get(iri);
-        if (definition instanceof Map<?, ?>) {
-            definition = ((Map<?, ?>) definition).values().iterator().next();
-            if (definition instanceof Map<?, ?>) {
-                definition = ((Map<?, ?>) definition).get(JsonLdConsts.TYPE);
-                if (definition instanceof Map<?, ?>) {
-                    return ((Map<?, ?>) definition).values().iterator().next().toString();
-                }
-            }
-        }
-        throw new IllegalStateException("the current context does not support: " + iri);
+    public Builder newBuilder() {
+        Builder builder = new Builder();
+        builder.valueMapper = valueMapper;
+        builder.documentLoader = documentLoader;
+        builder.embeddedTypes.addAll(embeddedTypes);
+        builder.base = base;
+        builder.expandContext = expandContext;
+        return builder;
     }
-
-    // TODO Replace with `context.getTypeMapping(property)`
-    @Nullable
-    private Object getTypeMapping(String property) {
-        try {
-            return contextGetTypeMapping.invoke(context, property);
-        } catch (ReflectiveOperationException e) {
-            return null;
-        }
-    }
-
-    // Basically we need a way to look at the context and say which values are classes, object properties or data
-    // properties...the BDIO elements are easy, but it needs to be configurable as well...
-    // That also lets us export a frame....
-    // Which has the embedded state...
-
-    // Right now we generate a frame using: `"@type" : [ "Foo", "Bar", "Gus" ]`
-    // But we should not include embedded types in that list!
-
-    // This should also have it's own value object mapper because we can use the context to populate everything in it
-
-    // This is also a replacement for BdioOptions, not something that co-exists
 
     public static final class Builder {
 
+        /**
+         * In memory standard document representations. Currently the standard documents consume ~20KB of memory.
+         */
+        private static ImmutableMap<String, String> STANDARD_DOCUMENTS;
+        static {
+            ImmutableMap.Builder<String, String> standardDocuments = ImmutableMap.builder();
+            for (Bdio.Context context : Bdio.Context.values()) {
+                try {
+                    standardDocuments.put(context.toString(), Resources.toString(context.resourceUrl(), UTF_8));
+                } catch (IOException e) {
+                    throw new UncheckedIOException("Failed to inject standard context", e);
+                }
+            }
+            STANDARD_DOCUMENTS = standardDocuments.build();
+        }
+
         private BdioValueMapper valueMapper;
+
+        private DocumentLoader documentLoader;
+
+        private final Set<String> embeddedTypes = new LinkedHashSet<>();
 
         @Nullable
         private String base;
@@ -305,10 +359,17 @@ public class BdioContext {
         @Nullable
         private Object expandContext;
 
-        private final Map<String, CharSource> injectedDocuments = new LinkedHashMap<>();
-
         public Builder() {
             valueMapper = StandardJavaValueMapper.getInstance();
+
+            documentLoader = new DocumentLoader();
+            STANDARD_DOCUMENTS.forEach(documentLoader::addInjectedDoc);
+
+            for (Bdio.Class bdioClass : Bdio.Class.values()) {
+                if (bdioClass.embedded()) {
+                    embeddedTypes.add(bdioClass.toString());
+                }
+            }
         }
 
         /**
@@ -320,10 +381,48 @@ public class BdioContext {
         }
 
         /**
+         * Injects a document at the specified URL for offline use.
+         */
+        public Builder injectDocument(String url, CharSequence content) {
+            documentLoader.addInjectedDoc(url, content.toString());
+            return this;
+        }
+
+        /**
+         * Supports "reverse injection" from an existing remote document.
+         * <p>
+         * Generally the document contents are already parsed JSON content, however this method will also accept
+         * document contents represented as a string of JSON data.
+         */
+        public Builder injectDocument(RemoteDocument document) {
+            String url = document.getDocumentUrl();
+            if (document.getDocument() instanceof CharSequence) {
+                // Avoid unnecessary JSON serialization
+                return injectDocument(url, (CharSequence) document.getDocument());
+            } else {
+                try {
+                    documentLoader.addInjectedDoc(url, JsonUtils.toString(document.getDocument()));
+                    return this;
+                } catch (IOException e) {
+                    throw new JsonLdError(JsonLdError.Error.LOADING_INJECTED_CONTEXT_FAILED, url, e);
+                }
+            }
+        }
+
+        /**
+         * Includes the specified fully qualified IRIs as "embedded types". Embedded types will not be included in
+         * framing, i.e. they more like complex values rather then types used on nodes in the "@graph" node list.
+         */
+        public Builder embeddedTypes(Collection<String> embeddedTypes) {
+            this.embeddedTypes.addAll(embeddedTypes);
+            return this;
+        }
+
+        /**
          * Specifies the base URI as a string. The base URI is used to relavitize identifiers.
          */
         public Builder base(@Nullable String base) {
-            if (base != null) {
+            if (base != null && !base.isEmpty()) {
                 URI baseUri = URI.create(base);
                 checkArgument(baseUri.isAbsolute() && !baseUri.isOpaque(), "base must be an absolute hierarchical URI: %s", base);
             }
@@ -345,51 +444,41 @@ public class BdioContext {
          * context, therefore requiring an explicit context).
          */
         public Builder expandContext(@Nullable Object expandContext) {
-            this.expandContext = normalizeExpandContext(expandContext);
-            return this;
-        }
-
-        /**
-         * Injects a document at the specified URL for offline use.
-         */
-        public Builder injectDocument(String url, CharSequence content) {
-            checkArgument(!injectedDocuments.containsKey(url), "already injected URL: %s", url);
-            injectedDocuments.put(url, CharSource.wrap(content));
-            return this;
-        }
-
-        /**
-         * Supports "reverse injection" from an existing remote document.
-         */
-        public Builder injectDocument(RemoteDocument document) {
-            String url = document.getDocumentUrl();
-            CharSource content;
-            if (document.getDocument() instanceof CharSequence) {
-                // Avoid unnecessary JSON serialization
-                content = CharSource.wrap((CharSequence) document.getDocument());
+            if (expandContext == null || expandContext instanceof String || expandContext instanceof Map<?, ?> || expandContext instanceof List<?>) {
+                // An explicit expand context, should only be used with plain JSON input
+                // TODO Recursively normalize, e.g. allow a list with a Bdio.Context instance?
+                this.expandContext = expandContext;
+            } else if (expandContext instanceof Bdio.Context) {
+                // A known BDIO context, perhaps the version number was sniffed from the content
+                this.expandContext = expandContext.toString();
+            } else if (expandContext instanceof Bdio.ContentType) {
+                // Defined by content type or file extension, cannot be JSON since we can't imply an actual context
+                checkArgument(expandContext != Bdio.ContentType.JSON, "the JSON content type leaves the expansion context undefined");
+                if (expandContext == Bdio.ContentType.JSONLD || expandContext == Bdio.ContentType.BDIO_ZIP) {
+                    // Any context information should be defined inside the document, no external context necessary
+                    this.expandContext = null;
+                } else if (expandContext == Bdio.ContentType.BDIO_JSON) {
+                    // Plain JSON with the assumption of the default BDIO context
+                    this.expandContext = Bdio.Context.DEFAULT.toString();
+                } else {
+                    throw new IllegalArgumentException("unknown content type: " + expandContext);
+                }
             } else {
-                content = new CharSource() {
-                    @Override
-                    public Reader openStream() throws IOException {
-                        return new StringReader(JsonUtils.toString(document.getDocument()));
-                    }
-                };
+                throw new IllegalArgumentException("expandContext must be a Bdio.ContentType, Bdio.Context, String, Map<String, Object> or a List<Object>");
             }
-            injectedDocuments.put(url, content);
             return this;
         }
 
         public BdioContext build() {
             return new BdioContext(this);
         }
-
     }
 
     /**
      * Returns a collector for JSON-LD serialization.
      */
     private static Collector<? super Object, ?, ?> jsonLdCollector(String container) {
-        if (container == null || container.isEmpty() || container.equals(JsonLdConsts.NONE)) {
+        if (container == null || container.isEmpty() || container.equals(JsonLdConsts.NONE) || container.equals(JsonLdConsts.ID)) {
             return Collectors.reducing(null, (a, b) -> a != null ? a : b);
         } else {
             return Collectors.collectingAndThen(Collectors.toList(), l -> {
@@ -400,52 +489,10 @@ public class BdioContext {
     }
 
     /**
-     * Normalizes an expansion context.
+     * Checks to see if something is a JSON-LD keyword.
      */
-    @Nullable
-    private static Object normalizeExpandContext(@Nullable Object expandContext) {
-        if (expandContext == null || expandContext instanceof String || expandContext instanceof Map<?, ?> || expandContext instanceof List<?>) {
-            // An explicit expand context, should only be used with plain JSON input
-            return expandContext;
-        } else if (expandContext instanceof Bdio.Context) {
-            // A known BDIO context, perhaps the version number was sniffed from the content
-            return expandContext.toString();
-        } else if (expandContext instanceof Bdio.ContentType) {
-            // Defined by content type or file extension, cannot be JSON since we can't imply an actual context
-            checkArgument(expandContext != Bdio.ContentType.JSON, "the JSON content type leaves the expansion context undefined");
-            if (expandContext == Bdio.ContentType.JSONLD || expandContext == Bdio.ContentType.BDIO_ZIP) {
-                // Any context information should be defined inside the document, no external context necessary
-                return null;
-            } else if (expandContext == Bdio.ContentType.BDIO_JSON) {
-                // Plain JSON with the assumption of the default BDIO context
-                return Bdio.Context.DEFAULT.toString();
-            } else {
-                throw new IllegalArgumentException("unknown content type: " + expandContext);
-            }
-        } else {
-            throw new IllegalArgumentException("expandContext must be a Bdio.ContentType, Bdio.Context, String, Map<String, Object> or a List<Object>");
-        }
-    }
-
-    /**
-     * Injects custom and standard remote documents into the supplied document loader.
-     */
-    private static void injectDocuments(DocumentLoader documentLoader, Map<String, CharSource> injectedDocuments) throws JsonLdError {
-        for (Map.Entry<String, CharSource> injectedDoc : injectedDocuments.entrySet()) {
-            try {
-                documentLoader.addInjectedDoc(injectedDoc.getKey(), injectedDoc.getValue().read());
-            } catch (IOException e) {
-                throw new JsonLdError(LOADING_INJECTED_CONTEXT_FAILED, injectedDoc.getKey(), e);
-            }
-        }
-
-        for (Bdio.Context context : Bdio.Context.values()) {
-            try {
-                documentLoader.addInjectedDoc(context.toString(), Resources.toString(context.resourceUrl(), UTF_8));
-            } catch (IOException e) {
-                throw new JsonLdError(LOADING_INJECTED_CONTEXT_FAILED, context.toString(), e);
-            }
-        }
+    private static boolean isKeyword(Object obj) {
+        return obj instanceof String && ((String) obj).startsWith("@");
     }
 
 }

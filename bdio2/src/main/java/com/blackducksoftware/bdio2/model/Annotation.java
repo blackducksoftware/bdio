@@ -20,6 +20,7 @@ import java.time.ZonedDateTime;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioObject;
 
 public class Annotation extends BdioObject {
@@ -29,17 +30,17 @@ public class Annotation extends BdioObject {
     }
 
     public Annotation comment(@Nullable String comment) {
-        putData(Bdio.DataProperty.comment, comment);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.comment, comment);
         return this;
     }
 
     public Annotation creator(@Nullable String creator) {
-        putData(Bdio.DataProperty.creator, creator);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.creator, creator);
         return this;
     }
 
     public Annotation creationDateTime(@Nullable ZonedDateTime creationDateTime) {
-        putData(Bdio.DataProperty.creationDateTime, creationDateTime);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.creationDateTime, creationDateTime);
         return this;
     }
 

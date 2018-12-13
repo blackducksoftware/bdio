@@ -17,12 +17,8 @@ package com.blackducksoftware.bdio2;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import java.time.ZonedDateTime;
-import java.util.List;
-
 import org.junit.Test;
 
-import com.blackducksoftware.common.value.Digest;
 import com.google.common.collect.ImmutableMap;
 
 /**
@@ -101,117 +97,6 @@ public class BdioObjectTest {
     @Test(expected = IllegalStateException.class)
     public void replaceIdentifierWithNonString() {
         new BdioObject(ImmutableMap.of("@id", 123)).id();
-    }
-
-    /**
-     * A default typed data property will be mapped directly.
-     */
-    @Test
-    public void putDefaultTypeDataProperty() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        bdioObject.putData(Bdio.DataProperty.name, "foobar");
-        assertThat(bdioObject).containsEntry(Bdio.DataProperty.name.toString(), "foobar");
-    }
-
-    /**
-     * A single valued data property will replace previous mappings.
-     */
-    @Test
-    public void putSingleDataProperty() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        bdioObject.putData(Bdio.DataProperty.name, "foo");
-        assertThat(bdioObject.putData(Bdio.DataProperty.name, "bar")).isEqualTo("bar");
-        assertThat(bdioObject).containsEntry(Bdio.DataProperty.name.toString(), "bar");
-    }
-
-    /**
-     * Putting a {@code null} single valued data property removes previous mapping.
-     */
-    @Test
-    public void putSingleDataPropertyNullValue() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        bdioObject.putData(Bdio.DataProperty.name, "foo");
-        assertThat(bdioObject.putData(Bdio.DataProperty.name, null)).isNull();
-        assertThat(bdioObject).doesNotContainKey(Bdio.DataProperty.name.toString());
-    }
-
-    /**
-     * A multivalued valued data property will append to previous mappings.
-     */
-    @Test
-    public void putMultivaluedDataProperty() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        bdioObject.putData(Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("123").build());
-        bdioObject.putData(Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("456").build());
-        bdioObject.putData(Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("789").build());
-        assertThat(bdioObject.get(Bdio.DataProperty.fingerprint.toString())).isInstanceOf(List.class);
-        assertThat((List<?>) bdioObject.get(Bdio.DataProperty.fingerprint.toString())).containsExactly(
-                ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:123"),
-                ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:456"),
-                ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:789"));
-    }
-
-    /**
-     * A {@code null} multivalued valued data property will not effect previous mappings.
-     */
-    @Test
-    public void putMultivaluedDataPropertyNullValue() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        bdioObject.putData(Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("123").build());
-        bdioObject.putData(Bdio.DataProperty.fingerprint, null);
-        assertThat((List<?>) bdioObject.get(Bdio.DataProperty.fingerprint.toString())).containsExactly(
-                ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:123"));
-
-        bdioObject.putData(Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("456").build());
-        bdioObject.putData(Bdio.DataProperty.fingerprint, null);
-        assertThat((List<?>) bdioObject.get(Bdio.DataProperty.fingerprint.toString())).containsExactly(
-                ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:123"),
-                ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:456"));
-    }
-
-    /**
-     * A date-time value is serialized as string in a value object.
-     */
-    @Test
-    public void putDateTimeTypeDataProperty() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        ZonedDateTime now = ZonedDateTime.now();
-        bdioObject.putData(Bdio.DataProperty.creationDateTime, now);
-        assertThat(bdioObject).containsEntry(Bdio.DataProperty.creationDateTime.toString(),
-                ImmutableMap.of("@type", Bdio.Datatype.DateTime.toString(), "@value", now.toString()));
-    }
-
-    /**
-     * A long value is serialized directly in a value object.
-     */
-    @Test
-    public void putLongTypeDataProperty() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        bdioObject.putData(Bdio.DataProperty.byteCount, 1L);
-        assertThat(bdioObject).containsEntry(Bdio.DataProperty.byteCount.toString(), 1L);
-    }
-
-    /**
-     * An object property produces a value object with a type of "@id".
-     */
-    @Test
-    public void putSingleObjectProperty() {
-        String currentVersionId = BdioObject.randomId();
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        bdioObject.putObject(Bdio.ObjectProperty.parent, currentVersionId);
-        assertThat(bdioObject).containsEntry(Bdio.ObjectProperty.parent.toString(),
-                ImmutableMap.of("@value", currentVersionId));
-    }
-
-    /**
-     * Putting a {@code null} single valued object property removes previous mapping.
-     */
-    @Test
-    public void putSingleObjectPropertyNullValue() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        bdioObject.putObject(Bdio.ObjectProperty.parent, BdioObject.randomId());
-        assertThat(bdioObject.putObject(Bdio.ObjectProperty.parent, null)).isNull();
-        assertThat(bdioObject).doesNotContainKey(Bdio.ObjectProperty.parent.toString());
     }
 
     /**

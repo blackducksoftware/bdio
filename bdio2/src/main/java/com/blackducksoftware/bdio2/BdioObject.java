@@ -78,6 +78,7 @@ public class BdioObject extends AbstractMap<String, Object> {
     /**
      * Returns a new random identifier.
      */
+    // TODO Deprecate this
     public static String randomId() {
         return ExtraUUIDs.toUriString(UUID.randomUUID());
     }
@@ -88,14 +89,14 @@ public class BdioObject extends AbstractMap<String, Object> {
     }
 
     @Override
-    public final Object put(String key, @Nullable Object value) {
-        Objects.requireNonNull(key, "key must not be null");
-        return value != null ? data.put(key, value) : data.remove(key);
+    public final Object get(@Nullable Object key) {
+        return data.get(key);
     }
 
     @Override
-    public final Object get(@Nullable Object key) {
-        return data.get(key);
+    public final Object put(String key, @Nullable Object value) {
+        Objects.requireNonNull(key, "key must not be null");
+        return value != null ? data.put(key, value) : data.remove(key);
     }
 
     /**
@@ -106,32 +107,6 @@ public class BdioObject extends AbstractMap<String, Object> {
         Object value = get(JsonLdConsts.ID);
         checkState(value == null || value instanceof String, "identifier is not mapped to a string");
         return ExtraStrings.beforeLast((String) value, '#');
-    }
-
-    /**
-     * Appends a new value to a data property, returning the new value or {@code null} if the property was not
-     * previously mapped and the supplied value is {@code null}.
-     */
-    protected final Object putData(Bdio.DataProperty property, @Nullable Object value) {
-        return putWithContext(property.toString(), value);
-    }
-
-    /**
-     * Appends a new identifier for a related object, returning the new value or {@code null} if the property was not
-     * previously mapped and the supplied value is {@code null}.
-     */
-    protected final Object putObject(Bdio.ObjectProperty property, @Nullable Object value) {
-        return putWithContext(property.toString(), value);
-    }
-
-    private Object putWithContext(String key, @Nullable Object value) {
-        if (value == null) {
-            return computeIfPresent(key, BdioContext.getActive()::computeFieldValueIfPresent);
-        } else if (containsKey(key)) {
-            return merge(key, value, BdioContext.getActive().mergeFieldValue(key));
-        } else {
-            return put(key, BdioContext.getActive().putFieldValue(key, value));
-        }
     }
 
 }

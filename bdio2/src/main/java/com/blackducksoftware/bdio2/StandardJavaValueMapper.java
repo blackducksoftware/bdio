@@ -20,10 +20,12 @@ import static java.util.Collections.emptyList;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.Temporal;
+import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
@@ -65,7 +67,11 @@ public class StandardJavaValueMapper implements BdioValueMapper {
         Object value = fieldValue.get(JsonLdConsts.VALUE);
         if (value != null) {
             Object type = fieldValue.get(JsonLdConsts.TYPE);
-            return fromValue(determineStandardType(type), value);
+            if (Objects.equals(type, JsonLdConsts.ID)) {
+                return value;
+            } else {
+                return fromValue(determineStandardType(type), value);
+            }
         }
 
         // Embedded object
@@ -83,10 +89,15 @@ public class StandardJavaValueMapper implements BdioValueMapper {
             } else if (id != null) {
                 // Reference object property
                 Map<String, Object> valueMap = new LinkedHashMap<>(3);
-                valueMap.put(JsonLdConsts.VALUE, id);
+                if (Objects.equals(definedType, JsonLdConsts.ID)) {
+                    valueMap.put(JsonLdConsts.ID, id);
+                } else {
+                    // TODO Is it ever the case where we want this?
+                    valueMap.put(JsonLdConsts.VALUE, id);
+                }
                 return valueMap;
             } else {
-                throw new IllegalArgumentException("unrecognized input: " + input.getClass().getName());
+                throw new IllegalArgumentException("unrecognized input (" + input.getClass().getName() + "): " + input);
             }
         } else {
             Object value = toValue(determineStandardType(definedType), input);
@@ -120,8 +131,8 @@ public class StandardJavaValueMapper implements BdioValueMapper {
 
     @Override
     public Stream<?> split(Object value) {
-        if (value instanceof List<?>) {
-            return ((List<?>) value).stream();
+        if (value instanceof Collection<?>) {
+            return ((Collection<?>) value).stream();
         } else {
             return Stream.of(value);
         }
@@ -156,7 +167,7 @@ public class StandardJavaValueMapper implements BdioValueMapper {
      * Given a JSON-LD container, returns the standard BDIO container.
      */
     protected Bdio.Container determineStandardContainer(@Nullable String container) {
-        if (container == null || container.isEmpty() || container.equals(JsonLdConsts.NONE)) {
+        if (container == null || container.isEmpty() || container.equals(JsonLdConsts.NONE) || container.equals(JsonLdConsts.ID)) {
             return Bdio.Container.single;
         } else if (container.equals(JsonLdConsts.LIST)) {
             return Bdio.Container.ordered;

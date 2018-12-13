@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2.model;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioObject;
 
 public final class Note extends BdioObject {
@@ -27,12 +28,12 @@ public final class Note extends BdioObject {
     }
 
     public Note range(@Nullable String range) {
-        putData(Bdio.DataProperty.range, range);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.range, range);
         return this;
     }
 
     public Note rights(@Nullable String rights) {
-        putData(Bdio.DataProperty.rights, rights);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.rights, rights);
         return this;
     }
 

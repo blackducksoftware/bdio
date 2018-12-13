@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2.model;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.common.value.ProductList;
 
@@ -28,42 +29,42 @@ public final class Repository extends BdioObject {
     }
 
     public Repository description(@Nullable Annotation description) {
-        putObject(Bdio.ObjectProperty.description, description);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.description, description);
         return this;
     }
 
     public Repository name(@Nullable String name) {
-        putData(Bdio.DataProperty.name, name);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.name, name);
         return this;
     }
 
     public Repository base(@Nullable File base) {
-        putObject(Bdio.ObjectProperty.base, base);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.base, base);
         return this;
     }
 
     public Repository dependency(Dependency dependency) {
-        putObject(Bdio.ObjectProperty.dependency, dependency);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.dependency, dependency);
         return this;
     }
 
     public Repository namespace(@Nullable String namespace) {
-        putData(Bdio.DataProperty.namespace, namespace);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.namespace, namespace);
         return this;
     }
 
     public Repository context(@Nullable String context) {
-        putData(Bdio.DataProperty.context, context);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.context, context);
         return this;
     }
 
     public Repository resolver(@Nullable ProductList resolver) {
-        putData(Bdio.DataProperty.resolver, resolver);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.resolver, resolver);
         return this;
     }
 
     public Repository platform(@Nullable ProductList platform) {
-        putData(Bdio.DataProperty.platform, platform);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.platform, platform);
         return this;
     }
 

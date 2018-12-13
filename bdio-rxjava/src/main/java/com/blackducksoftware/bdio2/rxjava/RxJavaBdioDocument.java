@@ -68,7 +68,7 @@ public class RxJavaBdioDocument extends BdioDocument {
 
     @Override
     public RxJavaJsonLdProcessing jsonLd(Publisher<Object> inputs) {
-        return new RxJavaJsonLdProcessing(Flowable.fromPublisher(inputs), context().options());
+        return new RxJavaJsonLdProcessing(Flowable.fromPublisher(inputs), context().jsonLdOptions());
     }
 
     @Override

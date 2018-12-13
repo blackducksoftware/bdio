@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2.model;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioObject;
 
 public final class Dependency extends BdioObject {
@@ -27,62 +28,62 @@ public final class Dependency extends BdioObject {
     }
 
     public Dependency dependsOn(@Nullable Object component) {
-        putObject(Bdio.ObjectProperty.dependsOn, component);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.dependsOn, component);
         return this;
     }
 
     public Dependency declaredBy(@Nullable File file) {
-        putObject(Bdio.ObjectProperty.declaredBy, file);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.declaredBy, file);
         return this;
     }
 
     public Dependency description(@Nullable Annotation description) {
-        putObject(Bdio.ObjectProperty.description, description);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.description, description);
         return this;
     }
 
     public Dependency evidence(@Nullable File file) {
-        putObject(Bdio.ObjectProperty.evidence, file);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.evidence, file);
         return this;
     }
 
     public Dependency license(@Nullable Object license) {
-        putObject(Bdio.ObjectProperty.license, license);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.license, license);
         return this;
     }
 
     public Dependency licenseConjunctive(@Nullable Object license) {
-        putObject(Bdio.ObjectProperty.licenseConjunctive, license);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseConjunctive, license);
         return this;
     }
 
     public Dependency licenseDisjunctive(@Nullable Object license) {
-        putObject(Bdio.ObjectProperty.licenseDisjunctive, license);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseDisjunctive, license);
         return this;
     }
 
     public Dependency licenseOrLater(@Nullable Object license) {
-        putObject(Bdio.ObjectProperty.licenseOrLater, license);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseOrLater, license);
         return this;
     }
 
     public Dependency namespace(@Nullable String namespace) {
-        putData(Bdio.DataProperty.namespace, namespace);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.namespace, namespace);
         return this;
     }
 
     public Dependency range(@Nullable String range) {
-        putData(Bdio.DataProperty.range, range);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.range, range);
         return this;
     }
 
     public Dependency requestedVersion(@Nullable String requestedVersion) {
-        putData(Bdio.DataProperty.requestedVersion, requestedVersion);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.requestedVersion, requestedVersion);
         return this;
     }
 
     public Dependency scope(@Nullable String scope) {
-        putData(Bdio.DataProperty.scope, scope);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.scope, scope);
         return this;
     }
 

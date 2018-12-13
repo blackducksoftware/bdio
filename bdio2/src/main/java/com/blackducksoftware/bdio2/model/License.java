@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2.model;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.common.value.ProductList;
 
@@ -28,47 +29,47 @@ public final class License extends BdioObject {
     }
 
     public License canonical(@Nullable License canonical) {
-        putObject(Bdio.ObjectProperty.canonical, canonical);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.canonical, canonical);
         return this;
     }
 
     public License description(@Nullable Annotation description) {
-        putObject(Bdio.ObjectProperty.description, description);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.description, description);
         return this;
     }
 
     public License licenseException(@Nullable License license) {
-        putObject(Bdio.ObjectProperty.licenseException, license);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseException, license);
         return this;
     }
 
     public License name(@Nullable String name) {
-        putData(Bdio.DataProperty.name, name);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.name, name);
         return this;
     }
 
     public License namespace(@Nullable String namespace) {
-        putData(Bdio.DataProperty.namespace, namespace);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.namespace, namespace);
         return this;
     }
 
     public License identifier(@Nullable String locator) {
-        putData(Bdio.DataProperty.identifier, locator);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.identifier, locator);
         return this;
     }
 
     public License context(@Nullable String context) {
-        putData(Bdio.DataProperty.context, context);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.context, context);
         return this;
     }
 
     public License resolver(@Nullable ProductList resolver) {
-        putData(Bdio.DataProperty.resolver, resolver);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.resolver, resolver);
         return this;
     }
 
     public License homepage(@Nullable String homepage) {
-        putData(Bdio.DataProperty.homepage, homepage);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.homepage, homepage);
         return this;
     }
 

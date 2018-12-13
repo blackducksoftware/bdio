@@ -154,7 +154,7 @@ public final class BdioMetadata extends BdioObject {
                     ProductList.Builder builder = new ProductList.Builder();
                     ProductList.from(context.fromFieldValue(key, publisher)).forEach(builder::mergeProduct);
                     ProductList.from(context.fromFieldValue(key, value)).forEach(builder::mergeProduct);
-                    putData(Bdio.DataProperty.publisher, builder.build());
+                    BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.publisher, builder.build());
                 } else {
                     // Establishes a new producer
                     put(key, value);
@@ -191,12 +191,12 @@ public final class BdioMetadata extends BdioObject {
      * Sets the display name for the named graph.
      */
     public BdioMetadata name(@Nullable String name) {
-        putData(Bdio.DataProperty.name, name);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.name, name);
         return this;
     }
 
     public BdioMetadata captureOptions(@Nullable List<String> captureOptions) {
-        putData(Bdio.DataProperty.captureOptions, captureOptions);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.captureOptions, captureOptions);
         return this;
     }
 
@@ -204,7 +204,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the interval over which the named graph was created.
      */
     public BdioMetadata captureInterval(@Nullable String captureInterval) {
-        putData(Bdio.DataProperty.captureInterval, captureInterval);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.captureInterval, captureInterval);
         return this;
     }
 
@@ -221,7 +221,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the time at which the named graph was created.
      */
     public BdioMetadata creationDateTime(@Nullable ZonedDateTime creation) {
-        putData(Bdio.DataProperty.creationDateTime, creation);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.creationDateTime, creation);
         return this;
     }
 
@@ -229,7 +229,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the identifier of the user and/or host who created the named graph.
      */
     public BdioMetadata creator(@Nullable String creator) {
-        putData(Bdio.DataProperty.creator, creator);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.creator, creator);
         return this;
     }
 
@@ -250,7 +250,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the platform (e.g. operating system) this named graph was captured from.
      */
     public BdioMetadata platform(@Nullable ProductList platform) {
-        putData(Bdio.DataProperty.platform, platform);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.platform, platform);
         return this;
     }
 
@@ -258,7 +258,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the publisher of the tool (or tools) that created the named graph.
      */
     public BdioMetadata publisher(@Nullable ProductList publisher) {
-        putData(Bdio.DataProperty.publisher, publisher);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.publisher, publisher);
         return this;
     }
 
@@ -266,7 +266,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the build details URL captured from the build environment.
      */
     public BdioMetadata buildDetails(@Nullable String buildDetails) {
-        putData(Bdio.DataProperty.buildDetails, buildDetails);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.buildDetails, buildDetails);
         return this;
     }
 
@@ -274,7 +274,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the build number captured from the build environment.
      */
     public BdioMetadata buildNumber(@Nullable String buildNumber) {
-        putData(Bdio.DataProperty.buildNumber, buildNumber);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.buildNumber, buildNumber);
         return this;
     }
 
@@ -282,7 +282,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the source repository URL captured from the build environment.
      */
     public BdioMetadata sourceRepository(@Nullable String sourceRepository) {
-        putData(Bdio.DataProperty.sourceRepository, sourceRepository);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.sourceRepository, sourceRepository);
         return this;
     }
 
@@ -290,7 +290,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the source repository revision identifier captured from the build environment.
      */
     public BdioMetadata sourceRevision(@Nullable String sourceRevision) {
-        putData(Bdio.DataProperty.sourceRevision, sourceRevision);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.sourceRevision, sourceRevision);
         return this;
     }
 
@@ -298,7 +298,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the source repository branch name captured from the build environment.
      */
     public BdioMetadata sourceBranch(@Nullable String sourceBranch) {
-        putData(Bdio.DataProperty.sourceBranch, sourceBranch);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.sourceBranch, sourceBranch);
         return this;
     }
 
@@ -306,7 +306,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the source repository tag captured from the build environment.
      */
     public BdioMetadata sourceTag(@Nullable String sourceTag) {
-        putData(Bdio.DataProperty.sourceTag, sourceTag);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.sourceTag, sourceTag);
         return this;
     }
 
