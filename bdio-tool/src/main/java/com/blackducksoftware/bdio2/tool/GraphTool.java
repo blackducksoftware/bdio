@@ -109,7 +109,7 @@ public class GraphTool extends Tool {
     /**
      * Used as the internal graph listener, just delegates to other listeners.
      */
-    private final class GraphToolGraphListener implements GraphListener {
+    private static final class GraphToolGraphListener implements GraphListener {
         private final List<GraphListener> delegates = new CopyOnWriteArrayList<>();
 
         @Override
@@ -248,7 +248,7 @@ public class GraphTool extends Tool {
             return;
         default:
             try {
-                setGraphListener(Class.forName(listener).asSubclass(GraphListener.class).newInstance());
+                setGraphListener(Class.forName(listener).asSubclass(GraphListener.class).getDeclaredConstructor().newInstance());
             } catch (ReflectiveOperationException e) {
                 throw new IllegalArgumentException("unable to create graph listener: " + listener, e);
             }
