@@ -13,28 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.blackducksoftware.bdio2.tinkerpop;
+package com.blackducksoftware.bdio2.tinkerpop.sqlg;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.TruthJUnit.assume;
-import static java.util.Collections.singleton;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.junit.Test;
+import org.umlg.sqlg.structure.PropertyType;
+import org.umlg.sqlg.structure.SchemaTable;
 import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.test.GraphRunner.GraphConfiguration;
+import com.blackducksoftware.bdio2.tinkerpop.BaseTest;
+import com.google.common.collect.ImmutableMap;
 
-public class SqlgNodeAccumulatorTest extends BaseTest {
+/**
+ * Tests for the {@code SqlgBlackDuckIoReader}.
+ *
+ * @author jgustie
+ */
+@GraphConfiguration("/sqlg.properties")
+public class SqlgBlackDuckIoReaderTest extends BaseTest {
 
-    public SqlgNodeAccumulatorTest(Configuration configuration) {
-        super(configuration);
+    public SqlgBlackDuckIoReaderTest(Graph graph) {
+        super(graph);
     }
 
     /**
@@ -74,38 +86,36 @@ public class SqlgNodeAccumulatorTest extends BaseTest {
     public void bulkAddEdgeWithPartition() {
         assume().that(graph).isInstanceOf(SqlgGraph.class);
         SqlgGraph sqlgGraph = (SqlgGraph) graph;
-        SqlgNodeAccumulator accumulator;
+        SchemaTable table = SchemaTable.from(sqlgGraph, "Test");
+        Pair<String, String> idFields = Pair.of(TT.id, TT.id);
+        Collection<Pair<String, String>> uids = Arrays.asList(Pair.of("foo", "bar"), Pair.of("bar", "gus"));
+        Map<String, PropertyType> edgeColumns = ImmutableMap.of(TT.partition, PropertyType.STRING);
 
         // Create the first partition and add the edges
-        accumulator = new SqlgNodeAccumulator(new GraphIoWrapperFactory()
-                .mapper(GraphMapper.build().tokens(testTokens(TT.id))::create)
-                .addStrategies(singleton(testPartition("a")))
-                .wrapReader(graph));
-
         sqlgGraph.addVertex(T.label, "Test", TT.partition, "a", TT.id, "foo");
         sqlgGraph.addVertex(T.label, "Test", TT.partition, "a", TT.id, "bar");
         sqlgGraph.addVertex(T.label, "Test", TT.partition, "a", TT.id, "gus");
         sqlgGraph.tx().commit();
 
+        // Bulk add the edges
         sqlgGraph.tx().streamingBatchModeOn();
-        accumulator.bulkAddEdges("Test", "Test", "test", Pair.of(TT.id, TT.id),
-                Arrays.asList(Pair.of("foo", "bar"), Pair.of("bar", "gus")), TT.partition, "a");
+        Map<String, Object> readPartitionsA = ImmutableMap.of(TT.partition, "a");
+        Map<String, Object> writePartitionA = ImmutableMap.of(TT.partition, "a");
+        new SqlgBlackDuckIoReader.BulkAddEdgeDialect(readPartitionsA)
+                .bulkAddEdges(sqlgGraph, table, table, "test", idFields, uids, edgeColumns, writePartitionA);
         sqlgGraph.tx().commit();
 
         // Create the second partition and add the edges
-        accumulator = new SqlgNodeAccumulator(new GraphIoWrapperFactory()
-                .mapper(GraphMapper.build().tokens(testTokens(TT.id))::create)
-                .addStrategies(singleton(testPartition("b")))
-                .wrapReader(graph));
-
         sqlgGraph.addVertex(T.label, "Test", TT.partition, "b", TT.id, "foo");
         sqlgGraph.addVertex(T.label, "Test", TT.partition, "b", TT.id, "bar");
         sqlgGraph.addVertex(T.label, "Test", TT.partition, "b", TT.id, "gus");
         sqlgGraph.tx().commit();
 
         sqlgGraph.tx().streamingBatchModeOn();
-        accumulator.bulkAddEdges("Test", "Test", "test", Pair.of(TT.id, TT.id),
-                Arrays.asList(Pair.of("foo", "bar"), Pair.of("bar", "gus")), TT.partition, "b");
+        Map<String, Object> readPartitionsB = ImmutableMap.of(TT.partition, "b");
+        Map<String, Object> writePartitionB = ImmutableMap.of(TT.partition, "b");
+        new SqlgBlackDuckIoReader.BulkAddEdgeDialect(readPartitionsB)
+                .bulkAddEdges(sqlgGraph, table, table, "test", idFields, uids, edgeColumns, writePartitionB);
         sqlgGraph.tx().commit();
 
         // At this point the non-partitioned implementation would have created 8 edges in the "b" partition:

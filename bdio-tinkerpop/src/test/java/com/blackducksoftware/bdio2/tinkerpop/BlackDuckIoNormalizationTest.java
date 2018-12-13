@@ -15,10 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import static com.blackducksoftware.common.base.ExtraStreams.stream;
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.common.truth.Truth8.assertThat;
-import static com.google.common.truth.TruthJUnit.assume;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.in;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.not;
@@ -27,27 +24,37 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import java.util.Objects;
 
-import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.junit.Test;
-import org.umlg.sqlg.structure.SqlgGraph;
-import org.umlg.sqlg.structure.topology.Schema;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.model.FileCollection;
 import com.blackducksoftware.bdio2.model.Project;
+import com.blackducksoftware.bdio2.test.GraphRunner.GraphConfiguration;
+import com.blackducksoftware.bdio2.tinkerpop.spi.BlackDuckIoNormalizationSpi;
+import com.blackducksoftware.bdio2.tinkerpop.spi.BlackDuckIoSpi;
 import com.blackducksoftware.bdio2.tinkerpop.test.NamedGraphBuilder;
 
-public class BlackDuckIoOperationsTest extends BaseTest {
+/**
+ * Tests for {@link BlackDuckIoNormalization}.
+ *
+ * @author jgustie
+ */
+@GraphConfiguration("/tinkergraph-core.properties")
+@GraphConfiguration("/sqlg-core.properties")
+public class BlackDuckIoNormalizationTest extends BaseTest {
 
-    public BlackDuckIoOperationsTest(Configuration configuration) {
-        super(configuration);
+    public BlackDuckIoNormalizationTest(Graph graph) {
+        super(graph);
+    }
+
+    // Instead of testing actual normalization, test the SPI so we can isolate the work
+    private static BlackDuckIoNormalizationSpi spi(BlackDuckIo bdio, GraphTraversalSource traversal) {
+        return BlackDuckIoSpi.getForGraph(traversal.getGraph()).normalization(traversal, bdio.options(), bdio.mapper().create().createMapper());
     }
 
     @Test
@@ -61,13 +68,9 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 .file(f -> f.path("file:///foo/bar/gus/two/more"))
                 .build();
 
-        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.implicit));
-        bdio.readGraph(inputStream);
-        if (graph instanceof SqlgGraph) {
-            new SqlgGraphReaderWrapper.SqlgAddMissingFileParentsOperation(bdio.readerWrapper()).run();
-        } else {
-            new BlackDuckIoOperations.AddMissingFileParentsOperation(bdio.readerWrapper()).run();
-        }
+        BlackDuckIo bdio = graph.io(testBdio());
+        bdio.readGraph(inputStream, null, null);
+        spi(bdio, graph.traversal().withStrategies(testImplicitConstant())).addMissingFileParents();
 
         GraphTraversalSource g = graph.traversal();
 
@@ -105,9 +108,9 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 .project(p -> {})
                 .build();
 
-        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.root, TT.implicit));
-        bdio.readGraph(inputStream);
-        new BlackDuckIoOperations.IdentifyRootOperation(bdio.readerWrapper()).run();
+        BlackDuckIo bdio = graph.io(testBdio(TT.Metadata, TT.root));
+        bdio.readGraph(inputStream, null, null);
+        spi(bdio, graph.traversal().withStrategies(testImplicitConstant())).identifyRoot();
 
         GraphTraversalSource g = graph.traversal();
         List<Vertex> roots = g.V().hasLabel(TT.Metadata).out(TT.root).toList();
@@ -128,9 +131,9 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 .relateToFirst(Project.class, Project::previousVersion)
                 .build();
 
-        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.root, TT.implicit));
-        bdio.readGraph(inputStream);
-        new BlackDuckIoOperations.IdentifyRootOperation(bdio.readerWrapper()).run();
+        BlackDuckIo bdio = graph.io(testBdio(TT.Metadata, TT.root));
+        bdio.readGraph(inputStream, null, null);
+        spi(bdio, graph.traversal().withStrategies(testImplicitConstant())).identifyRoot();
 
         GraphTraversalSource g = graph.traversal();
         List<Vertex> roots = g.V().hasLabel(TT.Metadata).out(TT.root).toList();
@@ -147,10 +150,11 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 .component(c -> c.name("test2"))
                 .build();
 
-        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.root, TT.implicit));
-        bdio.readGraph(inputStream);
-        new BlackDuckIoOperations.IdentifyRootOperation(bdio.readerWrapper()).run();
-        new BlackDuckIoOperations.AddMissingProjectDependenciesOperation(bdio.readerWrapper()).run();
+        BlackDuckIo bdio = graph.io(testBdio(TT.Metadata, TT.root));
+        bdio.readGraph(inputStream, null, null);
+        BlackDuckIoNormalizationSpi spi = spi(bdio, graph.traversal().withStrategies(testImplicitConstant()));
+        spi.identifyRoot();
+        spi.addMissingProjectDependencies();
 
         GraphTraversalSource g = graph.traversal();
         List<String> directDependencyNames = g.V().hasLabel(TT.Metadata)
@@ -176,15 +180,11 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 .file(f -> f.path("zip:file:%2F%2F%2Ffoo%2Fbar%2Ftest.zip#test.txt").encoding("UTF-8"))
                 .build();
 
-        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.root, TT.implicit));
-        bdio.readGraph(inputStream);
-        if (graph instanceof SqlgGraph) {
-            new SqlgGraphReaderWrapper.SqlgAddMissingFileParentsOperation(bdio.readerWrapper()).run();
-            new SqlgGraphReaderWrapper.SqlgImplyFileSystemTypeOperation(bdio.readerWrapper()).run();
-        } else {
-            new BlackDuckIoOperations.AddMissingFileParentsOperation(bdio.readerWrapper()).run();
-            new BlackDuckIoOperations.ImplyFileSystemTypeOperation(bdio.readerWrapper()).run();
-        }
+        BlackDuckIo bdio = graph.io(testBdio(TT.Metadata, TT.root));
+        bdio.readGraph(inputStream, null, null);
+        BlackDuckIoNormalizationSpi spi = spi(bdio, graph.traversal().withStrategies(testImplicitConstant()));
+        spi.addMissingFileParents();
+        spi.implyFileSystemTypes();
 
         GraphTraversalSource g = graph.traversal();
         List<Vertex> files = g.V().hasLabel(Bdio.Class.File.name()).toList();
@@ -221,15 +221,11 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 .file(f -> f.path("zip:file:%2F%2F%2Ffoo%2Fbar%2Ftest.zip#test.txt").encoding("UTF-8").fileSystemType(Bdio.FileSystemType.SYMLINK.toString()))
                 .build();
 
-        BlackDuckIoCore bdio = new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.root, TT.implicit));
-        bdio.readGraph(inputStream);
-        if (graph instanceof SqlgGraph) {
-            new SqlgGraphReaderWrapper.SqlgAddMissingFileParentsOperation(bdio.readerWrapper()).run();
-            new SqlgGraphReaderWrapper.SqlgImplyFileSystemTypeOperation(bdio.readerWrapper()).run();
-        } else {
-            new BlackDuckIoOperations.AddMissingFileParentsOperation(bdio.readerWrapper()).run();
-            new BlackDuckIoOperations.ImplyFileSystemTypeOperation(bdio.readerWrapper()).run();
-        }
+        BlackDuckIo bdio = graph.io(testBdio(TT.Metadata, TT.root));
+        bdio.readGraph(inputStream, null, null);
+        BlackDuckIoNormalizationSpi spi = spi(bdio, graph.traversal().withStrategies(testImplicitConstant()));
+        spi.addMissingFileParents();
+        spi.implyFileSystemTypes();
 
         GraphTraversalSource g = graph.traversal();
         List<Vertex> files = g.V().hasLabel(Bdio.Class.File.name()).toList();
@@ -250,55 +246,6 @@ public class BlackDuckIoOperationsTest extends BaseTest {
                 assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.SYMLINK.toString());
             } else if (path.equals("zip:file:%2F%2F%2Ffoo%2Fbar%2Ftest.zip#test.txt")) {
                 assertThat(fileSystemType.value()).isEqualTo(Bdio.FileSystemType.SYMLINK.toString());
-            }
-        }
-    }
-
-    @Test
-    public void sqlgSchemaInitialization() {
-        assume().that(graph).isInstanceOf(SqlgGraph.class);
-        new BlackDuckIoCore(graph)
-                .withTokens(testTokens(TT.Metadata, TT.root, TT.id))
-                .withStrategies(PartitionStrategy.build().partitionKey("test").writePartition("").create())
-                .initializeSchema(stream(GraphInitializer.Step.class).map(InitializationTester::new).toArray(GraphInitializer[]::new));
-    }
-
-    private static class InitializationTester implements GraphInitializer {
-        private final Step step;
-
-        private InitializationTester(Step step) {
-            this.step = Objects.requireNonNull(step);
-        }
-
-        @Override
-        public Step initializationStep() {
-            return step;
-        }
-
-        @Override
-        public void initialize(Graph graph) {
-            Schema publicSchema = ((SqlgGraph) graph).getTopology().getPublicSchema();
-            switch (step) {
-            case START:
-                assertThat(publicSchema.getVertexLabel(TT.Metadata)).isEmpty();
-                break;
-            case METADATA:
-                assertThat(publicSchema.getVertexLabel(TT.Metadata)).isPresent();
-                assertThat(publicSchema.getVertexLabel(Bdio.Class.Project.name())).isEmpty();
-                break;
-            case VERTEX:
-                assertThat(publicSchema.getVertexLabel(Bdio.Class.Project.name())).isPresent();
-                assertThat(publicSchema.getEdgeLabel(Bdio.ObjectProperty.base.name())).isEmpty();
-                break;
-            case EDGE:
-                assertThat(publicSchema.getEdgeLabel(TT.root)).isPresent();
-                assertThat(publicSchema.getEdgeLabel(Bdio.ObjectProperty.base.name())).isPresent();
-                break;
-            case FINISH:
-                // Nothing should have changed since EDGE by default
-                break;
-            default:
-                throw new IllegalStateException("unknown step: " + step);
             }
         }
     }

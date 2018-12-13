@@ -21,29 +21,32 @@ import static com.google.common.truth.Truth8.assertThat;
 import static org.apache.tinkerpop.gremlin.process.traversal.P.within;
 import static org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics.ELEMENT_COUNT_ID;
 
-import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.test.GraphRunner.GraphConfiguration;
 import com.blackducksoftware.bdio2.tinkerpop.BaseTest;
 import com.blackducksoftware.bdio2.tinkerpop.sqlg.step.SqlgGraphCountStep;
 
 /**
- * Tests for various Sqlg specific optimizations. Because this extends the base test, each test will run using the
- * Tinkergraph and using Sqlg; this allows us to verify the strategy only impacts Sqlg.
+ * Tests for various Sqlg specific optimizations. Each test will run using the TinkerGraph and using Sqlg; this allows
+ * us to verify the strategy only impacts Sqlg.
  *
  * @author jgustie
  */
+@GraphConfiguration("/tinkergraph-core.properties")
+@GraphConfiguration("/sqlg-core.properties")
 public class OptimizationTest extends BaseTest {
 
-    public OptimizationTest(Configuration configuration) {
-        super(configuration);
+    public OptimizationTest(Graph graph) {
+        super(graph);
     }
 
     @Test

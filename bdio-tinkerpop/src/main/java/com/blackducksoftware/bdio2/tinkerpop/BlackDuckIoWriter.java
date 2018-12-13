@@ -15,18 +15,15 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import static org.apache.tinkerpop.gremlin.process.traversal.P.without;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasNot;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.identity;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
-import java.util.Collection;
-import java.util.Map;
-import java.util.function.Function;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -36,10 +33,12 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.io.GraphWriter;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 
+import com.blackducksoftware.bdio2.BdioFrame;
 import com.blackducksoftware.bdio2.BdioWriter;
 import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
-import com.github.jsonldjava.core.JsonLdConsts;
+import com.blackducksoftware.bdio2.tinkerpop.spi.BlackDuckIoSpi;
+import com.blackducksoftware.bdio2.tinkerpop.spi.BlackDuckIoWriterSpi;
 
 import io.reactivex.Flowable;
 
@@ -50,51 +49,31 @@ import io.reactivex.Flowable;
  */
 public class BlackDuckIoWriter implements GraphWriter {
 
-    /**
-     * Function that applies a graph wrapper.
-     */
-    private final Function<Graph, GraphWriterWrapper> graphWrapper;
+    private final BlackDuckIoOptions options;
 
-    /**
-     * The number of nodes to generate before batching to the output stream.
-     */
+    private final BdioFrame frame;
+
     private final int batchSize;
 
     private BlackDuckIoWriter(Builder builder) {
-        graphWrapper = builder.wrapperFactory::wrapWriter;
-        batchSize = 1000;
+        options = Objects.requireNonNull(builder.options);
+        frame = builder.mapper.createMapper();
+        batchSize = builder.batchSize;
     }
 
-    /**
-     * Writes the supplied graph to one or more output streams (partitioning based on size).
-     *
-     * @param out
-     *            the supplier of output streams to write the graph to
-     * @param graph
-     *            the graph to write
-     * @throws IOException
-     *             if an error occurs writing the graph
-     * @see {@link #writeGraph(OutputStream, Graph)}
-     */
-    public void writeGraph(StreamSupplier out, Graph graph) throws IOException {
-        GraphWriterWrapper wrapper = graphWrapper.apply(graph);
-        RxJavaBdioDocument document = new RxJavaBdioDocument(wrapper.bdioOptions());
+    public void writeGraph(StreamSupplier out, List<TraversalStrategy<?>> strategies, Graph graph) throws IOException {
+        // Create a new BDIO document using the graph context
+        RxJavaBdioDocument document = new RxJavaBdioDocument(frame.context());
+
+        // The writer SPI allows for graph implementation specific optimizations
+        GraphTraversalSource g = graph.traversal().withStrategies(strategies.toArray(new TraversalStrategy<?>[strategies.size()]));
+        BlackDuckIoWriterSpi spi = BlackDuckIoSpi.getForGraph(graph).writer(g, options, frame);
 
         try {
-            Flowable.fromIterable(() -> wrapper.traversal().V()
-                    // Strip out the excluded labels
-                    .hasLabel(without(wrapper.mapper().excludedLabels()))
-
-                    // Strip out the implicit vertices since they weren't originally included
-                    .where(wrapper.mapper().implicitKey().map(propertyKey -> hasNot(propertyKey)).orElse(identity()))
-
-                    // Convert to JSON-LD
-                    .map(t -> createNode(t.get(), wrapper)))
-                    .doOnTerminate(wrapper::rollbackTx)
-
+            Flowable.fromPublisher(spi.retrieveCompactedNodes())
                     // TODO How do exceptions come through here?
                     .buffer(batchSize)
-                    .blockingSubscribe(document.write(wrapper.createMetadata(), out));
+                    .blockingSubscribe(document.write(spi.retrieveMetadata(), out));
         } catch (UncheckedIOException e) {
             // TODO We loose the stack of the unchecked wrapper: `e.getCause().addSuppressed(e)`?
             throw e.getCause();
@@ -106,7 +85,7 @@ public class BlackDuckIoWriter implements GraphWriter {
      */
     @Override
     public void writeGraph(OutputStream outputStream, Graph graph) throws IOException {
-        writeGraph(new BdioWriter.BdioFile(outputStream), graph);
+        writeGraph(new BdioWriter.BdioFile(outputStream), Collections.emptyList(), graph);
     }
 
     /**
@@ -157,67 +136,37 @@ public class BlackDuckIoWriter implements GraphWriter {
         throw new UnsupportedOperationException();
     }
 
-    /**
-     * Creates a JSON-LD node from a vertex (or multiple vertices in the case of embedded objects).
-     */
-    private Map<String, Object> createNode(Vertex vertex, GraphWriterWrapper wrapper) {
-        GraphMapper mapper = wrapper.mapper();
-        Map<String, Object> result = wrapper.getNodeProperties(vertex);
-
-        vertex.edges(Direction.OUT).forEachRemaining(e -> {
-            // Skip implicit edges
-            if (mapper.implicitKey().isPresent() && e.keys().stream().anyMatch(mapper.implicitKey().get()::equals)) {
-                return;
-            }
-
-            // Convert the in vertex to a reference
-            Vertex inVertex = e.inVertex();
-            Object ref;
-            if (mapper.isEmbeddedLabel(inVertex.label())) {
-                // Recursively create the entire node (without an '@id') for embedded types
-                ref = createNode(inVertex, wrapper);
-                ((Map<?, ?>) ref).remove(JsonLdConsts.ID);
-            } else {
-                // For non-embedded types we just need the identifier
-                ref = wrapper.generateId(inVertex);
-            }
-
-            // Store the result as a reference value object
-            Object valueObject = mapper.valueObjectMapper().toReferenceValueObject(ref);
-            if (valueObject != null) {
-                result.merge(e.label(), valueObject, wrapper::combine);
-            }
-        });
-
-        return result;
-    }
-
     public static Builder build() {
         return new Builder();
     }
 
     public static final class Builder implements WriterBuilder<BlackDuckIoWriter> {
 
-        private final GraphIoWrapperFactory wrapperFactory;
+        private Mapper<BdioFrame> mapper;
+
+        private BlackDuckIoOptions options;
+
+        private int batchSize;
 
         private Builder() {
-            wrapperFactory = new GraphIoWrapperFactory();
+            mapper = BlackDuckIoMapper.build().create();
+            options = BlackDuckIoOptions.build().create();
+            batchSize = 1000;
         }
 
-        public Builder mapper(Mapper<GraphMapper> mapper) {
-            wrapperFactory.mapper(mapper::createMapper);
+        public Builder mapper(Mapper<BdioFrame> mapper) {
+            this.mapper = Objects.requireNonNull(mapper);
+            return this;
+        }
+
+        public Builder options(BlackDuckIoOptions options) {
+            this.options = Objects.requireNonNull(options);
             return this;
         }
 
         // TODO Batch size...slightly different concept here as it applies to the node buffer size...
-
-        public Builder addStrategies(Collection<TraversalStrategy<?>> strategies) {
-            wrapperFactory.addStrategies(strategies);
-            return this;
-        }
-
-        public Builder base(String base) {
-            wrapperFactory.base(base);
+        public Builder batchSize(int batchSize) {
+            this.batchSize = batchSize;
             return this;
         }
 

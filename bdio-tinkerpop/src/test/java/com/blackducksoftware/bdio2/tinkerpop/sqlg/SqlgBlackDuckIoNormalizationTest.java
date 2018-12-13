@@ -13,40 +13,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.blackducksoftware.bdio2.tinkerpop;
+package com.blackducksoftware.bdio2.tinkerpop.sqlg;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth8.assertThat;
 import static com.google.common.truth.TruthJUnit.assume;
-import static java.util.Collections.singleton;
 
-import java.util.Arrays;
-
-import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.BdioContext;
+import com.blackducksoftware.bdio2.BdioFrame;
+import com.blackducksoftware.bdio2.test.GraphRunner.GraphConfiguration;
+import com.blackducksoftware.bdio2.tinkerpop.BaseTest;
+import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoOptions;
 
 /**
- * Tests for {@code SqlgGraphReaderWrapper}.
+ * Tests for {@code SqlgBlackDuckIoNormalization}.
  *
  * @author jgustie
  */
-public class SqlgGraphReaderWrapperTest extends BaseTest {
+@GraphConfiguration("/sqlg.properties")
+public class SqlgBlackDuckIoNormalizationTest extends BaseTest {
 
-    public SqlgGraphReaderWrapperTest(Configuration configuration) {
-        super(configuration);
+    public SqlgBlackDuckIoNormalizationTest(Graph graph) {
+        super(graph);
     }
 
     @Test
     public void addMissingFileParents_partitioned() {
         assume().that(graph).isInstanceOf(SqlgGraph.class);
         SqlgGraph sqlgGraph = (SqlgGraph) graph;
+        BlackDuckIoOptions options = BlackDuckIoOptions.build().create();
+        BdioFrame frame = new BdioFrame.Builder().context(BdioContext.getActive()).build();
+        GraphTraversalSource g = graph.traversal();
 
         Vertex projectA = sqlgGraph.addVertex(T.label, Bdio.Class.Project.name(),
                 TT.partition, "a");
@@ -56,15 +62,12 @@ public class SqlgGraphReaderWrapperTest extends BaseTest {
         projectA.addEdge(Bdio.ObjectProperty.base.name(), baseFileA, TT.partition, "a");
         sqlgGraph.addVertex(T.label, Bdio.Class.File.name(),
                 Bdio.DataProperty.path.name(), "file:///foo/bar/gus",
-                GraphMapper.FILE_PARENT_KEY, "file:///foo/bar",
+                options.fileParentKey().get(), "file:///foo/bar",
                 TT.partition, "a");
         sqlgGraph.tx().commit();
 
-        new SqlgGraphReaderWrapper.SqlgAddMissingFileParentsOperation(new GraphIoWrapperFactory()
-                .mapper(GraphMapper.build().tokens(testTokens(TT.implicit))::create)
-                .addStrategies(singleton(testPartition("a")))
-                .wrapReader(graph))
-                        .run();
+        SqlgBlackDuckIo.getInstance().normalization(graph.traversal().withStrategies(testImplicitConstant(), testPartition("a")), options, frame)
+                .addMissingFileParents();
 
         Vertex projectB = sqlgGraph.addVertex(T.label, Bdio.Class.Project.name(),
                 TT.partition, "b");
@@ -74,17 +77,12 @@ public class SqlgGraphReaderWrapperTest extends BaseTest {
         projectB.addEdge(Bdio.ObjectProperty.base.name(), baseFileB, TT.partition, "b");
         sqlgGraph.addVertex(T.label, Bdio.Class.File.name(),
                 Bdio.DataProperty.path.name(), "file:///foo/bar/gus",
-                GraphMapper.FILE_PARENT_KEY, "file:///foo/bar",
+                options.fileParentKey().get(), "file:///foo/bar",
                 TT.partition, "b");
         sqlgGraph.tx().commit();
 
-        new SqlgGraphReaderWrapper.SqlgAddMissingFileParentsOperation(new GraphIoWrapperFactory()
-                .mapper(GraphMapper.build().tokens(testTokens(TT.implicit))::create)
-                .addStrategies(singleton(testPartition("b")))
-                .wrapReader(graph))
-                        .run();
-
-        GraphTraversalSource g = graph.traversal();
+        SqlgBlackDuckIo.getInstance().normalization(graph.traversal().withStrategies(testImplicitConstant(), testPartition("b")), options, frame)
+                .addMissingFileParents();
 
         // Litmus test: there should only be 6 vertices and 4 edges!
         assertThat(g.V().hasLabel(Bdio.Class.File.name()).count().next()).isEqualTo(6);
@@ -97,6 +95,8 @@ public class SqlgGraphReaderWrapperTest extends BaseTest {
     public void implyFileSystemType_partitioned() {
         assume().that(graph).isInstanceOf(SqlgGraph.class);
         SqlgGraph sqlgGraph = (SqlgGraph) graph;
+        BlackDuckIoOptions options = BlackDuckIoOptions.build().create();
+        BdioFrame frame = new BdioFrame.Builder().context(BdioContext.getActive()).build();
         GraphTraversalSource g = graph.traversal();
 
         Vertex fileFooA = sqlgGraph.addVertex(T.label, Bdio.Class.File.name(),
@@ -113,11 +113,8 @@ public class SqlgGraphReaderWrapperTest extends BaseTest {
         fileBarA.addEdge(Bdio.ObjectProperty.parent.name(), fileFooA, TT.partition, "a");
         sqlgGraph.tx().commit();
 
-        new SqlgGraphReaderWrapper.SqlgImplyFileSystemTypeOperation(new GraphIoWrapperFactory()
-                .mapper(GraphMapper.build().tokens(testTokens(TT.implicit))::create)
-                .addStrategies(singleton(testPartition("a")))
-                .wrapReader(graph))
-                        .run();
+        SqlgBlackDuckIo.getInstance().normalization(graph.traversal().withStrategies(testImplicitConstant(), testPartition("a")), options, frame)
+                .implyFileSystemTypes();
 
         // Check the expected type and clear to make sure it doesn't come back on the next run
         assertThat(g.V(fileFooA).values(Bdio.DataProperty.fileSystemType.name()).next())
@@ -138,11 +135,8 @@ public class SqlgGraphReaderWrapperTest extends BaseTest {
         fileBarB.addEdge(Bdio.ObjectProperty.parent.name(), fileFooB, TT.partition, "b");
         sqlgGraph.tx().commit();
 
-        new SqlgGraphReaderWrapper.SqlgImplyFileSystemTypeOperation(new GraphIoWrapperFactory()
-                .mapper(GraphMapper.build().tokens(testTokens(TT.implicit))::create)
-                .addStrategies(singleton(testPartition("b")))
-                .wrapReader(graph))
-                        .run();
+        SqlgBlackDuckIo.getInstance().normalization(graph.traversal().withStrategies(testImplicitConstant(), testPartition("b")), options, frame)
+                .implyFileSystemTypes();
 
         // This should not have come back
         assertThat(g.V(fileFooA).values(Bdio.DataProperty.fileSystemType.name()).tryNext()).isEmpty();
@@ -154,6 +148,9 @@ public class SqlgGraphReaderWrapperTest extends BaseTest {
     public void addMissingFileParent_multipleReadPartitions() {
         assume().that(graph).isInstanceOf(SqlgGraph.class);
         SqlgGraph sqlgGraph = (SqlgGraph) graph;
+        BlackDuckIoOptions options = BlackDuckIoOptions.build().create();
+        BdioFrame frame = new BdioFrame.Builder().context(BdioContext.getActive()).build();
+        GraphTraversalSource g = graph.traversal();
 
         Vertex projectA = sqlgGraph.addVertex(T.label, Bdio.Class.Project.name(),
                 "p1", "a", "p2", "1");
@@ -163,19 +160,15 @@ public class SqlgGraphReaderWrapperTest extends BaseTest {
         projectA.addEdge(Bdio.ObjectProperty.base.name(), baseFileA, TT.partition, "a");
         sqlgGraph.addVertex(T.label, Bdio.Class.File.name(),
                 Bdio.DataProperty.path.name(), "file:///foo/bar/gus",
-                GraphMapper.FILE_PARENT_KEY, "file:///foo/bar",
+                options.fileParentKey().get(), "file:///foo/bar",
                 "p1", "a", "p2", "2");
         sqlgGraph.tx().commit();
 
-        new SqlgGraphReaderWrapper.SqlgAddMissingFileParentsOperation(new GraphIoWrapperFactory()
-                .mapper(GraphMapper.build().tokens(testTokens(TT.implicit))::create)
-                .addStrategies(Arrays.asList(
-                        PartitionStrategy.build().partitionKey("p1").writePartition("a").readPartitions("a").create(),
-                        PartitionStrategy.build().partitionKey("p2").writePartition("3").readPartitions("1", "2", "3").create()))
-                .wrapReader(graph))
-                        .run();
+        SqlgBlackDuckIo.getInstance().normalization(graph.traversal().withStrategies(testImplicitConstant(),
+                PartitionStrategy.build().partitionKey("p1").writePartition("a").readPartitions("a").create(),
+                PartitionStrategy.build().partitionKey("p2").writePartition("3").readPartitions("1", "2", "3").create()), options, frame)
+                .addMissingFileParents();
 
-        GraphTraversalSource g = graph.traversal();
         assertThat(g.V().hasLabel(Bdio.Class.File.name()).count().next()).isEqualTo(3);
         assertThat(g.E().hasLabel(Bdio.ObjectProperty.parent.name()).count().next()).isEqualTo(2);
         assertThat(g.V().has(Bdio.Class.File.name(), Bdio.DataProperty.path.name(), "file:///foo").values("p2").next()).isEqualTo("1");
