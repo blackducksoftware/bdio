@@ -33,6 +33,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
+import com.blackducksoftware.bdio2.tool.GraphTool.GraphListener;
 import com.blackducksoftware.bdio2.tool.linter.Linter;
 import com.blackducksoftware.bdio2.tool.linter.Linter.CompletedGraphRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.LT;
@@ -79,8 +80,17 @@ public class LintTool extends AbstractGraphTool {
         super(name);
         rules = Linter.loadAllRules().collect(toMap(r -> r.getClass().getSimpleName(), r -> r));
         violations = new ArrayList<>();
-        graphTool().onGraphLoaded(g -> g.V().forEachRemaining(this::executeWithLoadedGraph));
-        graphTool().onGraphInitialized(this::executeWithCompletedGraph);
+        graphTool().setGraphListener(new GraphListener() {
+            @Override
+            public void onGraphLoaded(GraphTraversalSource g) {
+                g.V().forEachRemaining(LintTool.this::executeWithLoadedGraph);
+            }
+
+            @Override
+            public void onGraphInitialized(GraphTraversalSource g) {
+                executeWithCompletedGraph(g);
+            }
+        });
         graphTool().setProperty("bdio.metadataLabel", LT._Metadata.name());
         graphTool().setProperty("bdio.rootLabel", LT._root.name());
         graphTool().setProperty("bdio.identifierKey", LT._id.name());
@@ -135,7 +145,7 @@ public class LintTool extends AbstractGraphTool {
             Stopwatch readTimer = Stopwatch.createStarted();
             for (Map.Entry<URI, ByteSource> input : graphTool().getInputs().entrySet()) {
                 BdioContext.Builder context = new BdioContext.Builder();
-                graphTool().getExpandContext(input.getKey()).ifPresent(context::expandContext);
+                context.expandContext(graphTool().getExpandContext(input.getKey()));
                 RxJavaBdioDocument doc = new RxJavaBdioDocument(context.build());
                 doc.jsonLd(doc.read(input.getValue().openStream()))
                         .expand().flatMapIterable(x -> x)
