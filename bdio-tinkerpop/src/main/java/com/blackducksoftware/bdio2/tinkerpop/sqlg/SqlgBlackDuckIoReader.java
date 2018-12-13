@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
@@ -324,7 +325,7 @@ final class SqlgBlackDuckIoReader extends BlackDuckIoReaderSpi {
             byte bytes[] = new byte[6];
             random.nextBytes(bytes);
             String tempTableName = (dialect.needsTemporaryTablePrefix() ? dialect.temporaryTablePrefix() : "") + Base64.getEncoder().encodeToString(bytes);
-            StringBuilder sql = new StringBuilder();
+            SqlgQueryBuilder sql = new SqlgQueryBuilder(dialect);
 
             // We cannot have an empty property map after we remove our GROUP BY key
             Map<String, PropertyColumn> properties = new LinkedHashMap<>(graph().getTopology().getPropertiesFor(table));
@@ -341,82 +342,60 @@ final class SqlgBlackDuckIoReader extends BlackDuckIoReaderSpi {
                         dialect.valueToValuesString(properties.get(k).getPropertyType(), v));
             }, false);
 
-            sql.setLength(0);
+            sql.clear();
             sql.append(dialect.createTemporaryTableStatement())
-                    .append(dialect.maybeWrapInQoutes(tempTableName))
+                    .maybeWrapInQuotes(tempTableName)
                     .append(" ON COMMIT DROP AS (")
-                    .append("\nSELECT ")
-                    .append("\n  first(").append(dialect.maybeWrapInQoutes(Topology.ID)).append(") AS ").append(dialect.maybeWrapInQoutes(Topology.ID))
-                    .append(",")
-                    .append("\n  ").append(dialect.maybeWrapInQoutes(options().identifierKey().get())).append(",")
-                    .append(properties.keySet().stream().map(k -> new StringBuilder()
-                            .append("\n  first(")
-                            .append(dialect.maybeWrapInQoutes(k))
-                            .append(") AS ")
-                            .append(dialect.maybeWrapInQoutes(k)))
-                            .collect(joining(", ")))
+                    .append("\nSELECT \n  ")
+                    .maybeWrapInQuotes(options().identifierKey().get())
+                    .forEachAppend(Stream.concat(Stream.of(Topology.ID), properties.keySet().stream()),
+                            (k, s) -> s.append("first(").maybeWrapInQuotes(k).append(") AS ").maybeWrapInQuotes(k),
+                            ",\n  ", ",\n  ", "")
                     .append("\nFROM (SELECT * FROM ")
-                    .append(dialect.maybeWrapInQoutes(table.getTable()))
-                    .append(partitions.isEmpty()
-                            ? ""
-                            : partitions.entrySet().stream()
-                                    .map(e -> e.getKey() + " = " + e.getValue())
-                                    .collect(joining(" AND ", " WHERE ", "")))
+                    .maybeWrapInQuotes(table.getTable())
+                    .forEachAppend(partitions.entrySet().stream(),
+                            (e, s) -> s.append(e.getKey()).append(" = ").append(e.getValue()),
+                            " AND ", " WHERE ", "")
                     .append(" ORDER BY ")
-                    .append(dialect.maybeWrapInQoutes(options().identifierKey().get()))
+                    .maybeWrapInQuotes(options().identifierKey().get())
                     .append(", ")
-                    .append(dialect.maybeWrapInQoutes(Topology.ID))
+                    .maybeWrapInQuotes(Topology.ID)
                     .append(") t GROUP BY ")
-                    .append(dialect.maybeWrapInQoutes(options().identifierKey().get()))
+                    .maybeWrapInQuotes(options().identifierKey().get())
                     .append(" HAVING COUNT(1) > 1\n) WITH DATA")
-                    .append(dialect.needsSemicolon() ? ";" : "");
+                    .semicolon();
             String createTempTableQuery = sql.toString();
 
-            sql.setLength(0);
+            sql.clear();
             sql.append("DELETE FROM ")
-                    .append(dialect.maybeWrapInQoutes(table.getTable()))
+                    .maybeWrapInQuotes(table.getTable())
                     .append(" USING ")
-                    .append(dialect.maybeWrapInQoutes(tempTableName))
+                    .maybeWrapInQuotes(tempTableName)
                     .append(" WHERE ")
-                    .append(dialect.maybeWrapInQoutes(table.getTable()))
-                    .append(".")
-                    .append(dialect.maybeWrapInQoutes(options().identifierKey().get()))
+                    .qualify(table.getTable(), options().identifierKey().get())
                     .append(" = ")
-                    .append(dialect.maybeWrapInQoutes(tempTableName))
-                    .append(".")
-                    .append(dialect.maybeWrapInQoutes(options().identifierKey().get()))
-                    .append(partitions.isEmpty()
-                            ? ""
-                            : partitions.entrySet().stream()
-                                    .map(e -> dialect.maybeWrapInQoutes(table.getTable())
-                                            + "."
-                                            + e.getKey() + " = " + e.getValue()
-                                            + " AND "
-                                            + dialect.maybeWrapInQoutes(tempTableName)
-                                            + "."
-                                            + e.getKey() + " = " + e.getValue())
-                                    .collect(joining(" AND ", " AND ", "")))
-                    .append(dialect.needsSemicolon() ? ";" : "");
+                    .qualify(tempTableName, options().identifierKey().get())
+                    .forEachAppend(partitions.entrySet().stream(),
+                            (e, s) -> s.qualify(table.getTable(), e.getKey()).append(" = ").append(e.getValue()),
+                            " AND ", " AND ", "")
+                    .forEachAppend(partitions.entrySet().stream(),
+                            (e, s) -> s.qualify(tempTableName, e.getKey()).append(" = ").append(e.getValue()),
+                            " AND ", " AND ", "")
+                    .semicolon();
             String deleteQuery = sql.toString();
 
-            sql.setLength(0);
+            sql.clear();
             sql.append("INSERT INTO ")
-                    .append(dialect.maybeWrapInQoutes(table.getTable()))
+                    .maybeWrapInQuotes(table.getTable())
                     .append(" (")
-                    .append(dialect.maybeWrapInQoutes(Topology.ID))
-                    .append(", ")
-                    .append(dialect.maybeWrapInQoutes(options().identifierKey().get()))
-                    .append(", ")
-                    .append(properties.keySet().stream().map(dialect::maybeWrapInQoutes).collect(joining(", ")))
+                    .maybeWrapInQuotes(options().identifierKey().get(), Topology.ID)
+                    .forEachAppend(properties.keySet().stream(), (k, s) -> s.maybeWrapInQuotes(k), ", ", ", ", "")
                     .append(") SELECT ")
-                    .append(dialect.maybeWrapInQoutes(Topology.ID))
-                    .append(", ")
-                    .append(dialect.maybeWrapInQoutes(options().identifierKey().get()))
-                    .append(", ")
-                    .append(properties.keySet().stream().map(dialect::maybeWrapInQoutes).collect(joining(", ")))
+                    .maybeWrapInQuotes(options().identifierKey().get(), Topology.ID)
+                    .forEachAppend(properties.keySet().stream(), (k, s) -> s.maybeWrapInQuotes(k), ", ", ", ", "")
                     .append(" FROM ")
-                    .append(dialect.maybeWrapInQoutes(tempTableName))
-                    .append(dialect.needsSemicolon() ? ";" : "");
+                    .maybeWrapInQuotes(tempTableName)
+                    .semicolon();
             String insertQuery = sql.toString();
 
             Connection connection = graph().tx().getConnection();
@@ -445,10 +424,10 @@ final class SqlgBlackDuckIoReader extends BlackDuckIoReaderSpi {
                         while (i.hasNext()) {
                             Multiset.Entry<SchemaTable> e = i.next();
                             if (e.getCount() > 10_000) {
-                                StringBuilder sql = new StringBuilder();
-                                sql.append("VACUUM ANALYZE ")
-                                        .append(dialect.maybeWrapInQoutes(e.getElement().getTable()))
-                                        .append(dialect.needsSemicolon() ? ";" : "");
+                                SqlgQueryBuilder sql = new SqlgQueryBuilder(dialect)
+                                        .append("VACUUM ANALYZE ")
+                                        .maybeWrapInQuotes(e.getElement().getTable())
+                                        .semicolon();
                                 statement.execute(sql.toString());
                                 i.remove();
                             }
