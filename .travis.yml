@@ -28,3 +28,14 @@ before_install:
 install: ./gradlew -I gradle/travis.gradle assemble
 script: ./gradlew -I gradle/travis.gradle check
 after_success: ./gradlew -I gradle/travis.gradle publish
+
+deploy:
+  provider: releases
+  api_key:
+    secure: "Cx/FxMczA181nMQ4ZInKHEjygRhqer5BalE0OctdGCodM/5Fy9U5rOjZLdNlwtFN4zNy/6IozqOIhnXm3uHEvMFnS1phk3wHTtTpJCMctMIJxZQGXetvHqCZbYpnkPG+8WBFG8XGrO7/28tmpoTIH7584svSjDGge88Lv2PfEkZ47zCe04Wiwe7LWDXFF4Soil9MmeZEYMup1qcLIBesCFJCTN0gl3f4GCMD1zIKd0rfxKVWJ5T6kjLeUBfIfJMqQuuUXMCix8bufRE/3oqhEH8Cb4L5wHN6Pblxmdb82PVFrMQhjlNW5/CDkQ12hMUPZiLh25TmXle1z826n1Xga1KtbtiS9GWBHzrRAZgB865CfPqAdFqXRHN4/nvZGb0JnXnsRw3dVOhLTQLdeO3+ba0dUMlOEgBYZhEAesQcHCvdpNEya6o3G0jJcHh0Kg1R/LQQkM7kwciBiraSnmNaeDx5WOqL0QvXFMbol68lNAkFvn4kz4pLB3IN35A/dJSaRk8C6Y8mXoAeNRGE/ZxGJym//yAyuBMsPc1XjzWovKBVlFLkC47M0p33yjkivtVnOHW/RF3iUP9ULyL2orbIquWxBjqWzgmduyCacf1WCdr6bYMLvjYY4h+QZ/9TMUJzvk1kwJ5dsQx4ERuUQ/wed4suR/yfaT/jMC0kZzFbhbo="
+  file:
+    - "bdio-libraries/bdio-tool/build/distributions/bdio-$TRAVIS_TAG.zip"
+    - "bdio-libraries/bdio-tool/build/distributions/bdio-$TRAVIS_TAG.tar"
+  skip_cleanup: true
+  on:
+    tags: true
