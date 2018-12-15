@@ -15,6 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tool;
 
+import static com.blackducksoftware.common.base.ExtraStrings.ensureSuffix;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.stream.Collectors.joining;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.as;
@@ -372,7 +373,7 @@ public class TreeTool extends AbstractFileTool {
         // TODO How do we do "*" for executable?
         switch (fileSystemType) {
         case DIRECTORY:
-            return pathname.equals("/") ? pathname : pathname + '/';
+            return ensureSuffix(pathname, "/");
         case SYMLINK:
             return pathname + '@';
         case OTHER_SOCKET:

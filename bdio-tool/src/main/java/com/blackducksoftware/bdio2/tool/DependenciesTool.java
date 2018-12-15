@@ -298,6 +298,9 @@ public class DependenciesTool extends AbstractGraphTool {
             } else if (arg.startsWith("-L=")) {
                 optionValue(arg).map(Integer::valueOf).ifPresent(this::setLevel);
                 args = removeFirst(arg, args);
+            } else if (arg.equals("--noreport")) {
+                setNoReport(true);
+                args = removeFirst(arg, args);
             }
         }
         return super.parseArguments(args);
