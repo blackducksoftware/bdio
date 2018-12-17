@@ -34,8 +34,8 @@ deploy:
   api_key:
     secure: "htUa59FiJ5QpeOmGHS/kfYNehBMlB8kx03T494WOENjiGIxSd+TM/X9WM4Tm3N74y20qalEofhRagMzutQ7vYZg6Bj1l1InP8OzKIokRk7hZJAwAhe+05Df/OrOGGZuyyccVB+NhdysAmU8lPDYoZX1uTexSb0/+TeeLubN0UzQ3QyjQ2OKaH5vU0pBAvH+4zpenH6HrX86BBdQYfz4ewug+pUKWBMGHFYjjAv0Vridr1HVR6qHumXm0I4wRlxe1bbgXe2AYevjvvBmM2eGT1TSAecFxDwCjQf5FTju1rbnHJVfZOHnapqZqwNiBp3zB8NRJyppanxBLzs+1LUiwtZt2h4JRCjz17QhSn0vhAF4KJrX/GZ7lzRYdH+TIl52nXQLS7wQv7DuOcJvQZtXAd3SXK0HjLE6mm3bbEF/5b5LyererOe15+vmLiwItSCaQ94E/hW1jZ3jQaMRzvV87UpmJjvhwTpA1mVsybN0ZyryuxHtEnKCfw/SBVJUoF+5Uop4vlrfYqSzU5dgXwlP16sRFzT0iZVvPpRmf9sjBMMs+OOal5X9vl+Gu9fSHh6SBP/uolYqcV5W3yvtdab5rdoHBGrLXao5yytZ0dYtuj01QpmpGxBX5wOeB6kKzM5HuoD+NuGnDkCYVvwT+NGJwFxctVxOYWSyQXboSEHaINyg="
   file:
-    - "bdio-libraries/bdio-tool/build/distributions/bdio-$TRAVIS_TAG.zip"
-    - "bdio-libraries/bdio-tool/build/distributions/bdio-$TRAVIS_TAG.tar"
+    - "bdio-tool/build/distributions/bdio-$TRAVIS_TAG.zip"
+    - "bdio-tool/build/distributions/bdio-$TRAVIS_TAG.tar"
   skip_cleanup: true
   on:
     tags: true
