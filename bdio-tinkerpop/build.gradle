@@ -4,6 +4,7 @@ dependencies {
 	compile project(':bdio-rxjava')
 	compile 'com.blackducksoftware.magpie:magpie'
 	compile 'org.apache.tinkerpop:gremlin-core'
+	compile 'org.flywaydb:flyway-core'
 	compile 'org.umlg:sqlg-postgres'
 
 	testCompile project(':bdio-test')

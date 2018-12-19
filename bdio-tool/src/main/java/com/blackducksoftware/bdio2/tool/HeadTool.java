@@ -24,10 +24,8 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.BdioDocument;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioMetadata;
-import com.blackducksoftware.bdio2.BdioOptions;
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.io.ByteSource;
@@ -97,10 +95,10 @@ public class HeadTool extends Tool {
     @Override
     protected void execute() throws Exception {
         checkState(!inputs.isEmpty(), "input is not set");
-        RxJavaBdioDocument document = new RxJavaBdioDocument(new BdioOptions.Builder().build());
+        RxJavaBdioDocument document = new RxJavaBdioDocument(new BdioContext.Builder().build());
         Flowable.fromIterable(inputs)
                 .map(ByteSource::openStream)
-                .map(in -> document.metadata(document.read(in).takeUntil((Predicate<Object>) BdioDocument::needsMoreMetadata))
+                .map(in -> document.metadata(document.read(in).takeUntil((Predicate<Object>) document::needsMoreMetadata))
                         .reduceWith(BdioMetadata::new, BdioMetadata::merge).blockingGet())
                 .subscribe(this::printMetadata)
                 .isDisposed();
@@ -134,8 +132,7 @@ public class HeadTool extends Tool {
     }
 
     private static Object formatValue(String key, Object value) {
-        ValueObjectMapper valueObjectMapper = ValueObjectMapper.getContextValueObjectMapper();
-        return valueObjectMapper.fromFieldValue(key, value);
+        return BdioContext.getActive().fromFieldValue(key, value);
     }
 
 }

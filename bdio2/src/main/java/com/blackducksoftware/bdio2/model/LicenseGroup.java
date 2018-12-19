@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2.model;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioObject;
 
 public class LicenseGroup extends BdioObject {
@@ -27,27 +28,27 @@ public class LicenseGroup extends BdioObject {
     }
 
     public LicenseGroup description(@Nullable Annotation description) {
-        putObject(Bdio.ObjectProperty.description, description);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.description, description);
         return this;
     }
 
     public LicenseGroup license(@Nullable License license) {
-        putObject(Bdio.ObjectProperty.license, license);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.license, license);
         return this;
     }
 
     public LicenseGroup licenseConjunctive(@Nullable License license) {
-        putObject(Bdio.ObjectProperty.licenseConjunctive, license);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseConjunctive, license);
         return this;
     }
 
     public LicenseGroup licenseDisjunctive(@Nullable License license) {
-        putObject(Bdio.ObjectProperty.licenseDisjunctive, license);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseDisjunctive, license);
         return this;
     }
 
     public LicenseGroup licenseOrLater(@Nullable License license) {
-        putObject(Bdio.ObjectProperty.licenseOrLater, license);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseOrLater, license);
         return this;
     }
 

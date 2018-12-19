@@ -27,7 +27,6 @@ import javax.annotation.Nullable;
 import org.reactivestreams.Publisher;
 
 import com.blackducksoftware.bdio2.BdioDocument;
-import com.blackducksoftware.bdio2.BdioOptions;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
@@ -51,9 +50,9 @@ public class RxJavaJsonLdProcessing implements BdioDocument.JsonLdProcessing {
      */
     private static abstract class JsonLdProcessorTransformer<R> implements FlowableTransformer<Object, R> {
 
-        private final BdioOptions options;
+        private final JsonLdOptions options;
 
-        protected JsonLdProcessorTransformer(BdioOptions options) {
+        protected JsonLdProcessorTransformer(JsonLdOptions options) {
             this.options = Objects.requireNonNull(options);
         }
 
@@ -62,7 +61,7 @@ public class RxJavaJsonLdProcessing implements BdioDocument.JsonLdProcessing {
             // Use flat map so we can propagate the checked JSON-LD error cleanly
             return inputs.flatMap(input -> {
                 try {
-                    return Flowable.just(applyOnce(input, options.jsonLdOptions()));
+                    return Flowable.just(applyOnce(input, options));
                 } catch (JsonLdError e) {
                     return Flowable.error(e);
                 }
@@ -88,7 +87,7 @@ public class RxJavaJsonLdProcessing implements BdioDocument.JsonLdProcessing {
     private static class CompactTransformer extends JsonLdProcessorTransformer<Map<String, Object>> {
         private final Object context;
 
-        private CompactTransformer(Object context, BdioOptions options) {
+        private CompactTransformer(Object context, JsonLdOptions options) {
             super(options);
             this.context = Objects.requireNonNull(context);
         }
@@ -103,7 +102,7 @@ public class RxJavaJsonLdProcessing implements BdioDocument.JsonLdProcessing {
      * @see RxJavaJsonLdProcessing#expand()
      */
     private static class ExpandTransformer extends JsonLdProcessorTransformer<List<Object>> {
-        private ExpandTransformer(BdioOptions options) {
+        private ExpandTransformer(JsonLdOptions options) {
             super(options);
         }
 
@@ -129,7 +128,7 @@ public class RxJavaJsonLdProcessing implements BdioDocument.JsonLdProcessing {
         @Nullable
         private final Object context;
 
-        private FlattenTransformer(@Nullable Object context, BdioOptions options) {
+        private FlattenTransformer(@Nullable Object context, JsonLdOptions options) {
             super(options);
             this.context = context;
         }
@@ -146,7 +145,7 @@ public class RxJavaJsonLdProcessing implements BdioDocument.JsonLdProcessing {
     private static class FrameTransformer extends JsonLdProcessorTransformer<Map<String, Object>> {
         private final Object frame;
 
-        private FrameTransformer(Object frame, BdioOptions options) {
+        private FrameTransformer(Object frame, JsonLdOptions options) {
             super(options);
             this.frame = Objects.requireNonNull(frame);
         }
@@ -183,9 +182,9 @@ public class RxJavaJsonLdProcessing implements BdioDocument.JsonLdProcessing {
 
     private final Flowable<Object> entries;
 
-    private final BdioOptions options;
+    private final JsonLdOptions options;
 
-    RxJavaJsonLdProcessing(Flowable<Object> entries, BdioOptions options) {
+    RxJavaJsonLdProcessing(Flowable<Object> entries, JsonLdOptions options) {
         this.entries = Objects.requireNonNull(entries);
         this.options = Objects.requireNonNull(options);
     }

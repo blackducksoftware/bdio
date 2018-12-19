@@ -21,20 +21,31 @@ import static com.google.common.truth.Truth.assertThat;
 import java.time.ZonedDateTime;
 import java.util.List;
 
-import org.apache.commons.configuration.Configuration;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.junit.Test;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioObject;
+import com.blackducksoftware.bdio2.BdioWriter.BdioFile;
 import com.blackducksoftware.bdio2.test.BdioTest;
+import com.blackducksoftware.bdio2.test.GraphRunner.GraphConfiguration;
 import com.blackducksoftware.common.io.HeapOutputStream;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
+/**
+ * Tests for the {@link BlackDuckIoWriter}.
+ *
+ * @author jgustie
+ */
+@GraphConfiguration("/tinkergraph-core.properties")
+@GraphConfiguration("/sqlg-core.properties")
 public class BlackDuckIoWriterTest extends BaseTest {
 
-    public BlackDuckIoWriterTest(Configuration configuration) {
-        super(configuration);
+    public BlackDuckIoWriterTest(Graph graph) {
+        super(graph);
     }
 
     /**
@@ -51,7 +62,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
         commit();
 
         HeapOutputStream outputStream = new HeapOutputStream();
-        new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id)).writeGraph(outputStream);
+        graph.io(testBdio(TT.Metadata, TT.id)).writeGraph(new BdioFile(outputStream));
 
         List<String> entries = BdioTest.zipEntries(outputStream.getInputStream());
         assertThat(entries).hasSize(1);
@@ -62,7 +73,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
     }
 
     /**
-     * Configure the writer to not include metadata and verify metadata just ends up as a normal node.
+     * Configure the writer to not include metadata and verify the unknown node is lost.
      */
     @Test
     public void writeNoMetadata() throws Exception {
@@ -70,17 +81,14 @@ public class BlackDuckIoWriterTest extends BaseTest {
         commit();
 
         HeapOutputStream outputStream = new HeapOutputStream();
-        new BlackDuckIoCore(graph).writeGraph(outputStream);
+        graph.io(BlackDuckIo.build()).writeGraph(new BdioFile(outputStream));
 
         List<String> entries = BdioTest.zipEntries(outputStream.getInputStream());
-        assertThat(entries).hasSize(2);
+        assertThat(entries).hasSize(1);
 
         assertThatJson(entries.get(0)).hasLength(2);
         assertThatJson(entries.get(0)).containsName("@id");
         assertThatJson(entries.get(0)).arrayAt("/@graph").hasSize(0);
-        assertThatJson(entries.get(1)).arrayAt("/@graph").hasSize(1);
-        assertThatJson(entries.get(1)).at("/@graph/0").hasLength(2);
-        assertThatJson(entries.get(1)).arrayAt("/@graph/0/@type").containsExactly(TT.Metadata);
     }
 
     /**
@@ -94,7 +102,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
         commit();
 
         HeapOutputStream outputStream = new HeapOutputStream();
-        new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id)).writeGraph(outputStream);
+        graph.io(testBdio(TT.Metadata, TT.id)).writeGraph(new BdioFile(outputStream));
 
         List<String> entries = BdioTest.zipEntries(outputStream.getInputStream());
         assertThat(entries).hasSize(2);
@@ -129,7 +137,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
         commit();
 
         HeapOutputStream outputStream = new HeapOutputStream();
-        new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id)).writeGraph(outputStream);
+        graph.io(testBdio(TT.Metadata, TT.id)).writeGraph(new BdioFile(outputStream));
 
         List<String> entries = BdioTest.zipEntries(outputStream.getInputStream());
         assertThat(entries).hasSize(2);
@@ -143,7 +151,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
 
         int projectIndex = BdioTest.nodeIdentifiers(entries.get(1)).indexOf(projectId);
         assertThat(projectIndex).isAtLeast(0);
-        assertThatJson(entries.get(1)).at("@graph", projectIndex, Bdio.ObjectProperty.base, 0, "@value").isEqualTo(fileId);
+        assertThatJson(entries.get(1)).at("@graph", projectIndex, Bdio.ObjectProperty.base, 0, "@id").isEqualTo(fileId);
     }
 
     @Test
@@ -154,23 +162,17 @@ public class BlackDuckIoWriterTest extends BaseTest {
                 "foobar", "testing");
         commit();
 
-        BlackDuckIoCore bdio = new BlackDuckIoCore(graph);
-
         // First write it out without registering the custom field and verify it doesn't show up
         HeapOutputStream nonCustomBuffer = new HeapOutputStream();
-        bdio.withTokens(testTokens(TT.Metadata, TT.id)).writeGraph(nonCustomBuffer);
+        graph.io(testBdio(TT.Metadata, TT.id)).writeGraph(new BdioFile(nonCustomBuffer));
 
         assertThatJson(BdioTest.zipEntries(nonCustomBuffer.getInputStream()).get(1))
                 .at("/@graph/0").doesNotContainName("foobar");
 
         // Now write it out with the registered custom data property
-        BlackDuckIoTokens customTokens = DefaultBlackDuckIoTokens.build()
-                .metadataLabel(TT.Metadata)
-                .identifierKey(TT.id)
-                .addDataProperty("foobar", "http://example.com/gus")
-                .create();
+        List<Object> expandContext = ImmutableList.of(Bdio.Context.DEFAULT.toString(), ImmutableMap.of("foobar", "http://example.com/gus"));
         HeapOutputStream customBuffer = new HeapOutputStream();
-        bdio.withTokens(customTokens).writeGraph(customBuffer);
+        graph.io(testBdio(TT.Metadata, TT.id).context("", expandContext)).writeGraph(new BdioFile(customBuffer));
 
         List<String> entries = BdioTest.zipEntries(customBuffer.getInputStream());
         assertThatJson(entries.get(1)).at("/@graph/0").containsName("http://example.com/gus");
@@ -193,12 +195,13 @@ public class BlackDuckIoWriterTest extends BaseTest {
         commit();
 
         HeapOutputStream outputStream = new HeapOutputStream();
-        new BlackDuckIoCore(graph).withTokens(testTokens(TT.Metadata, TT.id)).writeGraph(outputStream);
+        graph.io(testBdio(TT.Metadata, TT.id)).writeGraph(new BdioFile(outputStream));
 
         List<String> entries = BdioTest.zipEntries(outputStream.getInputStream());
+        assertThat(entries).hasSize(2);
 
         assertThatJson(entries.get(1)).arrayAt("/@graph").hasSize(2); // Just the two components
-        assertThatJson(entries.get(1)).at("@graph", 1, Bdio.ObjectProperty.dependency, 0, Bdio.ObjectProperty.dependsOn, 0, "@value")
+        assertThatJson(entries.get(1)).at("@graph", 1, Bdio.ObjectProperty.dependency, 0, Bdio.ObjectProperty.dependsOn, 0, "@id")
                 .isEqualTo(component1.value(TT.id));
     }
 

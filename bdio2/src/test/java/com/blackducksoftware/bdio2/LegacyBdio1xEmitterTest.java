@@ -17,6 +17,7 @@ package com.blackducksoftware.bdio2;
 
 import static com.google.common.collect.MoreCollectors.onlyElement;
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth8.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.IOException;
@@ -24,11 +25,11 @@ import java.io.InputStream;
 import java.time.ZonedDateTime;
 import java.util.Map;
 
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.common.value.ProductList;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.io.CharSource;
@@ -40,7 +41,7 @@ import com.google.common.io.CharSource;
  */
 public class LegacyBdio1xEmitterTest {
 
-    private static final ValueObjectMapper mapper = ValueObjectMapper.getContextValueObjectMapper();
+    private static final BdioContext context = new BdioContext.Builder().expandContext(Bdio.Context.DEFAULT).build();
 
     private static final String idKey = JsonLdConsts.ID;
 
@@ -54,6 +55,11 @@ public class LegacyBdio1xEmitterTest {
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
+
+    @BeforeClass
+    public static void activateContext() {
+        context.activate();
+    }
 
     /**
      * A missing creator tool version just skips the version.
@@ -72,14 +78,13 @@ public class LegacyBdio1xEmitterTest {
                 + "  }"
                 + "} ]").asByteSource(UTF_8).openStream();
         Map<?, ?> metadata = (Map<?, ?>) new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
-        assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
-                .isNotEqualTo("urn:uuid:c4c37b94-0c57-4d59-abc4-630e631af7a9");
-        assertThat(mapper.fromFieldValue(nameKey, metadata.get(nameKey)))
-                .isEqualTo("Test Metadata 1");
-        assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
-                .isEqualTo(ProductList.from("Example LegacyBdio1xEmitter (bdio 1.1.0)"));
-        assertThat(mapper.fromFieldValue(creationDateTimeKey, metadata.get(creationDateTimeKey)))
-                .isEqualTo(ZonedDateTime.parse("2016-11-22T16:33:20.000Z"));
+        assertThat(metadata).doesNotContainEntry(idKey, "urn:uuid:c4c37b94-0c57-4d59-abc4-630e631af7a9");
+        assertThat(context.getFieldValue(nameKey, metadata))
+                .containsExactly("Test Metadata 1");
+        assertThat(context.getFieldValue(publisherKey, metadata))
+                .containsExactly(ProductList.from("Example LegacyBdio1xEmitter (bdio 1.1.0)"));
+        assertThat(context.getFieldValue(creationDateTimeKey, metadata))
+                .containsExactly(ZonedDateTime.parse("2016-11-22T16:33:20.000Z"));
         assertThat(metadata).doesNotContainKey(creatorKey);
     }
 
@@ -100,14 +105,13 @@ public class LegacyBdio1xEmitterTest {
                 + "  }"
                 + "} ]").asByteSource(UTF_8).openStream();
         Map<?, ?> metadata = (Map<?, ?>) new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
-        assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
-                .isNotEqualTo("urn:uuid:9240c6e7-abb1-435f-ace5-abc7277bbc4f");
-        assertThat(mapper.fromFieldValue(nameKey, metadata.get(nameKey)))
-                .isEqualTo("Test Metadata 2");
-        assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
-                .isEqualTo(ProductList.from("BlackDuckIOProject/2.0.1 LegacyBdio1xEmitter (bdio 1.1.0)"));
-        assertThat(mapper.fromFieldValue(creationDateTimeKey, metadata.get(creationDateTimeKey)))
-                .isEqualTo(ZonedDateTime.parse("2017-09-27T17:41:02.000Z"));
+        assertThat(metadata).doesNotContainEntry(idKey, "urn:uuid:9240c6e7-abb1-435f-ace5-abc7277bbc4f");
+        assertThat(context.getFieldValue(nameKey, metadata))
+                .containsExactly("Test Metadata 2");
+        assertThat(context.getFieldValue(publisherKey, metadata))
+                .containsExactly(ProductList.from("BlackDuckIOProject/2.0.1 LegacyBdio1xEmitter (bdio 1.1.0)"));
+        assertThat(context.getFieldValue(creationDateTimeKey, metadata))
+                .containsExactly(ZonedDateTime.parse("2017-09-27T17:41:02.000Z"));
         assertThat(metadata).doesNotContainKey(creatorKey);
     }
 
@@ -122,14 +126,13 @@ public class LegacyBdio1xEmitterTest {
                 + "  \"@type\" : \"BillOfMaterials\""
                 + "} ]").asByteSource(UTF_8).openStream();
         Map<?, ?> metadata = (Map<?, ?>) new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
-        assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
-                .isEqualTo("http://example.com/test");
+        assertThat(metadata).containsEntry(idKey, "http://example.com/test");
         assertThat(metadata).doesNotContainKey(nameKey);
-        assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
-                .isEqualTo(ProductList.from("LegacyBdio1xEmitter (bdio 1.0.0)"));
+        assertThat(context.getFieldValue(publisherKey, metadata))
+                .containsExactly(ProductList.from("LegacyBdio1xEmitter (bdio 1.0.0)"));
         assertThat(metadata).doesNotContainKey(creationDateTimeKey);
-        assertThat(mapper.fromFieldValue(creatorKey, metadata.get(creatorKey)))
-                .isEqualTo("@example.com");
+        assertThat(context.getFieldValue(creatorKey, metadata))
+                .containsExactly("@example.com");
     }
 
     /**
@@ -146,14 +149,13 @@ public class LegacyBdio1xEmitterTest {
                 + "  }"
                 + "} ]").asByteSource(UTF_8).openStream();
         Map<?, ?> metadata = (Map<?, ?>) new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
-        assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
-                .isEqualTo("http://example.com/test");
+        assertThat(metadata).containsEntry(idKey, "http://example.com/test");
         assertThat(metadata).doesNotContainKey(nameKey);
-        assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
-                .isEqualTo(ProductList.from("LegacyBdio1xEmitter (bdio 1.0.0)"));
+        assertThat(context.getFieldValue(publisherKey, metadata))
+                .containsExactly(ProductList.from("LegacyBdio1xEmitter (bdio 1.0.0)"));
         assertThat(metadata).doesNotContainKey(creationDateTimeKey);
-        assertThat(mapper.fromFieldValue(creatorKey, metadata.get(creatorKey)))
-                .isEqualTo("Joe Shmoe@example.com");
+        assertThat(context.getFieldValue(creatorKey, metadata))
+                .containsExactly("Joe Shmoe@example.com");
     }
 
     /**
@@ -171,15 +173,14 @@ public class LegacyBdio1xEmitterTest {
                 + "  }"
                 + "} ]").asByteSource(UTF_8).openStream();
         Map<?, ?> metadata = (Map<?, ?>) new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
-        assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
-                .isNotEqualTo("http://example.com/test");
-        assertThat(mapper.fromFieldValue(nameKey, metadata.get(nameKey)))
-                .isEqualTo("Test Metadata 3");
-        assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
-                .isEqualTo(ProductList.from("LegacyBdio1xEmitter (bdio 1.0.0)"));
+        assertThat(metadata).doesNotContainEntry(idKey, "http://example.com/test");
+        assertThat(context.getFieldValue(nameKey, metadata))
+                .containsExactly("Test Metadata 3");
+        assertThat(context.getFieldValue(publisherKey, metadata))
+                .containsExactly(ProductList.from("LegacyBdio1xEmitter (bdio 1.0.0)"));
         assertThat(metadata).doesNotContainKey(creationDateTimeKey);
-        assertThat(mapper.fromFieldValue(creatorKey, metadata.get(creatorKey)))
-                .isEqualTo("Joe Shmoe@example.com");
+        assertThat(context.getFieldValue(creatorKey, metadata))
+                .containsExactly("Joe Shmoe@example.com");
     }
 
     /**
@@ -196,14 +197,13 @@ public class LegacyBdio1xEmitterTest {
                 + "  }"
                 + "} ]").asByteSource(UTF_8).openStream();
         Map<?, ?> metadata = (Map<?, ?>) new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
-        assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
-                .isEqualTo("http://example.com/test");
+        assertThat(metadata).containsEntry(idKey, "http://example.com/test");
         assertThat(metadata).doesNotContainKey(nameKey);
-        assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
-                .isEqualTo(ProductList.from("LegacyBdio1xEmitter (bdio 1.0.0)"));
+        assertThat(context.getFieldValue(publisherKey, metadata))
+                .containsExactly(ProductList.from("LegacyBdio1xEmitter (bdio 1.0.0)"));
         assertThat(metadata).doesNotContainKey(creationDateTimeKey);
-        assertThat(mapper.fromFieldValue(creatorKey, metadata.get(creatorKey)))
-                .isEqualTo("@example.com");
+        assertThat(context.getFieldValue(creatorKey, metadata))
+                .containsExactly("@example.com");
     }
 
     /**
@@ -220,14 +220,13 @@ public class LegacyBdio1xEmitterTest {
                 + "  }"
                 + "} ]").asByteSource(UTF_8).openStream();
         Map<?, ?> metadata = (Map<?, ?>) new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
-        assertThat(mapper.fromFieldValue(idKey, metadata.get(idKey)))
-                .isEqualTo("http://example.com/test");
+        assertThat(metadata).containsEntry(idKey, "http://example.com/test");
         assertThat(metadata).doesNotContainKey(nameKey);
-        assertThat(mapper.fromFieldValue(publisherKey, metadata.get(publisherKey)))
-                .isEqualTo(ProductList.from("1.1.1 LegacyBdio1xEmitter (bdio 1.0.0)"));
+        assertThat(context.getFieldValue(publisherKey, metadata))
+                .containsExactly(ProductList.from("1.1.1 LegacyBdio1xEmitter (bdio 1.0.0)"));
         assertThat(metadata).doesNotContainKey(creationDateTimeKey);
-        assertThat(mapper.fromFieldValue(creatorKey, metadata.get(creatorKey)))
-                .isEqualTo("@example.com");
+        assertThat(context.getFieldValue(creatorKey, metadata))
+                .containsExactly("@example.com");
     }
 
     /**

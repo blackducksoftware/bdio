@@ -22,8 +22,8 @@ import java.util.List;
 
 import org.junit.Test;
 
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioMetadata;
-import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.BdioWriter;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.test.BdioTest;
@@ -42,7 +42,7 @@ public class BdioDocumentFromModelTest {
     public void singleNode() {
         BdioMetadata metadata = BdioMetadata.createRandomUUID();
         HeapOutputStream out = new HeapOutputStream();
-        ReactorBdioDocument doc = new ReactorBdioDocument(new BdioOptions.Builder().build());
+        ReactorBdioDocument doc = new ReactorBdioDocument(new BdioContext.Builder().build());
 
         Flux.just(new File("http://example.com/files/1"))
                 .buffer(1)

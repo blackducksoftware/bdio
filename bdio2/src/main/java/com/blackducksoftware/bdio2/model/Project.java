@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2.model;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.common.value.ProductList;
 
@@ -28,92 +29,92 @@ public final class Project extends BdioObject {
     }
 
     public Project description(@Nullable Annotation description) {
-        putObject(Bdio.ObjectProperty.description, description);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.description, description);
         return this;
     }
 
     public Project subproject(@Nullable Project subproject) {
-        putObject(Bdio.ObjectProperty.subproject, subproject);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.subproject, subproject);
         return this;
     }
 
     public Project previousVersion(@Nullable Project previousVersion) {
-        putObject(Bdio.ObjectProperty.previousVersion, previousVersion);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.previousVersion, previousVersion);
         return this;
     }
 
     public Project base(@Nullable File base) {
-        putObject(Bdio.ObjectProperty.base, base);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.base, base);
         return this;
     }
 
     public Project dependency(Dependency dependency) {
-        putObject(Bdio.ObjectProperty.dependency, dependency);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.dependency, dependency);
         return this;
     }
 
     public Project license(@Nullable Object license) {
-        putObject(Bdio.ObjectProperty.license, license);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.license, license);
         return this;
     }
 
     public Project licenseConjunctive(@Nullable Object license) {
-        putObject(Bdio.ObjectProperty.licenseConjunctive, license);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseConjunctive, license);
         return this;
     }
 
     public Project licenseDisjunctive(@Nullable Object license) {
-        putObject(Bdio.ObjectProperty.licenseDisjunctive, license);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseDisjunctive, license);
         return this;
     }
 
     public Project licenseOrLater(@Nullable Object license) {
-        putObject(Bdio.ObjectProperty.licenseOrLater, license);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseOrLater, license);
         return this;
     }
 
     public Project name(@Nullable String name) {
-        putData(Bdio.DataProperty.name, name);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.name, name);
         return this;
     }
 
     public Project version(@Nullable String version) {
-        putData(Bdio.DataProperty.version, version);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.version, version);
         return this;
     }
 
     public Project vendor(@Nullable String vendor) {
-        putData(Bdio.DataProperty.vendor, vendor);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.vendor, vendor);
         return this;
     }
 
     public Project namespace(@Nullable String namespace) {
-        putData(Bdio.DataProperty.namespace, namespace);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.namespace, namespace);
         return this;
     }
 
     public Project identifier(@Nullable String locator) {
-        putData(Bdio.DataProperty.identifier, locator);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.identifier, locator);
         return this;
     }
 
     public Project context(@Nullable String context) {
-        putData(Bdio.DataProperty.context, context);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.context, context);
         return this;
     }
 
     public Project resolver(@Nullable ProductList resolver) {
-        putData(Bdio.DataProperty.resolver, resolver);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.resolver, resolver);
         return this;
     }
 
     public Project platform(@Nullable ProductList platform) {
-        putData(Bdio.DataProperty.platform, platform);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.platform, platform);
         return this;
     }
 
     public Project homepage(@Nullable String homepage) {
-        putData(Bdio.DataProperty.homepage, homepage);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.homepage, homepage);
         return this;
     }
 

@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2.tool;
 import static com.blackducksoftware.common.base.ExtraEnums.set;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.repeat;
+import static java.util.Collections.singleton;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.id;
 
 import java.io.File;
@@ -26,14 +27,18 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
@@ -42,6 +47,7 @@ import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.MapConfiguration;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
@@ -49,15 +55,16 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.util.GraphFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
+import org.flywaydb.core.Flyway;
 import org.umlg.sqlg.structure.SqlgGraph;
-import org.umlg.sqlg.util.SqlgUtil;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIo;
-import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoCore;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoReadGraphException;
+import com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway.SqlgCallback;
+import com.blackducksoftware.bdio2.tinkerpop.strategy.PropertyConstantStrategy;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Splitter;
 import com.google.common.base.Splitter.MapSplitter;
@@ -72,6 +79,68 @@ import com.google.common.io.ByteSource;
  */
 public class GraphTool extends Tool {
 
+    public static void main(String[] args) {
+        new GraphTool(null).parseArgs(args).run();
+    }
+
+    /**
+     * Life-cycle listener for the graph.
+     */
+    public interface GraphListener {
+        /**
+         * Invoked after raw data has been loaded into the graph.
+         */
+        default void onGraphLoaded(GraphTraversalSource traversal) {
+        };
+
+        /**
+         * Invoked after normalization of the data has completed.
+         */
+        default void onGraphInitialized(GraphTraversalSource traversal) {
+        };
+
+        /**
+         * Invoked once the graph is in it's final state.
+         */
+        default void onGraphComplete(Graph graph) {
+        };
+    }
+
+    /**
+     * Used as the internal graph listener, just delegates to other listeners.
+     */
+    private static final class GraphToolGraphListener implements GraphListener {
+        private final List<GraphListener> delegates = new CopyOnWriteArrayList<>();
+
+        @Override
+        public void onGraphLoaded(GraphTraversalSource traversal) {
+            delegates.forEach(l -> l.onGraphLoaded(traversal));
+        }
+
+        @Override
+        public void onGraphInitialized(GraphTraversalSource traversal) {
+            delegates.forEach(l -> l.onGraphInitialized(traversal));
+        }
+
+        @Override
+        public void onGraphComplete(Graph graph) {
+            delegates.forEach(l -> l.onGraphComplete(graph));
+        }
+
+        public void add(GraphListener listener) {
+            delegates.add(Objects.requireNonNull(listener));
+        }
+
+        public void add(Consumer<Graph> graphCompleted) {
+            add(new GraphListener() {
+                @Override
+                public void onGraphComplete(Graph graph) {
+                    graphCompleted.accept(graph);
+                }
+            });
+        }
+    }
+
     static final String DEFAULT_IDENTIFIER_KEY = "_id";
 
     static final String DEFAULT_IMPLICIT_KEY = "_implicit";
@@ -81,14 +150,10 @@ public class GraphTool extends Tool {
     static final String DEFAULT_PARTITION = "<stdin>";
 
     private enum Action {
-        CLEAN, INITIALIZE_SCHEMA, LOAD, APPLY_SEMANTIC_RULES
+        CLEAN, INITIALIZE_SCHEMA, LOAD, NORMALIZE
     }
 
     private static final MapSplitter PROPERTY_SPLITTER = Splitter.on(',').limit(1).trimResults().withKeyValueSeparator('=');
-
-    public static void main(String[] args) {
-        new GraphTool(null).parseArgs(args).run();
-    }
 
     private Map<URI, ByteSource> inputs = new LinkedHashMap<>();
 
@@ -96,13 +161,9 @@ public class GraphTool extends Tool {
 
     private Object expandContext;
 
-    private EnumSet<Action> actions = EnumSet.of(Action.LOAD, Action.APPLY_SEMANTIC_RULES);
+    private Set<Action> actions = EnumSet.of(Action.LOAD, Action.NORMALIZE);
 
-    private Consumer<GraphTraversalSource> onGraphLoaded = g -> {};
-
-    private Consumer<GraphTraversalSource> onGraphInitialized = g -> {};
-
-    private Consumer<Graph> onGraphComplete = graph -> {};
+    private GraphToolGraphListener listener = new GraphToolGraphListener();
 
     public GraphTool(@Nullable String name) {
         super(name);
@@ -132,13 +193,13 @@ public class GraphTool extends Tool {
     public void setGraph(String graph) {
         switch (graph) {
         case "tinkergraph":
-            configuration.setProperty(Graph.GRAPH, TinkerGraph.class.getName());
+            setProperty(Graph.GRAPH, TinkerGraph.class.getName());
             break;
         case "sqlg":
-            configuration.setProperty(Graph.GRAPH, SqlgGraph.class.getName());
+            setProperty(Graph.GRAPH, SqlgGraph.class.getName());
             break;
         default:
-            configuration.setProperty(Graph.GRAPH, graph);
+            setProperty(Graph.GRAPH, graph);
         }
     }
 
@@ -163,28 +224,44 @@ public class GraphTool extends Tool {
     }
 
     public void setSkipApplySemanticRules(boolean skipApplySemanticRules) {
-        set(actions, Action.APPLY_SEMANTIC_RULES, !skipApplySemanticRules);
+        set(actions, Action.NORMALIZE, !skipApplySemanticRules);
     }
 
-    public void onGraphLoaded(Consumer<GraphTraversalSource> listener) {
-        onGraphLoaded = onGraphLoaded.andThen(listener);
+    public void setGraphListener(GraphListener listener) {
+        this.listener.add(listener);
     }
 
-    public void onGraphInitialized(Consumer<GraphTraversalSource> listener) {
-        onGraphInitialized = onGraphInitialized.andThen(listener);
+    public void onGraphComplete(Consumer<Graph> graphCompleted) {
+        this.listener.add(graphCompleted);
     }
 
-    public void onGraphComplete(Consumer<Graph> listener) {
-        onGraphComplete = onGraphComplete.andThen(listener);
+    public void onGraphComplete(String listener) {
+        switch (listener) {
+        case "dump":
+            onGraphComplete(GraphTool::dump);
+            return;
+        case "summary":
+            onGraphComplete(GraphTool::summary);
+            return;
+        case "write":
+            onGraphComplete(GraphTool::write);
+            return;
+        default:
+            try {
+                setGraphListener(Class.forName(listener).asSubclass(GraphListener.class).getDeclaredConstructor().newInstance());
+            } catch (ReflectiveOperationException e) {
+                throw new IllegalArgumentException("unable to create graph listener: " + listener, e);
+            }
+        }
     }
 
     @Override
     protected void printUsage() {
         printOutput("usage: %s [--graph=tinkergraph|sqlg|<class>] %n", name());
         printOutput("          [--config=<file>] [-D=<key>=<value>]%n");
-        printOutput("          [--context=bdio|<uri>]%n");
         printOutput("          [--clean] [--skip-rules] [--init-schema]%n");
-        printOutput("          [--onGraphComplete=dump|summary|<class>]%n");
+        printOutput("          [--onGraphComplete=dump|summary|write|<class>]%n");
+        printOutput("          [--context=bdio|<uri>]%n");
         printOutput("%n");
     }
 
@@ -195,12 +272,14 @@ public class GraphTool extends Tool {
         options.put("--graph=<factory>", "Graph implementation factory (default: tinkergraph)");
         options.put("--config=<file>", "Graph configuration file (see properties below)");
         options.put("--D=<key>=<value>", "Single property graph configuration (see properties below)");
-        options.put("--context=<ctx>", "JSON-LD expand context when using JSON input");
+        options.put("--context=<ctx>", "JSON-LD context used to expand JSON inputs");
+
         options.put("Graph tool options", null);
         options.put("--clean", "Wipe the graph contents before starting");
         options.put("--skip-rules", "Skip application of BDIO normalization rules");
         options.put("--init-schema", "Initialize using the full BDIO schema");
         options.put("--onGraphComplete", "Register an onGraphComplete listener (can be applied multiple times)");
+
         options.put("Frequently used properties", null);
         options.put("gremlin.tinkergraph.graphFormat",
                 "Format used to persist TinkerGraph (graphml, graphson, gryo, " + BlackDuckIo.Builder.class.getName() + ")");
@@ -211,7 +290,6 @@ public class GraphTool extends Tool {
         options.put("bdio.metadataLabel", "BDIO metadata vertex label");
         options.put("bdio.identifierKey", "JSON-LD identifier vertex property");
         options.put("bdio.unknownKey", "Vertex property for unknown JSON-LD data");
-        options.put("bdio.implicitKey", "Record implicitly created vertices");
         printOptionHelp(options);
     }
 
@@ -230,42 +308,11 @@ public class GraphTool extends Tool {
         return result;
     }
 
-    @Override
-    protected boolean isOptionWithArgs(String option) {
-        return super.isOptionWithArgs(option) || isGraphConfigurationOptionWithArgs(option) || option.equals("--onGraphComplete");
-    }
-
-    @Override
-    protected Tool parseArguments(String[] args) throws Exception {
-        args = parseGraphConfigurationArguments(args, this);
-
-        for (String arg : options(args)) {
-            if (arg.equals("--clean")) {
-                setClean(true);
-                args = removeFirst(arg, args);
-            } else if (arg.equals("--skip-rules")) {
-                setSkipApplySemanticRules(true);
-                args = removeFirst(arg, args);
-            } else if (arg.equals("--init-schema")) {
-                setInitializeSchema(true);
-                args = removeFirst(arg, args);
-            } else if (arg.startsWith("--onGraphComplete=")) {
-                optionValue(arg).map(GraphTool::listenerForString).ifPresent(this::onGraphComplete);
-                args = removeFirst(arg, args);
-            }
-        }
-
-        for (String name : arguments(args)) {
-            addInput(new File(name).toURI(), getInput(name));
-        }
-        if (inputs.isEmpty()) {
-            addInput(null, getInput("-"));
-        }
-        if (!configuration.containsKey(Graph.GRAPH)) {
-            setGraph(TinkerGraph.class.getName());
-        }
-
-        return super.parseArguments(args);
+    /**
+     * These are the options with arguments handled by {@link #parseGraphConfigurationArguments(String[], GraphTool)}.
+     */
+    public static boolean isGraphConfigurationOptionWithArgs(String option) {
+        return option.equals("--graph") || option.equals("--config") || option.equals("-D") || option.equals("--context");
     }
 
     /**
@@ -295,95 +342,146 @@ public class GraphTool extends Tool {
         return args;
     }
 
-    /**
-     * These are the options with arguments handled by {@link #parseGraphConfigurationArguments(String[], GraphTool)}.
-     */
-    protected static boolean isGraphConfigurationOptionWithArgs(String option) {
-        return option.equals("--graph") || option.equals("--config") || option.equals("-D") || option.equals("--context");
+    @Override
+    protected boolean isOptionWithArgs(String option) {
+        return super.isOptionWithArgs(option) || isGraphConfigurationOptionWithArgs(option) || option.equals("--onGraphComplete");
+    }
+
+    @Override
+    protected Tool parseArguments(String[] args) throws Exception {
+        args = parseGraphConfigurationArguments(args, this);
+
+        for (String arg : options(args)) {
+            if (arg.equals("--clean")) {
+                setClean(true);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("--skip-rules")) {
+                setSkipApplySemanticRules(true);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("--init-schema")) {
+                setInitializeSchema(true);
+                args = removeFirst(arg, args);
+            } else if (arg.startsWith("--onGraphComplete=")) {
+                optionValue(arg).ifPresent(this::onGraphComplete);
+                args = removeFirst(arg, args);
+            }
+        }
+
+        for (String name : arguments(args)) {
+            addInput(new File(name).toURI(), getInput(name));
+        }
+        if (inputs.isEmpty()) {
+            addInput(null, getInput("-"));
+        }
+        if (!configuration.containsKey(Graph.GRAPH)) {
+            setGraph(TinkerGraph.class.getName());
+        }
+
+        return super.parseArguments(args);
     }
 
     @Override
     protected void execute() throws Exception {
-        checkState(!inputs.isEmpty() || (!actions.contains(Action.LOAD) && !actions.contains(Action.APPLY_SEMANTIC_RULES)), "no inputs");
-
-        // Open the graph and update the BDIO specific configuration if necessary
+        checkState(!inputs.isEmpty() || (!actions.contains(Action.LOAD) && !actions.contains(Action.NORMALIZE)), "no inputs");
         Graph graph = GraphFactory.open(configuration);
-        if (actions.contains(Action.CLEAN)) {
-            graph = cleanGraph(graph);
-        }
+
+        // If the graph does not support user identifiers, configure an extra property to hold them
         if (!graph.features().vertex().supportsUserSuppliedIds() && !configuration.containsKey("bdio.identifierKey")) {
             configuration.setProperty("bdio.identifierKey", DEFAULT_IDENTIFIER_KEY);
         }
-        if (actions.contains(Action.APPLY_SEMANTIC_RULES) && !configuration.containsKey("bdio.implicitKey")) {
-            configuration.setProperty("bdio.implicitKey", DEFAULT_IMPLICIT_KEY);
-        }
-        if (inputs.size() > 1 && !configuration.containsKey("bdio.partitionStrategy.partitionKey")) {
-            configuration.setProperty("bdio.partitionStrategy.partitionKey", DEFAULT_PARTITION_KEY);
-        }
-        if (inputs.size() == 1) {
-            if (!configuration.containsKey("bdio.partitionStrategy.writePartition")) {
-                configuration.setProperty("bdio.partitionStrategy.writePartition",
-                        inputs.keySet().stream().filter(x -> x != null).findFirst().map(URI::toString).orElse(DEFAULT_PARTITION));
-            }
-            if (!configuration.containsKey("bdio.partitionStrategy.readPartitions")) {
-                // FIXME The trailing "," adds an empty read partition to make a list in Commons Configuration
-                configuration.getInMemoryConfiguration().setProperty("bdio.partitionStrategy.readPartitions",
-                        inputs.keySet().stream().filter(x -> x != null).findFirst().map(URI::toString).orElse(DEFAULT_PARTITION) + ",");
-            }
-        }
 
-        // Create a new BDIO core using the graph's configuration to define tokens
-        BlackDuckIoCore bdioCore = new BlackDuckIoCore(graph).withGraphConfiguration();
-        if (actions.contains(Action.INITIALIZE_SCHEMA)) {
-            bdioCore.initializeSchema();
+        // Apply clean up and initialization (the graph may need to be re-instantiated)
+        if (actions.contains(Action.CLEAN) || actions.contains(Action.INITIALIZE_SCHEMA)) {
+            graph = cleanGraph(graph);
         }
 
         try {
+            // Use the BDIO configuration logic shared with schema initialization
+            BlackDuckIo bdio = graph.io(configureBdio(BlackDuckIo.build()));
             for (Map.Entry<URI, ByteSource> input : inputs.entrySet()) {
                 try (InputStream inputStream = input.getValue().openStream()) {
-                    BlackDuckIoCore bdio = bdioCore;
-
-                    // Try to determine the expansion context by looking at the input URI
-                    Optional<Object> expandContext = getExpandContext(input.getKey());
-                    if (expandContext.isPresent()) {
-                        // REMEMBER `bdio.with*` RETURNS A NEW INSTANCE!
-                        bdio = bdio.withExpandContext(expandContext.get());
-                    }
-
-                    // If we have multiple inputs, make sure each one gets it's own partition
-                    if (inputs.size() > 1) {
-                        bdio = bdio.withStrategies(multiInputPartition(input.getKey(), configuration));
-                    }
-
-                    // Import the graph
+                    // Load the graph
                     if (actions.contains(Action.LOAD)) {
-                        Stopwatch loadGraphTimer = Stopwatch.createStarted();
-                        bdio.readGraph(inputStream);
-                        printDebugMessage("Time to load BDIO graph: %s%n", loadGraphTimer.stop());
-                        onGraphLoaded.accept(bdio.traversal());
+                        load(graph, bdio, input.getKey(), inputStream);
                     }
 
                     // Run the extra operations
-                    if (actions.contains(Action.APPLY_SEMANTIC_RULES)) {
-                        Stopwatch initGraphTimer = Stopwatch.createStarted();
-                        bdio.applySemanticRules();
-                        printDebugMessage("Time to apply semantic BDIO rules: %s%n", initGraphTimer.stop());
-                        onGraphInitialized.accept(bdio.traversal());
+                    if (actions.contains(Action.NORMALIZE)) {
+                        normalize(graph, bdio, input.getKey());
                     }
                 }
             }
 
             // Before we close the graph, give someone else a chance to play with it
-            onGraphComplete.accept(graph);
+            listener.onGraphComplete(graph);
         } finally {
             graph.close();
         }
     }
 
-    /**
-     * Returns the expansion context given the supplied identifier.
-     */
-    protected Optional<Object> getExpandContext(URI id) {
+    protected Graph cleanGraph(Graph graph) throws Exception {
+        Stopwatch timer = Stopwatch.createStarted();
+        Graph result = graph;
+        if (graph instanceof TinkerGraph) {
+            // The TinkerGraph only supports cleaning, there is no pre-defined schema
+            TinkerGraph tinkerGraph = (TinkerGraph) graph;
+            if (actions.contains(Action.CLEAN)) {
+                tinkerGraph.clear();
+            }
+        } else if (graph instanceof SqlgGraph) {
+            // Use Flyway for Sqlg
+            Flyway flyway = Flyway.configure()
+                    .dataSource(((SqlgGraph) graph).getSqlgDataSource().getDatasource())
+                    .callbacks(SqlgCallback.create(this::configureBdio, getTraversalStrategies(Action.INITIALIZE_SCHEMA, null)))
+                    .load();
+            if (actions.contains(Action.CLEAN)) {
+                flyway.clean();
+            }
+            if (actions.contains(Action.INITIALIZE_SCHEMA)) {
+                flyway.migrate();
+            }
+            graph.close();
+            result = GraphFactory.open(configuration);
+        } else {
+            // We would need specialized support for this, better to fail the silently ignore (just don't clean!)
+            throw new UnsupportedOperationException("unable to clean graph: " + graph.getClass().getSimpleName());
+        }
+        printDebugMessage("Time to clean BDIO graph: %s%n", timer.stop());
+        return result;
+    }
+
+    protected void load(Graph graph, BlackDuckIo bdio, URI id, InputStream inputStream) throws IOException {
+        TraversalStrategy<?>[] strategies = getTraversalStrategies(Action.LOAD, id);
+
+        Stopwatch timer = Stopwatch.createStarted();
+        bdio.readGraph(inputStream, getBase(id), getExpandContext(id), strategies);
+        printDebugMessage("Time to load BDIO graph: %s%n", timer.stop());
+        listener.onGraphLoaded(graph.traversal().withStrategies(strategies));
+    }
+
+    protected void normalize(Graph graph, BlackDuckIo bdio, URI id) {
+        TraversalStrategy<?>[] strategies = getTraversalStrategies(Action.NORMALIZE, id);
+
+        Stopwatch timer = Stopwatch.createStarted();
+        bdio.normalize(strategies);
+        printDebugMessage("Time to normalize BDIO graph: %s%n", timer.stop());
+        listener.onGraphInitialized(graph.traversal().withStrategies(strategies));
+    }
+
+    protected BlackDuckIo.Builder configureBdio(BlackDuckIo.Builder builder) {
+        // Currently do nothing, just take the defaults
+        return builder;
+    }
+
+    @Nullable
+    protected String getBase(@Nullable URI id) {
+        // TODO Should we return the id?
+        // If so, we should probably adjust the base URL of the BdioFrame appropriately
+        return null;
+    }
+
+    @Nullable
+    protected Object getExpandContext(@Nullable URI id) {
         if (id != null && id.getPath() != null) {
             try {
                 // If we have a path to look at, always return a context
@@ -396,7 +494,7 @@ public class GraphTool extends Tool {
                     }
                     context = expandContext;
                 }
-                return Optional.of(context);
+                return context;
             } catch (IllegalArgumentException e) {
                 // This just means we couldn't imply the content type
                 if (expandContext == null) {
@@ -406,41 +504,42 @@ public class GraphTool extends Tool {
         }
 
         // Fall back to the value of the --context argument
-        return Optional.ofNullable(expandContext);
+        return expandContext;
     }
 
-    private PartitionStrategy multiInputPartition(URI input, Configuration configuration) {
-        Configuration inputConfig = new CompositeConfiguration(Collections.singleton(configuration.subset("bdio.partitionStrategy")));
-        inputConfig.setProperty("bdio.partitionStrategy.writePartition", input.toString());
-        return PartitionStrategy.create(inputConfig);
-    }
+    protected TraversalStrategy<?>[] getTraversalStrategies(Action action, @Nullable URI id) {
+        List<TraversalStrategy<?>> result = new ArrayList<>(3);
 
-    private Graph cleanGraph(Graph graph) throws Exception {
-        if (graph instanceof TinkerGraph) {
-            ((TinkerGraph) graph).clear();
-            return graph;
-        } else if (graph instanceof SqlgGraph) {
-            SqlgUtil.dropDb((SqlgGraph) graph);
-            graph.tx().commit();
-            graph.close();
-            return GraphFactory.open(configuration);
-        } else {
-            throw new UnsupportedOperationException("unable to clean graph: " + graph.getClass().getSimpleName());
+        // Only partition if there is one input and a configured key or there are more then one inputs
+        if (!inputs.isEmpty() && (inputs.size() > 1 || configuration.containsKey("bdio.partitionStrategy.partitionKey"))) {
+            // TODO This whole thing seems off now that we have property constants...
+
+            // Isolate the input(s) by creating a partition for the input identifier (`null` coming from stdin)
+            String key = configuration.getString("bdio.partitionStrategy.partitionKey", DEFAULT_PARTITION_KEY);
+            String write = Optional.ofNullable(id).map(URI::toString).orElse(DEFAULT_PARTITION);
+            List<String> read = new ArrayList<>(singleton(write));
+
+            // The write partition is still configurable if there is only one input
+            if (inputs.size() == 1) {
+                write = configuration.getString("bdio.partitionStrategy.writePartition", write);
+                if (!read.contains(write)) {
+                    read.add(write); // If the value changed, be sure to include it
+                }
+            }
+
+            result.add(PartitionStrategy.build().partitionKey(key).writePartition(write).readPartitions(read).create());
         }
-    }
 
-    private static Consumer<Graph> listenerForString(String listener) {
-        switch (listener) {
-        case "dump":
-            return GraphTool::dump;
-        case "summary":
-            return GraphTool::summary;
-        case "write":
-            return GraphTool::write;
-        default:
-            // TODO Use reflection to create a consumer?
-            throw new UnsupportedOperationException("unable to create listener: " + listener);
+        // If we are performing normalization add a constant
+        if (actions.contains(Action.NORMALIZE) && (action == Action.INITIALIZE_SCHEMA || action == Action.NORMALIZE)) {
+            // Add a boolean property constant indicating the row was added during normalization
+            String key = configuration.getString("bdio.implicitKey", DEFAULT_IMPLICIT_KEY);
+            Object value = Boolean.TRUE;
+
+            result.add(PropertyConstantStrategy.build().addProperty(key, value).create());
         }
+
+        return result.toArray(new TraversalStrategy<?>[result.size()]);
     }
 
     /**
@@ -526,6 +625,8 @@ public class GraphTool extends Tool {
         out.format("===================%n");
         g.E().group().by(T.label).by(__.count()).next().entrySet()
                 .forEach(e -> out.format("  %s = %s%n", e.getKey(), e.getValue()));
+
+        // TODO Include complexity measurements?
     }
 
     /**
@@ -540,11 +641,7 @@ public class GraphTool extends Tool {
      */
     public static void write(Graph graph, StreamSupplier out) {
         try {
-            new BlackDuckIoCore(graph)
-                    .withExpandContext(Bdio.Context.DEFAULT)
-                    .withGraphConfiguration()
-                    .writer()
-                    .writeGraph(out, graph);
+            graph.io(BlackDuckIo.build()).writeGraph(out);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

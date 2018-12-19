@@ -34,7 +34,6 @@ import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.bdio2.model.Dependency;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.common.base.ExtraUUIDs;
@@ -170,21 +169,21 @@ class LegacyUtilities {
      * objects created for similar declarations.
      */
     public static void mergeDependency(Multimap<String, Dependency> dependencies, Dependency dependency) {
-        ValueObjectMapper valueObjectMapper = ValueObjectMapper.getContextValueObjectMapper();
-        String id = dependencyIdentifier(valueObjectMapper, dependency);
+        BdioContext context = BdioContext.getActive();
+        String id = dependencyIdentifier(context, dependency);
         dependency.put(JsonLdConsts.ID, id);
 
         // Look for an dependency we can add this to
         for (Dependency dep : dependencies.get(id)) {
             if (dep.keySet().equals(dependency.keySet())) {
                 if (dep.containsKey(Bdio.ObjectProperty.declaredBy.toString())) {
-                    valueObjectMapper.fromReferenceValueObject(dependency.get(Bdio.ObjectProperty.declaredBy.toString()))
+                    context.getFieldValue(Bdio.ObjectProperty.declaredBy.toString(), dependency)
                             .map(Object::toString)
                             .map(File::new)
                             .forEach(dep::declaredBy);
                     return;
                 } else if (dep.containsKey(Bdio.ObjectProperty.evidence.toString())) {
-                    valueObjectMapper.fromReferenceValueObject(dependency.get(Bdio.ObjectProperty.evidence.toString()))
+                    context.getFieldValue(Bdio.ObjectProperty.evidence.toString(), dependency)
                             .map(Object::toString)
                             .map(File::new)
                             .forEach(dep::evidence);
@@ -319,9 +318,9 @@ class LegacyUtilities {
     }
 
     @Nullable
-    private static String dependencyIdentifier(ValueObjectMapper valueObjectMapper, Dependency dep) {
-        Stream<Object> dependsOn = valueObjectMapper.fromReferenceValueObject(dep.get(Bdio.ObjectProperty.dependsOn.toString()));
-        Stream<Object> license = valueObjectMapper.fromReferenceValueObject(dep.get(Bdio.ObjectProperty.license.toString()));
+    private static String dependencyIdentifier(BdioContext context, Dependency dep) {
+        Stream<?> dependsOn = context.getFieldValue(Bdio.ObjectProperty.dependsOn.toString(), dep);
+        Stream<?> license = context.getFieldValue(Bdio.ObjectProperty.license.toString(), dep);
         byte[] name = Stream.concat(dependsOn, license).map(Object::toString).collect(joining(">,<", "<", ">")).getBytes(UTF_8);
         return ExtraUUIDs.toUriString(ExtraUUIDs.nameUUIDFromBytes(DEPENDENCY_IDENTIFIER_NS, name));
     }

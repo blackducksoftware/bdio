@@ -15,106 +15,86 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import static com.blackducksoftware.common.base.ExtraStreams.ofType;
-import static com.blackducksoftware.common.base.ExtraStrings.afterLast;
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Lists.asList;
-import static org.junit.Assume.assumeFalse;
-import static org.junit.Assume.assumeNoException;
+import static com.google.common.reflect.Reflection.newProxy;
 
-import java.io.IOException;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
-import javax.annotation.Nullable;
+import javax.sql.DataSource;
 
-import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.Transaction;
-import org.apache.tinkerpop.gremlin.structure.util.GraphFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
+import org.flywaydb.core.Flyway;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.umlg.sqlg.sql.dialect.SqlDialect;
+import org.umlg.sqlg.structure.SqlgDataSourceFactory;
 import org.umlg.sqlg.structure.SqlgGraph;
-import org.umlg.sqlg.util.SqlgUtil;
 
-import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoOperations.AdminGraphInitializer;
-import com.blackducksoftware.bdio2.tinkerpop.GraphInitializer.Step;
-import com.google.common.collect.ImmutableList;
+import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.BdioContext;
+import com.blackducksoftware.bdio2.BdioContext.ActiveContext;
+import com.blackducksoftware.bdio2.BdioFrame;
+import com.blackducksoftware.bdio2.test.GraphRunner;
+import com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway.SqlgCallback;
+import com.blackducksoftware.bdio2.tinkerpop.strategy.PropertyConstantStrategy;
+import com.github.jsonldjava.core.JsonLdConsts;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.io.Resources;
 
-@RunWith(Parameterized.class)
+@RunWith(GraphRunner.class)
 public abstract class BaseTest {
 
     /**
      * (T)est (T)okens.
      */
-    public static final class TT implements BlackDuckIoTokens {
+    public static final class TT {
+
+        public static final String Metadata = "Metadata";
+
+        public static final String root = "_root";
 
         public static final String id = "_id";
+
+        public static final String unknown = "_unknown";
 
         public static final String partition = "_partition";
 
         public static final String implicit = "_implicit";
 
-        public static final String unknown = "_unknown";
+    }
 
-        public static final String root = "_root";
-
-        public static final String Metadata = "Metadata";
-
-        private final Set<String> tokens;
-
-        private TT(String... tokens) {
-            this.tokens = ImmutableSet.copyOf(tokens);
-            checkArgument(!this.tokens.contains(partition), "the partition token is not valid here");
+    protected static BlackDuckIo.Builder testBdio(String... tokens) {
+        Set<String> tokenSet = ImmutableSet.copyOf(tokens);
+        BlackDuckIoOptions.Builder options = BlackDuckIoOptions.build();
+        if (tokenSet.isEmpty() || tokenSet.contains(TT.Metadata)) {
+            options.metadataLabel(TT.Metadata);
         }
-
-        @Override
-        public String metadataLabel() {
-            return token(Metadata);
+        if (tokenSet.isEmpty() || tokenSet.contains(TT.root)) {
+            options.rootLabel(TT.root);
         }
-
-        @Override
-        public String rootLabel() {
-            return token(root);
+        if (tokenSet.isEmpty() || tokenSet.contains(TT.id)) {
+            options.identifierKey(TT.id);
         }
-
-        @Override
-        public String identifierKey() {
-            return token(id);
+        if (tokenSet.isEmpty() || tokenSet.contains(TT.unknown)) {
+            options.unknownKey(TT.unknown);
         }
-
-        @Override
-        public String implicitKey() {
-            return token(implicit);
-        }
-
-        @Override
-        public String unknownKey() {
-            return token(unknown);
-        }
-
-        @Nullable
-        private String token(String token) {
-            return tokens.isEmpty() || tokens.contains(token) ? token : null;
-        }
+        return BlackDuckIo.build().options(options.create());
     }
 
     /**
-     * Returns BDIO tokens for testing, if no tokens are requests, all of the test tokens will be used.
+     * Creates a constant.
      */
-    protected static BlackDuckIoTokens testTokens(String... tokens) {
-        return new TT(tokens);
+    protected static PropertyConstantStrategy testImplicitConstant() {
+        return PropertyConstantStrategy.build()
+                .addProperty(TT.implicit, Boolean.TRUE)
+                .create();
     }
 
     /**
@@ -147,49 +127,71 @@ public abstract class BaseTest {
     }
 
     /**
-     * Helper to simplify graph configuration and make test parameter names more readable.
+     * The default frame to use for testing.
      */
-    private static class GraphConfiguration extends CompositeConfiguration {
-        private GraphConfiguration(Class<? extends Graph> graphType) {
-            addPropertyDirect(Graph.GRAPH, graphType.getName());
-        }
-
-        @Override
-        public String toString() {
-            return afterLast(getString(Graph.GRAPH), '.');
-        }
-    }
-
-    /**
-     * Returns the graph configurations to test.
-     */
-    @Parameters(name = "{0}")
-    public static Iterable<Configuration> configurations() throws ConfigurationException, IOException {
-        // Default in-memory graph for testing
-        GraphConfiguration tinkerGraphConfiguration = new GraphConfiguration(TinkerGraph.class);
-
-        // Sqlg backed graph for testing (load database connection parameters from a properties file)
-        GraphConfiguration sqlgGraphConfiguration = new GraphConfiguration(SqlgGraph.class);
-        sqlgGraphConfiguration.addConfiguration(new PropertiesConfiguration(Resources.getResource("sqlg.properties")));
-
-        return ImmutableList.<Configuration> builder()
-                .add(tinkerGraphConfiguration)
-                .add(sqlgGraphConfiguration)
-                .build();
-    }
-
-    /**
-     * The current configuration to use for obtaining graph instances.
-     */
-    private final Configuration configuration;
+    private static final BdioFrame DEFAULT_FRAME = new BdioFrame.Builder()
+            .context(new BdioContext.Builder()
+                    .expandContext(ImmutableMap.builder()
+                            .put(Bdio.DataProperty.path.name(), Bdio.DataProperty.path.toString())
+                            .put(Bdio.DataProperty.name.name(), Bdio.DataProperty.name.toString())
+                            .put(Bdio.DataProperty.creationDateTime.name(), ImmutableMap.builder()
+                                    .put(JsonLdConsts.ID, Bdio.DataProperty.creationDateTime.toString())
+                                    .put(JsonLdConsts.TYPE, Bdio.Datatype.DateTime.toString())
+                                    .build())
+                            .put(Bdio.DataProperty.fingerprint.name(), ImmutableMap.builder()
+                                    .put(JsonLdConsts.ID, Bdio.DataProperty.fingerprint.toString())
+                                    .put(JsonLdConsts.TYPE, Bdio.Datatype.Digest.toString())
+                                    .put(JsonLdConsts.CONTAINER, JsonLdConsts.SET)
+                                    .build())
+                            .put(Bdio.DataProperty.byteCount.name(), ImmutableMap.builder()
+                                    .put(JsonLdConsts.ID, Bdio.DataProperty.byteCount.toString())
+                                    .put(JsonLdConsts.TYPE, Bdio.Datatype.Long.toString())
+                                    .build())
+                            .put(Bdio.DataProperty.fileSystemType.name(), Bdio.DataProperty.fileSystemType.toString())
+                            .put(Bdio.DataProperty.linkPath.name(), Bdio.DataProperty.linkPath.toString())
+                            .put(Bdio.DataProperty.contentType.name(), ImmutableMap.builder()
+                                    .put(JsonLdConsts.ID, Bdio.DataProperty.contentType.toString())
+                                    .put(JsonLdConsts.TYPE, Bdio.Datatype.ContentType.toString())
+                                    .build())
+                            .put(Bdio.DataProperty.encoding.name(), Bdio.DataProperty.encoding.toString())
+                            .put(Bdio.ObjectProperty.base.name(), ImmutableMap.builder()
+                                    .put(JsonLdConsts.ID, Bdio.ObjectProperty.base.toString())
+                                    .put(JsonLdConsts.TYPE, JsonLdConsts.ID)
+                                    .build())
+                            .put(Bdio.ObjectProperty.subproject.name(), ImmutableMap.builder()
+                                    .put(JsonLdConsts.ID, Bdio.ObjectProperty.subproject.toString())
+                                    .put(JsonLdConsts.TYPE, JsonLdConsts.ID)
+                                    .build())
+                            .put(Bdio.ObjectProperty.previousVersion.name(), ImmutableMap.builder()
+                                    .put(JsonLdConsts.ID, Bdio.ObjectProperty.previousVersion.toString())
+                                    .put(JsonLdConsts.TYPE, JsonLdConsts.ID)
+                                    .build())
+                            .build())
+                    .build())
+            .build();
 
     /**
      * The graph instance to test.
      */
     protected Graph graph;
 
-    public BaseTest(Configuration configuration) {
-        this.configuration = Objects.requireNonNull(configuration);
+    /**
+     * The frame describing the graph schema.
+     */
+    private final BdioFrame frame;
+
+    /**
+     * The active context (obtained via the frame).
+     */
+    private ActiveContext activeContext;
+
+    public BaseTest(Graph graph, BdioFrame frame) {
+        this.graph = Objects.requireNonNull(graph);
+        this.frame = Objects.requireNonNull(frame);
+    }
+
+    public BaseTest(Graph graph) {
+        this(graph, DEFAULT_FRAME);
     }
 
     /**
@@ -201,47 +203,102 @@ public abstract class BaseTest {
         }
     }
 
+    /**
+     * Activates the context from the frame.
+     */
     @Before
-    public final void openGraph() throws Exception {
-        try {
-            // Overhead of opening connection pools can be significant, cache failures
-            assumeFalse("Previous attempt to open graph failed, not retrying",
-                    configuration.getBoolean("bdio.test.openGraphFailed", false));
+    public final void activateContext() {
+        activeContext = frame.context().activate();
+    }
 
-            // Open a new graph
-            graph = GraphFactory.open(configuration);
-        } catch (Exception e) {
-            configuration.setProperty("bdio.test.openGraphFailed", true);
-            assumeNoException("Unable to open graph (check that the 'bdio-tinkerpop-db' Docker container is running)", e);
+    /**
+     * Clear the context.
+     */
+    @After
+    public final void clearContext() {
+        if (activeContext != null) {
+            activeContext.close();
+            activeContext = null;
         }
+    }
 
-        // Hard reset the Sqlg graph database into a clean state
-        if (graph instanceof SqlgGraph) {
-            SqlgUtil.dropDb((SqlgGraph) graph);
-            graph.tx().commit();
-            graph.close();
-            graph = GraphFactory.open(configuration);
+    /**
+     * Restores the graph to a clean state at the start of each test.
+     */
+    @Before
+    public final void cleanGraph() throws Exception {
+        if (graph instanceof TinkerGraph) {
+            ((TinkerGraph) graph).clear();
+        } else if (graph instanceof SqlgGraph) {
+            BaseTestSqlgCallback sqlgCallback = new BaseTestSqlgCallback((SqlgGraph) graph, frame);
 
-            // Run the FINISH admin initializations
-            GraphReaderWrapper wrapper = new BlackDuckIoCore(graph).readerWrapper();
-            new SqlgGraphInitializer().stream()
-                    .flatMap(ofType(AdminGraphInitializer.class))
-                    .filter(i -> i.initializationStep() == Step.FINISH)
-                    .forEach(i -> i.initialize(wrapper));
+            Flyway flyway = Flyway.configure()
+                    .dataSource(sqlgCallback.getDataSource())
+                    .callbacks(sqlgCallback)
+                    .installedBy("BaseTest")
+                    .locations("com/blackducksoftware/bdio2/tinkerpop/sqlg/flyway")
+                    .load();
+
+            flyway.clean();
+            flyway.migrate();
+
+            // The old graph is can't be saved, and we can't close it or we loose our data source
+            graph = sqlgCallback.open();
         }
     }
 
     @After
-    public final void closeGraph() throws Exception {
-        if (graph != null) {
-            // Make sure that transactions are cleaned up if necessary
-            if (graph.features().graph().supportsTransactions()) {
-                graph.tx().onClose(Transaction.CLOSE_BEHAVIOR.ROLLBACK);
-            }
+    public void rollbackOpenTx() {
+        if (graph.features().graph().supportsTransactions() && graph.tx().isOpen()) {
+            graph.tx().rollback();
+        }
+    }
 
-            // Close out the graph
-            graph.close();
-            graph = null;
+    /**
+     * Specialization of Sqlg callback for Flyway so we can keep reusing the same data source.
+     */
+    private static class BaseTestSqlgCallback extends SqlgCallback implements SqlgDataSourceFactory {
+
+        private final Configuration configuration;
+
+        private final SqlgDataSource sqlgDataSource;
+
+        private final SqlDialect sqlDialect;
+
+        public BaseTestSqlgCallback(SqlgGraph sqlgGraph, BdioFrame frame) {
+            super(SqlgCallback::getJdbcUrl, b -> b.fromExistingFrame(frame), Collections.emptyList());
+            configuration = sqlgGraph.configuration();
+            sqlgDataSource = sqlgGraph.getSqlgDataSource();
+            sqlDialect = sqlgGraph.getSqlDialect();
+        }
+
+        @Override
+        protected Configuration sqlgConfiguration(org.flywaydb.core.api.configuration.Configuration configuration) {
+            return this.configuration;
+        }
+
+        @Override
+        protected SqlgDataSourceFactory sqlgDataSourceFactory(org.flywaydb.core.api.configuration.Configuration configuration) {
+            return this;
+        }
+
+        @Override
+        protected SqlDialect sqlDialect(org.flywaydb.core.api.configuration.Configuration configuration) {
+            return sqlDialect;
+        }
+
+        @Override
+        public SqlgDataSource setup(String driver, Configuration configuration) {
+            // Wrap the data source so we can block close
+            return newProxy(SqlgDataSource.class, (p, m, a) -> m.getName().equals("close") ? null : m.invoke(sqlgDataSource, a));
+        }
+
+        public DataSource getDataSource() {
+            return sqlgDataSource.getDatasource();
+        }
+
+        public SqlgGraph open() {
+            return SqlgGraph.open(configuration, (d, c) -> sqlgDataSource);
         }
     }
 

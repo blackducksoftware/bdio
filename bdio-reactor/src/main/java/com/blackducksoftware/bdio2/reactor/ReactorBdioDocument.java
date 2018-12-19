@@ -20,9 +20,9 @@ import java.io.InputStream;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.BdioMetadata;
-import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.BdioSubscriber;
 import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.bdio2.Emitter;
@@ -38,14 +38,14 @@ import reactor.core.publisher.Flux;
  */
 public class ReactorBdioDocument extends BdioDocument {
 
-    public ReactorBdioDocument(BdioOptions options) {
-        super(options);
+    public ReactorBdioDocument(BdioContext context) {
+        super(context);
     }
 
     @Override
     public Flux<Object> read(InputStream in) {
         return Flux.generate(
-                () -> EmitterFactory.newEmitter(options(), in),
+                () -> EmitterFactory.newEmitter(context(), in),
                 (parser, emitter) -> {
                     parser.emit(emitter::next, emitter::error, emitter::complete);
                     return parser;
@@ -67,7 +67,7 @@ public class ReactorBdioDocument extends BdioDocument {
 
     @Override
     public ReactorJsonLdProcessing jsonLd(Publisher<Object> inputs) {
-        return new ReactorJsonLdProcessing(Flux.from(inputs), options());
+        return new ReactorJsonLdProcessing(Flux.from(inputs), context().jsonLdOptions());
     }
 
     @Override

@@ -22,6 +22,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.common.value.ContentType;
 import com.blackducksoftware.common.value.Digest;
@@ -34,72 +35,72 @@ public final class File extends BdioObject {
     }
 
     public File description(@Nullable Annotation description) {
-        putObject(Bdio.ObjectProperty.description, description);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.description, description);
         return this;
     }
 
     public File parent(File parent) {
-        putObject(Bdio.ObjectProperty.parent, parent);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.parent, parent);
         return this;
     }
 
     public File note(Note note) {
-        putObject(Bdio.ObjectProperty.note, note);
+        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.note, note);
         return this;
     }
 
     public File buildOptions(List<String> buildOptions) {
-        putData(Bdio.DataProperty.buildOptions, buildOptions);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.buildOptions, buildOptions);
         return this;
     }
 
     public File byteCount(@Nullable Long size) {
-        putData(Bdio.DataProperty.byteCount, size);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.byteCount, size);
         return this;
     }
 
     public File fingerprint(@Nullable Collection<Digest> fingerprint) {
-        putData(Bdio.DataProperty.fingerprint, fingerprint);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.fingerprint, fingerprint);
         return this;
     }
 
     public File fileSystemType(@Nullable String fileSystemType) {
-        putData(Bdio.DataProperty.fileSystemType, fileSystemType);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.fileSystemType, fileSystemType);
         return this;
     }
 
     public File contentType(@Nullable ContentType contentType) {
-        putData(Bdio.DataProperty.contentType, contentType);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.contentType, contentType);
         return this;
     }
 
     public File creationDateTime(@Nullable ZonedDateTime creationDateTime) {
-        putData(Bdio.DataProperty.creationDateTime, creationDateTime);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.creationDateTime, creationDateTime);
         return this;
     }
 
     public File encoding(@Nullable String encoding) {
-        putData(Bdio.DataProperty.encoding, encoding);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.encoding, encoding);
         return this;
     }
 
     public File path(@Nullable String path) {
-        putData(Bdio.DataProperty.path, path);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.path, path);
         return this;
     }
 
     public File platform(@Nullable ProductList platform) {
-        putData(Bdio.DataProperty.platform, platform);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.platform, platform);
         return this;
     }
 
     public File lastModifiedDateTime(ZonedDateTime lastModifiedDateTime) {
-        putData(Bdio.DataProperty.lastModifiedDateTime, lastModifiedDateTime);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.lastModifiedDateTime, lastModifiedDateTime);
         return this;
     }
 
     public File linkPath(@Nullable String linkPath) {
-        putData(Bdio.DataProperty.linkPath, linkPath);
+        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.linkPath, linkPath);
         return this;
     }
 

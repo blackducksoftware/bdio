@@ -22,12 +22,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.sql.SQLException;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
-import java.util.Map;
+import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -37,12 +39,12 @@ import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 import org.apache.tinkerpop.gremlin.structure.io.GraphReader;
 import org.apache.tinkerpop.gremlin.structure.io.Mapper;
 import org.apache.tinkerpop.gremlin.structure.util.Attachable;
-import org.reactivestreams.Publisher;
-import org.umlg.sqlg.structure.SqlgGraph;
 
-import com.blackducksoftware.bdio2.BdioDocument;
+import com.blackducksoftware.bdio2.BdioFrame;
 import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
+import com.blackducksoftware.bdio2.tinkerpop.spi.BlackDuckIoReaderSpi;
+import com.blackducksoftware.bdio2.tinkerpop.spi.BlackDuckIoSpi;
 
 import io.reactivex.Flowable;
 import io.reactivex.plugins.RxJavaPlugins;
@@ -54,37 +56,39 @@ import io.reactivex.plugins.RxJavaPlugins;
  */
 public final class BlackDuckIoReader implements GraphReader {
 
-    /**
-     * Function that applies a graph wrapper.
-     */
-    private final Function<Graph, GraphReaderWrapper> graphWrapper;
+    private final BlackDuckIoOptions options;
+
+    private final BdioFrame frame;
+
+    private final int batchSize;
 
     private BlackDuckIoReader(Builder builder) {
-        graphWrapper = builder.wrapperFactory::wrapReader;
+        options = Objects.requireNonNull(builder.options);
+        frame = builder.mapper.createMapper();
+        batchSize = builder.batchSize;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @SuppressWarnings("CheckReturnValue")
-    @Override
-    public void readGraph(InputStream inputStream, Graph graph) throws IOException {
-        GraphReaderWrapper wrapper = graphWrapper.apply(graph);
-        RxJavaBdioDocument doc = new RxJavaBdioDocument(wrapper.bdioOptions());
+    public void readGraph(InputStream inputStream, String base, Object expandContext, List<TraversalStrategy<?>> strategies, Graph graph) throws IOException {
+        // Create a new BDIO document using a new document context derived from the graph context
+        RxJavaBdioDocument doc = new RxJavaBdioDocument(frame.context().newBuilder().base(base).expandContext(expandContext).build());
+
+        // The reader SPI allows for graph implementation specific optimizations
+        GraphTraversalSource g = graph.traversal().withStrategies(strategies.toArray(new TraversalStrategy<?>[strategies.size()]));
+        BlackDuckIoReaderSpi spi = BlackDuckIoSpi.getForGraph(graph).reader(g, options, frame, batchSize);
 
         try {
-            Flowable<Object> entries = doc.read(inputStream).publish().autoConnect(2);
+            // Read the input stream as sequence of "entries" (individual JSON-LD documents)
+            Flowable<Object> entries = doc.read(inputStream);
 
-            // Just call the default onError handler directly instead of wrapping it in OnErrorNotImplementedException
-            doc.metadata(entries).singleOrError().subscribe(wrapper::createMetadata, RxJavaPlugins::onError);
+            // If we are persisting metadata, create a separate subscription just for that
+            if (options.metadataLabel().isPresent()) {
+                entries = entries.publish().autoConnect(2);
+                doc.metadata(entries).singleOrError().subscribe(spi::persistMetadata, RxJavaPlugins::onError);
+            }
 
-            doc.jsonLd(entries)
-                    .frame(wrapper.mapper().frame())
-                    .compose(framedEntries -> readNodes(wrapper, framedEntries))
-                    .doOnComplete(wrapper::commitTx)
-                    .doOnError(x -> wrapper.rollbackTx())
-                    .blockingSubscribe();
-
+            // Frame the entries and do a blocking persist
+            doc.jsonLd(entries).frame(frame.serialize()).compose(spi::persistFramedEntries).blockingSubscribe();
         } catch (RuntimeException e) {
             Throwable failure = unwrap(e);
             throwIfInstanceOf(failure, IOException.class);
@@ -101,42 +105,6 @@ public final class BlackDuckIoReader implements GraphReader {
     }
 
     /**
-     * Reads framed JSON-LD input into the graph.
-     *
-     * @see SqlgNodeAccumulator
-     * @see TinkerGraphNodeAccumulator
-     * @see DefaultNodeAccumulator
-     */
-    private Publisher<?> readNodes(GraphReaderWrapper wrapper, Flowable<Map<String, Object>> framedEntries) {
-        // `framedEntries` is a sequence of node lists, each list should have an upper bound around 2^15 elements
-        if (SqlgNodeAccumulator.acceptWrapper(wrapper)) {
-            return framedEntries
-                    .map(BdioDocument::toGraphNodes)
-                    .map(nodes -> nodes.stream()
-                            .sorted(SqlgNodeAccumulator::nodeTypeOrder)
-                            .reduce(new SqlgNodeAccumulator(wrapper), SqlgNodeAccumulator::addNode, SqlgNodeAccumulator::combine)
-                            .flush())
-                    .reduce(SqlgNodeAccumulator::combine)
-                    .doOnSuccess(SqlgNodeAccumulator::finish)
-                    .doOnSubscribe(x -> ((SqlgGraph) wrapper.graph()).tx().streamingBatchModeOn())
-                    .toFlowable();
-        } else if (TinkerGraphNodeAccumulator.acceptWrapper(wrapper)) {
-            return framedEntries
-                    .flatMapIterable(BdioDocument::toGraphNodes)
-                    .reduce(new TinkerGraphNodeAccumulator(wrapper), TinkerGraphNodeAccumulator::addNode)
-                    .doOnSuccess(TinkerGraphNodeAccumulator::finish)
-                    .toFlowable();
-        } else {
-            return framedEntries
-                    .flatMapIterable(BdioDocument::toGraphNodes)
-                    .reduce(new DefaultNodeAccumulator(wrapper), DefaultNodeAccumulator::addNode)
-                    .doOnSuccess(DefaultNodeAccumulator::finish)
-                    .doOnSubscribe(x -> wrapper.startBatchTx())
-                    .toFlowable();
-        }
-    }
-
-    /**
      * Unwraps an exception thrown by {@code Flowable.blockingSubscribe()}.
      */
     private Throwable unwrap(RuntimeException failure) {
@@ -148,6 +116,14 @@ public final class BlackDuckIoReader implements GraphReader {
             }
         }
         return failure;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void readGraph(InputStream inputStream, Graph graph) throws IOException {
+        readGraph(inputStream, "", null, Collections.emptyList(), graph);
     }
 
     /**
@@ -217,34 +193,30 @@ public final class BlackDuckIoReader implements GraphReader {
 
     public static final class Builder implements ReaderBuilder<BlackDuckIoReader> {
 
-        private final GraphIoWrapperFactory wrapperFactory;
+        private Mapper<BdioFrame> mapper;
+
+        private BlackDuckIoOptions options;
+
+        private int batchSize;
 
         private Builder() {
-            wrapperFactory = new GraphIoWrapperFactory();
+            mapper = BlackDuckIoMapper.build().create();
+            options = BlackDuckIoOptions.build().create();
+            batchSize = 10_000;
         }
 
-        public Builder mapper(Mapper<GraphMapper> mapper) {
-            wrapperFactory.mapper(mapper::createMapper);
+        public Builder mapper(Mapper<BdioFrame> mapper) {
+            this.mapper = Objects.requireNonNull(mapper);
             return this;
         }
 
-        public Builder addStrategies(Collection<TraversalStrategy<?>> strategies) {
-            wrapperFactory.addStrategies(strategies);
+        public Builder options(BlackDuckIoOptions options) {
+            this.options = Objects.requireNonNull(options);
             return this;
         }
 
         public Builder batchSize(int batchSize) {
-            wrapperFactory.batchSize(batchSize);
-            return this;
-        }
-
-        public Builder version(BlackDuckIoVersion version) {
-            wrapperFactory.version(version);
-            return this;
-        }
-
-        public Builder expandContext(Object expandContext) {
-            wrapperFactory.expandContext(expandContext);
+            this.batchSize = batchSize;
             return this;
         }
 

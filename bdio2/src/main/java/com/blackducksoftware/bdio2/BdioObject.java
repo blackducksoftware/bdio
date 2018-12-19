@@ -18,23 +18,17 @@ package com.blackducksoftware.bdio2;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.util.AbstractMap;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
 import com.blackducksoftware.common.base.ExtraStrings;
 import com.blackducksoftware.common.base.ExtraUUIDs;
 import com.github.jsonldjava.core.JsonLdConsts;
-import com.google.common.collect.Streams;
 
 /**
  * Base class used to help model the BDIO JSON-LD classes. This map does not allow {@code null} keys, attempts to map
@@ -84,6 +78,7 @@ public class BdioObject extends AbstractMap<String, Object> {
     /**
      * Returns a new random identifier.
      */
+    // TODO Deprecate this
     public static String randomId() {
         return ExtraUUIDs.toUriString(UUID.randomUUID());
     }
@@ -94,14 +89,14 @@ public class BdioObject extends AbstractMap<String, Object> {
     }
 
     @Override
-    public final Object put(String key, @Nullable Object value) {
-        Objects.requireNonNull(key, "key must not be null");
-        return value != null ? data.put(key, value) : data.remove(key);
+    public final Object get(@Nullable Object key) {
+        return data.get(key);
     }
 
     @Override
-    public final Object get(@Nullable Object key) {
-        return data.get(key);
+    public final Object put(String key, @Nullable Object value) {
+        Objects.requireNonNull(key, "key must not be null");
+        return value != null ? data.put(key, value) : data.remove(key);
     }
 
     /**
@@ -112,81 +107,6 @@ public class BdioObject extends AbstractMap<String, Object> {
         Object value = get(JsonLdConsts.ID);
         checkState(value == null || value instanceof String, "identifier is not mapped to a string");
         return ExtraStrings.beforeLast((String) value, '#');
-    }
-
-    /**
-     * Appends a new value to a data property, returning the new value or {@code null} if the property was not
-     * previously mapped and the supplied value is {@code null}.
-     */
-    protected final Object putData(Bdio.DataProperty key, @Nullable Object value) {
-        return putJsonLd(key, value, mapper()::toValueObject);
-    }
-
-    /**
-     * Appends a new identifier for a related object, returning the new value or {@code null} if the property was not
-     * previously mapped and the supplied value is {@code null}.
-     */
-    protected final Object putObject(Bdio.ObjectProperty key, @Nullable Object value) {
-        return putJsonLd(key, value, mapper()::toReferenceValueObject);
-    }
-
-    /**
-     * Returns the mapper to use for doing JSON-LD value object conversions.
-     */
-    protected ValueObjectMapper mapper() {
-        return ValueObjectMapper.getContextValueObjectMapper();
-    }
-
-    /**
-     * Generic implementation of {@code put} for JSON-LD values.
-     */
-    private Object putJsonLd(Object key, @Nullable Object value, Function<Object, Object> toValueObject) {
-        Bdio.Container container = container(key);
-        if (container == Bdio.Container.single) {
-            // Use `compute` instead of `put` because `put` returns the previous value
-            return compute(key.toString(), (k, v) -> toValueObject.apply(value));
-        } else if (value != null) {
-            @SuppressWarnings("unchecked")
-            List<Object> result = (List<Object>) computeIfAbsent(key.toString(), k -> new ArrayList<>());
-            Stream<?> values = streamValue(value).map(toValueObject);
-            if (container == Bdio.Container.ordered) {
-                values.forEachOrdered(result::add);
-            } else {
-                values.forEach(result::add);
-            }
-            return result;
-        } else {
-            // Current value is unmodified
-            return get(key.toString());
-        }
-    }
-
-    /**
-     * Returns the container associated with the specified map key. A container of {@link Bdio.Container#single} behaves
-     * like a normal map, all other containers behave like a list multimap.
-     */
-    private static Bdio.Container container(Object key) {
-        if (key instanceof Bdio.DataProperty) {
-            return ((Bdio.DataProperty) key).container();
-        } else if (key instanceof Bdio.ObjectProperty) {
-            return ((Bdio.ObjectProperty) key).container();
-        } else {
-            return Bdio.Container.single;
-        }
-    }
-
-    /**
-     * Converts an arbitrary value into a stream of one or more values.
-     */
-    private Stream<?> streamValue(Object value) {
-        Objects.requireNonNull(value);
-        if (value instanceof Iterable<?>) {
-            return Streams.stream((Iterable<?>) value);
-        } else if (value.getClass().isArray()) {
-            return Stream.of((Object[]) value);
-        } else {
-            return Stream.of(value);
-        }
     }
 
 }

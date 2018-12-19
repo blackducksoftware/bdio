@@ -20,9 +20,9 @@ import java.io.InputStream;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.BdioMetadata;
-import com.blackducksoftware.bdio2.BdioOptions;
 import com.blackducksoftware.bdio2.BdioSubscriber;
 import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.bdio2.Emitter;
@@ -37,16 +37,16 @@ import io.reactivex.processors.PublishProcessor;
  *
  * @author jgustie
  */
-public final class RxJavaBdioDocument extends BdioDocument {
+public class RxJavaBdioDocument extends BdioDocument {
 
-    public RxJavaBdioDocument(BdioOptions options) {
-        super(options);
+    public RxJavaBdioDocument(BdioContext context) {
+        super(context);
     }
 
     @Override
     public Flowable<Object> read(InputStream in) {
         return Flowable.generate(
-                () -> EmitterFactory.newEmitter(options(), in),
+                () -> EmitterFactory.newEmitter(context(), in),
                 (parser, emitter) -> {
                     parser.emit(emitter::onNext, emitter::onError, emitter::onComplete);
                 },
@@ -68,7 +68,7 @@ public final class RxJavaBdioDocument extends BdioDocument {
 
     @Override
     public RxJavaJsonLdProcessing jsonLd(Publisher<Object> inputs) {
-        return new RxJavaJsonLdProcessing(Flowable.fromPublisher(inputs), options());
+        return new RxJavaJsonLdProcessing(Flowable.fromPublisher(inputs), context().jsonLdOptions());
     }
 
     @Override

@@ -23,7 +23,7 @@ import java.util.stream.Stream;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.Bdio.FileSystemType;
-import com.blackducksoftware.bdio2.datatype.ValueObjectMapper;
+import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
 import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
@@ -35,12 +35,12 @@ public class DataPropertyRange implements RawNodeRule {
     public Stream<Violation> validate(Map<String, Object> input) {
         ViolationBuilder result = new ViolationBuilder(this, input);
 
-        ValueObjectMapper valueObjectMapper = ValueObjectMapper.getContextValueObjectMapper();
+        BdioContext context = BdioContext.getActive();
         for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
             String key = dataProperty.toString();
             try {
                 // Use the value object mapper to validate data properties
-                Object rawValue = valueObjectMapper.fromFieldValue(key, input.get(key));
+                Object rawValue = context.fromFieldValue(key, input.get(key));
 
                 Collection<?> values;
                 if (rawValue instanceof Collection<?>) {
