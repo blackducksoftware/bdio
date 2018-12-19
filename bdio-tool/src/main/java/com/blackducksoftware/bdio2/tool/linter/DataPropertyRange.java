@@ -28,7 +28,6 @@ import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
 import com.blackducksoftware.bdio2.tool.linter.Linter.Violation;
 import com.blackducksoftware.bdio2.tool.linter.Linter.ViolationBuilder;
 import com.blackducksoftware.common.value.HID;
-import com.google.common.base.Enums;
 
 public class DataPropertyRange implements RawNodeRule {
 

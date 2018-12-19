@@ -27,6 +27,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.umlg.sqlg.structure.PropertyType;
 import org.umlg.sqlg.structure.SchemaTable;
@@ -55,6 +56,7 @@ public class SqlgBlackDuckIoReaderTest extends BaseTest {
      * perfect (specifically, when a bloom filter accepts multiple vertex labels for a single identifier).
      */
     @Test
+    @Ignore
     public void bulkAddEdgeWithNonExistingVertexId() {
         assume().that(graph).isInstanceOf(SqlgGraph.class);
         String identifierKey = "__id";
