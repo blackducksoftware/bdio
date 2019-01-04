@@ -50,7 +50,6 @@ import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIo;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoOptions;
 import com.blackducksoftware.bdio2.tinkerpop.strategy.PropertyConstantStrategy;
 import com.blackducksoftware.common.base.ExtraStreams;
-import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Enums;
 
 public class BdioCallback extends SqlgCallback {
@@ -81,23 +80,25 @@ public class BdioCallback extends SqlgCallback {
                 .getStrategies().toList();
 
         // Define the schema
-        vertex(topology, options, frame, strategies);
+        vertex(topology, options, frame.context(), strategies);
         dataProperties(topology, options, frame.context());
         objectProperties(topology, frame.context(), strategies);
         metadata(topology, options, frame.context(), strategies);
     }
 
-    protected void vertex(Topology topology, BlackDuckIoOptions options, BdioFrame frame, List<TraversalStrategy<?>> strategies) {
+    protected void vertex(Topology topology, BlackDuckIoOptions options, BdioContext context, List<TraversalStrategy<?>> strategies) {
         // Compute the list of required properties and indices
         Map<String, PropertyType> columns = new TreeMap<>();
         List<String> nonUniqueIndexNames = new ArrayList<>();
         computeColumns(columns, nonUniqueIndexNames, options, strategies);
 
-        // Ensure the a vertex label exists for every type identified in the context frame
-        ((List<?>) frame.serialize().get(JsonLdConsts.TYPE)).stream()
-                .flatMap(ofType(String.class))
-                .flatMap(fromOptional(frame.context()::lookupTerm))
-                .forEach(label -> ensureVertexLabelExist(topology, label, columns, nonUniqueIndexNames));
+        // If we looked at the frame types we would miss embedded types, just iterate over the standard values instead
+        for (Bdio.Class bdioClass : Bdio.Class.values()) {
+            String label = context.lookupTerm(bdioClass.toString()).orElse(null);
+            if (label != null) {
+                ensureVertexLabelExist(topology, label, columns, nonUniqueIndexNames);
+            }
+        }
     }
 
     protected void dataProperties(Topology topology, BlackDuckIoOptions options, BdioContext context) {
