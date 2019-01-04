@@ -16,25 +16,22 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.google.common.collect.Lists.asList;
-import static com.google.common.reflect.Reflection.newProxy;
+import static java.util.Collections.emptyList;
 
-import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
-import javax.sql.DataSource;
-
-import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.configuration.Configuration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.runner.RunWith;
 import org.umlg.sqlg.sql.dialect.SqlDialect;
-import org.umlg.sqlg.structure.SqlgDataSourceFactory;
+import org.umlg.sqlg.structure.SqlgDataSourceFactory.SqlgDataSource;
 import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
@@ -42,7 +39,8 @@ import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioContext.ActiveContext;
 import com.blackducksoftware.bdio2.BdioFrame;
 import com.blackducksoftware.bdio2.test.GraphRunner;
-import com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway.SqlgCallback;
+import com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway.BdioCallback;
+import com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway.SqlgFlywayExecutor;
 import com.blackducksoftware.bdio2.tinkerpop.strategy.PropertyConstantStrategy;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableMap;
@@ -230,11 +228,27 @@ public abstract class BaseTest {
         if (graph instanceof TinkerGraph) {
             ((TinkerGraph) graph).clear();
         } else if (graph instanceof SqlgGraph) {
-            BaseTestSqlgCallback sqlgCallback = new BaseTestSqlgCallback((SqlgGraph) graph, frame);
+            SqlgDataSource dataSource = ((SqlgGraph) graph).getSqlgDataSource();
+            BdioCallback bdioCallback = new BdioCallback(b -> b.fromExistingFrame(frame), emptyList()) {
+                @Override
+                protected SqlgFlywayExecutor executor(org.flywaydb.core.api.configuration.Configuration configuration) {
+                    return new SqlgFlywayExecutor(configuration) {
+                        @Override
+                        public void execute(SqlgTask task) throws Exception {
+                            task.run((SqlgGraph) graph);
+                        }
+                    };
+                }
+
+                @Override
+                protected SqlDialect sqlDialect(Configuration configuration) {
+                    return ((SqlgGraph) graph).getSqlDialect();
+                }
+            };
 
             Flyway flyway = Flyway.configure()
-                    .dataSource(sqlgCallback.getDataSource())
-                    .callbacks(sqlgCallback)
+                    .dataSource(dataSource.getDatasource())
+                    .callbacks(bdioCallback)
                     .installedBy("BaseTest")
                     .locations("com/blackducksoftware/bdio2/tinkerpop/sqlg/flyway")
                     .load();
@@ -243,7 +257,7 @@ public abstract class BaseTest {
             flyway.migrate();
 
             // The old graph is can't be saved, and we can't close it or we loose our data source
-            graph = sqlgCallback.open();
+            graph = SqlgGraph.open(graph.configuration(), (d, c) -> dataSource);
         }
     }
 
@@ -251,54 +265,6 @@ public abstract class BaseTest {
     public void rollbackOpenTx() {
         if (graph.features().graph().supportsTransactions() && graph.tx().isOpen()) {
             graph.tx().rollback();
-        }
-    }
-
-    /**
-     * Specialization of Sqlg callback for Flyway so we can keep reusing the same data source.
-     */
-    private static class BaseTestSqlgCallback extends SqlgCallback implements SqlgDataSourceFactory {
-
-        private final Configuration configuration;
-
-        private final SqlgDataSource sqlgDataSource;
-
-        private final SqlDialect sqlDialect;
-
-        public BaseTestSqlgCallback(SqlgGraph sqlgGraph, BdioFrame frame) {
-            super(SqlgCallback::getJdbcUrl, b -> b.fromExistingFrame(frame), Collections.emptyList());
-            configuration = sqlgGraph.configuration();
-            sqlgDataSource = sqlgGraph.getSqlgDataSource();
-            sqlDialect = sqlgGraph.getSqlDialect();
-        }
-
-        @Override
-        protected Configuration sqlgConfiguration(org.flywaydb.core.api.configuration.Configuration configuration) {
-            return this.configuration;
-        }
-
-        @Override
-        protected SqlgDataSourceFactory sqlgDataSourceFactory(org.flywaydb.core.api.configuration.Configuration configuration) {
-            return this;
-        }
-
-        @Override
-        protected SqlDialect sqlDialect(org.flywaydb.core.api.configuration.Configuration configuration) {
-            return sqlDialect;
-        }
-
-        @Override
-        public SqlgDataSource setup(String driver, Configuration configuration) {
-            // Wrap the data source so we can block close
-            return newProxy(SqlgDataSource.class, (p, m, a) -> m.getName().equals("close") ? null : m.invoke(sqlgDataSource, a));
-        }
-
-        public DataSource getDataSource() {
-            return sqlgDataSource.getDatasource();
-        }
-
-        public SqlgGraph open() {
-            return SqlgGraph.open(configuration, (d, c) -> sqlgDataSource);
         }
     }
 

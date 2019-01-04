@@ -22,18 +22,16 @@ import static org.umlg.sqlg.structure.PropertyType.JSON;
 import static org.umlg.sqlg.structure.PropertyType.STRING;
 import static org.umlg.sqlg.structure.topology.IndexType.NON_UNIQUE;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
@@ -41,7 +39,6 @@ import javax.annotation.Nullable;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.umlg.sqlg.structure.PropertyType;
-import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.structure.topology.EdgeLabel;
 import org.umlg.sqlg.structure.topology.Topology;
 import org.umlg.sqlg.structure.topology.VertexLabel;
@@ -56,20 +53,32 @@ import com.blackducksoftware.common.base.ExtraStreams;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Enums;
 
-public class R__BDIO_topology extends BaseSqlgMigration {
+public class BdioCallback extends SqlgCallback {
 
-    public R__BDIO_topology() {
+    private final Consumer<BlackDuckIo.Builder> configureBdio;
+
+    private final List<TraversalStrategy<?>> strategies;
+
+    public BdioCallback(Consumer<BlackDuckIo.Builder> configureBdio, List<TraversalStrategy<?>> strategies) {
+        this.configureBdio = Objects.requireNonNull(configureBdio);
+        this.strategies = Objects.requireNonNull(strategies);
+    }
+
+    public static BdioCallback create(Consumer<BlackDuckIo.Builder> configureBdio, TraversalStrategy<?>... strategies) {
+        return new BdioCallback(configureBdio, Arrays.asList(strategies));
     }
 
     @Override
-    protected void migrate(SqlgGraph sqlgGraph, SqlgCallback sqlgCallbacks) {
-        // Configure BDIO
-        BlackDuckIo bdio = sqlgGraph.io(sqlgCallbacks.bdio());
+    protected void topologyEagerCreation(Topology topology) {
+        BlackDuckIo.Builder builder = BlackDuckIo.build();
+        configureBdio.accept(builder);
+        BlackDuckIo bdio = topology.getSqlgGraph().io(builder);
 
-        Topology topology = sqlgGraph.getTopology();
         BlackDuckIoOptions options = bdio.options();
         BdioFrame frame = bdio.mapper().create().createMapper();
-        List<TraversalStrategy<?>> strategies = sqlgCallbacks.getStrategies(sqlgGraph);
+        List<TraversalStrategy<?>> strategies = topology.getSqlgGraph().traversal()
+                .withStrategies(this.strategies.toArray(new TraversalStrategy<?>[this.strategies.size()]))
+                .getStrategies().toList();
 
         // Define the schema
         vertex(topology, options, frame, strategies);
@@ -157,28 +166,6 @@ public class R__BDIO_topology extends BaseSqlgMigration {
                 }
             }
         }
-    }
-
-    public static Runnable time(Runnable task, Consumer<Duration> duration) {
-        return () -> {
-            Instant start = Instant.now();
-            try {
-                task.run();
-            } finally {
-                duration.accept(Duration.between(start, Instant.now()));
-            }
-        };
-    }
-
-    public static <T> Supplier<T> time(Supplier<T> task, Consumer<Duration> duration) {
-        return () -> {
-            Instant start = Instant.now();
-            try {
-                return task.get();
-            } finally {
-                duration.accept(Duration.between(start, Instant.now()));
-            }
-        };
     }
 
     protected void metadata(Topology topology, BlackDuckIoOptions options, BdioContext context, List<TraversalStrategy<?>> strategies) {

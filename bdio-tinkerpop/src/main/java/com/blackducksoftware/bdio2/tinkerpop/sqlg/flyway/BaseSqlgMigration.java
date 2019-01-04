@@ -15,13 +15,6 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway;
 
-import static com.blackducksoftware.common.base.ExtraStreams.ofType;
-import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
-import static com.google.common.collect.MoreCollectors.toOptional;
-
-import java.util.Arrays;
-
-import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.umlg.sqlg.structure.SqlgGraph;
@@ -41,28 +34,12 @@ public abstract class BaseSqlgMigration extends BaseJavaMigration {
 
     @Override
     public final void migrate(Context context) throws Exception {
-        Configuration configuration = context.getConfiguration();
-
-        // Get the required SqlgCallbacks associated with the Flyway context
-        SqlgCallback sqlgCallbacks = Arrays.stream(configuration.getCallbacks()).flatMap(ofType(SqlgCallback.class)).collect(toOptional())
-                .orElseThrow(illegalState("Sqlg migrations require a registered instance of SqlgCallbacks"));
-
-        // Open a graph and run the migration inside a transaction
-        SqlgGraph sqlgGraph = sqlgCallbacks.open(configuration);
-        try {
-            sqlgGraph.tx().open();
-            migrate(sqlgGraph, sqlgCallbacks);
-            sqlgGraph.tx().commit();
-        } catch (RuntimeException | Error e) {
-            sqlgGraph.tx().rollback();
-        } finally {
-            sqlgGraph.close();
-        }
+        new SqlgFlywayExecutor(context.getConfiguration()).execute(this::migrate);
     }
 
     /**
      * Execute a migration within a transaction using the Sqlg graph.
      */
-    protected abstract void migrate(SqlgGraph sqlgGraph, SqlgCallback sqlgCallbacks);
+    protected abstract void migrate(SqlgGraph sqlgGraph) throws Exception;
 
 }
