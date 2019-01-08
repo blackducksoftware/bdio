@@ -339,10 +339,7 @@ final class SqlgBlackDuckIoReader extends BlackDuckIoReaderSpi {
             }
 
             Map<String, String> partitions = new LinkedHashMap<>();
-            getTraversalProperties((k, v) -> {
-                partitions.put(dialect.maybeWrapInQoutes(k.toString()),
-                        dialect.valueToValuesString(properties.get(k).getPropertyType(), v));
-            }, false);
+            getTraversalProperties((k, v) -> partitions.put((String) k, dialect.valueToValuesString(properties.get(k).getPropertyType(), v)), false);
 
             sql.clear();
             sql.append(dialect.createTemporaryTableStatement())
@@ -356,7 +353,7 @@ final class SqlgBlackDuckIoReader extends BlackDuckIoReaderSpi {
                     .append("\nFROM (SELECT * FROM ")
                     .maybeWrapInQuotes(table.getTable())
                     .forEachAppend(partitions.entrySet().stream(),
-                            (e, s) -> s.append(e.getKey()).append(" = ").append(e.getValue()),
+                            (e, s) -> s.maybeWrapInQuotes(e.getKey()).append(" = ").append(e.getValue()),
                             " AND ", " WHERE ", "")
                     .append(" ORDER BY ")
                     .maybeWrapInQuotes(options().identifierKey().get())
