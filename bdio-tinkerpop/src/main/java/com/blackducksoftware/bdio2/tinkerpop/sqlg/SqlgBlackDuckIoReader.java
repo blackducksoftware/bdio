@@ -15,6 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop.sqlg;
 
+import static com.blackducksoftware.common.base.ExtraConsumers.withBoth;
 import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -212,6 +213,7 @@ final class SqlgBlackDuckIoReader extends BlackDuckIoReaderSpi {
                         effectiveNode.putAll(node);
                     }
                     List<Object> keyValues = new ArrayList<>();
+                    getTraversalProperties(withBoth(keyValues::add), true);
                     getNodeProperties(effectiveNode, (k, v) -> {
                         // Sqlg issue #294 workaround
                         if (k.equals(Bdio.DataProperty.lastModifiedDateTime.name())
