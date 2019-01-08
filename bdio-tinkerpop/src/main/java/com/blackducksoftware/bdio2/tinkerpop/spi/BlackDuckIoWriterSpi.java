@@ -114,6 +114,7 @@ public abstract class BlackDuckIoWriterSpi extends AbstractBlackDuckIoSpi {
     protected Collection<String> includedLabels() {
         return ((List<?>) frame().serialize().get(JsonLdConsts.TYPE)).stream()
                 .flatMap(ofType(String.class))
+                .filter(t -> !frame().context().isEmbedded(t))
                 .flatMap(fromOptional(frame().context()::lookupTerm))
                 .collect(toList());
     }

@@ -60,7 +60,7 @@ public final class BdioFrame {
 
     public Map<String, Object> serialize() {
         Map<String, Object> result = context.serialize();
-        result.put(JsonLdConsts.TYPE, classes.stream().filter(c -> !context.isEmbedded(c)).collect(toList()));
+        result.put(JsonLdConsts.TYPE, classes.stream().collect(toList()));
 
         context().getPrefixes(false).forEach((term, iri) -> {
             if (isObjectProperty(term)) {
