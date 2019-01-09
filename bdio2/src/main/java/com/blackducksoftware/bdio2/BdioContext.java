@@ -57,6 +57,8 @@ import com.google.common.io.Resources;
  */
 public final class BdioContext {
 
+    // TODO This whole "active context" needs to go
+
     private static final ThreadLocal<BdioContext> ACTIVE_CONTEXT = new ThreadLocal<>();
 
     public final class ActiveContext implements Supplier<BdioContext>, AutoCloseable {

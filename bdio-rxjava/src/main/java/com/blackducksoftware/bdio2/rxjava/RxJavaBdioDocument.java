@@ -21,6 +21,7 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
 import com.blackducksoftware.bdio2.BdioContext;
+import com.blackducksoftware.bdio2.BdioContext.ActiveContext;
 import com.blackducksoftware.bdio2.BdioDocument;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.BdioSubscriber;
@@ -45,12 +46,12 @@ public class RxJavaBdioDocument extends BdioDocument {
 
     @Override
     public Flowable<Object> read(InputStream in) {
-        return Flowable.generate(
-                () -> EmitterFactory.newEmitter(context(), in),
+        return Flowable.using(context()::activate, context -> Flowable.generate(
+                () -> EmitterFactory.newEmitter(context.get(), in),
                 (parser, emitter) -> {
                     parser.emit(emitter::onNext, emitter::onError, emitter::onComplete);
                 },
-                Emitter::dispose);
+                Emitter::dispose), ActiveContext::close);
     }
 
     @Override
@@ -73,11 +74,11 @@ public class RxJavaBdioDocument extends BdioDocument {
 
     @Override
     public Flowable<BdioMetadata> metadata(Publisher<Object> inputs) {
-        return jsonLd(Flowable.fromPublisher(inputs).map(BdioDocument::toMetadata))
+        return Flowable.using(context()::activate, context -> jsonLd(Flowable.fromPublisher(inputs).map(BdioDocument::toMetadata))
                 .expand().flatMapIterable(BdioDocument::unfoldExpand)
                 .onErrorReturn(BdioMetadata::new)
                 .reduce(new BdioMetadata(), BdioMetadata::merge)
-                .toFlowable();
+                .toFlowable(), ActiveContext::close);
     }
 
 }
