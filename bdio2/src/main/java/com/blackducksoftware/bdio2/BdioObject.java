@@ -109,4 +109,8 @@ public class BdioObject extends AbstractMap<String, Object> {
         return ExtraStrings.beforeLast((String) value, '#');
     }
 
+    protected Object putFieldValue(Object field, @Nullable Object value) {
+        return BdioContext.getActive().putFieldValue(this, field, value);
+    }
+
 }

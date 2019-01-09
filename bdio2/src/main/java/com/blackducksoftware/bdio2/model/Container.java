@@ -18,7 +18,6 @@ package com.blackducksoftware.bdio2.model;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.common.value.ProductList;
 
@@ -29,47 +28,47 @@ public final class Container extends BdioObject {
     }
 
     public Container base(@Nullable File base) {
-        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.base, base);
+        putFieldValue(Bdio.ObjectProperty.base, base);
         return this;
     }
 
     public Container dependency(Dependency dependency) {
-        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.dependency, dependency);
+        putFieldValue(Bdio.ObjectProperty.dependency, dependency);
         return this;
     }
 
     public Container description(@Nullable Annotation description) {
-        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.description, description);
+        putFieldValue(Bdio.ObjectProperty.description, description);
         return this;
     }
 
     public Container license(@Nullable Object license) {
-        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.license, license);
+        putFieldValue(Bdio.ObjectProperty.license, license);
         return this;
     }
 
     public Container licenseConjunctive(@Nullable Object license) {
-        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseConjunctive, license);
+        putFieldValue(Bdio.ObjectProperty.licenseConjunctive, license);
         return this;
     }
 
     public Container licenseDisjunctive(@Nullable Object license) {
-        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseDisjunctive, license);
+        putFieldValue(Bdio.ObjectProperty.licenseDisjunctive, license);
         return this;
     }
 
     public Container licenseOrLater(@Nullable Object license) {
-        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseOrLater, license);
+        putFieldValue(Bdio.ObjectProperty.licenseOrLater, license);
         return this;
     }
 
     public Container namespace(@Nullable String namespace) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.namespace, namespace);
+        putFieldValue(Bdio.DataProperty.namespace, namespace);
         return this;
     }
 
     public Container platform(@Nullable ProductList platform) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.platform, platform);
+        putFieldValue(Bdio.DataProperty.platform, platform);
         return this;
     }
 

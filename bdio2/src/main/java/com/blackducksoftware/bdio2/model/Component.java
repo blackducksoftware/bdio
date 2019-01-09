@@ -18,7 +18,6 @@ package com.blackducksoftware.bdio2.model;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.common.value.ProductList;
 
@@ -29,82 +28,82 @@ public final class Component extends BdioObject {
     }
 
     public Component canonical(@Nullable Component canonical) {
-        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.canonical, canonical);
+        putFieldValue(Bdio.ObjectProperty.canonical, canonical);
         return this;
     }
 
     public Component dependency(@Nullable Dependency dependency) {
-        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.dependency, dependency);
+        putFieldValue(Bdio.ObjectProperty.dependency, dependency);
         return this;
     }
 
     public Component description(@Nullable Annotation description) {
-        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.description, description);
+        putFieldValue(Bdio.ObjectProperty.description, description);
         return this;
     }
 
     public Component license(@Nullable Object license) {
-        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.license, license);
+        putFieldValue(Bdio.ObjectProperty.license, license);
         return this;
     }
 
     public Component licenseConjunctive(@Nullable Object license) {
-        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseConjunctive, license);
+        putFieldValue(Bdio.ObjectProperty.licenseConjunctive, license);
         return this;
     }
 
     public Component licenseDisjunctive(@Nullable Object license) {
-        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseDisjunctive, license);
+        putFieldValue(Bdio.ObjectProperty.licenseDisjunctive, license);
         return this;
     }
 
     public Component licenseOrLater(@Nullable Object license) {
-        BdioContext.getActive().putFieldValue(this, Bdio.ObjectProperty.licenseOrLater, license);
+        putFieldValue(Bdio.ObjectProperty.licenseOrLater, license);
         return this;
     }
 
     public Component name(@Nullable String name) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.name, name);
+        putFieldValue(Bdio.DataProperty.name, name);
         return this;
     }
 
     public Component version(@Nullable String version) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.version, version);
+        putFieldValue(Bdio.DataProperty.version, version);
         return this;
     }
 
     public Component vendor(@Nullable String vendor) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.vendor, vendor);
+        putFieldValue(Bdio.DataProperty.vendor, vendor);
         return this;
     }
 
     public Component namespace(@Nullable String namespace) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.namespace, namespace);
+        putFieldValue(Bdio.DataProperty.namespace, namespace);
         return this;
     }
 
     public Component identifier(@Nullable String identifier) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.identifier, identifier);
+        putFieldValue(Bdio.DataProperty.identifier, identifier);
         return this;
     }
 
     public Component context(@Nullable String context) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.context, context);
+        putFieldValue(Bdio.DataProperty.context, context);
         return this;
     }
 
     public Component resolver(@Nullable ProductList resolver) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.resolver, resolver);
+        putFieldValue(Bdio.DataProperty.resolver, resolver);
         return this;
     }
 
     public Component platform(@Nullable ProductList platform) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.platform, platform);
+        putFieldValue(Bdio.DataProperty.platform, platform);
         return this;
     }
 
     public Component homepage(@Nullable String homepage) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.homepage, homepage);
+        putFieldValue(Bdio.DataProperty.homepage, homepage);
         return this;
     }
 
