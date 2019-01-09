@@ -91,7 +91,7 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
      */
     @Override
     public BlackDuckIoMapper.Builder mapper() {
-        BlackDuckIoMapper.Builder builder = BlackDuckIoMapper.build();
+        BlackDuckIoMapper.Builder builder = BlackDuckIoMapper.build().version(version);
         onMapper.ifPresent(c -> c.accept(builder));
         mapperConfiguration.accept(builder);
         return builder;

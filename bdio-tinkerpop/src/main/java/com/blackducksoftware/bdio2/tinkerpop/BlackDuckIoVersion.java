@@ -15,8 +15,6 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop;
 
-import java.util.Optional;
-
 import com.blackducksoftware.bdio2.Bdio;
 
 /**
@@ -35,16 +33,17 @@ public enum BlackDuckIoVersion {
     /**
      * Returns the explicit JSON-LD expansion context required for this version, or empty no such context exists.
      */
-    Optional<Object> expandContext() {
+    Object expandContext() {
         switch (this) {
         case V1_0:
-            return Optional.of(Bdio.Context.VERSION_1_0);
+            return Bdio.Context.VERSION_1_0;
         case V1_1:
-            return Optional.of(Bdio.Context.VERSION_1_1);
+            return Bdio.Context.VERSION_1_1;
         case V1_1_1:
-            return Optional.of(Bdio.Context.VERSION_1_1_1);
+            return Bdio.Context.VERSION_1_1_1;
         case V2_0:
-            return Optional.empty();
+            // This is the version returned by "defaultVersion()" so it should actually return DEFAULT
+            return Bdio.Context.DEFAULT;
         default:
             throw new IllegalStateException("unknown version: " + this);
         }

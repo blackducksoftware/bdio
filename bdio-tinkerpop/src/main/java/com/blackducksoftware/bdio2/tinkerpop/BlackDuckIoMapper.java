@@ -55,13 +55,15 @@ public final class BlackDuckIoMapper implements Mapper<BdioFrame> {
                 .collect(toOptional());
 
         // References from the builder
+        Optional<BlackDuckIoVersion> version = Optional.ofNullable(builder.version);
         BdioFrame existingFrame = builder.existingFrame;
         UnaryOperator<BdioContext.Builder> contextConfig = Objects.requireNonNull(builder.context);
         UnaryOperator<BdioFrame.Builder> frameConfig = Objects.requireNonNull(builder.frame);
 
         // Apply the default context
         if (existingFrame == null) {
-            contextConfig = andThen(b -> b.expandContext(Bdio.Context.DEFAULT), contextConfig);
+            Object expandContext = version.map(BlackDuckIoVersion::expandContext).orElse(Bdio.Context.DEFAULT);
+            contextConfig = andThen(b -> b.expandContext(expandContext), contextConfig);
         }
 
         // Determine where we should start our builders from
@@ -97,6 +99,8 @@ public final class BlackDuckIoMapper implements Mapper<BdioFrame> {
          */
         private final List<IoRegistry> registries = new ArrayList<>();
 
+        private BlackDuckIoVersion version;
+
         private UnaryOperator<BdioContext.Builder> context = UnaryOperator.identity();
 
         private UnaryOperator<BdioFrame.Builder> frame = UnaryOperator.identity();
@@ -112,6 +116,11 @@ public final class BlackDuckIoMapper implements Mapper<BdioFrame> {
         @Override
         public Builder addRegistry(IoRegistry registry) {
             registries.add(Objects.requireNonNull(registry));
+            return this;
+        }
+
+        public Builder version(BlackDuckIoVersion version) {
+            this.version = Objects.requireNonNull(version);
             return this;
         }
 
