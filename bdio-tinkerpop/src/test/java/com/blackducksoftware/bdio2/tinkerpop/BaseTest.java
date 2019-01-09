@@ -231,7 +231,7 @@ public abstract class BaseTest {
             SqlgDataSource dataSource = ((SqlgGraph) graph).getSqlgDataSource();
             BdioCallback bdioCallback = new BdioCallback(b -> b.fromExistingFrame(frame), emptyList()) {
                 @Override
-                protected SqlgFlywayExecutor executor(org.flywaydb.core.api.configuration.Configuration configuration) {
+                protected SqlgFlywayExecutor executor(Configuration configuration) {
                     return new SqlgFlywayExecutor(configuration) {
                         @Override
                         public void execute(SqlgTask task) throws Exception {
