@@ -26,7 +26,9 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collector;
 
@@ -38,16 +40,18 @@ import com.google.common.collect.ImmutableMap;
 
 public class BdioContextTest {
 
-    private static final BdioContext defaultContext = new BdioContext.Builder().expandContext(Bdio.Context.DEFAULT).build();
+    private static final BdioContext DEFAULT_CONTEXT = new BdioContext.Builder().expandContext(Bdio.Context.DEFAULT).build();
 
     /**
      * A default typed data property will be mapped directly.
      */
     @Test
     public void putDefaultTypeDataProperty() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        defaultContext.putFieldValue(bdioObject, Bdio.DataProperty.name, "foobar");
-        assertThat(bdioObject).containsEntry(Bdio.DataProperty.name.toString(), "foobar");
+        BdioContext context = DEFAULT_CONTEXT;
+        Map<String, Object> map = new LinkedHashMap<>();
+
+        context.putFieldValue(map, Bdio.DataProperty.name, "foobar");
+        assertThat(map).containsEntry(Bdio.DataProperty.name.toString(), "foobar");
     }
 
     /**
@@ -55,10 +59,12 @@ public class BdioContextTest {
      */
     @Test
     public void putSingleDataProperty() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        defaultContext.putFieldValue(bdioObject, Bdio.DataProperty.name, "foo");
-        assertThat(defaultContext.putFieldValue(bdioObject, Bdio.DataProperty.name, "bar")).isEqualTo("bar");
-        assertThat(bdioObject).containsEntry(Bdio.DataProperty.name.toString(), "bar");
+        BdioContext context = DEFAULT_CONTEXT;
+        Map<String, Object> map = new LinkedHashMap<>();
+
+        context.putFieldValue(map, Bdio.DataProperty.name, "foo");
+        assertThat(context.putFieldValue(map, Bdio.DataProperty.name, "bar")).isEqualTo("bar");
+        assertThat(map).containsEntry(Bdio.DataProperty.name.toString(), "bar");
     }
 
     /**
@@ -66,10 +72,12 @@ public class BdioContextTest {
      */
     @Test
     public void putSingleDataPropertyNullValue() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        defaultContext.putFieldValue(bdioObject, Bdio.DataProperty.name, "foo");
-        assertThat(defaultContext.putFieldValue(bdioObject, Bdio.DataProperty.name, null)).isNull();
-        assertThat(bdioObject).doesNotContainKey(Bdio.DataProperty.name.toString());
+        BdioContext context = DEFAULT_CONTEXT;
+        Map<String, Object> map = new LinkedHashMap<>();
+
+        context.putFieldValue(map, Bdio.DataProperty.name, "foo");
+        assertThat(context.putFieldValue(map, Bdio.DataProperty.name, null)).isNull();
+        assertThat(map).doesNotContainKey(Bdio.DataProperty.name.toString());
     }
 
     /**
@@ -77,12 +85,14 @@ public class BdioContextTest {
      */
     @Test
     public void putMultivaluedDataProperty() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        defaultContext.putFieldValue(bdioObject, Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("123").build());
-        defaultContext.putFieldValue(bdioObject, Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("456").build());
-        defaultContext.putFieldValue(bdioObject, Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("789").build());
-        assertThat(bdioObject.get(Bdio.DataProperty.fingerprint.toString())).isInstanceOf(List.class);
-        assertThat((List<?>) bdioObject.get(Bdio.DataProperty.fingerprint.toString())).containsExactly(
+        BdioContext context = DEFAULT_CONTEXT;
+        Map<String, Object> map = new LinkedHashMap<>();
+
+        context.putFieldValue(map, Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("123").build());
+        context.putFieldValue(map, Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("456").build());
+        context.putFieldValue(map, Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("789").build());
+        assertThat(map.get(Bdio.DataProperty.fingerprint.toString())).isInstanceOf(List.class);
+        assertThat((List<?>) map.get(Bdio.DataProperty.fingerprint.toString())).containsExactly(
                 ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:123"),
                 ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:456"),
                 ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:789"));
@@ -93,15 +103,17 @@ public class BdioContextTest {
      */
     @Test
     public void putMultivaluedDataPropertyNullValue() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        defaultContext.putFieldValue(bdioObject, Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("123").build());
-        defaultContext.putFieldValue(bdioObject, Bdio.DataProperty.fingerprint, null);
-        assertThat((List<?>) bdioObject.get(Bdio.DataProperty.fingerprint.toString())).containsExactly(
+        BdioContext context = DEFAULT_CONTEXT;
+        Map<String, Object> map = new LinkedHashMap<>();
+
+        context.putFieldValue(map, Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("123").build());
+        context.putFieldValue(map, Bdio.DataProperty.fingerprint, null);
+        assertThat((List<?>) map.get(Bdio.DataProperty.fingerprint.toString())).containsExactly(
                 ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:123"));
 
-        defaultContext.putFieldValue(bdioObject, Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("456").build());
-        defaultContext.putFieldValue(bdioObject, Bdio.DataProperty.fingerprint, null);
-        assertThat((List<?>) bdioObject.get(Bdio.DataProperty.fingerprint.toString())).containsExactly(
+        context.putFieldValue(map, Bdio.DataProperty.fingerprint, new Digest.Builder().algorithm("test").value("456").build());
+        context.putFieldValue(map, Bdio.DataProperty.fingerprint, null);
+        assertThat((List<?>) map.get(Bdio.DataProperty.fingerprint.toString())).containsExactly(
                 ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:123"),
                 ImmutableMap.of("@type", Bdio.Datatype.Digest.toString(), "@value", "test:456"));
     }
@@ -111,10 +123,12 @@ public class BdioContextTest {
      */
     @Test
     public void putDateTimeTypeDataProperty() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
+        BdioContext context = DEFAULT_CONTEXT;
+        Map<String, Object> map = new LinkedHashMap<>();
         ZonedDateTime now = ZonedDateTime.now();
-        defaultContext.putFieldValue(bdioObject, Bdio.DataProperty.creationDateTime, now);
-        assertThat(bdioObject).containsEntry(Bdio.DataProperty.creationDateTime.toString(),
+
+        context.putFieldValue(map, Bdio.DataProperty.creationDateTime, now);
+        assertThat(map).containsEntry(Bdio.DataProperty.creationDateTime.toString(),
                 ImmutableMap.of("@type", Bdio.Datatype.DateTime.toString(), "@value", now.toString()));
     }
 
@@ -123,9 +137,11 @@ public class BdioContextTest {
      */
     @Test
     public void putLongTypeDataProperty() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        defaultContext.putFieldValue(bdioObject, Bdio.DataProperty.byteCount, 1L);
-        assertThat(bdioObject).containsEntry(Bdio.DataProperty.byteCount.toString(),
+        BdioContext context = DEFAULT_CONTEXT;
+        Map<String, Object> map = new LinkedHashMap<>();
+
+        context.putFieldValue(map, Bdio.DataProperty.byteCount, 1L);
+        assertThat(map).containsEntry(Bdio.DataProperty.byteCount.toString(),
                 ImmutableMap.of("@type", Bdio.Datatype.Long.toString(), "@value", 1L));
     }
 
@@ -134,10 +150,12 @@ public class BdioContextTest {
      */
     @Test
     public void putSingleObjectProperty() {
+        BdioContext context = DEFAULT_CONTEXT;
         String currentVersionId = BdioObject.randomId();
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        defaultContext.putFieldValue(bdioObject, Bdio.ObjectProperty.parent, currentVersionId);
-        assertThat(bdioObject).containsEntry(Bdio.ObjectProperty.parent.toString(),
+        Map<String, Object> map = new LinkedHashMap<>();
+
+        context.putFieldValue(map, Bdio.ObjectProperty.parent, currentVersionId);
+        assertThat(map).containsEntry(Bdio.ObjectProperty.parent.toString(),
                 ImmutableMap.of("@id", currentVersionId));
     }
 
@@ -146,45 +164,53 @@ public class BdioContextTest {
      */
     @Test
     public void putSingleObjectPropertyNullValue() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
-        defaultContext.putFieldValue(bdioObject, Bdio.ObjectProperty.parent, BdioObject.randomId());
-        assertThat(defaultContext.putFieldValue(bdioObject, Bdio.ObjectProperty.parent, null)).isNull();
-        assertThat(bdioObject).doesNotContainKey(Bdio.ObjectProperty.parent.toString());
+        BdioContext context = DEFAULT_CONTEXT;
+        Map<String, Object> map = new LinkedHashMap<>();
+
+        context.putFieldValue(map, Bdio.ObjectProperty.parent, BdioObject.randomId());
+        assertThat(context.putFieldValue(map, Bdio.ObjectProperty.parent, null)).isNull();
+        assertThat(map).doesNotContainKey(Bdio.ObjectProperty.parent.toString());
     }
 
     @Test
     public void fromFieldValue_identifier() {
+        BdioContext context = DEFAULT_CONTEXT;
+
         // If the only value in the map is the identifier, it is safe to extract
-        assertThat(defaultContext.fromFieldValue("test", ImmutableMap.of("@id", "test"))).isEqualTo("test");
+        assertThat(context.fromFieldValue("test", ImmutableMap.of("@id", "test"))).isEqualTo("test");
 
         // This is important because if there are multiple values in the map, we can no longer just take the identifier
-        assertThat(defaultContext.fromFieldValue("test", ImmutableMap.of("@id", "test", "foo", "bar"))).isEqualTo(ImmutableMap.of("@id", "test", "foo", "bar"));
+        assertThat(context.fromFieldValue("test", ImmutableMap.of("@id", "test", "foo", "bar"))).isEqualTo(ImmutableMap.of("@id", "test", "foo", "bar"));
     }
 
     @Test
     public void fromFieldValue_primitive() {
+        BdioContext context = DEFAULT_CONTEXT;
+
         // Primitives flow through
-        assertThat(defaultContext.fromFieldValue("test", ImmutableMap.of("@value", "test"))).isEqualTo("test");
-        assertThat(defaultContext.fromFieldValue("test", ImmutableMap.of("@value", Boolean.TRUE))).isEqualTo(Boolean.TRUE);
-        assertThat(defaultContext.fromFieldValue("test", ImmutableMap.of("@value", Integer.valueOf(1)))).isEqualTo(Integer.valueOf(1));
+        assertThat(context.fromFieldValue("test", ImmutableMap.of("@value", "test"))).isEqualTo("test");
+        assertThat(context.fromFieldValue("test", ImmutableMap.of("@value", Boolean.TRUE))).isEqualTo(Boolean.TRUE);
+        assertThat(context.fromFieldValue("test", ImmutableMap.of("@value", Integer.valueOf(1)))).isEqualTo(Integer.valueOf(1));
     }
 
     @Test
     public void fromFieldValue_dateTime() {
+        BdioContext context = DEFAULT_CONTEXT;
+
         ZonedDateTime zoned = ZonedDateTime.now();
-        assertThat(defaultContext.fromFieldValue("test", ImmutableMap.of("@type", Bdio.Datatype.DateTime.toString(), "@value", zoned.toString())))
+        assertThat(context.fromFieldValue("test", ImmutableMap.of("@type", Bdio.Datatype.DateTime.toString(), "@value", zoned.toString())))
                 .named("zoned").isEqualTo(zoned);
 
         OffsetDateTime offset = OffsetDateTime.now();
-        assertThat(defaultContext.fromFieldValue("test", ImmutableMap.of("@type", Bdio.Datatype.DateTime.toString(), "@value", offset.toString())))
+        assertThat(context.fromFieldValue("test", ImmutableMap.of("@type", Bdio.Datatype.DateTime.toString(), "@value", offset.toString())))
                 .named("offset").isEqualTo(offset.toZonedDateTime());
 
         Instant instant = Instant.now();
-        assertThat(defaultContext.fromFieldValue("test", ImmutableMap.of("@type", Bdio.Datatype.DateTime.toString(), "@value", instant.toString())))
+        assertThat(context.fromFieldValue("test", ImmutableMap.of("@type", Bdio.Datatype.DateTime.toString(), "@value", instant.toString())))
                 .named("instant").isEqualTo(instant.atZone(ZoneOffset.UTC));
 
         Date date = new Date();
-        assertThat(defaultContext.fromFieldValue("test", ImmutableMap.of("@type", Bdio.Datatype.DateTime.toString(), "@value", date)))
+        assertThat(context.fromFieldValue("test", ImmutableMap.of("@type", Bdio.Datatype.DateTime.toString(), "@value", date)))
                 .named("date").isEqualTo(date.toInstant().atZone(ZoneOffset.UTC));
     }
 
