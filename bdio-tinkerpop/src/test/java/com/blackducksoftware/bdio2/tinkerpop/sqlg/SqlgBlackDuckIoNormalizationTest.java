@@ -28,8 +28,6 @@ import org.junit.Test;
 import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.BdioContext;
-import com.blackducksoftware.bdio2.BdioFrame;
 import com.blackducksoftware.bdio2.test.GraphRunner.GraphConfiguration;
 import com.blackducksoftware.bdio2.tinkerpop.BaseTest;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoOptions;
@@ -51,7 +49,6 @@ public class SqlgBlackDuckIoNormalizationTest extends BaseTest {
         assume().that(graph).isInstanceOf(SqlgGraph.class);
         SqlgGraph sqlgGraph = (SqlgGraph) graph;
         BlackDuckIoOptions options = BlackDuckIoOptions.build().create();
-        BdioFrame frame = new BdioFrame.Builder().context(BdioContext.getActive()).build();
         GraphTraversalSource g = graph.traversal();
 
         Vertex projectA = sqlgGraph.addVertex(T.label, Bdio.Class.Project.name(),
@@ -96,7 +93,6 @@ public class SqlgBlackDuckIoNormalizationTest extends BaseTest {
         assume().that(graph).isInstanceOf(SqlgGraph.class);
         SqlgGraph sqlgGraph = (SqlgGraph) graph;
         BlackDuckIoOptions options = BlackDuckIoOptions.build().create();
-        BdioFrame frame = new BdioFrame.Builder().context(BdioContext.getActive()).build();
         GraphTraversalSource g = graph.traversal();
 
         Vertex fileFooA = sqlgGraph.addVertex(T.label, Bdio.Class.File.name(),
@@ -149,7 +145,6 @@ public class SqlgBlackDuckIoNormalizationTest extends BaseTest {
         assume().that(graph).isInstanceOf(SqlgGraph.class);
         SqlgGraph sqlgGraph = (SqlgGraph) graph;
         BlackDuckIoOptions options = BlackDuckIoOptions.build().create();
-        BdioFrame frame = new BdioFrame.Builder().context(BdioContext.getActive()).build();
         GraphTraversalSource g = graph.traversal();
 
         Vertex projectA = sqlgGraph.addVertex(T.label, Bdio.Class.Project.name(),

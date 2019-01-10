@@ -176,7 +176,7 @@ public abstract class BaseTest {
     /**
      * The frame describing the graph schema.
      */
-    private final BdioFrame frame;
+    protected final BdioFrame frame;
 
     /**
      * The active context (obtained via the frame).
