@@ -76,6 +76,13 @@ public class BdioObject extends AbstractMap<String, Object> {
     }
 
     /**
+     * Specialty constructor for testing.
+     */
+    BdioObject() {
+        data = new LinkedHashMap<>();
+    }
+
+    /**
      * Returns a new random identifier.
      */
     // TODO Deprecate this

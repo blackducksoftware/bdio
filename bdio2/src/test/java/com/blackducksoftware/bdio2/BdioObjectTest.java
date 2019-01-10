@@ -19,8 +19,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import org.junit.Test;
 
-import com.google.common.collect.ImmutableMap;
-
 /**
  * Tests for {@link BdioObject}.
  *
@@ -33,7 +31,7 @@ public class BdioObjectTest {
      */
     @Test
     public void regularMap() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
+        BdioObject bdioObject = new BdioObject();
 
         // Simple string key name, value is replaced
         bdioObject.put("test1", "foo");
@@ -65,7 +63,7 @@ public class BdioObjectTest {
      */
     @Test(expected = NullPointerException.class)
     public void putNullKeyFails() {
-        new BdioObject(ImmutableMap.of()).put(null, "foo");
+        new BdioObject().put(null, "foo");
     }
 
     /**
@@ -73,7 +71,7 @@ public class BdioObjectTest {
      */
     @Test
     public void putNullValueIsRemove() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
+        BdioObject bdioObject = new BdioObject();
         bdioObject.put("test1", "foo");
         assertThat(bdioObject).containsKey("test1");
         bdioObject.put("test1", null);
@@ -85,7 +83,7 @@ public class BdioObjectTest {
      */
     @Test
     public void replaceIdentifier() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
+        BdioObject bdioObject = new BdioObject();
         assertThat(bdioObject.id()).isNull();
         bdioObject.put("@id", "123");
         assertThat(bdioObject.id()).isEqualTo("123");
@@ -96,7 +94,9 @@ public class BdioObjectTest {
      */
     @Test(expected = IllegalStateException.class)
     public void replaceIdentifierWithNonString() {
-        new BdioObject(ImmutableMap.of("@id", 123)).id();
+        BdioObject bdioObject = new BdioObject();
+        bdioObject.put("@id", 123);
+        bdioObject.id();
     }
 
     /**
@@ -104,7 +104,7 @@ public class BdioObjectTest {
      */
     @Test
     public void idIgnoresFragment() {
-        BdioObject bdioObject = new BdioObject(ImmutableMap.of());
+        BdioObject bdioObject = new BdioObject();
         bdioObject.put("@id", "http://example.com/test#ignored");
         assertThat(bdioObject.id()).isEqualTo("http://example.com/test");
         assertThat(bdioObject.get("@id")).isEqualTo("http://example.com/test#ignored");
