@@ -15,6 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tool;
 
+import static com.blackducksoftware.common.base.ExtraFormats.print;
 import static com.blackducksoftware.common.base.ExtraStrings.ensureSuffix;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.stream.Collectors.joining;
@@ -40,6 +41,9 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.common.io.BinaryByteUnit;
+import com.blackducksoftware.common.io.ByteUnit;
+import com.blackducksoftware.common.io.DecimalByteUnit;
 import com.google.common.collect.Iterators;
 
 /**
@@ -58,12 +62,11 @@ public class TreeTool extends AbstractFileTool {
     // TODO We should support `find` like syntax for limiting the output
     // TODO dircolors support? e.g. look at $LS_COLORS env...
     // TODO Remember Magpie has fnmatch exclude file matching (not accessible, but...)
+    // TODO Make '-ff' or '-f -f' display the HID URI
 
     // TODO -p Print the protections for each file.
     // TODO -u Displays file owner or UID number.
     // TODO -g Displays file group owner or GID number.
-    // TODO -h Print the size in a more human readable way.
-    // TODO --si Like -h, but use in SI units (powers of 1000).
 
     /**
      * Descend only level directories deep.
@@ -99,6 +102,11 @@ public class TreeTool extends AbstractFileTool {
      * Print the size in bytes of each file.
      */
     private boolean showSize;
+
+    /**
+     * Byte unit to convert size to a human readable format.
+     */
+    private ByteUnit humanSizeUnit;
 
     /**
      * Print the last modified time of each file;
@@ -142,6 +150,10 @@ public class TreeTool extends AbstractFileTool {
         this.showSize = showSize;
     }
 
+    public void setHumanReadableSize(Boolean si) {
+        this.humanSizeUnit = si != null ? (si ? DecimalByteUnit.BYTES : BinaryByteUnit.BYTES) : null;
+    }
+
     public void setShowLastModified(boolean showLastModified) {
         this.showLastModified = showLastModified;
     }
@@ -165,6 +177,8 @@ public class TreeTool extends AbstractFileTool {
         options.put("--noreport", "Turn off file/directory count at end of tree listing.");
         options.put("File options", null);
         options.put("-s", "Print the size in bytes of each file.");
+        options.put("-h", "Print the size in a more human readable way.");
+        options.put("--si", "Like -h, but use in SI units (powers of 1000).");
         options.put("-D", "Print the date of last modification.");
         options.put("-F", "Appends '/', '=', '@', '%', '|' or '>' as per ls -F.");
         options.put("-Q", "Quote filenames with double quotes.");
@@ -201,6 +215,12 @@ public class TreeTool extends AbstractFileTool {
                 args = removeFirst(arg, args);
             } else if (arg.equals("-s")) {
                 setShowSize(true);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("-h")) {
+                setHumanReadableSize(false);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("--si")) {
+                setHumanReadableSize(true);
                 args = removeFirst(arg, args);
             } else if (arg.equals("-D")) {
                 setShowLastModified(true);
@@ -294,10 +314,14 @@ public class TreeTool extends AbstractFileTool {
         // TODO if (showProtections) details.add("%s") // e.g. lrwxrwxrwx
         // TODO if (showUser) details.add("%-8s")
         // TODO if (showGroup) details.add("%-8s")
-        if (showSize) {
-            // TODO Human sizes are "%4s" (big K or --si is little k)
-            details.add("%11d");
-            arguments.add(fileNode.size());
+        if (showSize || humanSizeUnit != null) {
+            if (humanSizeUnit != null) {
+                details.add("%s"); // TODO This should be "%4s" in Magpie 0.5.1+
+                arguments.add(print(fileNode.size(), humanSizeUnit));
+            } else {
+                details.add("%11d");
+                arguments.add(fileNode.size());
+            }
         }
         if (showLastModified) {
             ZonedDateTime lastModified = fileNode.lastModified().orElse(ZonedDateTime.ofInstant(Instant.EPOCH, ZoneOffset.UTC));
