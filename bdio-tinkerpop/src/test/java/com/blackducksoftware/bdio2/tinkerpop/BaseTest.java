@@ -36,7 +36,6 @@ import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioContext;
-import com.blackducksoftware.bdio2.BdioContext.ActiveContext;
 import com.blackducksoftware.bdio2.BdioFrame;
 import com.blackducksoftware.bdio2.test.GraphRunner;
 import com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway.BdioCallback;
@@ -178,11 +177,6 @@ public abstract class BaseTest {
      */
     protected final BdioFrame frame;
 
-    /**
-     * The active context (obtained via the frame).
-     */
-    private ActiveContext activeContext;
-
     public BaseTest(Graph graph, BdioFrame frame) {
         this.graph = Objects.requireNonNull(graph);
         this.frame = Objects.requireNonNull(frame);
@@ -198,25 +192,6 @@ public abstract class BaseTest {
     public final void commit() {
         if (graph.features().graph().supportsTransactions()) {
             graph.tx().commit();
-        }
-    }
-
-    /**
-     * Activates the context from the frame.
-     */
-    @Before
-    public final void activateContext() {
-        activeContext = frame.context().activate();
-    }
-
-    /**
-     * Clear the context.
-     */
-    @After
-    public final void clearContext() {
-        if (activeContext != null) {
-            activeContext.close();
-            activeContext = null;
         }
     }
 

@@ -40,7 +40,6 @@ import org.junit.rules.ExpectedException;
 import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
-import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.BdioObject;
 import com.blackducksoftware.bdio2.NodeDoesNotExistException;
@@ -316,8 +315,6 @@ public class BlackDuckIoReaderTest extends BaseTest {
 
     @Test
     public void readUnknownCustomProperty() throws Exception {
-        List<Object> expandContext = ImmutableList.of(Bdio.Context.DEFAULT.toString(), ImmutableMap.of("foobar", "http://example.com/gus"));
-        new BdioContext.Builder().expandContext(expandContext).build().activate();
         BdioMetadata metadata = BdioMetadata.createRandomUUID();
         Project projectModel = new Project(BdioObject.randomId());
         projectModel.put("http://example.com/gus", "testing");
@@ -334,7 +331,6 @@ public class BlackDuckIoReaderTest extends BaseTest {
     @Test
     public void readCustomProperty() throws Exception {
         List<Object> expandContext = ImmutableList.of(Bdio.Context.DEFAULT.toString(), ImmutableMap.of("foobar", "http://example.com/gus"));
-        new BdioContext.Builder().expandContext(expandContext).build().activate();
         BdioMetadata metadata = BdioMetadata.createRandomUUID();
         Project projectModel = new Project(BdioObject.randomId());
         projectModel.put("http://example.com/gus", "testing");

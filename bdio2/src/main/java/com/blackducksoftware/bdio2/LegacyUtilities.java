@@ -169,7 +169,7 @@ class LegacyUtilities {
      * objects created for similar declarations.
      */
     public static void mergeDependency(Multimap<String, Dependency> dependencies, Dependency dependency) {
-        BdioContext context = BdioContext.getActive();
+        BdioContext context = BdioContext.getDefault();
         String id = dependencyIdentifier(context, dependency);
         dependency.put(JsonLdConsts.ID, id);
 

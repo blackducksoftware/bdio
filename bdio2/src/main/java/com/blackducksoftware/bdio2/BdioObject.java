@@ -41,6 +41,11 @@ import com.github.jsonldjava.core.JsonLdConsts;
 public class BdioObject extends AbstractMap<String, Object> {
 
     /**
+     * The context used for this object.
+     */
+    private final BdioContext context;
+
+    /**
      * The backing node data for this BDIO object.
      * <p>
      * Especially with the explosion in size of the {@code Map} API in Java 8, it does not make sense to directly
@@ -55,6 +60,7 @@ public class BdioObject extends AbstractMap<String, Object> {
      * Constructor for types with an identifier.
      */
     protected BdioObject(String id, Bdio.Class bdioClass) {
+        context = BdioContext.getDefault();
         data = new LinkedHashMap<>();
         put(JsonLdConsts.ID, Objects.requireNonNull(id));
         put(JsonLdConsts.TYPE, bdioClass.toString());
@@ -64,6 +70,7 @@ public class BdioObject extends AbstractMap<String, Object> {
      * Constructor for types which are embedded and leverage blank node identifiers.
      */
     protected BdioObject(Bdio.Class bdioClass) {
+        context = BdioContext.getDefault();
         data = new LinkedHashMap<>();
         put(JsonLdConsts.TYPE, bdioClass.toString());
     }
@@ -72,6 +79,7 @@ public class BdioObject extends AbstractMap<String, Object> {
      * Specialty copy constructor for internal use.
      */
     BdioObject(Map<String, Object> initialValues) {
+        context = BdioContext.getDefault();
         data = new LinkedHashMap<>(initialValues);
     }
 
@@ -79,6 +87,7 @@ public class BdioObject extends AbstractMap<String, Object> {
      * Specialty constructor for testing.
      */
     BdioObject() {
+        context = new BdioContext.Builder().build();
         data = new LinkedHashMap<>();
     }
 
@@ -117,7 +126,11 @@ public class BdioObject extends AbstractMap<String, Object> {
     }
 
     protected Object putFieldValue(Object field, @Nullable Object value) {
-        return BdioContext.getActive().putFieldValue(this, field, value);
+        return context.putFieldValue(this, field, value);
+    }
+
+    protected Object fromFieldValue(String term, @Nullable Object input) {
+        return context.fromFieldValue(term, input);
     }
 
 }

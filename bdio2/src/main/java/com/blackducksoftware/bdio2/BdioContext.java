@@ -17,7 +17,6 @@ package com.blackducksoftware.bdio2;
 
 import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.IOException;
@@ -31,7 +30,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BinaryOperator;
-import java.util.function.Supplier;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -57,38 +55,18 @@ import com.google.common.io.Resources;
  */
 public final class BdioContext {
 
-    // TODO This whole "active context" needs to go
-
-    private static final ThreadLocal<BdioContext> ACTIVE_CONTEXT = new ThreadLocal<>();
-
-    public final class ActiveContext implements Supplier<BdioContext>, AutoCloseable {
-        @Nullable
-        private final BdioContext originalContext;
-
-        private ActiveContext() {
-            originalContext = ACTIVE_CONTEXT.get();
-            ACTIVE_CONTEXT.set(BdioContext.this);
-        }
-
-        @Override
-        public BdioContext get() {
-            return BdioContext.this;
-        }
-
-        @Override
-        public void close() {
-            ACTIVE_CONTEXT.set(originalContext);
-        }
+    /**
+     * Holder for context instances to defer initialization.
+     */
+    private static final class ContextHolder {
+        private static final BdioContext DEFAULT_CONTEXT = new BdioContext.Builder().expandContext(Bdio.Context.DEFAULT).build();
     }
 
-    public static BdioContext getActive() {
-        BdioContext context = ACTIVE_CONTEXT.get();
-        checkState(context != null, "missing active BDIO context");
-        return context;
-    }
-
-    public ActiveContext activate() {
-        return new ActiveContext();
+    /**
+     * Returns a context for the current version of BDIO.
+     */
+    public static BdioContext getDefault() {
+        return ContextHolder.DEFAULT_CONTEXT;
     }
 
     /**

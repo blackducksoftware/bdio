@@ -150,11 +150,10 @@ public final class BdioMetadata extends BdioObject {
                 Object publisher = get(key);
                 if (publisher != null) {
                     // Merges to create new producer
-                    BdioContext context = BdioContext.getActive();
                     ProductList.Builder builder = new ProductList.Builder();
-                    ProductList.from(context.fromFieldValue(key, publisher)).forEach(builder::mergeProduct);
-                    ProductList.from(context.fromFieldValue(key, value)).forEach(builder::mergeProduct);
-                    BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.publisher, builder.build());
+                    ProductList.from(fromFieldValue(key, publisher)).forEach(builder::mergeProduct);
+                    ProductList.from(fromFieldValue(key, value)).forEach(builder::mergeProduct);
+                    putFieldValue(Bdio.DataProperty.publisher, builder.build());
                 } else {
                     // Establishes a new producer
                     put(key, value);
@@ -163,9 +162,8 @@ public final class BdioMetadata extends BdioObject {
                 Object creator = get(key);
                 if (creator != null) {
                     // Merges to create a new creator
-                    BdioContext context = BdioContext.getActive();
-                    put(key, splitOnFirst(context.fromFieldValue(key, creator).toString(), '@',
-                            (user1, host1) -> splitOnFirst(context.fromFieldValue(key, value).toString(), '@', (user2, host2) -> {
+                    put(key, splitOnFirst(fromFieldValue(key, creator).toString(), '@',
+                            (user1, host1) -> splitOnFirst(fromFieldValue(key, value).toString(), '@', (user2, host2) -> {
                                 return ensureDelimiter(isNullOrEmpty(user1) ? user2 : user1, "@", isNullOrEmpty(host1) ? host2 : host1);
                             })));
                 } else {
@@ -191,12 +189,12 @@ public final class BdioMetadata extends BdioObject {
      * Sets the display name for the named graph.
      */
     public BdioMetadata name(@Nullable String name) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.name, name);
+        putFieldValue(Bdio.DataProperty.name, name);
         return this;
     }
 
     public BdioMetadata captureOptions(@Nullable List<String> captureOptions) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.captureOptions, captureOptions);
+        putFieldValue(Bdio.DataProperty.captureOptions, captureOptions);
         return this;
     }
 
@@ -204,7 +202,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the interval over which the named graph was created.
      */
     public BdioMetadata captureInterval(@Nullable String captureInterval) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.captureInterval, captureInterval);
+        putFieldValue(Bdio.DataProperty.captureInterval, captureInterval);
         return this;
     }
 
@@ -221,7 +219,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the time at which the named graph was created.
      */
     public BdioMetadata creationDateTime(@Nullable ZonedDateTime creation) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.creationDateTime, creation);
+        putFieldValue(Bdio.DataProperty.creationDateTime, creation);
         return this;
     }
 
@@ -229,7 +227,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the identifier of the user and/or host who created the named graph.
      */
     public BdioMetadata creator(@Nullable String creator) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.creator, creator);
+        putFieldValue(Bdio.DataProperty.creator, creator);
         return this;
     }
 
@@ -250,7 +248,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the platform (e.g. operating system) this named graph was captured from.
      */
     public BdioMetadata platform(@Nullable ProductList platform) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.platform, platform);
+        putFieldValue(Bdio.DataProperty.platform, platform);
         return this;
     }
 
@@ -258,7 +256,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the publisher of the tool (or tools) that created the named graph.
      */
     public BdioMetadata publisher(@Nullable ProductList publisher) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.publisher, publisher);
+        putFieldValue(Bdio.DataProperty.publisher, publisher);
         return this;
     }
 
@@ -266,7 +264,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the build details URL captured from the build environment.
      */
     public BdioMetadata buildDetails(@Nullable String buildDetails) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.buildDetails, buildDetails);
+        putFieldValue(Bdio.DataProperty.buildDetails, buildDetails);
         return this;
     }
 
@@ -274,7 +272,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the build number captured from the build environment.
      */
     public BdioMetadata buildNumber(@Nullable String buildNumber) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.buildNumber, buildNumber);
+        putFieldValue(Bdio.DataProperty.buildNumber, buildNumber);
         return this;
     }
 
@@ -282,7 +280,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the source repository URL captured from the build environment.
      */
     public BdioMetadata sourceRepository(@Nullable String sourceRepository) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.sourceRepository, sourceRepository);
+        putFieldValue(Bdio.DataProperty.sourceRepository, sourceRepository);
         return this;
     }
 
@@ -290,7 +288,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the source repository revision identifier captured from the build environment.
      */
     public BdioMetadata sourceRevision(@Nullable String sourceRevision) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.sourceRevision, sourceRevision);
+        putFieldValue(Bdio.DataProperty.sourceRevision, sourceRevision);
         return this;
     }
 
@@ -298,7 +296,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the source repository branch name captured from the build environment.
      */
     public BdioMetadata sourceBranch(@Nullable String sourceBranch) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.sourceBranch, sourceBranch);
+        putFieldValue(Bdio.DataProperty.sourceBranch, sourceBranch);
         return this;
     }
 
@@ -306,7 +304,7 @@ public final class BdioMetadata extends BdioObject {
      * Sets the source repository tag captured from the build environment.
      */
     public BdioMetadata sourceTag(@Nullable String sourceTag) {
-        BdioContext.getActive().putFieldValue(this, Bdio.DataProperty.sourceTag, sourceTag);
+        putFieldValue(Bdio.DataProperty.sourceTag, sourceTag);
         return this;
     }
 

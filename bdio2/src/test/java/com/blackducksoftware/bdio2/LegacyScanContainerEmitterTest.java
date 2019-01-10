@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -68,7 +67,7 @@ public class LegacyScanContainerEmitterTest {
         }
     }
 
-    private static final BdioContext context = new BdioContext.Builder().expandContext(Bdio.Context.DEFAULT).build();
+    private static final BdioContext context = BdioContext.getDefault();
 
     private static final String nameKey = Bdio.DataProperty.name.toString();
 
@@ -79,11 +78,6 @@ public class LegacyScanContainerEmitterTest {
     private static final String creationDateTimeKey = Bdio.DataProperty.creationDateTime.toString();
 
     private static final String captureInterval = Bdio.DataProperty.captureInterval.toString();
-
-    @BeforeClass
-    public static void activateContext() {
-        context.activate();
-    }
 
     @Parameters(name = "{0}")
     public static Iterable<Function<InputStream, Emitter>> emitterFactories() {

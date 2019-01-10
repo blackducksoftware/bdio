@@ -132,7 +132,7 @@ public class HeadTool extends Tool {
     }
 
     private static Object formatValue(String key, Object value) {
-        return BdioContext.getActive().fromFieldValue(key, value);
+        return BdioContext.getDefault().fromFieldValue(key, value);
     }
 
 }

@@ -69,7 +69,7 @@ public class Metadata implements RawEntryRule {
                 }
             }
 
-            BdioContext context = BdioContext.getActive();
+            BdioContext context = BdioContext.getDefault();
             for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
                 String key = dataProperty.toString();
                 if (bdioEntry.containsKey(key)) {

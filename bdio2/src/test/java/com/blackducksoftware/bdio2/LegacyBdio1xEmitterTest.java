@@ -25,7 +25,6 @@ import java.io.InputStream;
 import java.time.ZonedDateTime;
 import java.util.Map;
 
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -41,7 +40,7 @@ import com.google.common.io.CharSource;
  */
 public class LegacyBdio1xEmitterTest {
 
-    private static final BdioContext context = new BdioContext.Builder().expandContext(Bdio.Context.DEFAULT).build();
+    private static final BdioContext context = BdioContext.getDefault();
 
     private static final String idKey = JsonLdConsts.ID;
 
@@ -55,11 +54,6 @@ public class LegacyBdio1xEmitterTest {
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
-
-    @BeforeClass
-    public static void activateContext() {
-        context.activate();
-    }
 
     /**
      * A missing creator tool version just skips the version.

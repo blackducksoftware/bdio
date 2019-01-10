@@ -33,7 +33,7 @@ public class ValidFilePath implements RawNodeRule {
         ViolationBuilder result = new ViolationBuilder(this, input);
 
         if (RawNodeRule.types(input).anyMatch(Predicate.isEqual(Bdio.Class.File.toString()))) {
-            BdioContext context = BdioContext.getActive();
+            BdioContext context = BdioContext.getDefault();
             Object path = context.fromFieldValue(Bdio.DataProperty.path.toString(), input.get(Bdio.DataProperty.path.toString()));
             if (path instanceof String) {
                 HID hid = HID.from(path);

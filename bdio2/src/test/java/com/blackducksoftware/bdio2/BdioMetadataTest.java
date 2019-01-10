@@ -21,7 +21,6 @@ import java.util.stream.Stream;
 
 import org.junit.Test;
 
-import com.blackducksoftware.bdio2.BdioContext.ActiveContext;
 import com.blackducksoftware.common.value.ProductList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -148,17 +147,16 @@ public class BdioMetadataTest {
      */
     @Test
     public void mergeMetadataPublishers() {
-        try (ActiveContext context = new BdioContext.Builder().expandContext(Bdio.Context.DEFAULT).build().activate()) {
-            BdioMetadata metadataFoo = new BdioMetadata();
-            context.get().putFieldValue(metadataFoo, Bdio.DataProperty.publisher, ProductList.parse("foo"));
+        BdioContext context = BdioContext.getDefault();
+        BdioMetadata metadataFoo = new BdioMetadata();
+        context.putFieldValue(metadataFoo, Bdio.DataProperty.publisher, ProductList.parse("foo"));
 
-            BdioMetadata metadataBar = new BdioMetadata();
-            context.get().putFieldValue(metadataBar, Bdio.DataProperty.publisher, ProductList.parse("bar"));
+        BdioMetadata metadataBar = new BdioMetadata();
+        context.putFieldValue(metadataBar, Bdio.DataProperty.publisher, ProductList.parse("bar"));
 
-            assertThat(metadataFoo.merge(metadataBar))
-                    .containsEntry(Bdio.DataProperty.publisher.toString(),
-                            context.get().toFieldValue(Bdio.DataProperty.publisher.name(), ProductList.parse("foo bar")));
-        }
+        assertThat(metadataFoo.merge(metadataBar))
+                .containsEntry(Bdio.DataProperty.publisher.toString(),
+                        context.toFieldValue(Bdio.DataProperty.publisher.name(), ProductList.parse("foo bar")));
     }
 
 }

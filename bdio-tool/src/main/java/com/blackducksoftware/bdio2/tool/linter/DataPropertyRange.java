@@ -35,7 +35,7 @@ public class DataPropertyRange implements RawNodeRule {
     public Stream<Violation> validate(Map<String, Object> input) {
         ViolationBuilder result = new ViolationBuilder(this, input);
 
-        BdioContext context = BdioContext.getActive();
+        BdioContext context = BdioContext.getDefault();
         for (Bdio.DataProperty dataProperty : Bdio.DataProperty.values()) {
             String key = dataProperty.toString();
             try {
