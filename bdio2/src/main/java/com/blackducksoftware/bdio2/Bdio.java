@@ -15,6 +15,9 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -890,7 +893,10 @@ public class Bdio {
             // TODO Switch from Guava to Magpie when possible
             MediaType mediaType = MediaType.parse(input);
             for (Bdio.ContentType contentType : Bdio.ContentType.values()) {
-                if (contentType.as(MediaType::parse).is(mediaType)) {
+                if (mediaType.is(contentType.as(MediaType::parse))) {
+                    if (contentType == ContentType.JSONLD || contentType == JSON) {
+                        checkArgument(mediaType.charset().or(UTF_8).equals(UTF_8), "unsupported charset: " + input);
+                    }
                     return contentType;
                 }
             }
