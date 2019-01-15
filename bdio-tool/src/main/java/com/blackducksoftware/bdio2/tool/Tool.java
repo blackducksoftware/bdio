@@ -25,7 +25,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.UncheckedIOException;
@@ -42,6 +41,8 @@ import java.util.function.IntConsumer;
 import javax.annotation.Nullable;
 import javax.annotation.OverridingMethodsMustInvokeSuper;
 
+import com.blackducksoftware.bdio2.BdioWriter.BdioFile;
+import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.common.io.ExtraIO;
 import com.blackducksoftware.common.value.Product;
 import com.fasterxml.jackson.core.JsonParseException;
@@ -489,13 +490,7 @@ public abstract class Tool implements Runnable {
     protected final ByteSink getOutput(String name) {
         try {
             if (name.equals("-")) {
-                return new ByteSink() {
-                    @Override
-                    public OutputStream openStream() throws IOException {
-                        // TODO Block closing?
-                        return stdout;
-                    }
-                };
+                return new BdioConsoleStreamSupplier(stdout);
             } else {
                 File file = new File(name);
                 if (file.isDirectory()) {
@@ -575,6 +570,18 @@ public abstract class Tool implements Runnable {
      */
     protected static Tool doNothing() {
         return DoNothingTool.INSTANCE;
+    }
+
+    /**
+     * Returns a BDIO stream supplier for a given byte sink. Capturing a byte sink using {@link #getOutput(String)} and
+     * then using this method ensures the opening a file is deferred until the file is needed.
+     */
+    protected static StreamSupplier getBdioOutput(ByteSink output) throws IOException {
+        if (output instanceof StreamSupplier) {
+            return (StreamSupplier) output;
+        } else {
+            return new BdioFile(output.openStream());
+        }
     }
 
 }

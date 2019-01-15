@@ -24,13 +24,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.common.io.ExtraIO;
+import com.google.common.io.ByteSink;
 
 /**
  * Used to write BDIO JSON-LD to a console.
  *
  * @author jgustie
  */
-public class BdioConsoleStreamSupplier implements StreamSupplier {
+public class BdioConsoleStreamSupplier extends ByteSink implements StreamSupplier {
 
     /**
      * The console print stream to emit to.
@@ -62,6 +63,12 @@ public class BdioConsoleStreamSupplier implements StreamSupplier {
         int entryNumber = entryCount.incrementAndGet();
         out.format(entryDelimiter, entryNumber, Bdio.dataEntryName(entryNumber));
         return ExtraIO.ignoreClose(out);
+    }
+
+    @Override
+    public OutputStream openStream() throws IOException {
+        // TODO Block closing?
+        return out;
     }
 
 }
