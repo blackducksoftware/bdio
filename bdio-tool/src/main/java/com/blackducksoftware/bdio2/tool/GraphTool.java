@@ -257,7 +257,7 @@ public class GraphTool extends Tool {
 
     @Override
     protected void printUsage() {
-        printOutput("usage: %s [--graph=tinkergraph|sqlg|<class>] %n", name());
+        printOutput("usage: %s [--graph=tinkergraph|sqlg|<class>]%n", name());
         printOutput("          [--config=<file>] [-D=<key>=<value>]%n");
         printOutput("          [--clean] [--skip-rules] [--init-schema]%n");
         printOutput("          [--onGraphComplete=dump|summary|write|<class>]%n");

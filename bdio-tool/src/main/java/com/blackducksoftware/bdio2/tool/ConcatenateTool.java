@@ -16,25 +16,20 @@
 package com.blackducksoftware.bdio2.tool;
 
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.StandardSystemProperty.USER_NAME;
 
 import java.io.InputStream;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 import javax.annotation.Nullable;
 
+import org.reactivestreams.Publisher;
+
 import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioMetadata;
-import com.blackducksoftware.bdio2.BdioObject;
-import com.blackducksoftware.bdio2.BdioWriter;
 import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
-import com.blackducksoftware.common.net.Hostname;
-import com.blackducksoftware.common.value.ProductList;
 import com.google.common.io.ByteSink;
 import com.google.common.io.ByteSource;
 
@@ -42,7 +37,7 @@ import io.reactivex.Flowable;
 import io.reactivex.functions.Predicate;
 
 /**
- * Concatenate and convert BDIO files.
+ * Concatenate BDIO files.
  *
  * @author jgustie
  */
@@ -55,9 +50,6 @@ public class ConcatenateTool extends Tool {
     private ByteSink output;
 
     private List<ByteSource> inputs = new ArrayList<>();
-
-    // TODO Allow the ID to customized
-    private Optional<String> identifierOverride = Optional.empty();
 
     public ConcatenateTool(@Nullable String name) {
         super(name);
@@ -74,10 +66,6 @@ public class ConcatenateTool extends Tool {
 
     public void addInput(ByteSource input) {
         inputs.add(Objects.requireNonNull(input));
-    }
-
-    public void setIdentifierOverride(@Nullable String identifierOverride) {
-        this.identifierOverride = Optional.ofNullable(identifierOverride);
     }
 
     @Override
@@ -106,37 +94,27 @@ public class ConcatenateTool extends Tool {
     protected void execute() throws Exception {
         checkState(!inputs.isEmpty(), "input is not set");
 
-        RxJavaBdioDocument document = new RxJavaBdioDocument(new BdioContext.Builder().build());
-        StreamSupplier out = new BdioWriter.BdioFile(output.openStream());
+        // TODO How to change the context?
+        BdioContext context = new BdioContext.Builder().build();
+        RxJavaBdioDocument doc = new RxJavaBdioDocument(context);
 
-        // Read all the configured inputs into a single sequence of entries
-        Flowable<InputStream> data = Flowable.fromIterable(inputs).map(ByteSource::openStream);
+        BdioMetadata metadata = doc.metadata(Flowable.fromIterable(inputs)
+                .flatMap(s -> Flowable.using(s::openStream, in -> readMetadata(doc, in), InputStream::close)))
+                .singleOrError().blockingGet();
 
-        // Only collect limited entries for metadata if possible
-        BdioMetadata metadata = document.metadata(data.flatMap(in -> document.read(in).takeUntil((Predicate<Object>) document::needsMoreMetadata)))
-                .blockingSingle(new BdioMetadata());
-        completeMetadata(metadata);
-
-        // Write the all the entries back out using the new metadata
-        data.flatMap(document::read).subscribe(document.write(metadata, out));
+        try (StreamSupplier out = getBdioOutput(output)) {
+            Flowable.fromIterable(inputs)
+                    .flatMap(s -> Flowable.using(s::openStream, doc::read, InputStream::close))
+                    .subscribe(doc.write(metadata, out));
+        }
     }
 
-    private void completeMetadata(BdioMetadata metadata) {
-        // Generate metadata specific to the operation we just performed
-        BdioMetadata catMetadata = new BdioMetadata();
-        catMetadata.creator(USER_NAME.value(), Hostname.get());
-        catMetadata.creationDateTime(ZonedDateTime.now());
-        catMetadata.publisher(ProductList.of(getProduct()));
-
-        // Cross merge so we don't loose anything
-        catMetadata.merge(metadata);
-        metadata.merge(catMetadata);
-
-        // Ensure we have an identifier
-        identifierOverride.ifPresent(metadata::id);
-        if (metadata.id() == null) {
-            metadata.id(BdioObject.randomId());
-        }
+    /**
+     * Reads only the BDIO entries necessary for metadata extraction.
+     */
+    private Publisher<Object> readMetadata(RxJavaBdioDocument doc, InputStream in) {
+        // TODO We need to normalize the named graph label or BdioMetadata.merge will fail
+        return doc.read(in).takeUntil((Predicate<Object>) doc::needsMoreMetadata);
     }
 
 }

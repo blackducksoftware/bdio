@@ -44,6 +44,7 @@ import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.common.io.BinaryByteUnit;
 import com.blackducksoftware.common.io.ByteUnit;
 import com.blackducksoftware.common.io.DecimalByteUnit;
+import com.blackducksoftware.common.value.HID;
 import com.google.common.collect.Iterators;
 
 /**
@@ -62,11 +63,38 @@ public class TreeTool extends AbstractFileTool {
     // TODO We should support `find` like syntax for limiting the output
     // TODO dircolors support? e.g. look at $LS_COLORS env...
     // TODO Remember Magpie has fnmatch exclude file matching (not accessible, but...)
-    // TODO Make '-ff' or '-f -f' display the HID URI
 
     // TODO -p Print the protections for each file.
     // TODO -u Displays file owner or UID number.
     // TODO -g Displays file group owner or GID number.
+
+    /**
+     * Different options for how to format a file path.
+     */
+    private enum PathFormat {
+        NAME, FULL_PATH, URI;
+
+        public PathFormat select(boolean fullPath) {
+            if (fullPath) {
+                return this == NAME ? FULL_PATH : URI;
+            } else {
+                return this == URI ? FULL_PATH : NAME;
+            }
+        }
+
+        public String format(String path) {
+            switch (this) {
+            case NAME:
+                return HID.from(path).getName();
+            case FULL_PATH:
+                return HID.from(path).getPath();
+            case URI:
+                return HID.from(path).toUriString();
+            default:
+                throw new AssertionError("unknown format: " + this);
+            }
+        }
+    }
 
     /**
      * Descend only level directories deep.
@@ -81,7 +109,7 @@ public class TreeTool extends AbstractFileTool {
     /**
      * Print the full path prefix for each file.
      */
-    private boolean fullPath;
+    private PathFormat pathFormat = PathFormat.NAME;
 
     /**
      * Classify path names with a suffix indicating their file type.
@@ -131,7 +159,7 @@ public class TreeTool extends AbstractFileTool {
     }
 
     public void setFullPath(boolean fullPath) {
-        this.fullPath = fullPath;
+        this.pathFormat = pathFormat.select(fullPath);
     }
 
     public void setClassify(boolean classifiy) {
@@ -346,7 +374,7 @@ public class TreeTool extends AbstractFileTool {
         } else {
             rowFormat.append("%s");
         }
-        String pathname = fullPath ? fileNode.path() : fileNode.name();
+        String pathname = pathFormat.format(fileNode.path());
         if (classifiy) {
             arguments.add(classify(pathname, fileNode.type()));
         } else {

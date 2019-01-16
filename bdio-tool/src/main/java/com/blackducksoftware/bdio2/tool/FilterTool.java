@@ -15,7 +15,8 @@
  */
 package com.blackducksoftware.bdio2.tool;
 
-import static com.blackducksoftware.common.base.ExtraStrings.splitOnFirst;
+import static com.blackducksoftware.common.base.ExtraStrings.afterFirst;
+import static com.blackducksoftware.common.base.ExtraStrings.beforeFirst;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.MoreCollectors.toOptional;
@@ -23,7 +24,6 @@ import static java.util.function.Predicate.isEqual;
 
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +44,7 @@ import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
 import com.blackducksoftware.common.value.HID;
 import com.github.jsonldjava.core.JsonLdConsts;
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteSink;
 import com.google.common.io.ByteSource;
 
@@ -66,47 +65,30 @@ public class FilterTool extends Tool {
     }
 
     /**
-     * Only keeps a "page" of nodes as specified by a limit and offset.
+     * Only keeps a "page" of nodes as specified by a limit and offset. This filter does not maintain referential
+     * integrity and is therefore only suitable for splitting larger documents into smaller pieces which must be later
+     * re-combined to form a valid document.
      */
     private static class PageFilter implements FlowableTransformer<Map<String, Object>, Map<String, Object>> {
-
-        // TODO Fundamentally broken because of references!
 
         private final long start;
 
         private final long count;
 
         public PageFilter(long start, long count) {
-            checkArgument(count >= 0, "count must be at least zero: %s", count);
             this.start = start;
             this.count = count;
         }
 
         @Override
         public Publisher<Map<String, Object>> apply(Flowable<Map<String, Object>> upstream) {
-            return upstream.skip(start).take(count);
-        }
-    }
-
-    /**
-     * Only keeps nodes with a missing or explicitly specified namespace.
-     * <p>
-     * <em>IMPORTANT:</em> This filter does NOT consider namespace inheritance!
-     */
-    private static class NamespaceFilter implements FlowableTransformer<Map<String, Object>, Map<String, Object>> {
-
-        // TODO Fundamentally broken because of references!
-
-        private final ImmutableSet<String> namespaces;
-
-        public NamespaceFilter(Collection<String> namespaces) {
-            this.namespaces = ImmutableSet.copyOf(namespaces);
-        }
-
-        @Override
-        public Publisher<Map<String, Object>> apply(Flowable<Map<String, Object>> upstream) {
-            return upstream.filter(n -> !n.containsKey(Bdio.DataProperty.namespace.toString())
-                    || namespaces.contains(n.get(Bdio.DataProperty.namespace.toString())));
+            if (count == 0L) {
+                return upstream.ignoreElements().toFlowable();
+            } else if (count < 0L) {
+                return upstream.skip(start);
+            } else {
+                return upstream.skip(start).limit(count);
+            }
         }
     }
 
@@ -152,7 +134,7 @@ public class FilterTool extends Tool {
             return upstream.flatMap(n -> {
                 if (RawNodeRule.types(n).anyMatch(isEqual(Bdio.Class.File.toString()))) {
                     return filterFile(n);
-                } else if (root != null && n.containsKey(Bdio.ObjectProperty.base.toString())) {
+                } else if (n.containsKey(Bdio.ObjectProperty.base.toString())) {
                     return filterRoot(n);
                 } else {
                     return Flowable.just(n);
@@ -170,7 +152,8 @@ public class FilterTool extends Tool {
 
                 // If this node has new base path, update the root node accordingly
                 if (root != null && filteredPath.equals(BASE)) {
-                    root.put(Bdio.ObjectProperty.base.toString(), newNode.get(JsonLdConsts.ID));
+                    Map<String, Object> value = new LinkedHashMap<>(ImmutableMap.of(JsonLdConsts.ID, newNode.get(JsonLdConsts.ID)));
+                    root.put(Bdio.ObjectProperty.base.toString(), value);
                     if (root.containsKey(JsonLdConsts.TYPE) && root.containsKey(JsonLdConsts.ID)) {
                         Flowable<Map<String, Object>> result = Flowable.just(root, newNode);
                         root = null;
@@ -187,17 +170,23 @@ public class FilterTool extends Tool {
         }
 
         private Flowable<Map<String, Object>> filterRoot(Map<String, Object> node) {
-            if (root.containsKey(Bdio.ObjectProperty.base.toString())) {
-                // We found the base directory before the root, adjust the root node
+            if (root != null) {
                 Map<String, Object> newNode = new LinkedHashMap<>(node);
-                newNode.putAll(root);
-                root = null;
+                if (root.containsKey(Bdio.ObjectProperty.base.toString())) {
+                    // We found the base directory before the root, adjust the root node
+                    newNode.putAll(root);
+                    root = null;
+                } else {
+                    // We found the root before the base directory, save details for later
+                    newNode.remove(Bdio.ObjectProperty.base.toString());
+                    root.put(JsonLdConsts.TYPE, node.get(JsonLdConsts.TYPE));
+                    root.put(JsonLdConsts.ID, node.get(JsonLdConsts.ID));
+                }
                 return Flowable.just(newNode);
             } else {
-                // We found the root before the base directory, save details for later
-                root.put(JsonLdConsts.TYPE, node.get(JsonLdConsts.TYPE));
-                root.put(JsonLdConsts.ID, node.get(JsonLdConsts.ID));
-                return Flowable.just(node);
+                Map<String, Object> newNode = new LinkedHashMap<>(node);
+                newNode.remove(Bdio.ObjectProperty.base.toString());
+                return Flowable.just(newNode);
             }
         }
 
@@ -215,11 +204,36 @@ public class FilterTool extends Tool {
         }
     }
 
+    /**
+     * Some filters will produce empty nodes. This filter will remove nodes consisting of only an identifier and type.
+     * This is potentially dangerous as logically empty nodes may still be referenced from elsewhere in the document.
+     */
+    private static class PruneEmptyFilter implements FlowableTransformer<Map<String, Object>, Map<String, Object>> {
+
+        private final boolean enabled;
+
+        public PruneEmptyFilter(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        @Override
+        public Publisher<Map<String, Object>> apply(Flowable<Map<String, Object>> upstream) {
+            if (enabled) {
+                return upstream.filter(n -> n.size() > 2 || !n.containsKey(JsonLdConsts.ID) || !n.containsKey(JsonLdConsts.TYPE));
+            } else {
+                return upstream;
+            }
+        }
+    }
+
     private ByteSink output;
 
     private ByteSource input;
 
+    // TODO Instead of a list should we just compose the transformers themselves into a single transformer?
     private final List<FlowableTransformer<Map<String, Object>, Map<String, Object>>> filters = new ArrayList<>();
+
+    private boolean pruneEmpty;
 
     public FilterTool(@Nullable String name) {
         super(name);
@@ -238,22 +252,44 @@ public class FilterTool extends Tool {
     }
 
     public void addPageFilter(String page) {
-        // If only one number was supplied assume it is the count
-        filters.add(splitOnFirst(page, ',', (s, c) -> c.isEmpty()
-                ? new PageFilter(0, Long.valueOf(s))
-                : new PageFilter(Long.valueOf(s), Long.valueOf(c))));
-    }
-
-    public void addNamespaceFilter(Collection<String> namespaces) {
-        filters.add(new NamespaceFilter(namespaces));
-    }
-
-    public void addNamespaceFilter(String namespaces) {
-        addNamespaceFilter(Splitter.on(',').trimResults().omitEmptyStrings().splitToList(namespaces));
+        long start;
+        long count;
+        if (page.indexOf(',') < 0) {
+            start = Long.parseLong(page);
+            count = -1L;
+        } else {
+            start = Long.parseLong(beforeFirst(page, ','));
+            count = Long.parseLong(afterFirst(page, ','));
+        }
+        addPageFilter(start, count);
     }
 
     public void addSubdirectoryFilter(String directory) {
         filters.add(new SubdirectoryFilter(directory));
+    }
+
+    public void setPruneEmpty(boolean pruneEmpty) {
+        this.pruneEmpty = pruneEmpty;
+    }
+
+    @Override
+    protected void printUsage() {
+        printOutput("usage: %s [--output <file>]%n", name());
+        printOutput("          [--page-filter <start>[,<count>]]%n");
+        printOutput("          [--subdirectory-filter <directory>]%n");
+        printOutput("          [--prune-empty]%n");
+        printOutput("          [file]%n");
+        printOutput("%n");
+    }
+
+    @Override
+    protected void printHelp() {
+        Map<String, String> options = new LinkedHashMap<>();
+        options.put("--output=<file>", "Specify a file to write results");
+        options.put("--page-filter=<start>[,<count>]", "Only keeps a \"page\" of nodes as specified by a limit and offset.");
+        options.put("--subdirectory-filter=<directory>", "Only keep files from the given subdirectory. The result will contain that directory as its base.");
+        options.put("--prune-empty", "Some filters will produce empty nodes. This option removes nodes with only a type and identifier.");
+        printOptionHelp(options);
     }
 
     @Override
@@ -261,7 +297,6 @@ public class FilterTool extends Tool {
         return super.isOptionWithArgs(option)
                 || option.equals("--output")
                 || option.equals("--page-filter")
-                || option.equals("--namespace-filter")
                 || option.equals("--subdirectory-filter");
     }
 
@@ -274,11 +309,11 @@ public class FilterTool extends Tool {
             } else if (option.startsWith("--page-filter=")) {
                 optionValue(option).ifPresent(this::addPageFilter);
                 args = removeFirst(option, args);
-            } else if (option.startsWith("--namespace-filter=")) {
-                optionValue(option).ifPresent(this::addNamespaceFilter);
-                args = removeFirst(option, args);
             } else if (option.startsWith("--subdirectory-filter=")) {
                 optionValue(option).ifPresent(this::addSubdirectoryFilter);
+                args = removeFirst(option, args);
+            } else if (option.equals("--prune-empty")) {
+                setPruneEmpty(true);
                 args = removeFirst(option, args);
             }
         }
@@ -304,31 +339,31 @@ public class FilterTool extends Tool {
         BdioContext context = new BdioContext.Builder().build();
         RxJavaBdioDocument doc = new RxJavaBdioDocument(context);
 
-        // Read the file twice, first to extract the metadata, then to extract and filter the data
         BdioMetadata metadata;
         try (InputStream in = input.openStream()) {
             metadata = doc.metadata(doc.read(in).takeUntil((Predicate<Object>) doc::needsMoreMetadata)).singleOrError().blockingGet();
         }
+
         try (InputStream in = input.openStream()) {
             try (StreamSupplier out = getBdioOutput(output)) {
                 doc.jsonLd(doc.read(in))
                         .expand().flatMapIterable(x -> x)
                         .flatMapIterable(BdioDocument::toGraphNodes)
-                        .flatMap(this::filter)
+                        .compose(this::filter)
                         .subscribe(new BdioSubscriber(metadata, out, RxJavaPlugins::onError));
             }
         }
     }
 
     /**
-     * Filters the supplied node, possibly returning an alternative representation.
+     * Filters the supplied node, possibly returning alternative representations.
      */
-    private Publisher<Map<String, Object>> filter(Map<String, Object> node) {
-        Flowable<Map<String, Object>> filtered = Flowable.just(node);
+    private Publisher<Map<String, Object>> filter(Flowable<Map<String, Object>> nodes) {
+        Flowable<Map<String, Object>> filtered = nodes;
         for (FlowableTransformer<Map<String, Object>, Map<String, Object>> filter : filters) {
             filtered = filtered.compose(filter);
         }
-        return filtered;
+        return filtered.compose(new PruneEmptyFilter(pruneEmpty));
     }
 
 }

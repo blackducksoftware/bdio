@@ -38,10 +38,11 @@ public class BdioMain extends Tool {
      */
     private enum Command {
         help("Display help information about BDIO", HelpTool::new, false),
-        cat("Concatenate and convert BDIO files", ConcatenateTool::new, false),
+        cat("Concatenate BDIO files", ConcatenateTool::new, false),
         context("Print a BDIO JSON-LD context", ContextTool::new, false),
         dependencies("Prints a dependency tree", DependenciesTool::new, true),
         entries("Dump the JSON-LD content of a BDIO file", EntriesTool::new, true),
+        filter("Filter the contents of a BDIO file", FilterTool::new, false),
         graph("Import BDIO to a TinkerPop graph", GraphTool::new, false),
         head("Print metadata for BDIO files", HeadTool::new, true),
         hid("Print a Hierarchical Identifier (HID) used as a file path", HidTool::new, false),
@@ -144,6 +145,7 @@ public class BdioMain extends Tool {
                         printOutput("%-" + columnWidth + "s", commands.get(i).name());
                     }
                 }
+                printOutput("%n");
             } else {
                 printOutput("The most commonly used %s commands are:%n", toolName);
                 Stream.of(Command.values())

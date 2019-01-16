@@ -69,11 +69,11 @@ public abstract class AbstractFileTool extends AbstractGraphTool {
         }
 
         public String name() {
-            return HID.from(vertex.<String> value(Bdio.DataProperty.path.name())).getName();
+            return HID.from(path()).getName();
         }
 
         public String path() {
-            return HID.from(vertex.<String> value(Bdio.DataProperty.path.name())).getPath();
+            return vertex.<String> value(Bdio.DataProperty.path.name());
         }
 
         public long size() {
