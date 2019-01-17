@@ -54,6 +54,10 @@ import io.reactivex.Flowable;
  */
 class TinkerGraphBlackDuckIoReader extends BlackDuckIoReaderSpi {
 
+    // IMPORTANT: This code MUST NOT directly reference the TinkerGraph! We do not have a compile time dependency on the
+    // TinkerGraph as we do not want that transitive dependency leaking out. This implementation uses the standard
+    // TinkerPop API with an understanding of how the TinkerGraph implementation works.
+
     /**
      * Returns the only element from the supplied iterator mapped using a function. If the iterator is empty, a default
      * is lazily obtained from a supplier.
