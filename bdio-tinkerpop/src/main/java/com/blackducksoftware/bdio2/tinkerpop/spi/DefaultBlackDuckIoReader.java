@@ -85,7 +85,10 @@ final class DefaultBlackDuckIoReader extends BlackDuckIoReaderSpi {
             // Store all the properties in a key/value list
             List<Object> keyValues = new ArrayList<>(node.size());
             getNodeProperties(node, (k, v) -> {
-                if (v != null) {
+                if (k == T.id) {
+                    keyValues.add(k);
+                    keyValues.add(convertId(v));
+                } else if (v != null) {
                     keyValues.add(k);
                     keyValues.add(v);
                 }
@@ -199,7 +202,6 @@ final class DefaultBlackDuckIoReader extends BlackDuckIoReaderSpi {
                 .toFlowable();
     }
 
-    @Override
     protected Object convertId(Object id) {
         if (vertexFeatures.supportsUserSuppliedIds()) {
             Map<Object, Object> mapId = new LinkedHashMap<>();

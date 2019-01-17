@@ -91,7 +91,6 @@ public abstract class BlackDuckIoReaderSpi extends AbstractBlackDuckIoSpi {
     protected void getNodeProperties(Map<String, Object> node, BiConsumer<Object, Object> properties) {
         // Include the identifier
         Optional.ofNullable(node.get(JsonLdConsts.ID))
-                .map(this::convertId)
                 .ifPresent(id -> properties.accept(T.id, id));
 
         // Graph label
@@ -139,10 +138,6 @@ public abstract class BlackDuckIoReaderSpi extends AbstractBlackDuckIoSpi {
                 edges.accept(term, frame().context().fromFieldValue(term, value));
             }
         });
-    }
-
-    protected Object convertId(Object id) {
-        return id;
     }
 
 }
