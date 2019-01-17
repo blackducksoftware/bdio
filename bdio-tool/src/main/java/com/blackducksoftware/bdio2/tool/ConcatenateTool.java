@@ -20,7 +20,9 @@ import static com.google.common.base.Preconditions.checkState;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nullable;
 
@@ -30,6 +32,7 @@ import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
+import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.io.ByteSink;
 import com.google.common.io.ByteSource;
 
@@ -98,8 +101,10 @@ public class ConcatenateTool extends Tool {
         BdioContext context = new BdioContext.Builder().build();
         RxJavaBdioDocument doc = new RxJavaBdioDocument(context);
 
+        // TODO This ID reference should be done `using`
+        AtomicReference<Object> id = new AtomicReference<>();
         BdioMetadata metadata = doc.metadata(Flowable.fromIterable(inputs)
-                .flatMap(s -> Flowable.using(s::openStream, in -> readMetadata(doc, in), InputStream::close)))
+                .flatMap(s -> Flowable.using(s::openStream, in -> readMetadata(doc, in, id), InputStream::close)))
                 .singleOrError().blockingGet();
 
         try (StreamSupplier out = getBdioOutput(output)) {
@@ -112,9 +117,20 @@ public class ConcatenateTool extends Tool {
     /**
      * Reads only the BDIO entries necessary for metadata extraction.
      */
-    private Publisher<Object> readMetadata(RxJavaBdioDocument doc, InputStream in) {
-        // TODO We need to normalize the named graph label or BdioMetadata.merge will fail
-        return doc.read(in).takeUntil((Predicate<Object>) doc::needsMoreMetadata);
+    private Publisher<Object> readMetadata(RxJavaBdioDocument doc, InputStream in, AtomicReference<Object> id) {
+        // TODO This logic needs to be shared with the `HeadTool`
+        return doc.read(in).takeUntil((Predicate<Object>) doc::needsMoreMetadata)
+                .map(e -> {
+                    if (e instanceof Map<?, ?>) {
+                        // Make sure all of the entries have the same identifier
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> ng = (Map<String, Object>) e;
+                        if (!id.compareAndSet(null, ng.get(JsonLdConsts.ID))) {
+                            ng.replace(JsonLdConsts.ID, id.get());
+                        }
+                    }
+                    return e;
+                });
     }
 
 }
