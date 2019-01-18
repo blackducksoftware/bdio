@@ -25,6 +25,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.UncheckedIOException;
@@ -36,11 +37,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntConsumer;
 
 import javax.annotation.Nullable;
 import javax.annotation.OverridingMethodsMustInvokeSuper;
 
+import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioWriter.BdioFile;
 import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
 import com.blackducksoftware.common.io.ExtraIO;
@@ -115,6 +118,55 @@ public abstract class Tool implements Runnable {
      */
     public enum Level {
         QUIET, DEFAULT, VERBOSE, DEBUG
+    }
+
+    /**
+     * A byte source for the console.
+     */
+    private final class StandardInputSource extends ByteSource {
+        @Override
+        public InputStream openStream() {
+            return ExtraIO.onIdle(stdin, 5, SECONDS, () -> {
+                stderr.println("No interaction on stdin, aborting.");
+                sysexit.accept(66);
+            });
+        }
+    }
+
+    /**
+     * A byte sink for the console. Also supports "pretty printing" raw BDIO.
+     */
+    private final class StandardOutputSink extends ByteSink implements StreamSupplier {
+        /**
+         * The delimiter to use between entries. Not that the delimiter is given two arguments: the current entry number
+         * (starting at -1) and the default entry name.
+         */
+        private final String entryDelimiter;
+
+        /**
+         * The number on entries.
+         */
+        private final AtomicInteger entryCount = new AtomicInteger(-1);
+
+        public StandardOutputSink() {
+            this("%n%n");
+        }
+
+        public StandardOutputSink(String entryDelimiter) {
+            this.entryDelimiter = Objects.requireNonNull(entryDelimiter);
+        }
+
+        @Override
+        public OutputStream newStream() throws IOException {
+            int entryNumber = entryCount.incrementAndGet();
+            stdout.format(entryDelimiter, entryNumber, Bdio.dataEntryName(entryNumber));
+            return ExtraIO.ignoreClose(stdout);
+        }
+
+        @Override
+        public OutputStream openStream() throws IOException {
+            return stdout;
+        }
     }
 
     /**
@@ -457,15 +509,7 @@ public abstract class Tool implements Runnable {
     protected final ByteSource getInput(String name) {
         try {
             if (name.equals("-")) {
-                return new ByteSource() {
-                    @Override
-                    public InputStream openStream() {
-                        return ExtraIO.onIdle(stdin, 5, SECONDS, () -> {
-                            stderr.println("No interaction on stdin, aborting.");
-                            sysexit.accept(66);
-                        });
-                    }
-                };
+                return new StandardInputSource();
             } else {
                 File file = new File(name);
                 if (!file.exists()) {
@@ -490,7 +534,7 @@ public abstract class Tool implements Runnable {
     protected final ByteSink getOutput(String name) {
         try {
             if (name.equals("-")) {
-                return new BdioConsoleStreamSupplier(stdout);
+                return new StandardOutputSink();
             } else {
                 File file = new File(name);
                 if (file.isDirectory()) {
@@ -576,8 +620,9 @@ public abstract class Tool implements Runnable {
      * Returns a BDIO stream supplier for a given byte sink. Capturing a byte sink using {@link #getOutput(String)} and
      * then using this method ensures the opening a file is deferred until the file is needed.
      */
-    protected static StreamSupplier getBdioOutput(ByteSink output) throws IOException {
-        if (output instanceof StreamSupplier) {
+    protected StreamSupplier getBdioOutput(ByteSink output) throws IOException {
+        // There is no 'isatty' test in Java for just stdout, checking for a console tests stdout AND stdin
+        if (output instanceof StandardOutputSink && (isPretty() || System.console() != null)) {
             return (StreamSupplier) output;
         } else {
             return new BdioFile(output.openStream());
