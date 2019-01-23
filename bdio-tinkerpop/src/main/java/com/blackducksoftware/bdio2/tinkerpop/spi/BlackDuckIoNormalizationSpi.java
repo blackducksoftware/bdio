@@ -17,9 +17,9 @@ package com.blackducksoftware.bdio2.tinkerpop.spi;
 
 import static com.blackducksoftware.common.base.ExtraCollectors.enumNames;
 import static org.apache.tinkerpop.gremlin.process.traversal.P.eq;
+import static org.apache.tinkerpop.gremlin.process.traversal.P.neq;
 import static org.apache.tinkerpop.gremlin.process.traversal.P.within;
 import static org.apache.tinkerpop.gremlin.process.traversal.P.without;
-import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.V;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.has;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasNot;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inE;
@@ -28,7 +28,6 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.proper
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.select;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioFrame;
@@ -140,12 +139,11 @@ public abstract class BlackDuckIoNormalizationSpi extends AbstractBlackDuckIoSpi
         GraphTraversalSource g = traversal();
 
         // Iterate over all the files with a "_parent" property and create the edge back up to the parent
-        g.V()
-                .hasLabel(Bdio.Class.File.name())
-                .as("child").values(options().fileParentKey().get()).as("pp").select("child")
-                .addE(Bdio.ObjectProperty.parent.name())
-                .to(V().hasLabel(Bdio.Class.File.name())
-                        .as("parent").values(Bdio.DataProperty.path.name()).where(eq("pp")).<Vertex> select("parent"))
+        g.V().hasLabel(Bdio.Class.File.name()).has(Bdio.DataProperty.path.name()).as("parent")
+                .V().hasLabel(Bdio.Class.File.name()).has(options().fileParentKey().get()).as("child")
+                .where("parent", neq("child"))
+                .where("parent", eq("child")).by(Bdio.DataProperty.path.name()).by(options().fileParentKey().get())
+                .addE(Bdio.ObjectProperty.parent.name()).from("child").to("parent")
                 .iterate();
     }
 
