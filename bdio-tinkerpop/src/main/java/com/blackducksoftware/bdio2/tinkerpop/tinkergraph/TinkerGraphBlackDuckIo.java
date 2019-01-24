@@ -15,12 +15,18 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop.tinkergraph;
 
+import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 
+import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioFrame;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoOptions;
+import com.blackducksoftware.bdio2.tinkerpop.spi.BlackDuckIoNormalizationSpi;
 import com.blackducksoftware.bdio2.tinkerpop.spi.BlackDuckIoReaderSpi;
 import com.blackducksoftware.bdio2.tinkerpop.spi.BlackDuckIoSpi;
 
@@ -38,6 +44,31 @@ public class TinkerGraphBlackDuckIo extends BlackDuckIoSpi {
     @Override
     protected Optional<BlackDuckIoReaderSpi> providerReader(GraphTraversalSource traversal, BlackDuckIoOptions options, BdioFrame frame, int batchSize) {
         return Optional.of(new TinkerGraphBlackDuckIoReader(traversal, options, frame));
+    }
+
+    @Override
+    protected Optional<BlackDuckIoNormalizationSpi> providerNormalization(GraphTraversalSource traversal, BlackDuckIoOptions options, BdioFrame frame) {
+        // Check if the path is indexed, if it is then we can optimize
+        boolean isPathIndexed = frame.context()
+                .lookupTerm(Bdio.DataProperty.path.toString())
+                .filter(getIndexedKeys(traversal.getGraph())::contains)
+                .isPresent();
+
+        return isPathIndexed
+                ? Optional.of(new TinkerGraphBlackDuckIoNormalization(traversal, options, frame))
+                : Optional.empty();
+    }
+
+    /**
+     * Reflective workaround for not being able to have a compile time dependency on the TinkerGraph.
+     */
+    @SuppressWarnings("unchecked")
+    private static Set<String> getIndexedKeys(Graph graph) {
+        try {
+            return (Set<String>) graph.getClass().getMethod("getIndexedKeys", Class.class).invoke(graph, Vertex.class);
+        } catch (ReflectiveOperationException e) {
+            return Collections.emptySet();
+        }
     }
 
 }
