@@ -53,6 +53,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.GraphFactory;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.flywaydb.core.Flyway;
@@ -423,10 +424,13 @@ public class GraphTool extends Tool {
         Stopwatch timer = Stopwatch.createStarted();
         Graph result = graph;
         if (graph instanceof TinkerGraph) {
-            // The TinkerGraph only supports cleaning, there is no pre-defined schema
+            // Directly manipulate the TinkerGraph
             TinkerGraph tinkerGraph = (TinkerGraph) graph;
             if (actions.contains(Action.CLEAN)) {
                 tinkerGraph.clear();
+            }
+            if (actions.contains(Action.INITIALIZE_SCHEMA)) {
+                tinkerGraph.createIndex(Bdio.DataProperty.path.name(), Vertex.class);
             }
         } else if (graph instanceof SqlgGraph) {
             // Use Flyway for Sqlg

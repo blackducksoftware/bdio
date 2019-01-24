@@ -43,6 +43,7 @@ public abstract class AbstractGraphTool extends Tool {
         super(name);
         graphTool = new GraphTool(name);
         graphTool.setGraph(TinkerGraph.class.getName());
+        graphTool.setInitializeSchema(true);
         graphTool.onGraphComplete(this::executeWithGraph);
     }
 
