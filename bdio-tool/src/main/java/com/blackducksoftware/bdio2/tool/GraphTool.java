@@ -244,7 +244,7 @@ public class GraphTool extends Tool {
             onGraphComplete(GraphTool::summary);
             return;
         case "write":
-            onGraphComplete(GraphTool::write);
+            onGraphComplete(this::write);
             return;
         default:
             try {
@@ -632,8 +632,12 @@ public class GraphTool extends Tool {
     /**
      * Helper to write a graph as BDIO back to standard output.
      */
-    public static void write(Graph graph) {
-        write(graph, new BdioConsoleStreamSupplier(System.out));
+    public void write(Graph graph) {
+        try {
+            write(graph, getBdioOutput(getOutput("-")));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /**
