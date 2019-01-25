@@ -344,7 +344,7 @@ public class TreeTool extends AbstractFileTool {
         // TODO if (showGroup) details.add("%-8s")
         if (showSize || humanSizeUnit != null) {
             if (humanSizeUnit != null) {
-                details.add("%s"); // TODO This should be "%4s" in Magpie 0.5.1+
+                details.add("%4s");
                 arguments.add(print(fileNode.size(), humanSizeUnit));
             } else {
                 details.add("%11d");
