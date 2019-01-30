@@ -15,6 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tool;
 
+import static com.blackducksoftware.bdio2.tinkerpop.util.VertexProperties.stringValue;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasLabel;
 
@@ -24,6 +25,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.temporal.Temporal;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -36,12 +39,19 @@ import javax.activation.FileTypeMap;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.SubgraphStrategy;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 
+import com.blackducksoftware.bdio2.Bdio;
+import com.blackducksoftware.common.base.ExtraEnums;
 import com.blackducksoftware.common.value.ContentRange;
 import com.blackducksoftware.common.value.ContentType;
 import com.blackducksoftware.common.value.Digest;
+import com.blackducksoftware.common.value.HID;
 import com.blackducksoftware.common.value.ProductList;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -59,14 +69,18 @@ import com.sun.net.httpserver.HttpServer;
 /**
  * View an interactive BDIO graph in a web browser.
  * <p>
- * NOTE: This tool uses the Sun HTTP server found in Oracle JREs. You must have access to
+ * This tool uses the Sun HTTP server found in Oracle JREs. You must have access to
  * {@code com.sun.net.httpserver.*} to use this tool.
+ * <p>
+ * This tool generates Gephi JSON output. This is useful for loading graph data into a browser using
+ * <a href="http://sigmajs.org">Sigma</a> or <a href="http://visjs.org">vis.js</a>, see
+ * <a href="https://marketplace.gephi.org/plugin/json-exporter/">Gephi JSON Exporter</a>.
  *
  * @author jgustie
  */
 public class VizTool extends AbstractGraphTool {
 
-    static final String DEFAULT_METADATA_LABEL = "_Metadata";
+    static final String DEFAULT_METADATA_LABEL = "Metadata";
 
     public static void main(String[] args) {
         new VizTool(null).parseArgs(args).run();
@@ -147,6 +161,7 @@ public class VizTool extends AbstractGraphTool {
             objectMapper.registerModule(BDIO_MODULE);
             objectMapper.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
             objectMapper.configure(SerializationFeature.INDENT_OUTPUT, isPretty);
+            objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         }
 
         @Override
@@ -154,11 +169,11 @@ public class VizTool extends AbstractGraphTool {
             try {
                 if (exchange.getRequestURI().getPath().endsWith("/graph.json")) {
                     try {
-                        // TODO Can we stream this using a JsonGenerator instead?
-                        Object response = GephiFormat.fromGraph(filter(graph.traversal(), exchange));
                         exchange.getResponseHeaders().add("Content-Type", "application/json");
                         exchange.sendResponseHeaders(200, 0);
-                        objectMapper.writeValue(exchange.getResponseBody(), response);
+                        try (JsonGenerator out = objectMapper.getFactory().createGenerator(exchange.getResponseBody())) {
+                            write(out, filter(graph.traversal(), exchange));
+                        }
                     } catch (RuntimeException e) {
                         exchange.sendResponseHeaders(500, 0);
                         Thread currentThread = Thread.currentThread();
@@ -224,7 +239,7 @@ public class VizTool extends AbstractGraphTool {
 
         // These effectively serve as defaults which can be overridden later
         graphTool().setProperty("bdio.metadataLabel", DEFAULT_METADATA_LABEL);
-        graphTool().setProperty("bdio.rootLabel", "_root");
+        graphTool().setProperty("bdio.rootLabel", "root");
     }
 
     public void setPort(int port) {
@@ -320,6 +335,84 @@ public class VizTool extends AbstractGraphTool {
         Thread currentThread = Thread.currentThread();
         if (currentThread.getName().equals("VizTool-http")) {
             currentThread.setName("VizTool-http");
+        }
+    }
+
+    /**
+     * Writes a graph to the specified JSON generator.
+     */
+    private static void write(JsonGenerator out, GraphTraversalSource g) throws IOException {
+        out.writeStartObject();
+        out.writeArrayFieldStart("nodes");
+        g.V().forEachRemaining(v -> writeVertex(out, v));
+        out.writeEndArray();
+        out.writeArrayFieldStart("edges");
+        g.E().forEachRemaining(e -> writeEdge(out, e));
+        out.writeEndArray();
+        out.writeEndObject();
+    }
+
+    private static void writeVertex(JsonGenerator out, Vertex vertex) {
+        try {
+            // Compute the label and size
+            String label = null;
+            int size = 5;
+            if (vertex.label().equals(Bdio.Class.Project.name())) {
+                label = stringValue(vertex, Bdio.DataProperty.name).orElse(null);
+            } else if (vertex.label().equals(Bdio.Class.Component.name())) {
+                label = stringValue(vertex, Bdio.DataProperty.name).orElse(null);
+                size = 10;
+            } else if (vertex.label().equals(Bdio.Class.File.name())) {
+                label = stringValue(vertex, Bdio.DataProperty.path).map(p -> HID.from(p).getName()).orElse(null);
+            } else if (vertex.label().equals(vertex.graph().configuration().getString("bdio.metadataLabel", VizTool.DEFAULT_METADATA_LABEL))) {
+                label = vertex.id().toString();
+                size = 20;
+            }
+            if (ExtraEnums.tryByName(Bdio.Class.class, vertex.label()).filter(Bdio.Class::root).isPresent()) {
+                size = 15;
+            }
+
+            // Write the vertex
+            out.writeStartObject();
+            out.writeStringField("id", vertex.id().toString());
+            out.writeStringField("label", label);
+            out.writeNumberField("size", size);
+            out.writeBooleanField("fixed", false);
+            out.writeObjectFieldStart("attributes");
+            out.writeStringField("@type", vertex.label());
+            out.writeStringField("@id", vertex.id().toString());
+            Iterator<VertexProperty<Object>> properites = vertex.properties();
+            while (properites.hasNext()) {
+                VertexProperty<Object> property = properites.next();
+
+                // Instead of using 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+                if (property.value() instanceof Temporal) {
+                    out.writeObjectField(property.key(), property.value().toString());
+                } else {
+                    out.writeObjectField(property.key(), property.value());
+                }
+            }
+            out.writeEndObject();
+            out.writeEndObject();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static void writeEdge(JsonGenerator out, Edge edge) {
+        try {
+            // Write the edge
+            out.writeStartObject();
+            out.writeStringField("id", edge.id().toString());
+            out.writeStringField("source", edge.outVertex().id().toString());
+            out.writeStringField("target", edge.inVertex().id().toString());
+            out.writeObjectFieldStart("attributes");
+            out.writeStringField("@type", edge.label());
+            out.writeStringField("@id", edge.id().toString());
+            out.writeEndObject();
+            out.writeEndObject();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 

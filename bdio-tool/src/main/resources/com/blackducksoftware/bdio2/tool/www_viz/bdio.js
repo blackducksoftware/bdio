@@ -24,6 +24,11 @@ var options = {
   },
   edges: {
     width: 0.15,
+    arrows: {
+    	to: {
+    		scaleFactor: 0.5
+    	}
+    },
     smooth: {
 	  type: 'continuous'
     }
@@ -46,10 +51,10 @@ network = new vis.Network(container, data, options);
 network.on('click', function (params) {
   if (params.nodes.length > 0) {
     var data = nodes.get(params.nodes[0]); // get the data from selected node
-    detailsElement.innerHTML = JSON.stringify(data, undefined, 3); // show the data in the div
+    detailsElement.innerHTML = JSON.stringify(data.attributes, undefined, 3); // show the data in the div
   } else if (params.edges.length > 0) {
     var data = edges.get(params.edges[0]);
-    detailsElement.innerHTML = JSON.stringify(data, undefined, 3);
+    detailsElement.innerHTML = JSON.stringify(data.attributes, undefined, 3);
   } else {
     detailsElement.innerHTML = "Click a node or edge to view details";
   }
