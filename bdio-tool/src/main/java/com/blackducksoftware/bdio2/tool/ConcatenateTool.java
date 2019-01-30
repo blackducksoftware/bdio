@@ -117,7 +117,7 @@ public class ConcatenateTool extends Tool {
     /**
      * Reads only the BDIO entries necessary for metadata extraction.
      */
-    private Publisher<Object> readMetadata(RxJavaBdioDocument doc, InputStream in, AtomicReference<Object> id) {
+    static Publisher<Object> readMetadata(RxJavaBdioDocument doc, InputStream in, AtomicReference<Object> id) {
         // TODO This logic needs to be shared with the `HeadTool`
         return doc.read(in).takeUntil((Predicate<Object>) doc::needsMoreMetadata)
                 .map(e -> {

@@ -617,6 +617,13 @@ public abstract class Tool implements Runnable {
     }
 
     /**
+     * Returns an environment variable as an optional.
+     */
+    protected static Optional<String> env(String name) {
+        return Optional.ofNullable(System.getenv(name));
+    }
+
+    /**
      * Returns a BDIO stream supplier for a given byte sink. Capturing a byte sink using {@link #getOutput(String)} and
      * then using this method ensures the opening a file is deferred until the file is needed.
      */
