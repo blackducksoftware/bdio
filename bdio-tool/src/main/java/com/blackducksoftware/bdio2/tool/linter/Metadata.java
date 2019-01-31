@@ -15,6 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tool.linter;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -93,7 +94,11 @@ public class Metadata implements RawEntryRule {
                                     if (productList.primary().version() == null) {
                                         result.warning("MissingPrimaryPublisherVersion", productList);
                                     }
+
                                     productList.tryFind(p -> p.name().equals("LegacyBdio1xEmitter") || p.name().equals("LegacyScanContainerEmitter"))
+                                            .filter(p -> !Arrays.stream(Thread.currentThread().getStackTrace())
+                                                    .filter(f -> f.getClassName().matches(".*\\.Legacy[^\\.]*Emitter"))
+                                                    .findAny().isPresent())
                                             .ifPresent(p -> result.error("ReservedLegacyPublisher", p.name()));
                                 }
                             }
