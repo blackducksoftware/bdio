@@ -142,6 +142,8 @@ public class GraphTool extends Tool {
         }
     }
 
+    public static final String COMMON_GRAPH_TOOL_OPTIONS = "Common graph tool options";
+
     static final String DEFAULT_IDENTIFIER_KEY = "__id";
 
     static final String DEFAULT_IMPLICIT_KEY = "implicit";
@@ -269,7 +271,7 @@ public class GraphTool extends Tool {
     @Override
     protected void printHelp() {
         Map<String, String> options = new LinkedHashMap<>();
-        options.put("Common graph tool options", null);
+        options.put(COMMON_GRAPH_TOOL_OPTIONS, null);
         options.put("--graph=<factory>", "Graph implementation factory (default: tinkergraph)");
         options.put("--config=<file>", "Graph configuration file (see properties below)");
         options.put("--D=<key>=<value>", "Single property graph configuration (see properties below)");

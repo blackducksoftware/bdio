@@ -16,6 +16,7 @@
 package com.blackducksoftware.bdio2.tool;
 
 import static com.blackducksoftware.bdio2.tinkerpop.util.VertexProperties.stringValue;
+import static com.blackducksoftware.bdio2.tool.GraphTool.COMMON_GRAPH_TOOL_OPTIONS;
 import static com.blackducksoftware.bdio2.tool.GraphTool.DEFAULT_IDENTIFIER_KEY;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasLabel;
@@ -46,6 +47,7 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
+import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.common.base.ExtraEnums;
@@ -273,6 +275,7 @@ public class VizTool extends AbstractGraphTool {
         Map<String, String> options = new LinkedHashMap<>();
         options.put("--port <port>", "The HTTP port to listen on (defaults to any available port)");
         printOptionHelp(options);
+        printOutput("%nSee \"%s\" from 'bdio help graph' for additional options when using an existing graph.%n", COMMON_GRAPH_TOOL_OPTIONS);
     }
 
     @Override
@@ -371,6 +374,8 @@ public class VizTool extends AbstractGraphTool {
 
     private static void writeVertex(JsonGenerator out, Vertex vertex) {
         try {
+            // TODO Use VisJs grouping and configure size in JavaScript
+
             // Compute the label and size
             String label = null;
             int size = 5;
@@ -386,8 +391,21 @@ public class VizTool extends AbstractGraphTool {
                         .orElseGet(() -> vertex.id().toString());
                 size = 20;
             }
+
+            // Increase the size of root objects
             if (ExtraEnums.tryByName(Bdio.Class.class, vertex.label()).filter(Bdio.Class::root).isPresent()) {
                 size = 15;
+            }
+
+            // Leaked product details ("Metadata.document" and "NamedGraph.graph") for presentation
+            if (vertex.graph() instanceof SqlgGraph && ((SqlgGraph) vertex.graph()).getJdbcUrl().endsWith("/bdio")) {
+                if (vertex.label().equals("Metadata")) {
+                    label = stringValue(vertex, "document").orElse(label);
+                    size = 20;
+                } else if (vertex.label().equals("NamedGraph")) {
+                    label = stringValue(vertex, "graph").orElse(null);
+                    size = 20;
+                }
             }
 
             // Write the vertex
@@ -395,7 +413,6 @@ public class VizTool extends AbstractGraphTool {
             out.writeStringField("id", vertex.id().toString());
             out.writeStringField("label", label);
             out.writeNumberField("size", size);
-            out.writeBooleanField("fixed", false);
             out.writeObjectFieldStart("attributes");
             out.writeStringField("@type", vertex.label());
             out.writeStringField("@id", vertex.id().toString());

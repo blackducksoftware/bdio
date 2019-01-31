@@ -90,16 +90,17 @@ function redrawAll(gephiJSON) {
 
   nodes.clear();
   edges.clear();
+  
+  detailsElement.innerHTML = "Click a node or edge to view details";
+
+  // TODO Disable edge smoothing if the gephiJSON.nodes is too large and add a warning to the details text
 
   var parsed = vis.network.gephiParser.parseGephi(gephiJSON, {
     fixed: false,
     parseColor: false
   });
-
-  // add the parsed data to the DataSets.
+    
   nodes.add(parsed.nodes);
   edges.add(parsed.edges);
-
-  detailsElement.innerHTML = "Click a node or edge to view details";
-  network.fit(); // zoom to fit
+  network.fit();
 }
