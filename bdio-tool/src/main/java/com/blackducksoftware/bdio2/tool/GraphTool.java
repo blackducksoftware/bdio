@@ -19,6 +19,7 @@ import static com.blackducksoftware.common.base.ExtraEnums.set;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.repeat;
 import static java.util.Collections.singleton;
+import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.count;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.id;
 
 import java.io.File;
@@ -49,7 +50,6 @@ import org.apache.commons.configuration.MapConfiguration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
@@ -608,29 +608,54 @@ public class GraphTool extends Tool {
     public static void summary(Graph graph) {
         GraphTraversalSource g = graph.traversal();
         PrintStream out = System.out;
+        Map<String, Long> vertexCount = graph.traversal().V().<String, Long> group().by(T.label).by(count()).next();
+        Map<String, Long> edgeCount = graph.traversal().E().<String, Long> group().by(T.label).by(count()).next();
 
         String partitionKey = graph.configuration().getString("bdio.partitionStrategy.partitionKey", DEFAULT_PARTITION_KEY);
         String writePartition = graph.configuration().getString("bdio.partitionStrategy.writePartition", DEFAULT_PARTITION);
-        out.format("Distinct Partitions (%s)%n", partitionKey);
-        out.format("=====================%s=%n", repeat("=", partitionKey.length()));
-        g.V().values(partitionKey).inject(writePartition).dedup()
-                .forEachRemaining(p -> out.format("  %s%n", p));
+        Set<String> partitions = g.V().<String> values(partitionKey).inject(writePartition).dedup().toSet();
 
-        out.format("%n");
+        {
+            out.format("Vertex count by label%n");
+            out.format("=====================%n");
+            vertexCount.forEach((l, c) -> out.format("  %s = %s%n", l, c));
+            out.format("%n");
+        }
+        {
+            out.format("Edge count by label%n");
+            out.format("===================%n");
+            edgeCount.forEach((l, c) -> out.format("  %s = %s%n", l, c));
+            out.format("%n");
+        }
+        {
+            out.format("Distinct Partitions (%s)%n", partitionKey);
+            out.format("=====================%s=%n", repeat("=", partitionKey.length()));
+            partitions.forEach(p -> out.format("  %s%n", p));
+            out.format("%n");
+        }
+        {
+            out.format("Graph indicies%n");
+            out.format("==============%n");
 
-        out.format("Vertex count by label%n");
-        out.format("=====================%n");
-        g.V().group().by(T.label).by(__.count()).next().entrySet()
-                .forEach(e -> out.format("  %s = %s%n", e.getKey(), e.getValue()));
+            double v = vertexCount.values().stream().mapToDouble(Long::doubleValue).sum();
+            double e = edgeCount.values().stream().mapToDouble(Long::doubleValue).sum();
+            double p = partitions.size();
+            double u = e - v + p;
+            double d = e / (v * (v - 1));
+            double alpha = u / ((2 * v) - 5);
+            double beta = e / v;
+            double gamma = e / (3 * (v - 2));
 
-        out.format("%n");
-
-        out.format("Edge count by label%n");
-        out.format("===================%n");
-        g.E().group().by(T.label).by(__.count()).next().entrySet()
-                .forEach(e -> out.format("  %s = %s%n", e.getKey(), e.getValue()));
-
-        // TODO Include complexity measurements?
+            out.format("  Number of Vertices:   \uD835\uDC63 = %.0f%n", v);
+            out.format("  Number of Edges:      \uD835\uDC52 = %.0f%n", e);
+            out.format("  Number of Sub-graphs: \uD835\uDC5D = %.0f%n", p);
+            out.format("  Number of Cycles:     \uD835\uDC62 = %.0f%n", u);
+            out.format("  Network Density:      \uD835\uDC51 = %.4f%n", d);
+            out.format("  Alpha Index:          \u03B1 = %.4f%n", alpha);
+            out.format("  Beta Index:           \u03B2 = %.4f%n", beta);
+            out.format("  Gamma Index:          \u03B3 = %.4f%n", gamma);
+            out.format("%n");
+        }
     }
 
     /**
