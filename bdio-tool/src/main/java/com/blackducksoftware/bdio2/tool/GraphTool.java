@@ -142,9 +142,9 @@ public class GraphTool extends Tool {
         }
     }
 
-    static final String DEFAULT_IDENTIFIER_KEY = "_id";
+    static final String DEFAULT_IDENTIFIER_KEY = "__id";
 
-    static final String DEFAULT_IMPLICIT_KEY = "_implicit";
+    static final String DEFAULT_IMPLICIT_KEY = "implicit";
 
     static final String DEFAULT_PARTITION_KEY = "inputSource";
 

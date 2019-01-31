@@ -80,7 +80,9 @@ import com.sun.net.httpserver.HttpServer;
  */
 public class VizTool extends AbstractGraphTool {
 
-    static final String DEFAULT_METADATA_LABEL = "Metadata";
+    private static final String DEFAULT_METADATA_LABEL = "Metadata";
+
+    private static final String DEFAULT_ROOT_LABEL = "root";
 
     public static void main(String[] args) {
         new VizTool(null).parseArgs(args).run();
@@ -239,7 +241,7 @@ public class VizTool extends AbstractGraphTool {
 
         // These effectively serve as defaults which can be overridden later
         graphTool().setProperty("bdio.metadataLabel", DEFAULT_METADATA_LABEL);
-        graphTool().setProperty("bdio.rootLabel", "root");
+        graphTool().setProperty("bdio.rootLabel", DEFAULT_ROOT_LABEL);
     }
 
     public void setPort(int port) {
