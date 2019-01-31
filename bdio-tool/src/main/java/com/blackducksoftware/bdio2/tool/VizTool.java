@@ -16,6 +16,7 @@
 package com.blackducksoftware.bdio2.tool;
 
 import static com.blackducksoftware.bdio2.tinkerpop.util.VertexProperties.stringValue;
+import static com.blackducksoftware.bdio2.tool.GraphTool.DEFAULT_IDENTIFIER_KEY;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.hasLabel;
 
@@ -41,6 +42,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.Partit
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.SubgraphStrategy;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 
@@ -366,8 +368,9 @@ public class VizTool extends AbstractGraphTool {
                 size = 10;
             } else if (vertex.label().equals(Bdio.Class.File.name())) {
                 label = stringValue(vertex, Bdio.DataProperty.path).map(p -> HID.from(p).getName()).orElse(null);
-            } else if (vertex.label().equals(vertex.graph().configuration().getString("bdio.metadataLabel", VizTool.DEFAULT_METADATA_LABEL))) {
-                label = vertex.id().toString();
+            } else if (vertex.label().equals(vertex.graph().configuration().getString("bdio.metadataLabel", DEFAULT_METADATA_LABEL))) {
+                label = stringValue(vertex, vertex.graph().configuration().getString("bdio.identifierKey", DEFAULT_IDENTIFIER_KEY))
+                        .orElseGet(() -> vertex.id().toString());
                 size = 20;
             }
             if (ExtraEnums.tryByName(Bdio.Class.class, vertex.label()).filter(Bdio.Class::root).isPresent()) {
@@ -411,6 +414,11 @@ public class VizTool extends AbstractGraphTool {
             out.writeObjectFieldStart("attributes");
             out.writeStringField("@type", edge.label());
             out.writeStringField("@id", edge.id().toString());
+            Iterator<Property<Object>> properites = edge.properties();
+            while (properites.hasNext()) {
+                Property<Object> property = properites.next();
+                out.writeObjectField(property.key(), property.value());
+            }
             out.writeEndObject();
             out.writeEndObject();
         } catch (IOException e) {
