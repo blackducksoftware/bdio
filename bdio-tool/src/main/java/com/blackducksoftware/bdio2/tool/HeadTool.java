@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.charset.Charset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -242,7 +243,7 @@ public class HeadTool extends Tool {
         try {
             Process proc = new ProcessBuilder(command).start();
             if (proc.waitFor() == 0) {
-                return ExtraStrings.ofBlank(CharStreams.toString(new InputStreamReader(proc.getInputStream()))).map(String::trim);
+                return ExtraStrings.ofBlank(CharStreams.toString(new InputStreamReader(proc.getInputStream(), Charset.defaultCharset()))).map(String::trim);
             } else {
                 return Optional.empty();
             }
