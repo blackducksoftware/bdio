@@ -28,6 +28,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.temporal.Temporal;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -260,6 +261,18 @@ public class VizTool extends AbstractGraphTool {
             graphTool().setSkipLoad(true);
             graphTool().setSkipApplySemanticRules(true);
         }
+    }
+
+    @Override
+    protected void printUsage() {
+        printOutput("usage: %s [--port <port>] [file ...]%n", name());
+    }
+
+    @Override
+    protected void printHelp() {
+        Map<String, String> options = new LinkedHashMap<>();
+        options.put("--port <port>", "The HTTP port to listen on (defaults to any available port)");
+        printOptionHelp(options);
     }
 
     @Override
