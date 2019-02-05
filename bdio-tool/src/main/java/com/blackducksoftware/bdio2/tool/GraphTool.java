@@ -274,7 +274,7 @@ public class GraphTool extends Tool {
         options.put(COMMON_GRAPH_TOOL_OPTIONS, null);
         options.put("--graph=<factory>", "Graph implementation factory (default: tinkergraph)");
         options.put("--config=<file>", "Graph configuration file (see properties below)");
-        options.put("--D=<key>=<value>", "Single property graph configuration (see properties below)");
+        options.put("-D=<key>=<value>", "Single property graph configuration (see properties below)");
         options.put("--context=<ctx>", "JSON-LD context used to expand JSON inputs");
 
         options.put("Graph tool options", null);
