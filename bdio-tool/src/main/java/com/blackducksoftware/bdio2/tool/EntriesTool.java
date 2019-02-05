@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.lang.ProcessBuilder.Redirect;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -32,7 +31,6 @@ import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.EmitterFactory;
-import com.blackducksoftware.common.base.ExtraStrings;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.collect.Iterables;
 import com.google.common.io.ByteSource;
@@ -91,7 +89,7 @@ public class EntriesTool extends Tool {
 
     @Override
     protected Tool parseArguments(String[] args) throws Exception {
-        String[][] exec = parseExec(args);
+        String[][] exec = borrowArguments(args, "--exec=");
         args = exec[0];
         setCommand(exec[1]);
 
@@ -136,38 +134,6 @@ public class EntriesTool extends Tool {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-    }
-
-    /**
-     * Helper to parse an "exec" command out of the arguments. The resulting array will contain two elements, the first
-     * is list of arguments with the execution removed, the second is the (possibly empty) execution.
-     */
-    private static String[][] parseExec(String[] args) {
-        int execStart = -1;
-        int execEnd = args.length;
-        for (int i = 0; i < args.length; ++i) {
-            if (args[i].startsWith("--exec=")) {
-                execStart = i;
-            } else if (args[i].equals(";")) {
-                execEnd = i;
-            }
-        }
-
-        String[][] exec = new String[2][];
-        if (execStart >= 0) {
-            exec[1] = Arrays.copyOfRange(args, execStart, execEnd);
-            exec[1][0] = ExtraStrings.removePrefix(exec[1][0], "--exec=");
-
-            exec[0] = new String[args.length - exec[1].length - (execEnd < args.length ? 1 : 0)];
-            System.arraycopy(args, 0, exec[0], 0, execStart);
-            if (exec[0].length > execStart) {
-                System.arraycopy(args, execEnd + 1, exec[0], execStart, args.length - exec[0].length - exec[1].length);
-            }
-        } else {
-            exec[0] = args;
-            exec[1] = new String[0];
-        }
-        return exec;
     }
 
 }

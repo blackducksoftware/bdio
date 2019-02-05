@@ -28,6 +28,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.io.StreamTokenizer;
+import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
 import java.nio.file.NoSuchFileException;
@@ -55,6 +57,7 @@ import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteSink;
@@ -606,6 +609,69 @@ public abstract class Tool implements Runnable {
             }
         }
         return arguments;
+    }
+
+    /**
+     * Borrows a subset of arguments initiated by the specified option. The resulting two dimensional array will include
+     * the original arguments (minus those that were borrowed) at position 0 and the borrowed arguments at position 1.
+     */
+    protected static String[][] borrowArguments(String[] args, String option) {
+        // Find the range of borrowed arguments starting with the option and going until the ';'
+        int start = -1;
+        int end = args.length;
+        for (int i = 0; i < args.length; ++i) {
+            if (args[i].startsWith(option)) {
+                start = i;
+            } else if (args[i].equals(";")) {
+                end = i;
+            }
+        }
+
+        String[][] result = new String[2][];
+        if (start >= 0) {
+            // Start by extracting the borrowed arguments (correct the first argument by removing the option)
+            result[1] = Arrays.copyOfRange(args, start, end);
+            result[1][0] = removePrefix(result[1][0], option);
+
+            // Remove the borrowed arguments from the main list of arguments
+            result[0] = new String[args.length - result[1].length - (end < args.length ? 1 : 0)];
+            System.arraycopy(args, 0, result[0], 0, start);
+            if (result[0].length > start) {
+                System.arraycopy(args, end + 1, result[0], start, args.length - result[0].length - result[1].length);
+            }
+        } else {
+            // No borrowing, just keep all the original options
+            result[0] = args;
+            result[1] = new String[0];
+        }
+        return result;
+    }
+
+    /**
+     * Simulates shell tokenization on an argument.
+     */
+    protected static List<String> commandArgument(String arg) {
+        ImmutableList.Builder<String> result = ImmutableList.builder();
+        try {
+            // Setup the tokenizer to be more shell like
+            StreamTokenizer tokenizer = new StreamTokenizer(new StringReader(arg));
+            tokenizer.ordinaryChar('/');
+            tokenizer.wordChars('/', '/');
+            tokenizer.commentChar('#');
+
+            // Spin through the tokenizer to generate the command
+            int token = tokenizer.nextToken();
+            while (token != StreamTokenizer.TT_EOF) {
+                // Eat line breaks
+                if (tokenizer.ttype != StreamTokenizer.TT_EOL) {
+                    result.add(tokenizer.sval);
+                }
+                token = tokenizer.nextToken();
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return result.build();
     }
 
     /**

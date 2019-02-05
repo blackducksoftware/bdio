@@ -22,7 +22,13 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.MoreCollectors.toOptional;
 import static java.util.function.Predicate.isEqual;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.io.UncheckedIOException;
+import java.io.Writer;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,13 +50,17 @@ import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.blackducksoftware.bdio2.tool.linter.Linter.RawNodeRule;
 import com.blackducksoftware.common.value.HID;
 import com.github.jsonldjava.core.JsonLdConsts;
+import com.github.jsonldjava.core.JsonLdOptions;
+import com.github.jsonldjava.core.JsonLdProcessor;
+import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteSink;
 import com.google.common.io.ByteSource;
 
 import io.reactivex.Flowable;
 import io.reactivex.FlowableTransformer;
-import io.reactivex.functions.Predicate;
+import io.reactivex.Single;
+import io.reactivex.SingleTransformer;
 import io.reactivex.plugins.RxJavaPlugins;
 
 /**
@@ -60,8 +70,52 @@ import io.reactivex.plugins.RxJavaPlugins;
  */
 public class FilterTool extends Tool {
 
+    // TODO A "non-standard" filter that keeps or removes anything not part of standard BDIO
+    // TODO A node type filter that keeps or removes specific nodes types
+
     public static void main(String[] args) {
         new FilterTool(null).parseArgs(args).run();
+    }
+
+    /**
+     * A filter that rewrites a document metadata using an external command.
+     */
+    private static class MetadataFilter implements SingleTransformer<BdioMetadata, BdioMetadata> {
+
+        private final String command;
+
+        public MetadataFilter(String command) {
+            this.command = Objects.requireNonNull(command);
+        }
+
+        @Override
+        public Single<BdioMetadata> apply(Single<BdioMetadata> upstream) {
+            return upstream.flatMap(o -> {
+                // Compact, filter and expand
+                JsonLdOptions opts = BdioContext.getDefault().jsonLdOptions();
+                Map<String, Object> compacted = JsonLdProcessor.compact(o, Bdio.Context.DEFAULT.toString(), opts);
+                Object filtered = filter(compacted);
+                List<Object> expanded = JsonLdProcessor.expand(filtered, opts);
+                if (expanded != null) {
+                    // The expanded output should be a single element list
+                    return Flowable.fromIterable(expanded).singleOrError();
+                } else {
+                    // If the expanded output is null it means the filter execution aborted the operation
+                    return Single.error(new RuntimeException("aborted"));
+                }
+            }).map(this::toMetadata);
+        }
+
+        protected Object filter(Map<String, Object> compacted) {
+            // TODO Intercept some commands and optimize them
+            // e.g. `jq 'del(.captureInterval)'` can just remove 'captureInterval' from the map and return it
+            return execute(command, compacted);
+        }
+
+        @SuppressWarnings("unchecked")
+        protected BdioMetadata toMetadata(Object obj) {
+            return new BdioMetadata((Map<String, Object>) obj);
+        }
     }
 
     /**
@@ -226,9 +280,17 @@ public class FilterTool extends Tool {
         }
     }
 
+    private static <U, T, D> SingleTransformer<U, D> compose(
+            SingleTransformer<? super U, ? extends T> first,
+            SingleTransformer<? super T, ? extends D> second) {
+        return u -> u.compose(first).compose(second);
+    }
+
     private ByteSink output;
 
     private ByteSource input;
+
+    private SingleTransformer<BdioMetadata, BdioMetadata> metadataFilter = m -> m;
 
     // TODO Instead of a list should we just compose the transformers themselves into a single transformer?
     private final List<FlowableTransformer<Map<String, Object>, Map<String, Object>>> filters = new ArrayList<>();
@@ -245,6 +307,10 @@ public class FilterTool extends Tool {
 
     public void setInput(ByteSource input) {
         this.input = Objects.requireNonNull(input);
+    }
+
+    public void addMetadataFilter(String command) {
+        metadataFilter = compose(metadataFilter, new MetadataFilter(command));
     }
 
     public void addPageFilter(long start, long count) {
@@ -275,6 +341,7 @@ public class FilterTool extends Tool {
     @Override
     protected void printUsage() {
         printOutput("usage: %s [--output <file>]%n", name());
+        printOutput("          [--metadata-filter <command>]%n");
         printOutput("          [--page-filter <start>[,<count>]]%n");
         printOutput("          [--subdirectory-filter <directory>]%n");
         printOutput("          [--prune-empty]%n");
@@ -286,6 +353,7 @@ public class FilterTool extends Tool {
     protected void printHelp() {
         Map<String, String> options = new LinkedHashMap<>();
         options.put("--output=<file>", "Specify a file to write results");
+        options.put("--metadata-filter=<command>", "This is the filter for rewriting metadata.");
         options.put("--page-filter=<start>[,<count>]", "Only keeps a \"page\" of nodes as specified by a limit and offset.");
         options.put("--subdirectory-filter=<directory>", "Only keep files from the given subdirectory. The result will contain that directory as its base.");
         options.put("--prune-empty", "Some filters will produce empty nodes. This option removes nodes with only a type and identifier.");
@@ -296,6 +364,7 @@ public class FilterTool extends Tool {
     protected boolean isOptionWithArgs(String option) {
         return super.isOptionWithArgs(option)
                 || option.equals("--output")
+                || option.equals("--metadata-filter")
                 || option.equals("--page-filter")
                 || option.equals("--subdirectory-filter");
     }
@@ -305,6 +374,9 @@ public class FilterTool extends Tool {
         for (String option : options(args)) {
             if (option.startsWith("--output=")) {
                 optionValue(option).map(this::getOutput).ifPresent(this::setOutput);
+                args = removeFirst(option, args);
+            } else if (option.startsWith("--metadata-filter=")) {
+                optionValue(option).ifPresent(this::addMetadataFilter);
                 args = removeFirst(option, args);
             } else if (option.startsWith("--page-filter=")) {
                 optionValue(option).ifPresent(this::addPageFilter);
@@ -341,7 +413,10 @@ public class FilterTool extends Tool {
 
         BdioMetadata metadata;
         try (InputStream in = input.openStream()) {
-            metadata = doc.metadata(doc.read(in).takeUntil((Predicate<Object>) doc::needsMoreMetadata)).singleOrError().blockingGet();
+            metadata = doc.metadata(doc.read(in).takeUntil((io.reactivex.functions.Predicate<Object>) doc::needsMoreMetadata))
+                    .singleOrError()
+                    .compose(metadataFilter)
+                    .blockingGet();
         }
 
         try (InputStream in = input.openStream()) {
@@ -364,6 +439,32 @@ public class FilterTool extends Tool {
             filtered = filtered.compose(filter);
         }
         return filtered.compose(new PruneEmptyFilter(pruneEmpty));
+    }
+
+    /**
+     * Executes a native filter command to modify the supplied input serialized as JSON.
+     * <p>
+     * Note that due to performance overhead, it is unlikely that you would want to use this
+     * on anything but full entries or metadata.
+     */
+    private static Object execute(String filter, Object input) {
+        Objects.requireNonNull(input);
+        try {
+            // TODO Should we be setting BDIO_XXX environment variables?
+            Process proc = new ProcessBuilder(commandArgument(filter)).start();
+            try (Writer out = new BufferedWriter(new OutputStreamWriter(proc.getOutputStream(), Charset.defaultCharset()))) {
+                JsonUtils.write(out, input);
+            }
+            if (proc.waitFor() != 0) {
+                return null;
+            }
+            return JsonUtils.fromInputStream(proc.getInputStream());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
     }
 
 }
