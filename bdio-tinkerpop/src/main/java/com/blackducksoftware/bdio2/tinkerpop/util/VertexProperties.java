@@ -15,7 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop.util;
 
-import static com.blackducksoftware.common.base.ExtraOptionals.ofType;
+import static com.blackducksoftware.common.base.ExtraObjects.cast;
 
 import java.io.Serializable;
 import java.util.Comparator;
@@ -111,7 +111,7 @@ public class VertexProperties {
      * to the specified type.
      */
     public static <T> Optional<T> objectValue(Vertex v, Object propertyKey, Class<T> type) {
-        return objectValue(v, propertyKey).flatMap(ofType(type));
+        return objectValue(v, propertyKey).map(cast(type));
     }
 
     /**

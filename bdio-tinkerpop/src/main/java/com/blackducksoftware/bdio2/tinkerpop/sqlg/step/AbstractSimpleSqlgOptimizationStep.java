@@ -15,7 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop.sqlg.step;
 
-import static com.blackducksoftware.common.base.ExtraOptionals.ofType;
+import static com.blackducksoftware.common.base.ExtraObjects.cast;
 import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
 
 import java.util.Collection;
@@ -61,7 +61,7 @@ public abstract class AbstractSimpleSqlgOptimizationStep<S> extends AbstractStep
 
     protected AbstractSimpleSqlgOptimizationStep(Traversal.Admin<?, ?> traversal, SqlgGraphStep<?, ?> replacedStep) {
         super(traversal);
-        sqlgGraph = traversal.getGraph().flatMap(ofType(SqlgGraph.class)).orElseThrow(illegalState("expected SqlgGraph"));
+        sqlgGraph = traversal.getGraph().map(cast(SqlgGraph.class)).orElseThrow(illegalState("expected SqlgGraph"));
         rootSchemaTableTrees = replacedStep.parseForStrategy();
     }
 

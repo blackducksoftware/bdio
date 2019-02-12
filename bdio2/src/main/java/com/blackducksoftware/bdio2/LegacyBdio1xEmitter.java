@@ -813,7 +813,7 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
         for (int index = 0; index < externalIdentifierSize && !result.isPresent(); ++index) {
             Optional<String> externalSystemTypeId = currentValue("externalIdentifier", index, "externalSystemTypeId");
             Optional<String> externalId = currentValue("externalIdentifier", index, "externalId");
-            result = ExtraOptionals.and(externalSystemTypeId, externalId, f);
+            result = ExtraOptionals.map(externalSystemTypeId, externalId, f);
         }
         return result;
     }
@@ -857,7 +857,7 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
         for (int index = 0; index < checksumSize; ++index) {
             Optional<String> algorithm = currentValue("checksum", index, "algorithm").flatMap(LegacyBdio1xEmitter::toDigestAlgorithm);
             Optional<String> checksumValue = currentValue("checksum", index, "checksumValue");
-            ExtraOptionals.and(algorithm, checksumValue, Digest::of).ifPresent(fingerprints::add);
+            ExtraOptionals.map(algorithm, checksumValue, Digest::of).ifPresent(fingerprints::add);
         }
         if (!fingerprints.isEmpty()) {
             fingerprint.accept(fingerprints);
