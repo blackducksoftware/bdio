@@ -17,22 +17,23 @@ package com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import java.sql.Connection;
 import java.util.ServiceLoader;
 
 import org.flywaydb.core.api.FlywayException;
-import org.flywaydb.core.api.callback.Callback;
-import org.flywaydb.core.api.callback.Context;
-import org.flywaydb.core.api.callback.Event;
-import org.flywaydb.core.api.configuration.Configuration;
-import org.flywaydb.core.api.logging.Log;
-import org.flywaydb.core.api.logging.LogFactory;
+import org.flywaydb.core.api.callback.BaseFlywayCallback;
+import org.flywaydb.core.api.configuration.FlywayConfiguration;
 import org.flywaydb.core.internal.util.TimeFormat;
+import org.flywaydb.core.internal.util.logging.Log;
+import org.flywaydb.core.internal.util.logging.LogFactory;
 import org.umlg.sqlg.SqlgPlugin;
 import org.umlg.sqlg.sql.dialect.SqlDialect;
 import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.structure.topology.Topology;
 import org.umlg.sqlg.util.SqlgUtil;
 
+import com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway.FlywayBackport.Context;
+import com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway.FlywayBackport.Event;
 import com.google.common.base.Stopwatch;
 
 /**
@@ -40,21 +41,41 @@ import com.google.common.base.Stopwatch;
  *
  * @author jgustie
  */
-public class SqlgCallback implements Callback {
+public class SqlgCallback extends BaseFlywayCallback {
+
+    // Helper to backport Flyway 5.x code
+    private class BackportContext extends Context {
+        private BackportContext(Connection connection) {
+            super(connection);
+        }
+
+        @Override
+        public FlywayConfiguration getConfiguration() {
+            return flywayConfiguration;
+        }
+    }
 
     private static final Log LOG = LogFactory.getLog(SqlgCallback.class);
 
     @Override
+    public void beforeClean(Connection connection) {
+        handle(Event.BEFORE_CLEAN, new BackportContext(connection));
+    }
+
+    @Override
+    public void beforeMigrate(Connection connection) {
+        handle(Event.BEFORE_MIGRATE, new BackportContext(connection));
+    }
+
     public boolean canHandleInTransaction(Event event, Context context) {
         return true;
     }
 
-    @Override
     public boolean supports(Event event, Context context) {
+        // TODO Support verify/validation as well?
         return event == Event.BEFORE_CLEAN || event == Event.BEFORE_MIGRATE;
     }
 
-    @Override
     public void handle(Event event, Context context) {
         Stopwatch timer = Stopwatch.createStarted();
         if (event == Event.BEFORE_CLEAN) {
@@ -94,7 +115,7 @@ public class SqlgCallback implements Callback {
     /**
      * Return a Sqlg dialect based on the supplied Flyway configuration.
      */
-    protected SqlDialect sqlDialect(Configuration configuration) {
+    protected SqlDialect sqlDialect(FlywayConfiguration configuration) {
         // Mimic what Sqlg does to load a dialect
         String connectionUri = JdbcUrlDataSource.unwrap(configuration.getDataSource()).getJdbcUrl();
         for (SqlgPlugin p : ServiceLoader.load(SqlgPlugin.class, SqlgGraph.class.getClassLoader())) {
@@ -108,7 +129,7 @@ public class SqlgCallback implements Callback {
     /**
      * Create a new Sqlg graph executor for the supplied Flyway configuration.
      */
-    protected SqlgFlywayExecutor executor(Configuration configuration) {
+    protected SqlgFlywayExecutor executor(FlywayConfiguration configuration) {
         return new SqlgFlywayExecutor(configuration);
     }
 

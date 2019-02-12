@@ -26,7 +26,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.Partit
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.configuration.Configuration;
+import org.flywaydb.core.api.configuration.FlywayConfiguration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.runner.RunWith;
@@ -39,6 +39,7 @@ import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioFrame;
 import com.blackducksoftware.bdio2.test.GraphRunner;
 import com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway.BdioCallback;
+import com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway.FlywayBackport;
 import com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway.SqlgFlywayExecutor;
 import com.blackducksoftware.bdio2.tinkerpop.strategy.PropertyConstantStrategy;
 import com.github.jsonldjava.core.JsonLdConsts;
@@ -206,7 +207,7 @@ public abstract class BaseTest {
             SqlgDataSource dataSource = ((SqlgGraph) graph).getSqlgDataSource();
             BdioCallback bdioCallback = new BdioCallback(b -> b.fromExistingFrame(frame), emptyList()) {
                 @Override
-                protected SqlgFlywayExecutor executor(Configuration configuration) {
+                protected SqlgFlywayExecutor executor(FlywayConfiguration configuration) {
                     return new SqlgFlywayExecutor(configuration) {
                         @Override
                         public void execute(SqlgTask task) throws Exception {
@@ -216,12 +217,12 @@ public abstract class BaseTest {
                 }
 
                 @Override
-                protected SqlDialect sqlDialect(Configuration configuration) {
+                protected SqlDialect sqlDialect(FlywayConfiguration configuration) {
                     return ((SqlgGraph) graph).getSqlDialect();
                 }
             };
 
-            Flyway flyway = Flyway.configure()
+            Flyway flyway = FlywayBackport.configure()
                     .dataSource(dataSource.getDatasource())
                     .callbacks(bdioCallback)
                     .installedBy("BaseTest")

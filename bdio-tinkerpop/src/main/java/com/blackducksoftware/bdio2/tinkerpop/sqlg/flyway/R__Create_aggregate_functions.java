@@ -15,10 +15,10 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway;
 
+import java.sql.Connection;
 import java.sql.Statement;
 
-import org.flywaydb.core.api.migration.BaseJavaMigration;
-import org.flywaydb.core.api.migration.Context;
+import org.flywaydb.core.api.migration.jdbc.BaseJdbcMigration;
 
 /**
  * One of the optimizations groups rows by their "@id" value, then takes the first value from each group using custom
@@ -26,11 +26,11 @@ import org.flywaydb.core.api.migration.Context;
  *
  * @author jgustie
  */
-public class R__Create_aggregate_functions extends BaseJavaMigration {
+public class R__Create_aggregate_functions extends BaseJdbcMigration {
 
     @Override
-    public void migrate(Context context) throws Exception {
-        try (Statement statement = context.getConnection().createStatement()) {
+    public void migrate(Connection connection) throws Exception {
+        try (Statement statement = connection.createStatement()) {
             statement.executeUpdate("CREATE OR REPLACE FUNCTION public.first_agg ( anyelement, anyelement )"
                     + "\nRETURNS anyelement LANGUAGE SQL IMMUTABLE STRICT AS $$"
                     + "\n\tSELECT $1;"

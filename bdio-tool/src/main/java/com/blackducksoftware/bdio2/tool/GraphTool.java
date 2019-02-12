@@ -65,6 +65,7 @@ import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIo;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoReadGraphException;
 import com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway.BdioCallback;
+import com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway.FlywayBackport;
 import com.blackducksoftware.bdio2.tinkerpop.strategy.PropertyConstantStrategy;
 import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Splitter;
@@ -436,7 +437,7 @@ public class GraphTool extends Tool {
             }
         } else if (graph instanceof SqlgGraph) {
             // Use Flyway for Sqlg
-            Flyway flyway = Flyway.configure()
+            Flyway flyway = FlywayBackport.configure()
                     .dataSource(((SqlgGraph) graph).getSqlgDataSource().getDatasource())
                     .callbacks(BdioCallback.create(this::configureBdio, getTraversalStrategies(Action.INITIALIZE_SCHEMA, null)))
                     .locations("classpath:com/blackducksoftware/bdio2/tinkerpop/sqlg/flyway")

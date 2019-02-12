@@ -15,9 +15,10 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway;
 
-import org.flywaydb.core.api.migration.BaseJavaMigration;
-import org.flywaydb.core.api.migration.Context;
 import org.umlg.sqlg.structure.SqlgGraph;
+
+import com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway.FlywayBackport.BaseJavaMigration;
+import com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway.FlywayBackport.Context;
 
 /**
  * A base class for implementing Flyway migrations against a Sqlg graph.

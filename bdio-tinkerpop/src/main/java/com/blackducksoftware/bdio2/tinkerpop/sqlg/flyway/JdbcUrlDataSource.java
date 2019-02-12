@@ -23,7 +23,7 @@ import java.util.function.Function;
 
 import javax.sql.DataSource;
 
-import org.flywaydb.core.internal.jdbc.DriverDataSource;
+import org.flywaydb.core.internal.util.jdbc.DriverDataSource;
 
 import com.google.common.reflect.AbstractInvocationHandler;
 import com.google.common.reflect.Reflection;

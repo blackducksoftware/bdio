@@ -25,7 +25,7 @@ import javax.sql.DataSource;
 
 import org.apache.commons.configuration.MapConfiguration;
 import org.apache.tinkerpop.gremlin.structure.Transaction;
-import org.flywaydb.core.api.configuration.Configuration;
+import org.flywaydb.core.api.configuration.FlywayConfiguration;
 import org.umlg.sqlg.structure.SqlgDataSourceFactory;
 import org.umlg.sqlg.structure.SqlgDataSourceFactory.SqlgDataSource;
 import org.umlg.sqlg.structure.SqlgGraph;
@@ -47,11 +47,11 @@ public class SqlgFlywayExecutor {
     /**
      * The Flyway configuration used to create the new graph.
      */
-    private final Configuration configuration;
+    private final FlywayConfiguration configuration;
 
     // TODO Should this take the Flyway managed JDBC connection as well and expose that instead of the full data source?
 
-    public SqlgFlywayExecutor(Configuration configuration) {
+    public SqlgFlywayExecutor(FlywayConfiguration configuration) {
         this.configuration = Objects.requireNonNull(configuration);
     }
 
@@ -71,7 +71,7 @@ public class SqlgFlywayExecutor {
     /**
      * Returns a Sqlg configuration (Apache Commons) based on the supplied Flyway configuration.
      */
-    protected org.apache.commons.configuration.Configuration sqlgConfiguration(Configuration configuration) {
+    protected org.apache.commons.configuration.Configuration sqlgConfiguration(FlywayConfiguration configuration) {
         Map<String, Object> result = new LinkedHashMap<>();
 
         // The most important part is getting the JDBC URL since that is required by Sqlg
@@ -86,7 +86,7 @@ public class SqlgFlywayExecutor {
     /**
      * Return a Sqlg DataSource factory based on the supplied Flyway configuration.
      */
-    protected SqlgDataSourceFactory sqlgDataSourceFactory(Configuration configuration) {
+    protected SqlgDataSourceFactory sqlgDataSourceFactory(FlywayConfiguration configuration) {
         return (driver, config) -> new SqlgDataSource() {
             @Override
             public DataSource getDatasource() {
