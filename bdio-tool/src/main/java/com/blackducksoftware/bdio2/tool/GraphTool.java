@@ -439,6 +439,7 @@ public class GraphTool extends Tool {
             Flyway flyway = Flyway.configure()
                     .dataSource(((SqlgGraph) graph).getSqlgDataSource().getDatasource())
                     .callbacks(BdioCallback.create(this::configureBdio, getTraversalStrategies(Action.INITIALIZE_SCHEMA, null)))
+                    .locations("classpath:com/blackducksoftware/bdio2/tinkerpop/sqlg/flyway")
                     .load();
             if (actions.contains(Action.CLEAN)) {
                 flyway.clean();
