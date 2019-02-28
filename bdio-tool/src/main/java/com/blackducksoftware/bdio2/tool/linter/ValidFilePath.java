@@ -28,6 +28,12 @@ import com.blackducksoftware.common.value.HID;
 
 public class ValidFilePath implements RawNodeRule {
 
+    /**
+     * On PostgreSQL the path is indexed and is therefore limited to a function of the database buffer page size. With
+     * the default configuration this is the limit.
+     */
+    private static final int MAX_PATH_LENGTH = 2712;
+
     @Override
     public Stream<Violation> validate(Map<String, Object> input) {
         ViolationBuilder result = new ViolationBuilder(this, input);
@@ -42,6 +48,12 @@ public class ValidFilePath implements RawNodeRule {
                 if (!path.equals(hid.toUriString())) {
                     // TODO Should we force normalize everything and make this a warning?
                     result.error("PathNotNormalized", hid.toUriString());
+                }
+
+                // Path length, just a warning because this really only applies to PostgreSQL
+                int length = ((String) path).length();
+                if (length > MAX_PATH_LENGTH) {
+                    result.warning("PathLength", length, MAX_PATH_LENGTH, path);
                 }
 
                 // Sanity check the schemes

@@ -325,6 +325,7 @@ public final class Linter {
                     { "SingleRoot.MissingRoot", "Missing root" },
                     { "UnreferencedNode.UnreferencedNode", "Unreferenced {0} node" },
                     { "ValidFilePath.PathNotNormalized", "File path should be normalized, expected: {0}" },
+                    { "ValidFilePath.PathLength", "The file path size of {0} exceeds the maximum recommended of {1}: ''{2}''" },
                     { "ValidFilePath.NestedBaseScheme", "Scheme ''{0}'' should only be used as the inner-most scheme" },
                     { "ValidFilePath.UnknownBaseScheme", "Unexpected inner-most scheme on path : {0}" },
                     { "ValidFilePath.String", "Path should be a string" },
