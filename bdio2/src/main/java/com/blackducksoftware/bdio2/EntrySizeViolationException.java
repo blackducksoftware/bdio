@@ -39,15 +39,11 @@ public class EntrySizeViolationException extends IOException {
      */
     private final long estimatedSize;
 
-    private static String message(@Nullable String name, long estimatedSize) {
-        return "Entry length violation";
-    }
-
     /**
      * Creates a new exception for when an entry is too large.
      */
     public EntrySizeViolationException(@Nullable String name, long estimatedSize) {
-        super(message(name, estimatedSize));
+        super("Entry length violation");
         this.name = name;
         this.estimatedSize = estimatedSize;
     }

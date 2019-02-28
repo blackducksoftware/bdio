@@ -22,6 +22,7 @@ import static java.util.stream.Collectors.toList;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
@@ -125,7 +126,7 @@ public class BdioContextTest {
     public void putDateTimeTypeDataProperty() {
         BdioContext context = DEFAULT_CONTEXT;
         Map<String, Object> map = new LinkedHashMap<>();
-        ZonedDateTime now = ZonedDateTime.now();
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.systemDefault());
 
         context.putFieldValue(map, Bdio.DataProperty.creationDateTime, now);
         assertThat(map).containsEntry(Bdio.DataProperty.creationDateTime.toString(),
@@ -197,11 +198,11 @@ public class BdioContextTest {
     public void fromFieldValue_dateTime() {
         BdioContext context = DEFAULT_CONTEXT;
 
-        ZonedDateTime zoned = ZonedDateTime.now();
+        ZonedDateTime zoned = ZonedDateTime.now(ZoneId.systemDefault());
         assertThat(context.fromFieldValue("test", ImmutableMap.of("@type", Bdio.Datatype.DateTime.toString(), "@value", zoned.toString())))
                 .named("zoned").isEqualTo(zoned);
 
-        OffsetDateTime offset = OffsetDateTime.now();
+        OffsetDateTime offset = OffsetDateTime.now(ZoneId.systemDefault());
         assertThat(context.fromFieldValue("test", ImmutableMap.of("@type", Bdio.Datatype.DateTime.toString(), "@value", offset.toString())))
                 .named("offset").isEqualTo(offset.toZonedDateTime());
 

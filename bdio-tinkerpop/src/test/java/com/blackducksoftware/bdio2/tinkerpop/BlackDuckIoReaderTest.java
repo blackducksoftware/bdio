@@ -24,6 +24,7 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -91,7 +92,7 @@ public class BlackDuckIoReaderTest extends BaseTest {
 
     @Test
     public void readMetadata() throws Exception {
-        ZonedDateTime creationDateTime = ZonedDateTime.now();
+        ZonedDateTime creationDateTime = ZonedDateTime.now(ZoneId.systemDefault());
         BdioMetadata metadata = BdioMetadata.createRandomUUID().creationDateTime(creationDateTime);
 
         InputStream inputStream = BdioTest.zipJsonBytes(metadata.asNamedGraph());

@@ -105,6 +105,11 @@ public class BdioObject extends AbstractMap<String, Object> {
     }
 
     @Override
+    public final Set<String> keySet() {
+        return data.keySet();
+    }
+
+    @Override
     public final Object get(@Nullable Object key) {
         return data.get(key);
     }

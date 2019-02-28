@@ -41,7 +41,7 @@ public class BdioTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void contentType_forMediaType_charset_ascii() {
-        assertThat(Bdio.ContentType.forMediaType("application/json; charset=ASCII")).isEqualTo(Bdio.ContentType.JSON);
+        Bdio.ContentType.forMediaType("application/json; charset=ASCII");
     }
 
 }

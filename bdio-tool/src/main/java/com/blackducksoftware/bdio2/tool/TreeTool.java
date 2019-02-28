@@ -23,6 +23,7 @@ import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.as;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.in;
 
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayDeque;
@@ -356,7 +357,7 @@ public class TreeTool extends AbstractFileTool {
             details.add("%tb %2te");
             arguments.add(lastModified);
             arguments.add(lastModified);
-            if (lastModified.getYear() == ZonedDateTime.now().getYear()) {
+            if (lastModified.getYear() == ZonedDateTime.now(ZoneId.systemDefault()).getYear()) {
                 details.add("%2tk:%tM");
                 arguments.add(lastModified);
                 arguments.add(lastModified);

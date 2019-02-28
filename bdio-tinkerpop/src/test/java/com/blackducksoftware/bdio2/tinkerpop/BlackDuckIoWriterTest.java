@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2.tinkerpop;
 import static com.blackducksoftware.common.test.JsonSubject.assertThatJson;
 import static com.google.common.truth.Truth.assertThat;
 
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -54,7 +55,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
     @Test
     public void writeMetadata() throws Exception {
         String metadataId = BdioObject.randomId();
-        ZonedDateTime creationDateTime = ZonedDateTime.now();
+        ZonedDateTime creationDateTime = ZonedDateTime.now(ZoneId.systemDefault());
         graph.addVertex(
                 T.label, TT.Metadata,
                 TT.id, metadataId,
@@ -118,7 +119,7 @@ public class BlackDuckIoWriterTest extends BaseTest {
     @Test
     public void writeRelationship() throws Exception {
         String metadataId = BdioObject.randomId();
-        ZonedDateTime creationDateTime = ZonedDateTime.now();
+        ZonedDateTime creationDateTime = ZonedDateTime.now(ZoneId.systemDefault());
         graph.addVertex(
                 T.label, TT.Metadata,
                 TT.id, metadataId,

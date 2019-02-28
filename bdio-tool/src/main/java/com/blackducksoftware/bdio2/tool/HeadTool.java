@@ -26,6 +26,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.Charset;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -194,7 +195,7 @@ public class HeadTool extends Tool {
         BdioMetadata metadata = new BdioMetadata();
         metadata.id(id);
         metadata.creator(USER_NAME.value(), Hostname.get());
-        metadata.creationDateTime(ZonedDateTime.now());
+        metadata.creationDateTime(ZonedDateTime.now(ZoneId.systemDefault()));
         metadata.platform(ProductList.of(Product.os()));
         // TODO Publisher set to the BDIO version?
 

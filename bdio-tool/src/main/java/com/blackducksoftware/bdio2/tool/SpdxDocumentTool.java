@@ -22,6 +22,7 @@ import static java.util.stream.Collectors.toList;
 import java.io.IOException;
 import java.io.Reader;
 import java.net.URL;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -122,7 +123,7 @@ public class SpdxDocumentTool extends Tool {
         // We cannot include an identifier on this document or it will cause metadata merge conflicts
         // when included in a BDIO document as a stand alone entry
         BdioMetadata metadata = new BdioMetadata()
-                .creationDateTime(ZonedDateTime.now())
+                .creationDateTime(ZonedDateTime.now(ZoneId.systemDefault()))
                 .publisher(new ProductList.Builder()
                         .addProduct(getProduct().newBuilder()
                                 .addCommentText("licenseListVersion %s", licenseList.licenseListVersion)
