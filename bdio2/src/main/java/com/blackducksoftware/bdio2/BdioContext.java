@@ -256,13 +256,19 @@ public final class BdioContext {
             Objects.requireNonNull(input);
             String term = term(key);
             String container = context.getContainer(term);
+
+            // For the purpose of merging, object properties implicitly create a list
+            if (container == null && Objects.equals(context.getTypeMapping(term), JsonLdConsts.ID)) {
+                container = JsonLdConsts.LIST;
+            }
+
             if (oldValue == null || container == null || container.isEmpty() || container.equals(JsonLdConsts.NONE)) {
                 return toFieldValue(term, input);
             } else {
                 Object newValue = toFieldValue(term, input);
                 Stream<?> newValues = newValue instanceof List<?> ? ((List<?>) newValue).stream() : Stream.of(newValue);
                 Stream<?> oldValues = oldValue instanceof List<?> ? ((List<?>) oldValue).stream() : Stream.of(oldValue);
-                return Streams.concat(newValues, oldValues).collect(jsonLdCollector(context.getContainer(term)));
+                return Streams.concat(newValues, oldValues).collect(jsonLdCollector(container));
             }
         };
     }
