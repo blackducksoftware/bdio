@@ -102,10 +102,12 @@ public class SqlgSimpleQueryStrategy extends AbstractTraversalStrategy<Traversal
                     replacementStep = new SqlgGraphDropPropertyStep<>(traversal, startStep);
                 }
             } else if (step instanceof CountGlobalStep<?>) {
-                // Currently we only handle counting a single table at a time
-                if (startStep.parseForStrategy().size() == 1) {
+                try {
                     replacementStep = new SqlgGraphCountStep(traversal, startStep);
                     step = step.getNextStep();
+                } catch (RuntimeException e) {
+                    // Currently we only handle counting a single table at a time
+                    return;
                 }
             }
 

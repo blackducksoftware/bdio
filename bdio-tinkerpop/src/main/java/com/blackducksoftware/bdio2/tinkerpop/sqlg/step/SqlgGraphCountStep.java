@@ -15,6 +15,7 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop.sqlg.step;
 
+import static com.blackducksoftware.bdio2.tinkerpop.sqlg.step.AbstractSimpleSqlgOptimizationStep.parse;
 import static com.blackducksoftware.common.base.ExtraObjects.cast;
 import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
 import static com.google.common.collect.MoreCollectors.onlyElement;
@@ -60,7 +61,7 @@ public class SqlgGraphCountStep extends AbstractStep<Long, Long> {
     public SqlgGraphCountStep(Traversal.Admin<?, ?> traversal, SqlgGraphStep<?, ?> replacedStep) {
         super(traversal);
         sqlgGraph = traversal.getGraph().map(cast(SqlgGraph.class)).orElseThrow(illegalState("expected SqlgGraph"));
-        distinctQueryStack.add(replacedStep.parseForStrategy().stream().collect(onlyElement()));
+        distinctQueryStack.add(parse(sqlgGraph, replacedStep).stream().collect(onlyElement()));
     }
 
     @Override

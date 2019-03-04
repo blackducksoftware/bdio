@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.stream.Collectors.joining;
 import static org.apache.tinkerpop.gremlin.structure.VertexProperty.Cardinality.single;
-import static org.umlg.sqlg.structure.SqlgGraph.TRANSACTION_MUST_BE_IN;
 import static org.umlg.sqlg.structure.topology.Topology.EDGE_PREFIX;
 import static org.umlg.sqlg.structure.topology.Topology.VERTEX_PREFIX;
 
@@ -52,6 +51,8 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.umlg.sqlg.sql.dialect.PostgresDialect;
 import org.umlg.sqlg.sql.dialect.SqlDialect;
 import org.umlg.sqlg.structure.BatchManager;
@@ -442,7 +443,7 @@ final class SqlgBlackDuckIoReader extends BlackDuckIoReaderSpi {
                 Pair<String, String> idFields, Collection<Pair<LL, RR>> uids, Object... keyValues) {
             SqlgGraph sqlgGraph = graph();
             if (!sqlgGraph.tx().isInStreamingBatchMode() && !sqlgGraph.tx().isInStreamingWithLockBatchMode()) {
-                throw SqlgExceptions.invalidMode(TRANSACTION_MUST_BE_IN
+                throw SqlgExceptions.invalidMode("Transaction must be in "
                         + BatchManager.BatchModeType.STREAMING + " or "
                         + BatchManager.BatchModeType.STREAMING_WITH_LOCK + " mode for bulkAddEdges");
             } else if (uids.isEmpty()) {
@@ -468,6 +469,8 @@ final class SqlgBlackDuckIoReader extends BlackDuckIoReaderSpi {
     // TODO This shouldn't need to be a PostgresDialect, it should probably just pass through...
     @VisibleForTesting
     static class BulkAddEdgeDialect extends PostgresDialect {
+
+        private final Logger logger = LoggerFactory.getLogger(PostgresDialect.class.getName());
 
         private final Map<String, Object> partitions;
 
@@ -528,9 +531,9 @@ final class SqlgBlackDuckIoReader extends BlackDuckIoReaderSpi {
                 edgePropertyMap.keySet().forEach(k -> sql.append(',').append(this.maybeWrapInQoutes(k)));
                 sql.append(") \n");
                 sql.append("select _out.\"ID\" as \"");
-                sql.append(out.getSchema() + "." + out.getTable() + Topology.OUT_VERTEX_COLUMN_END);
+                sql.append(out.getSchema()).append(".").append(out.getTable()).append(Topology.OUT_VERTEX_COLUMN_END);
                 sql.append("\", _in.\"ID\" as \"");
-                sql.append(in.getSchema() + "." + in.getTable() + Topology.IN_VERTEX_COLUMN_END);
+                sql.append(in.getSchema()).append(".").append(in.getTable()).append(Topology.IN_VERTEX_COLUMN_END);
                 sql.append("\"");
                 edgePropertyMap.forEach((k, v) -> {
                     sql.append(',');
@@ -543,11 +546,11 @@ final class SqlgBlackDuckIoReader extends BlackDuckIoReaderSpi {
                 sql.append(".");
                 sql.append(this.maybeWrapInQoutes(VERTEX_PREFIX + in.getTable()));
                 sql.append(" _in join ");
-                sql.append(this.maybeWrapInQoutes(tmpTableIdentified) + " ab on ab.in = _in." + this.maybeWrapInQoutes(idFields.getRight()) + " join ");
+                sql.append(this.maybeWrapInQoutes(tmpTableIdentified)).append(" ab on ab.in = _in.").append(this.maybeWrapInQoutes(idFields.getRight())).append(" join ");
                 sql.append(this.maybeWrapInQoutes(out.getSchema()));
                 sql.append(".");
                 sql.append(this.maybeWrapInQoutes(VERTEX_PREFIX + out.getTable()));
-                sql.append(" _out on ab.out = _out." + this.maybeWrapInQoutes(idFields.getLeft()));
+                sql.append(" _out on ab.out = _out.").append(this.maybeWrapInQoutes(idFields.getLeft()));
                 // MODIFICATION START
                 addPartitions(sql, inProperties, outProperties);
                 // MODIFICATION END

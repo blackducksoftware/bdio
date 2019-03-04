@@ -35,6 +35,9 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.ProfileStep;
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics;
 import org.umlg.sqlg.predicate.Existence;
+import org.umlg.sqlg.sql.parse.GremlinParser;
+import org.umlg.sqlg.sql.parse.ReplacedStep;
+import org.umlg.sqlg.sql.parse.ReplacedStepTree;
 import org.umlg.sqlg.sql.parse.SchemaTableTree;
 import org.umlg.sqlg.step.SqlgGraphStep;
 import org.umlg.sqlg.structure.PropertyType;
@@ -53,6 +56,19 @@ import com.blackducksoftware.common.base.ExtraThrowables;
  * @author jgustie
  */
 public abstract class AbstractSimpleSqlgOptimizationStep<S> extends AbstractStep<S, S> {
+
+    static Set<SchemaTableTree> parse(SqlgGraph sqlgGraph, SqlgGraphStep<?, ?> replacedStep) {
+        ReplacedStepTree replacedStepTree = null;
+        for (ReplacedStep<?, ?> r : replacedStep.getReplacedSteps()) {
+            if (replacedStepTree != null) {
+                replacedStepTree.addReplacedStep(r);
+            } else {
+                replacedStepTree = new ReplacedStepTree(r);
+            }
+        }
+        return ((GremlinParser<?, ?>) sqlgGraph.getGremlinParser()).parse(replacedStepTree);
+    }
+
     private static final long serialVersionUID = 1L;
 
     private final SqlgGraph sqlgGraph;
@@ -62,7 +78,7 @@ public abstract class AbstractSimpleSqlgOptimizationStep<S> extends AbstractStep
     protected AbstractSimpleSqlgOptimizationStep(Traversal.Admin<?, ?> traversal, SqlgGraphStep<?, ?> replacedStep) {
         super(traversal);
         sqlgGraph = traversal.getGraph().map(cast(SqlgGraph.class)).orElseThrow(illegalState("expected SqlgGraph"));
-        rootSchemaTableTrees = replacedStep.parseForStrategy();
+        rootSchemaTableTrees = parse(sqlgGraph, replacedStep);
     }
 
     @Override

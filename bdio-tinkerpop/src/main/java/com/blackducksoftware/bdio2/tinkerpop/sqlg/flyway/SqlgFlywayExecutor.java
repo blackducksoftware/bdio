@@ -15,8 +15,6 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway;
 
-import static org.umlg.sqlg.structure.SqlgGraph.JDBC_URL;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -95,7 +93,7 @@ public class SqlgFlywayExecutor {
 
             @Override
             public String getPoolStatsAsJson() {
-                return "[{\"jdbcUrl\":\"" + config.getString(JDBC_URL) + "\",\"jndi\":false}]";
+                return "[{\"jdbcUrl\":\"" + config.getString(SqlgGraph.JDBC_URL) + "\",\"jndi\":false}]";
             }
 
             @Override
