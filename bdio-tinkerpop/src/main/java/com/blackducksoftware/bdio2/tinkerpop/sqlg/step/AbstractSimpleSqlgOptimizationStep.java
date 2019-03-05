@@ -35,7 +35,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.ProfileStep;
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalMetrics;
 import org.umlg.sqlg.predicate.Existence;
-import org.umlg.sqlg.sql.parse.GremlinParser;
 import org.umlg.sqlg.sql.parse.ReplacedStep;
 import org.umlg.sqlg.sql.parse.ReplacedStepTree;
 import org.umlg.sqlg.sql.parse.SchemaTableTree;
@@ -66,7 +65,7 @@ public abstract class AbstractSimpleSqlgOptimizationStep<S> extends AbstractStep
                 replacedStepTree = new ReplacedStepTree(r);
             }
         }
-        return ((GremlinParser<?, ?>) sqlgGraph.getGremlinParser()).parse(replacedStepTree);
+        return sqlgGraph.getGremlinParser().parse(replacedStepTree);
     }
 
     private static final long serialVersionUID = 1L;

@@ -16,12 +16,13 @@
 package com.blackducksoftware.bdio2.tinkerpop;
 
 import static com.google.common.collect.Lists.asList;
-import static java.util.Collections.emptyList;
 
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
+import org.apache.commons.configuration.Configuration;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
@@ -31,7 +32,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.runner.RunWith;
 import org.umlg.sqlg.sql.dialect.SqlDialect;
-import org.umlg.sqlg.structure.SqlgDataSourceFactory.SqlgDataSource;
+import org.umlg.sqlg.structure.SqlgDataSourceFactory;
 import org.umlg.sqlg.structure.SqlgGraph;
 
 import com.blackducksoftware.bdio2.Bdio;
@@ -204,27 +205,12 @@ public abstract class BaseTest {
         if (graph instanceof TinkerGraph) {
             ((TinkerGraph) graph).clear();
         } else if (graph instanceof SqlgGraph) {
-            SqlgDataSource dataSource = ((SqlgGraph) graph).getSqlgDataSource();
-            BdioCallback bdioCallback = new BdioCallback(b -> b.fromExistingFrame(frame), emptyList()) {
-                @Override
-                protected SqlgFlywayExecutor executor(FlywayConfiguration configuration) {
-                    return new SqlgFlywayExecutor(configuration) {
-                        @Override
-                        public void execute(SqlgTask task) throws Exception {
-                            task.run((SqlgGraph) graph);
-                        }
-                    };
-                }
+            SqlgGraph sqlgGraph = (SqlgGraph) graph;
 
-                @Override
-                protected SqlDialect sqlDialect(FlywayConfiguration configuration) {
-                    return ((SqlgGraph) graph).getSqlDialect();
-                }
-            };
-
+            // Use Flyway to clean and migrate the underlying data source
             Flyway flyway = FlywayBackport.configure()
-                    .dataSource(dataSource.getDatasource())
-                    .callbacks(bdioCallback)
+                    .dataSource(sqlgGraph.getSqlgDataSource().getDatasource())
+                    .callbacks(new ExistingBdioCallback(sqlgGraph, frame))
                     .installedBy("BaseTest")
                     .locations("com/blackducksoftware/bdio2/tinkerpop/sqlg/flyway")
                     .load();
@@ -232,8 +218,12 @@ public abstract class BaseTest {
             flyway.clean();
             flyway.migrate();
 
-            // The old graph is can't be saved, and we can't close it or we loose our data source
-            graph = SqlgGraph.open(graph.configuration(), (d, c) -> dataSource);
+            // Replace the graph, but steal the existing data source
+            // WARNING: Sqlg does not support the "jdbc.factory" in 2.x (use "sqlg.dataSource" instead)
+            Configuration configuration = graph.configuration();
+            configuration.setProperty("jdbc.factory", ExistingSqlgDataSourceFactory.class.getName());
+            configuration.setProperty("bdio.test.dataSource", sqlgGraph.getSqlgDataSource());
+            graph = SqlgGraph.open(configuration);
         }
     }
 
@@ -241,6 +231,37 @@ public abstract class BaseTest {
     public void rollbackOpenTx() {
         if (graph.features().graph().supportsTransactions() && graph.tx().isOpen()) {
             graph.tx().rollback();
+        }
+    }
+
+    public static final class ExistingBdioCallback extends BdioCallback {
+        private final SqlgGraph sqlgGraph;
+
+        public ExistingBdioCallback(SqlgGraph sqlgGraph, BdioFrame frame) {
+            super(b -> b.fromExistingFrame(frame), Collections.emptyList());
+            this.sqlgGraph = Objects.requireNonNull(sqlgGraph);
+        }
+
+        @Override
+        protected SqlgFlywayExecutor executor(FlywayConfiguration configuration) {
+            return new SqlgFlywayExecutor(configuration) {
+                @Override
+                public void execute(SqlgTask task) throws Exception {
+                    task.run(sqlgGraph);
+                }
+            };
+        }
+
+        @Override
+        protected SqlDialect sqlDialect(FlywayConfiguration configuration) {
+            return sqlgGraph.getSqlDialect();
+        }
+    }
+
+    public static final class ExistingSqlgDataSourceFactory implements SqlgDataSourceFactory {
+        @Override
+        public SqlgDataSource setup(String driver, Configuration configuration) throws Exception {
+            return Objects.requireNonNull((SqlgDataSource) configuration.getProperty("bdio.test.dataSource"));
         }
     }
 

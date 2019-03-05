@@ -15,17 +15,21 @@
  */
 package com.blackducksoftware.bdio2.tinkerpop.sqlg.flyway;
 
+import static com.blackducksoftware.common.base.ExtraObjects.cast;
+import static com.blackducksoftware.common.base.ExtraThrowables.illegalState;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import javax.sql.DataSource;
 
+import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.MapConfiguration;
 import org.apache.tinkerpop.gremlin.structure.Transaction;
 import org.flywaydb.core.api.configuration.FlywayConfiguration;
 import org.umlg.sqlg.structure.SqlgDataSourceFactory;
-import org.umlg.sqlg.structure.SqlgDataSourceFactory.SqlgDataSource;
 import org.umlg.sqlg.structure.SqlgGraph;
 
 /**
@@ -47,8 +51,6 @@ public class SqlgFlywayExecutor {
      */
     private final FlywayConfiguration configuration;
 
-    // TODO Should this take the Flyway managed JDBC connection as well and expose that instead of the full data source?
-
     public SqlgFlywayExecutor(FlywayConfiguration configuration) {
         this.configuration = Objects.requireNonNull(configuration);
     }
@@ -57,7 +59,7 @@ public class SqlgFlywayExecutor {
      * Executes the supplied task with a new Sqlg graph.
      */
     public void execute(SqlgTask task) throws Exception {
-        SqlgGraph sqlgGraph = SqlgGraph.open(sqlgConfiguration(configuration), sqlgDataSourceFactory(configuration));
+        SqlgGraph sqlgGraph = SqlgGraph.open(configure(configuration));
         sqlgGraph.tx().onClose(Transaction.CLOSE_BEHAVIOR.ROLLBACK);
         try {
             task.run(sqlgGraph);
@@ -67,40 +69,50 @@ public class SqlgFlywayExecutor {
     }
 
     /**
-     * Returns a Sqlg configuration (Apache Commons) based on the supplied Flyway configuration.
+     * Returns a Sqlg configuration based on the supplied Flyway configuration.
      */
-    protected org.apache.commons.configuration.Configuration sqlgConfiguration(FlywayConfiguration configuration) {
+    // Accept the private field as a parameter for better sub-classing
+    protected Configuration configure(FlywayConfiguration flyway) {
         Map<String, Object> result = new LinkedHashMap<>();
 
         // The most important part is getting the JDBC URL since that is required by Sqlg
-        result.put(SqlgGraph.JDBC_URL, JdbcUrlDataSource.unwrap(configuration.getDataSource()).getJdbcUrl());
+        result.put(SqlgGraph.JDBC_URL, JdbcUrlDataSource.unwrap(flyway.getDataSource()).getJdbcUrl());
 
         // Abuse the Flyway place holders as extra configuration parameters for Sqlg
-        result.putAll(configuration.getPlaceholders());
+        result.putAll(flyway.getPlaceholders());
+
+        // WARNING: Sqlg does not support the "jdbc.factory" in 2.x (use "sqlg.dataSource" instead)
+        result.put("jdbc.factory", FlywaySqlgDataSourceFactory.class.getName());
+        result.put("flyway.dataSource", flyway.getDataSource());
 
         return new MapConfiguration(result);
     }
 
     /**
-     * Return a Sqlg DataSource factory based on the supplied Flyway configuration.
+     * A Sqlg data source factory used to expose the Flyway data source.
      */
-    protected SqlgDataSourceFactory sqlgDataSourceFactory(FlywayConfiguration configuration) {
-        return (driver, config) -> new SqlgDataSource() {
-            @Override
-            public DataSource getDatasource() {
-                return configuration.getDataSource();
-            }
+    public static final class FlywaySqlgDataSourceFactory implements SqlgDataSourceFactory {
+        @Override
+        public SqlgDataSource setup(String driver, Configuration configuration) throws Exception {
+            return new SqlgDataSource() {
+                @Override
+                public DataSource getDatasource() {
+                    return Optional.ofNullable(configuration.getProperty("flyway.dataSource"))
+                            .map(cast(DataSource.class))
+                            .orElseThrow(illegalState("unable to restore the data source"));
+                }
 
-            @Override
-            public String getPoolStatsAsJson() {
-                return "[{\"jdbcUrl\":\"" + config.getString(SqlgGraph.JDBC_URL) + "\",\"jndi\":false}]";
-            }
+                @Override
+                public String getPoolStatsAsJson() {
+                    return "[{\"jdbcUrl\":\"" + configuration.getString(SqlgGraph.JDBC_URL) + "\",\"jndi\":false}]";
+                }
 
-            @Override
-            public void close() {
-                // Do not allow Sqlg to close the actual Flyway data source
-            }
-        };
+                @Override
+                public void close() {
+                    // Do not allow Sqlg to close the Flyway managed data source
+                }
+            };
+        }
     }
 
 }
