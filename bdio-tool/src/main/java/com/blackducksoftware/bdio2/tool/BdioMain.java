@@ -46,6 +46,7 @@ public class BdioMain extends Tool {
         graph("Import BDIO to a TinkerPop graph", GraphTool::new, false),
         head("Print metadata for BDIO files", HeadTool::new, true),
         hid("Print a Hierarchical Identifier (HID) used as a file path", HidTool::new, false),
+        jsonld("Perform JSON-LD operations", JsonLdTool::new, false),
         lint("Check BDIO for common mistakes", LintTool::new, true),
         spdxdoc("Generates a BDIO document describing the standard SPDX licenses", SpdxDocumentTool::new, false),
         spec("Outputs the BDIO specification", SpecificationTool::new, false),
