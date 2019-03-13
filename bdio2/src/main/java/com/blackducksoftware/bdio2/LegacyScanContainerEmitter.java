@@ -268,6 +268,10 @@ class LegacyScanContainerEmitter implements Emitter {
          */
         public static Predicate<LegacyScanNode> isBase(String baseDir) {
             try {
+                // This is how the value of `baseDir` was typically computed:
+                // 1. Construct URI using `new URI("file", hostName, new File(args[x]).getCanonicalPath(), null)`
+                // 2. Do something with `new URI(uri.toASCIIString())`
+                // 3. Keep only the path using `uri.getPath()`
                 String baseUri = HID.valueOf(new URI("file", null, baseDir, null).toString()).toUriString();
                 String baseArchiveUri = "file:" + beforeLast(baseDir, '/') + "/";
                 String baseName = afterLast(baseDir, '/');

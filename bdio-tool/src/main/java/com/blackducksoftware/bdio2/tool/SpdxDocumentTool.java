@@ -44,6 +44,13 @@ import okhttp3.Response;
  */
 public class SpdxDocumentTool extends Tool {
 
+    // TODO Should this be rolled into the context tool somehow?
+    // TODO We should also have an SPDX -> BDIO conversion tool (and back?)
+
+    // This might be a separate tool...
+    // TODO Create a BDIO document that just contains SPDX licenses that are referenced but not included
+    // TODO Have an option to merge that into the existing document (like the PackageUrl tool)
+
     public static void main(String[] args) {
         new SpdxDocumentTool(null).parseArgs(args).run();
     }

@@ -349,6 +349,7 @@ public final class Linter {
         // TODO Multiple canonical edges (e.g. "x -c-> y -c-> z" instead of "x -c-> z")
         // TODO Unsupported "range" values (e.g. using "chars" without an encoding)
         // TODO Namespaced values with no namespace definition
+        // TODO Duplicate file path values on different files
         return Stream.<Rule<?>> builder()
                 .add(new DataPropertyRange())
                 .add(new Domain())

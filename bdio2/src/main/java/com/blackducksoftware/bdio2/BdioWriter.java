@@ -86,7 +86,7 @@ public class BdioWriter implements Closeable {
          */
         private final AtomicInteger entryCount = new AtomicInteger(-1);
 
-        // TODO Take a java.nio.file.Path instead?
+        // TODO Take a java.nio.file.Path/File instead? Also take a String?
         public BdioFile(OutputStream outputStream) {
             out = new ZipOutputStream(ExtraIO.buffer(outputStream));
             bufferedOut = new BufferedOutputStream(out) {

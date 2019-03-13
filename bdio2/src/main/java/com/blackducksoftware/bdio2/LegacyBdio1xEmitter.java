@@ -248,6 +248,9 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
      */
     private static class Archive {
 
+        // TODO Do we need to support an externally specified base directory to generate paths against?
+        // If so, where would that "original base directory" path come from? Protex can't tell us...
+
         /**
          * The container of this archive, for multiple nesting levels.
          */
@@ -868,6 +871,7 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
      * Converts the match detail for a file from the current node.
      */
     private void convertMatchDetail(File file, Consumer<? super Dependency> dependency) {
+        // TODO Should the match contents be preserved in a Note?
         currentValue("matchDetail", "artifactOf").flatMap(dependsOn -> {
             Dependency dep = new Dependency().dependsOn(dependsOn);
             currentValue("matchDetail", "licenseConcluded").ifPresent(dep::license);

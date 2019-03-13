@@ -644,6 +644,8 @@ public class Bdio {
         public Container container() {
             return container;
         }
+
+        // TODO boolean namespaced()?
     }
 
     public enum Datatype {
@@ -684,6 +686,7 @@ public class Bdio {
         Products("https://blackducksoftware.github.io/bdio#Products"),
 
         // TODO AnyURI("http://www.w3.org/2001/XMLSchema#anyURI")
+        // TODO OR AnyURI("@id") to get relative URLs resolved properly?
         // TODO Language("http://www.w3.org/2001/XMLSchema#language")
         // TODO UUID (or use anyURI with 'urn:uuid:')?
         // TODO Token (like HTTP, not XML)?

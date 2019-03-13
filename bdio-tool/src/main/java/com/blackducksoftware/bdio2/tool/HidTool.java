@@ -93,6 +93,8 @@ public class HidTool extends Tool {
 
     // TODO Add "isAnscestor" functionality and such for testing HIDs
     // TODO Maybe a separate "file" or "path" tool for building HIDs or full file nodes off the file system
+    // TODO Have an interactive builder?
+    // TODO `--rebase <oldbase> <newbase> <hid...>`
 
     public static void main(String[] args) {
         new HidTool(null).parseArgs(args).run();

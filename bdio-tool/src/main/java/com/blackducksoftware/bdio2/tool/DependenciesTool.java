@@ -360,6 +360,7 @@ public class DependenciesTool extends AbstractGraphTool {
 
         if (!noReport) {
             // TODO Track the count of direct dependencies also?
+            // TODO Pluralization
             printOutput("%n%d unique dependencies%n", distinctDependencies.size());
             if (dependenciesOmitted) {
                 printOutput("%n(*) - dependencies omitted (listed previously)%n");

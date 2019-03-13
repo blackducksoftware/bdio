@@ -345,6 +345,7 @@ public class TreeTool extends AbstractFileTool {
         // TODO if (showGroup) details.add("%-8s")
         if (showSize || humanSizeUnit != null) {
             if (humanSizeUnit != null) {
+                // TODO If the effective unit is just bytes, we don't need the decimal
                 details.add("%4s");
                 arguments.add(print(fileNode.size(), humanSizeUnit));
             } else {
