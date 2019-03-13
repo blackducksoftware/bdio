@@ -263,7 +263,7 @@ public class GraphTool extends Tool {
     protected void printUsage() {
         printOutput("usage: %s [--graph=tinkergraph|sqlg|<class>]%n", name());
         printOutput("          [--config=<file>] [-D=<key>=<value>]%n");
-        printOutput("          [--clean] [--skip-rules] [--init-schema]%n");
+        printOutput("          [--clean] [--skip-load] [--skip-rules] [--init-schema]%n");
         printOutput("          [--onGraphComplete=dump|summary|write|<class>]%n");
         printOutput("          [--context=bdio|<uri>]%n");
         printOutput("%n");
@@ -280,6 +280,7 @@ public class GraphTool extends Tool {
 
         options.put("Graph tool options", null);
         options.put("--clean", "Wipe the graph contents before starting");
+        options.put("--skip-load", "Skip checking for input files");
         options.put("--skip-rules", "Skip application of BDIO normalization rules");
         options.put("--init-schema", "Initialize using the full BDIO schema");
         options.put("--onGraphComplete", "Register an onGraphComplete listener (can be applied multiple times)");
@@ -358,6 +359,9 @@ public class GraphTool extends Tool {
         for (String arg : options(args)) {
             if (arg.equals("--clean")) {
                 setClean(true);
+                args = removeFirst(arg, args);
+            } else if (arg.equals("--skip-load")) {
+                setSkipLoad(true);
                 args = removeFirst(arg, args);
             } else if (arg.equals("--skip-rules")) {
                 setSkipApplySemanticRules(true);
