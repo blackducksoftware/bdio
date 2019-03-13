@@ -120,7 +120,6 @@ public final class PropertyConstantStrategy
          * Creates the {@code PropertyConstantStrategy}.
          */
         public PropertyConstantStrategy create() {
-            checkState(!keyValues.isEmpty(), "The property list cannot be empty");
             return new PropertyConstantStrategy(this);
         }
     }
