@@ -257,7 +257,7 @@ public class JsonLdTool extends Tool {
 
         try (InputStream in = input.openStream()) {
             try (Writer out = output.asCharSink(UTF_8).openStream()) {
-                operation.apply(doc.jsonLd(doc.read(in)), arg).subscribe(e -> {
+                operation.apply(doc.jsonLd(doc.read(in)), arg).blockingForEach(e -> {
                     if (isPretty()) {
                         JsonUtils.writePrettyPrint(out, e);
                     } else {
