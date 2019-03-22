@@ -177,11 +177,30 @@ The actors in a BDIO system are the "producers", "publishers", "consumers" and "
 : _Domain: `@graph`_
 : _Range: `Default`_
 
+`buildOptions`
+: `https://blackducksoftware.github.io/bdio#hasBuildOptions`
+: The argument vector of the process that produced a file.
+: _Domain: `File`_
+: _Range: `Default`_
+
 `byteCount`
 : `https://blackducksoftware.github.io/bdio#hasByteCount`
 : The size (in bytes) of a file.
 : _Domain: `File`_
 : _Range: `Long`_
+
+`captureInterval`
+: `https://blackducksoftware.github.io/bdio#hasCaptureInterval`
+: The time interval (start and end instant) over which the published data was captured.
+: Note that due to it's nature the capture interval may not be known when the named graph metadata is recorded; publishers may choose to include an additional final entry consisting entirely of metadata for this purpose.
+: _Domain: `@graph`_
+: _Range: `Default`_
+
+`captureOptions`
+: `https://blackducksoftware.github.io/bdio#hasCaptureOptions`
+: The argument vector of publisher process used to capture the data.
+: _Domain: `@graph`_
+: _Range: `Default`_
 
 `comment`
 : `https://blackducksoftware.github.io/bdio#hasComment`
@@ -394,10 +413,15 @@ The "root" of the BDIO data is a top-level object (one of: "Project", "Container
 The relationship between a file node and it's parent need not be explicitly defined provided that the resolved absolute hierarchical path can be used to unambiguously identify the parent file.
 
 ### Missing Project Dependencies
-TODO Should we allow project dependencies to be implied for unreachable components? What would we use as scope, etc.?
+The relationship between a component and the root object need not be explicity defined: any component that is not associated with a dependency is assumed to be a dependency of the root object. Processors MUST NOT assume any default values for the implicit dependency node necessary to describe the connection between the component and the root object.
 
-## Preservation of Unknown Data
-Publishers may choose to include data in a BDIO data set that is not part of the BDIO model, this data will come in the form of JSON-LD types or terms not defined by this specification. Processors MUST preserve this unknown data when handling BDIO, however any data which is not reachable from the root project SHOULD be ignored and does not need to preserved.
+## Namespaced Properties
+
+### Interpretation
+BDIO properties which are subject to namespacing must be interpreted using rules specific to the namespace itself. It is soley the responsibility of the producer and consumer to negotiate namespace tokens and the corresponding property interpretation.
+
+### Inheritance
+When a BDIO node does not explicitly define a namespace it is inferred by following relationships back to a root object (providing the root object supports the "namespace" property); the first encountered explicit namespace definition becomes the effective namespace of the node.
 
 ## File Data Properties
 When describing file or resources in BDIO, publishers SHALL adhere to the guidelines in this section: this ensures data size is minimized and interpretation by processors can be consistent. BDIO files can be used to describe files on a file system (real or virtual), entries within an archive, resources from the web or any other entity which can be described as hierarchal structure of named pieces of data.
@@ -428,6 +452,9 @@ Processors MAY imply the file system type according the following rules, publish
 The terms under which a project is licensed and the terms under which a component is used are described using the simple license relationships `license` and `licenseOrLater` or the complex license relationships `licenseDisjunction`, `licenseConjunction` and `licenseException`. Additionally, an intermediate `LicenseGroup` node may be embedded to avoid ambiguity when using several licenses.
 
 When using simple license relationships, they MUST specify a single license; multiple complex license relationships may be used, however if more then two are in use, they MUST specify the same relationship. Publishers MUST NOT mix simple and complex license relationships. If multiple complex relationships are used, exceptions are considered first and conjunction takes precedence over disjunction.
+
+## Preservation of Unknown Data
+Publishers may choose to include data in a BDIO data set that is not part of the BDIO model, this data will come in the form of JSON-LD types or terms not defined by this specification. Processors MUST preserve this unknown data when handling BDIO, however any data which is not reachable from the root project SHOULD be ignored and does not need to preserved.
 
 # Document Format
 BDIO data can be transferred using one of four different formats depending on the capabilities of the parties involved and volume of data. Any JSON data being transferred MAY be pretty printed, it makes human consumption easier and has minimal impact on data size when compression is being used. BDIO data MUST be expressed as a named graph, the graph's label is used to uniquely identify the source of the data.

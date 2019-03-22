@@ -83,9 +83,18 @@
     },
     "buildDetails" : "https://blackducksoftware.github.io/bdio#hasBuildDetails",
     "buildNumber" : "https://blackducksoftware.github.io/bdio#hasBuildNumber",
+    "buildOptions" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasBuildOptions",
+      "@container" : "@list"
+    },
     "byteCount" : {
       "@id" : "https://blackducksoftware.github.io/bdio#hasByteCount",
       "@type" : "xsd:long"
+    },
+    "captureInterval" : "https://blackducksoftware.github.io/bdio#hasCaptureInterval",
+    "captureOptions" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasCaptureOptions",
+      "@container" : "@list"
     },
     "comment" : "https://blackducksoftware.github.io/bdio#hasComment",
     "contentType" : {
