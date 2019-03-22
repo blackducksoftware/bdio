@@ -23,6 +23,13 @@ jar {
     }
 }
 
+// Pre-Gradle 4.9, see https://stackoverflow.com/a/29382636/481015
+run {
+    if (project.hasProperty('appArgs')) {
+        args Eval.me(appArgs)
+    }
+}
+
 distributions {
 	main {
 		contents {
