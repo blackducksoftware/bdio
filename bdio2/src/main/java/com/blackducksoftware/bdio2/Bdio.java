@@ -37,7 +37,15 @@ import com.google.common.net.MediaType;
  *
  * @author jgustie
  */
+
 public class Bdio {
+
+    // IMPORTANT:
+    // When making changes to this file, be sure to run the following command to update
+    // the context resource:
+
+    // ./gradlew :bdio-tool:run -q -PappArgs="['context', '--pretty']" > \
+    // bdio2/src/main/resources/com/blackducksoftware/bdio2/bdio-context-2.0.jsonld
 
     /**
      * Annotation used to describe which class a property may be used on. This is different from a traditional linked
