@@ -187,7 +187,10 @@ final class SqlgBlackDuckIoReader extends BlackDuckIoReaderSpi {
                 node.keySet().forEach(k -> schema.put(k, null));
                 Object outVertexId = node.get(JsonLdConsts.ID);
                 identifierTypes.computeIfAbsent(outVertexLabel, SqlgBlackDuckIoReader::newIdentifierSet).put(outVertexId);
-                getNodeEdges(node, (edgeLabel, inVertexId) -> edges.put(EdgeKey.of(edgeLabel, outVertexLabel), Pair.of(outVertexId, inVertexId)));
+                getNodeEdges(node, (edgeLabel, inVertexId) -> {
+                edges.put(EdgeKey.of(edgeLabel, outVertexLabel), Pair.of(outVertexId, inVertexId));
+                });
+                                               
             }
             return this;
         }
