@@ -135,7 +135,16 @@ public abstract class BlackDuckIoReaderSpi extends AbstractBlackDuckIoSpi {
     protected void getNodeEdges(Map<String, Object> node, BiConsumer<String, Object> edges) {
         node.forEach((term, value) -> {
             if (frame().isObjectProperty(term)) {
-                edges.accept(term, frame().context().fromFieldValue(term, value));
+
+                if (value instanceof List<?>) {
+                    for (Object file : ((List<?>) value)) {
+                        edges.accept(term, frame().context().fromFieldValue(term, file));
+                    }
+
+                } else {
+                    edges.accept(term, frame().context().fromFieldValue(term, value));
+                }
+
             }
         });
     }
