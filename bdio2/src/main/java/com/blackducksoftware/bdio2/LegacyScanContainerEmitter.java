@@ -404,7 +404,10 @@ class LegacyScanContainerEmitter implements Emitter {
                     .addCommentText("signature %s", signatureVersion);
             if (ownerEntityKeyToken != null && ownerEntityKeyToken.startsWith("SP#")) {
                 scanClient.addCommentText("snippets");
+            } else if (ownerEntityKeyToken != null && ownerEntityKeyToken.startsWith("SS#")) {
+                scanClient.addCommentText("string_search");
             }
+            
             return scanClient.build();
         }
     }
