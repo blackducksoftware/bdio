@@ -128,6 +128,11 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
                 if (Strings.nullToEmpty(jp.nextTextValue()).startsWith("SP#")) {
                     metadata.merge(publisher(scanClient().addCommentText("snippets").build()));
                 }
+                
+                if (Strings.nullToEmpty(jp.nextTextValue()).startsWith("SG#")) {
+                    metadata.merge(publisher(scanClient().addCommentText("string_search").build()));
+                }
+                
                 break;
             case "name":
                 metadata.name(Strings.emptyToNull(jp.nextTextValue()));
