@@ -125,11 +125,10 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
                 metadata.merge(publisher(scanClient().addCommentText("signature %s", jp.nextTextValue()).build()));
                 break;
             case "ownerEntityKeyToken":
-                if (Strings.nullToEmpty(jp.nextTextValue()).startsWith("SP#")) {
+            	String ownerEntityKeyToken = Strings.nullToEmpty(jp.nextTextValue());
+                if (ownerEntityKeyToken.startsWith("SP#")) {
                     metadata.merge(publisher(scanClient().addCommentText("snippets").build()));
-                }
-                
-                if (Strings.nullToEmpty(jp.nextTextValue()).startsWith("SG#")) {
+                } else if(ownerEntityKeyToken.startsWith("SG#")) {
                     metadata.merge(publisher(scanClient().addCommentText("string_search").build()));
                 }
                 
