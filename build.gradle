@@ -1,13 +1,18 @@
 buildscript {
 	repositories { maven { url 'https://plugins.gradle.org/m2/' } }
-	dependencies { classpath 'com.netflix.nebula:nebula-dependency-recommender:5.1.0' }
-	dependencies { classpath 'com.netflix.nebula:nebula-publishing-plugin:5.1.5' }
-	dependencies { classpath 'net.ltgt.gradle:gradle-errorprone-plugin:0.0.13' }
+	dependencies { 
+		classpath 'com.netflix.nebula:nebula-dependency-recommender:5.1.0'
+		classpath 'com.netflix.nebula:nebula-publishing-plugin:5.1.5'
+		classpath 'net.ltgt.gradle:gradle-errorprone-plugin:0.0.13'
+		classpath "org.jfrog.buildinfo:build-info-extractor-gradle:4.6.0"
+	}
 }
 
 allprojects {
 	apply plugin: 'eclipse'
 	apply plugin: 'nebula.dependency-recommender'
+	apply plugin: 'maven-publish'
+	apply plugin: 'com.jfrog.artifactory'
 
 	repositories {
 		jcenter()
@@ -25,9 +30,14 @@ allprojects {
 	}
 }
 
+ext{
+	productionBuild = System.properties['productionBuild'] == 'true' ? true : false
+	uploadRepoKey = System.properties['uploadRepoKey'] ?: 'bds-commoncomp-snapshot'
+	buildName = 'bdio'
+}
+
 subprojects {
 	apply plugin: 'java'
-	apply plugin: 'nebula.maven-publish'
 	apply plugin: 'nebula.source-jar'
 	apply plugin: 'net.ltgt.errorprone'
 
@@ -52,18 +62,13 @@ subprojects {
 		}
 	}
 	
-	publishing {
-	    publications {
-	        nebula(MavenPublication) {
-	            pom.withXml {
-	                configurations.compile.resolvedConfiguration.firstLevelModuleDependencies.each { dep ->
-	                    asNode().dependencies[0].dependency.find {
-	                        it.artifactId[0].text() == dep.moduleName && 
-	                        it.groupId[0].text() == dep.moduleGroup
-	                    }?.scope[0]?.value = 'compile'
-	                }
-	            }
-	        }
-	    }
+	publishing{
+		publications{
+			maven(MavenPublication){
+				from components.java
+				artifact sourceJar
+			}
+		}
 	}
+
 }
