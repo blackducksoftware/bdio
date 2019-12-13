@@ -27,17 +27,5 @@ before_install:
   - sudo /etc/init.d/postgresql stop
   - docker build -t blackducksoftware/bdio-tinkerpop-db bdio-tinkerpop-db/
   - docker run -d -p 5432:5432 blackducksoftware/bdio-tinkerpop-db
-install: ./gradlew -I gradle/travis.gradle assemble
-script: ./gradlew -I gradle/travis.gradle check
-after_success: ./gradlew -I gradle/travis.gradle publish
-
-deploy:
-  provider: releases
-  api_key:
-    secure: "DjQ08MXGcBLv8TTfkYYKIM0iv2Uen3x2Quwuwekrlw008fK9xfcLDARqGp2nig4NvbObDo/tmBxulZog2DH8kl4/v8kw3lmGQuww/hS3Nsigdn2FVUXzx9erUEf2vTOJOwgvJI9+xftsCRMlKtDrJ3mVhY++VYkr8PiOL3mJVsK3ptvVCxHxgnGTvVVf8BMWcFx/5kAiooEXhMU2XnCN7tvpmXy0KuHngH7lU29gRi5AZ3dLgkJAAnuNiEs+HFMTLXZj/dmv50KFyMB1WFg28cpmEULdmJ4vpqvTi/L8RrewuHsW+I1QPWnuhs1YW2DYphxmVWmJSbbykTFKrHOwRiEBsFZmhuT0q0K9Luy9//UL5Pk5jI1p1Msl4gptUI5AuyMLXbC45MzjYmLmH4Z8rDwJ3qfdOfHs+LK4uqNJh9SJxCbYCtuh1ZerrTELSehjQ19ygBpJK07KDNyaDKYWRi6qg2WPrxvBg+kZv5LkazTkcVnjNnwgdsVNI8IyzF3BPYYLmVnvsFwkv/auoeoHA6LxTUFlznulWqdz26MQ+RUO/XGMi2Z/Mbd7vN0du97OD8yxDYvcBisOdiVxcCf28IiJWblVi/SXpCiq/0Dvl47FU3F5YSe7JxhAhoC725fkpGlEoZAtB08ECyyhHsRzBvPKleKLKwAWgrPafU6uBjU="
-  file:
-    - "bdio-tool/build/distributions/bdio-$TRAVIS_TAG.zip"
-    - "bdio-tool/build/distributions/bdio-$TRAVIS_TAG.tar"
-  skip_cleanup: true
-  on:
-    tags: true
+install: ./gradlew assemble
+script: ./gradlew check
