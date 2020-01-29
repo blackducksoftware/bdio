@@ -12,7 +12,7 @@ allprojects {
 	apply plugin: 'eclipse'
 	apply plugin: 'nebula.dependency-recommender'
 	apply plugin: 'maven-publish'
-	apply plugin: 'com.jfrog.artifactory'
+	apply plugin: 'com.jfrog.artifactory'	
 
 	repositories {
 		jcenter()
@@ -70,5 +70,4 @@ subprojects {
 			}
 		}
 	}
-
 }
