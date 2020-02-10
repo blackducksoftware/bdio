@@ -49,7 +49,7 @@ import com.google.common.collect.Multimap;
  *
  * @author jgustie
  */
-class LegacyUtilities {
+public class LegacyUtilities {
 
     /**
      * This module makes the configured object mapper behave like the one used to parse legacy scan container objects.
