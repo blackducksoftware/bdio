@@ -26,6 +26,6 @@ env:
 before_install:
   - sudo /etc/init.d/postgresql stop
   - docker build -t blackducksoftware/bdio-tinkerpop-db bdio-tinkerpop-db/
-  - docker run -d -p 5432:5432 blackducksoftware/bdio-tinkerpop-db
+  - docker run -d -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust blackducksoftware/bdio-tinkerpop-db
 install: ./gradlew assemble
 script: ./gradlew check
