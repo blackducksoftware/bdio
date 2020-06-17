@@ -1,10 +1,9 @@
 buildscript {
 	repositories { maven { url 'https://plugins.gradle.org/m2/' } }
 	dependencies { 
-		classpath 'com.netflix.nebula:nebula-dependency-recommender:5.1.0'
+                classpath 'com.netflix.nebula:nebula-dependency-recommender:5.1.0'
 		classpath 'com.netflix.nebula:nebula-publishing-plugin:5.1.5'
-		classpath 'net.ltgt.gradle:gradle-errorprone-plugin:0.0.13'
-		classpath "org.jfrog.buildinfo:build-info-extractor-gradle:4.13.0"
+                classpath "org.jfrog.buildinfo:build-info-extractor-gradle:4.13.0"
 	}
 }
 
@@ -30,7 +29,7 @@ allprojects {
 	}
 }
 
-ext{
+ext {
 	productionBuild = System.properties['productionBuild'] == 'true' ? true : false
 	uploadRepoKey = System.properties['uploadRepoKey'] ?: 'bds-commoncomp-snapshot'
 	buildName = 'bdio'
@@ -39,7 +38,6 @@ ext{
 subprojects {
 	apply plugin: 'java'
 	apply plugin: 'nebula.source-jar'
-	apply plugin: 'net.ltgt.errorprone'
 
 	sourceCompatibility = 1.8
 
