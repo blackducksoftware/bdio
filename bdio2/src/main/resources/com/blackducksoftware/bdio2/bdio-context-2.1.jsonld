@@ -115,6 +115,7 @@
       "@id" : "https://blackducksoftware.github.io/bdio#hasDeepFileCount",
       "@type" : "xsd:long"
     },
+    "dependencyType" : "https://blackducksoftware.github.io/bdio#hasDependencyType",
     "distanceFromRoot" : {
       "@id" : "https://blackducksoftware.github.io/bdio#hasDistanceFromRoot",
       "@type" : "xsd:long"
@@ -167,6 +168,7 @@
       "@id" : "https://blackducksoftware.github.io/bdio#hasShallowDirectoryCount",
       "@type" : "xsd:long"
     },
+    "scanType" : "https://blackducksoftware.github.io/bdio#hasScanType",
     "sourceBranch" : "https://blackducksoftware.github.io/bdio#hasSourceBranch",
     "sourceRepository" : "https://blackducksoftware.github.io/bdio#hasSourceRepository",
     "sourceRevision" : "https://blackducksoftware.github.io/bdio#hasSourceRevision",

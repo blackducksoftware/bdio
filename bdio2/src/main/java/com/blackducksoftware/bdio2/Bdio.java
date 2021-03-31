@@ -466,6 +466,10 @@ public class Bdio {
         @DataPropertyRange(Datatype.Long)
         deepFileCount("https://blackducksoftware.github.io/bdio#hasDeepFileCount",Container.single),
         
+        @Domain({ Class.Dependency })
+        @DataPropertyRange(Datatype.Default)
+        dependencyType("https://blackducksoftware.github.io/bdio#hasDependencyType", Container.single),
+
         /**
          * distance from root of the given node
          */
@@ -607,6 +611,13 @@ public class Bdio {
         @Domain({ Class.Note })
         @DataPropertyRange(Datatype.Default)
         rights("https://blackducksoftware.github.io/bdio#hasRights", Container.single),
+
+        /**
+         * The scan type
+         */
+        @Domain(metadata = true)
+        @DataPropertyRange(Datatype.Default)
+        scanType("https://blackducksoftware.github.io/bdio#hasScanType", Container.single),
 
         /**
          * The namespace specific scope of a dependency as determined by the resolution tool used to define the
