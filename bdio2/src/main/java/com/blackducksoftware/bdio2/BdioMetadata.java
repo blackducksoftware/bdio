@@ -277,6 +277,14 @@ public final class BdioMetadata extends BdioObject {
     }
 
     /**
+     * Sets the scan type
+     */
+    public BdioMetadata scanType(@Nullable String scanType) {
+        putFieldValue(Bdio.DataProperty.scanType, scanType);
+        return this;
+    }
+    
+    /**
      * Sets the source repository URL captured from the build environment.
      */
     public BdioMetadata sourceRepository(@Nullable String sourceRepository) {

@@ -102,5 +102,32 @@ public final class File extends BdioObject {
         putFieldValue(Bdio.DataProperty.linkPath, linkPath);
         return this;
     }
+    
+    public File deepDirectoryCount(@Nullable Long count) {
+        putFieldValue(Bdio.DataProperty.deepDirectoryCount, count);
+        return this;
+    }
+    
+    public File deepFileCount(@Nullable Long count) {
+        putFieldValue(Bdio.DataProperty.deepFileCount, count);
+        return this;
+    }
+    
+    public File distanceFromRoot(@Nullable Long count) {
+        putFieldValue(Bdio.DataProperty.distanceFromRoot, count);
+        return this;
+    }
+    
+    public File shallowDirectoryCount(@Nullable Long count) {
+        putFieldValue(Bdio.DataProperty.shallowDirectoryCount, count);
+        return this;
+    }
+    
+    public File parentId(@Nullable Long count) {
+        putFieldValue(Bdio.DataProperty.parentId, count);
+        return this;
+    }
+    
+    
 
 }

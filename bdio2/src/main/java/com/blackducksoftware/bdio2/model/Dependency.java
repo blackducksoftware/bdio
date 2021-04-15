@@ -40,7 +40,12 @@ public final class Dependency extends BdioObject {
         putFieldValue(Bdio.ObjectProperty.description, description);
         return this;
     }
-
+    
+    public Dependency dependencyType(@Nullable Object dependencyType) {
+        putFieldValue(Bdio.DataProperty.dependencyType, dependencyType);
+        return this;
+    }
+    
     public Dependency evidence(@Nullable File file) {
         putFieldValue(Bdio.ObjectProperty.evidence, file);
         return this;

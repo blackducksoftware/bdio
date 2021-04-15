@@ -453,6 +453,31 @@ public class Bdio {
         creator("https://blackducksoftware.github.io/bdio#hasCreator", Container.single),
 
         /**
+         * number of directories that are descendants of the given node
+         */
+        @Domain({ Class.File })
+        @DataPropertyRange(Datatype.Long)
+        deepDirectoryCount("https://blackducksoftware.github.io/bdio#hasDeepDirectoryCount",Container.single),        
+
+        /**
+         * number of descendant files for the given node
+         */
+        @Domain({ Class.File })
+        @DataPropertyRange(Datatype.Long)
+        deepFileCount("https://blackducksoftware.github.io/bdio#hasDeepFileCount",Container.single),
+        
+        @Domain({ Class.Dependency })
+        @DataPropertyRange(Datatype.Default)
+        dependencyType("https://blackducksoftware.github.io/bdio#hasDependencyType", Container.single),
+
+        /**
+         * distance from root of the given node
+         */
+        @Domain({ Class.File })
+        @DataPropertyRange(Datatype.Long)
+        distanceFromRoot("https://blackducksoftware.github.io/bdio#hasDistanceFromRoot", Container.single),    
+
+        /**
          * The character encoding of a file. It is required that producers store the encoding independent of the content
          * type's parameters.
          */
@@ -528,6 +553,13 @@ public class Bdio {
         namespace("https://blackducksoftware.github.io/bdio#hasNamespace", Container.single),
 
         /**
+         * parent id of the given node
+         */
+        @Domain({ Class.File })
+        @DataPropertyRange(Datatype.Long)
+        parentId("https://blackducksoftware.github.io/bdio#hasParentId", Container.single),
+
+        /**
          * The hierarchical path of a file relative to the base directory.
          */
         @Domain({ Class.File })
@@ -581,6 +613,13 @@ public class Bdio {
         rights("https://blackducksoftware.github.io/bdio#hasRights", Container.single),
 
         /**
+         * The scan type
+         */
+        @Domain(metadata = true)
+        @DataPropertyRange(Datatype.Default)
+        scanType("https://blackducksoftware.github.io/bdio#hasScanType", Container.single),
+
+        /**
          * The namespace specific scope of a dependency as determined by the resolution tool used to define the
          * dependency. For example, if a dependency came from an npm package's "devDependencies" field, then the
          * scope should be "devDependencies".
@@ -588,6 +627,13 @@ public class Bdio {
         @Domain({ Class.Dependency })
         @DataPropertyRange(Datatype.Default)
         scope("https://blackducksoftware.github.io/bdio#hasScope", Container.single),
+
+        /**
+         * number of directories that are direct children of given node
+         */
+        @Domain({ Class.File })
+        @DataPropertyRange(Datatype.Long)
+        shallowDirectoryCount("https://blackducksoftware.github.io/bdio#hasShallowDirectoryCount", Container.single),     
 
         /**
          * The SCM branch name from the build environment.
@@ -930,6 +976,7 @@ public class Bdio {
 
     public enum Context {
 
+        VERSION_2_1("https://blackducksoftware.github.io/bdio/2.1.0", "bdio-context-2.1.jsonld"),
         VERSION_2_0("https://blackducksoftware.github.io/bdio/2.0.0", "bdio-context-2.0.jsonld"),
         VERSION_1_1_1("http://blackducksoftware.com/rdf/terms/1.1.1", "bdio-context-1.1.1.jsonld"),
         VERSION_1_1("http://blackducksoftware.com/rdf/terms/1.1.0", "bdio-context-1.1.jsonld"),
