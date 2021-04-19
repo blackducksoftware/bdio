@@ -28,6 +28,7 @@ public enum BlackDuckIoVersion {
     V1_1,
     V1_1_1,
     V2_0,
+    V2_1
     ;
 
     /**
@@ -44,6 +45,8 @@ public enum BlackDuckIoVersion {
         case V2_0:
             // This is the version returned by "defaultVersion()" so it should actually return DEFAULT
             return Bdio.Context.DEFAULT;
+        case V2_1:
+        	return Bdio.Context.VERSION_2_1;
         default:
             throw new IllegalStateException("unknown version: " + this);
         }
