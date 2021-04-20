@@ -129,7 +129,7 @@ public class BlackDuckIo implements Io<BlackDuckIoReader.Builder, BlackDuckIoWri
      */
     @Override
     public BlackDuckIoWriter.Builder writer() {
-        if (version == BlackDuckIoVersion.V2_0) {
+        if (version == BlackDuckIoVersion.V2_1) {
             return BlackDuckIoWriter.build().mapper(mapper().create()).options(options);
         } else {
             throw new UnsupportedOperationException("write is not supported for version " + version);
