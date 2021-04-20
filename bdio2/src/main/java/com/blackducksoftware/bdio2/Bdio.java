@@ -193,7 +193,7 @@ public class Bdio {
 
         private final String iri;
 
-        private Class(String iri) {
+        Class(String iri) {
             this.iri = Objects.requireNonNull(iri);
         }
 
@@ -237,7 +237,7 @@ public class Bdio {
          * Used to indicate two objects represent the same thing and directs you to the preferred representation.
          */
         @Domain({ Class.Component, Class.License, Class.Vulnerability })
-        @ObjectPropertyRange({})
+        @ObjectPropertyRange()
         canonical("https://blackducksoftware.github.io/bdio#hasCanonical", Container.single),
 
         /**
@@ -351,7 +351,7 @@ public class Bdio {
 
         private final Container container;
 
-        private ObjectProperty(String iri, Container container) {
+        ObjectProperty(String iri, Container container) {
             this.iri = Objects.requireNonNull(iri);
             this.container = Objects.requireNonNull(container);
         }
@@ -685,7 +685,7 @@ public class Bdio {
 
         private final Container container;
 
-        private DataProperty(String iri, Container container) {
+        DataProperty(String iri, Container container) {
             this.iri = Objects.requireNonNull(iri);
             this.container = Objects.requireNonNull(container);
         }
@@ -751,7 +751,7 @@ public class Bdio {
 
         private final String iri;
 
-        private Datatype(String iri) {
+        Datatype(String iri) {
             this.iri = Objects.requireNonNull(iri);
         }
 
@@ -837,7 +837,7 @@ public class Bdio {
 
         private final boolean other;
 
-        private FileSystemType(String value) {
+        FileSystemType(String value) {
             this.value = Objects.requireNonNull(value);
 
             String type = ExtraStrings.beforeFirst(value, '/');
@@ -917,7 +917,7 @@ public class Bdio {
 
         private final String extension;
 
-        private ContentType(String mediaType, String extension) {
+        ContentType(String mediaType, String extension) {
             this.mediaType = Objects.requireNonNull(mediaType);
             this.extension = Objects.requireNonNull(extension);
         }
@@ -981,13 +981,13 @@ public class Bdio {
         VERSION_1_1_1("http://blackducksoftware.com/rdf/terms/1.1.1", "bdio-context-1.1.1.jsonld"),
         VERSION_1_1("http://blackducksoftware.com/rdf/terms/1.1.0", "bdio-context-1.1.jsonld"),
         VERSION_1_0("http://blackducksoftware.com/rdf/terms/1.0.0", "bdio-context-1.0.jsonld"),
-        DEFAULT("https://blackducksoftware.github.io/bdio", VERSION_2_0.resourceName);
+        DEFAULT("https://blackducksoftware.github.io/bdio", VERSION_2_1.resourceName);
 
         private final String iri;
 
         private final String resourceName;
 
-        private Context(String iri, String resourceName) {
+        Context(String iri, String resourceName) {
             this.iri = Objects.requireNonNull(iri);
             this.resourceName = Objects.requireNonNull(resourceName);
         }
@@ -1018,6 +1018,8 @@ public class Bdio {
                 return Context.VERSION_1_1_1;
             case "2.0.0":
                 return Context.VERSION_2_0;
+            case "2.1.0":
+                return Context.VERSION_2_1;
             default:
                 throw new IllegalArgumentException("unknown BDIO specification version: " + specVersion);
             }
