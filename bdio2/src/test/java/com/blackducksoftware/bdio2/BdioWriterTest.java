@@ -15,7 +15,16 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static com.blackducksoftware.bdio2.Bdio.DataProperty.dependencyType;
+import static com.blackducksoftware.bdio2.Bdio.DataProperty.identifier;
+import static com.blackducksoftware.bdio2.Bdio.DataProperty.name;
+import static com.blackducksoftware.bdio2.Bdio.DataProperty.namespace;
+import static com.blackducksoftware.bdio2.Bdio.DataProperty.version;
+import static com.blackducksoftware.bdio2.Bdio.ObjectProperty.dependency;
+import static com.blackducksoftware.bdio2.Bdio.ObjectProperty.dependsOn;
 import static com.blackducksoftware.common.test.JsonSubject.assertThatJson;
+import static com.github.jsonldjava.core.JsonLdConsts.GRAPH;
+import static com.github.jsonldjava.core.JsonLdConsts.ID;
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -31,6 +40,8 @@ import org.junit.Test;
 
 import com.blackducksoftware.bdio2.BdioWriter.BdioFile;
 import com.blackducksoftware.bdio2.BdioWriter.StreamSupplier;
+import com.blackducksoftware.bdio2.model.Component;
+import com.blackducksoftware.bdio2.model.Dependency;
 import com.blackducksoftware.bdio2.test.BdioTest;
 import com.blackducksoftware.common.io.HeapOutputStream;
 import com.google.common.collect.ImmutableMap;
@@ -43,12 +54,7 @@ import com.google.common.io.ByteStreams;
  */
 public class BdioWriterTest {
 
-    private static final StreamSupplier NULL_STREAM_SUPPLIER = new StreamSupplier() {
-        @Override
-        public OutputStream newStream() throws IOException {
-            return ByteStreams.nullOutputStream();
-        }
-    };
+    private static final StreamSupplier NULL_STREAM_SUPPLIER = ByteStreams::nullOutputStream;
 
     private BdioMetadata metadata;
 
@@ -123,4 +129,36 @@ public class BdioWriterTest {
         assertThatJson(entries.get(1)).at("/@graph/1/test").isEqualTo("bar");
     }
 
+    @Test
+    public void componentWriterTest() throws IOException {
+        HeapOutputStream buffer = new HeapOutputStream();
+        Dependency dep = new Dependency();
+        dep.dependsOn("http:sample/dependency/1_3");
+        dep.dependencyType("TRANSITIVE");
+        Component cmp = new Component("http:sample/component/4_12");
+        cmp.name("sample");
+        cmp.namespace("foo");
+        cmp.version("4.12");
+        cmp.identifier("sample:foo:4.12");
+        cmp.dependency(dep);
+
+        try(BdioWriter writer = new BdioWriter(metadata, new BdioFile(buffer))) {
+            writer.start();
+            writer.next(cmp);
+        }
+
+        List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
+        assertThat(entries).hasSize(2);
+
+        assertThatJson(entries.get(0)).at(ID).isEqualTo(metadata.id());
+        assertThatJson(entries.get(0)).arrayAt(GRAPH).hasSize(0);
+        assertThatJson(entries.get(1)).at(ID).isEqualTo(metadata.id());
+        assertThatJson(entries.get(1)).at(GRAPH, "0", ID).isEqualTo("http:sample/component/4_12");
+        assertThatJson(entries.get(1)).at(GRAPH, "0", name).isEqualTo("sample");
+        assertThatJson(entries.get(1)).at(GRAPH, "0", namespace).isEqualTo("foo");
+        assertThatJson(entries.get(1)).at(GRAPH, "0", version).isEqualTo("4.12");
+        assertThatJson(entries.get(1)).at(GRAPH, "0", identifier).isEqualTo("sample:foo:4.12");
+        assertThatJson(entries.get(1)).at(GRAPH, "0", dependency, dependsOn, ID).isEqualTo("http:sample/dependency/1_3");
+        assertThatJson(entries.get(1)).at(GRAPH, "0", dependency, dependencyType).isEqualTo("TRANSITIVE");
+    }
 }
