@@ -33,6 +33,11 @@ public final class File extends BdioObject {
         super(id, Bdio.Class.File);
     }
 
+    public File archiveContext(@Nullable String archiveContext) {
+    	 putFieldValue(Bdio.DataProperty.archiveContext, archiveContext);
+         return this;
+    }
+    
     public File description(@Nullable Annotation description) {
         putFieldValue(Bdio.ObjectProperty.description, description);
         return this;
@@ -82,6 +87,11 @@ public final class File extends BdioObject {
         putFieldValue(Bdio.DataProperty.encoding, encoding);
         return this;
     }
+    
+    public File nodeName(String nodeName) {
+   	    putFieldValue(Bdio.DataProperty.nodeName, nodeName);
+        return this;
+    }
 
     public File path(@Nullable String path) {
         putFieldValue(Bdio.DataProperty.path, path);
@@ -128,6 +138,9 @@ public final class File extends BdioObject {
         return this;
     }
     
+    public File uri(String uri) {
+   	    putFieldValue(Bdio.DataProperty.uri, uri);
+        return this;
+    }
     
-
 }

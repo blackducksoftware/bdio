@@ -368,6 +368,13 @@ public class Bdio {
 
     public enum DataProperty {
 
+    	/**
+         * The archive context of the file or directory.
+         */
+        @Domain({ Class.File })
+        @DataPropertyRange(Datatype.Default)
+        archiveContext("https://blackducksoftware.github.io/bdio#hasArchiveContext", Container.single),
+
         /**
          * The URL used to obtain additional details about the build environment.
          */
@@ -553,6 +560,13 @@ public class Bdio {
         namespace("https://blackducksoftware.github.io/bdio#hasNamespace", Container.single),
 
         /**
+         * The name of the node.
+         */
+        @Domain({ Class.File })
+        @DataPropertyRange(Datatype.Default)
+        nodeName("https://blackducksoftware.github.io/bdio#hasNodeName", Container.single),
+
+        /**
          * parent id of the given node
          */
         @Domain({ Class.File })
@@ -662,6 +676,13 @@ public class Bdio {
         @Domain(metadata = true)
         @DataPropertyRange(Datatype.Default)
         sourceTag("https://blackducksoftware.github.io/bdio#hasSourceTag", Container.single),
+
+        /**
+         * The uri of the file or directory.
+         */
+        @Domain({ Class.File })
+        @DataPropertyRange(Datatype.Default)
+        uri("https://blackducksoftware.github.io/bdio#hasUri", Container.single),
 
         /**
          * The name of the vendor who provides a project or component.
