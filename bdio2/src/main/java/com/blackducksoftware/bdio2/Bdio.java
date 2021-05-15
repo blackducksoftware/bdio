@@ -485,6 +485,13 @@ public class Bdio {
         distanceFromRoot("https://blackducksoftware.github.io/bdio#hasDistanceFromRoot", Container.single),    
 
         /**
+         * distance from inner root of the given node
+         */
+        @Domain({ Class.File })
+        @DataPropertyRange(Datatype.Long)
+        distanceFromInnerRoot("https://blackducksoftware.github.io/bdio#hasDistanceFromInnerRoot", Container.single),    
+
+        /**
          * The character encoding of a file. It is required that producers store the encoding independent of the content
          * type's parameters.
          */

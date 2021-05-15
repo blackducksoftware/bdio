@@ -81,6 +81,7 @@
       "@id" : "https://blackducksoftware.github.io/bdio#hasSubproject",
       "@type" : "@id"
     },
+    "archiveContext" : "https://blackducksoftware.github.io/bdio#hasArchiveContext",
     "buildDetails" : "https://blackducksoftware.github.io/bdio#hasBuildDetails",
     "buildNumber" : "https://blackducksoftware.github.io/bdio#hasBuildNumber",
     "buildOptions" : {
@@ -120,6 +121,10 @@
       "@id" : "https://blackducksoftware.github.io/bdio#hasDistanceFromRoot",
       "@type" : "xsd:long"
     },
+    "distanceFromInnerRoot" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasDistanceFromInnerRoot",
+      "@type" : "xsd:long"
+    },
     "encoding" : "https://blackducksoftware.github.io/bdio#hasEncoding",
     "fileSystemType" : "https://blackducksoftware.github.io/bdio#hasFileSystemType",
     "fingerprint" : {
@@ -143,6 +148,7 @@
       "@id" : "parent:Id",
       "@type" : "xsd:long"
     },
+    "nodeName" : "https://blackducksoftware.github.io/bdio#hasNodeName",
     "path" : "https://blackducksoftware.github.io/bdio#hasPath",
     "platform" : {
       "@id" : "https://blackducksoftware.github.io/bdio#hasPlatform",
@@ -173,6 +179,7 @@
     "sourceRepository" : "https://blackducksoftware.github.io/bdio#hasSourceRepository",
     "sourceRevision" : "https://blackducksoftware.github.io/bdio#hasSourceRevision",
     "sourceTag" : "https://blackducksoftware.github.io/bdio#hasSourceTag",
+    "uri" : "https://blackducksoftware.github.io/bdio#hasUri",
     "vendor" : "https://blackducksoftware.github.io/bdio#hasVendor",
     "version" : "https://blackducksoftware.github.io/bdio#hasVersion"
   }

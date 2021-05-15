@@ -128,6 +128,11 @@ public final class File extends BdioObject {
         return this;
     }
     
+    public File distanceFromInnerRoot(@Nullable Long count) {
+        putFieldValue(Bdio.DataProperty.distanceFromInnerRoot, count);
+        return this;
+    }
+    
     public File shallowDirectoryCount(@Nullable Long count) {
         putFieldValue(Bdio.DataProperty.shallowDirectoryCount, count);
         return this;
