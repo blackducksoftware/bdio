@@ -117,12 +117,12 @@
       "@type" : "xsd:long"
     },
     "dependencyType" : "https://blackducksoftware.github.io/bdio#hasDependencyType",
-    "distanceFromRoot" : {
-      "@id" : "https://blackducksoftware.github.io/bdio#hasDistanceFromRoot",
-      "@type" : "xsd:long"
-    },
     "distanceFromInnerRoot" : {
       "@id" : "https://blackducksoftware.github.io/bdio#hasDistanceFromInnerRoot",
+      "@type" : "xsd:long"
+    },
+    "distanceFromRoot" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasDistanceFromRoot",
       "@type" : "xsd:long"
     },
     "encoding" : "https://blackducksoftware.github.io/bdio#hasEncoding",

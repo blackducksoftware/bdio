@@ -478,18 +478,18 @@ public class Bdio {
         dependencyType("https://blackducksoftware.github.io/bdio#hasDependencyType", Container.single),
 
         /**
-         * distance from root of the given node
-         */
-        @Domain({ Class.File })
-        @DataPropertyRange(Datatype.Long)
-        distanceFromRoot("https://blackducksoftware.github.io/bdio#hasDistanceFromRoot", Container.single),    
-
-        /**
          * distance from inner root of the given node
          */
         @Domain({ Class.File })
         @DataPropertyRange(Datatype.Long)
         distanceFromInnerRoot("https://blackducksoftware.github.io/bdio#hasDistanceFromInnerRoot", Container.single),    
+
+        /**
+         * distance from root of the given node
+         */
+        @Domain({ Class.File })
+        @DataPropertyRange(Datatype.Long)
+        distanceFromRoot("https://blackducksoftware.github.io/bdio#hasDistanceFromRoot", Container.single),    
 
         /**
          * The character encoding of a file. It is required that producers store the encoding independent of the content
