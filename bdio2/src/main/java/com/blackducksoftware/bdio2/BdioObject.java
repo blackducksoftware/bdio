@@ -130,6 +130,16 @@ public class BdioObject extends AbstractMap<String, Object> {
         return ExtraStrings.beforeLast((String) value, '#');
     }
 
+    /**
+     * Returns the scanType for this object.
+     */
+    @Nullable
+    public final String scanType() {
+        Object value = get(JsonLdConsts.TYPE);
+        checkState(value == null || value instanceof String , "scanType is not mapped to a string");
+        return value != null ? Bdio.ScanType.from(value).getValue() : null;
+    }
+
     protected Object putFieldValue(Object field, @Nullable Object value) {
         return context.putFieldValue(this, field, value);
     }

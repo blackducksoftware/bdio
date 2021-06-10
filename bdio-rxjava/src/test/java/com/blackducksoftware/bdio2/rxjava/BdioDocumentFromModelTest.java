@@ -21,7 +21,7 @@ import static com.google.common.truth.Truth.assertThat;
 import java.util.List;
 
 import org.junit.Test;
-
+import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.BdioWriter;
@@ -52,5 +52,29 @@ public class BdioDocumentFromModelTest {
         assertThat(entries).hasSize(2);
         assertThatJson(entries.get(1)).at("/@graph/0/@id").isEqualTo("http://example.com/files/1");
     }
+
+
+
+    @Test
+    public void scanTypeTest() {
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+        metadata.scanType(Bdio.ScanType.BDIO);
+        HeapOutputStream out = new HeapOutputStream();
+        RxJavaBdioDocument doc = new RxJavaBdioDocument(new BdioContext.Builder().build());
+
+        Flowable.just(new File("http://example.com/files/1"))
+                .buffer(1)
+                .subscribe(doc.write(metadata, new BdioWriter.BdioFile(out)));
+
+        // Validate how the doc reader can extract the scanType
+        assertThat(doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet().scanType()).isEqualTo(Bdio.ScanType.BDIO.getValue());
+
+        // Validate all chunks have the ScanType information
+        List<String> entries = BdioTest.zipEntries(out.getInputStream());
+        assertThat(entries).hasSize(2);
+        assertThatJson(entries.get(0)).at("/@type").isEqualTo(Bdio.ScanType.BDIO.getValue());
+        assertThatJson(entries.get(1)).at("/@type").isEqualTo(Bdio.ScanType.BDIO.getValue());
+    }
+
 
 }

@@ -161,4 +161,28 @@ public class BdioWriterTest {
         assertThatJson(entries.get(1)).at(GRAPH, "0", dependency, dependsOn, ID).isEqualTo("http:sample/dependency/1_3");
         assertThatJson(entries.get(1)).at(GRAPH, "0", dependency, dependencyType).isEqualTo("TRANSITIVE");
     }
+
+    @Test
+    public void scanTypeWriterTest() throws IOException {
+        HeapOutputStream buffer = new HeapOutputStream();
+        metadata.scanType(Bdio.ScanType.BDIO);
+        try (BdioWriter writer = new BdioWriter(metadata, new BdioFile(buffer))) {
+            writer.start();
+            writer.next(ImmutableMap.of("test", "foo"));
+            writer.next(ImmutableMap.of("test", "bar"));
+        }
+        List<String> entries = BdioTest.zipEntries(buffer.getInputStream());
+        assertThat(entries).hasSize(2);
+
+        assertThatJson(entries.get(0)).at("/@id").isEqualTo(metadata.id());
+        // Verify the ScanType is present
+        assertThatJson(entries.get(0)).at("/@type").isEqualTo(Bdio.ScanType.BDIO.getValue());
+        assertThatJson(entries.get(0)).arrayAt("/@graph").hasSize(0);
+        assertThatJson(entries.get(1)).at("/@id").isEqualTo(metadata.id());
+        // Verify the ScanType is present
+        assertThatJson(entries.get(1)).at("/@type").isEqualTo(Bdio.ScanType.BDIO.getValue());
+        assertThatJson(entries.get(1)).at("/@graph/0/test").isEqualTo("foo");
+        assertThatJson(entries.get(1)).at("/@graph/1/test").isEqualTo("bar");
+    }
+
 }

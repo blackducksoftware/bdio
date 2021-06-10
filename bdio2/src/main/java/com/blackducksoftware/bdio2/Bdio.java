@@ -18,6 +18,7 @@ package com.blackducksoftware.bdio2;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import javax.annotation.Nullable;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -25,8 +26,6 @@ import java.lang.annotation.Target;
 import java.net.URL;
 import java.util.Objects;
 import java.util.function.Function;
-
-import javax.annotation.Nullable;
 
 import com.blackducksoftware.common.base.ExtraStrings;
 import com.google.common.io.Resources;
@@ -633,12 +632,6 @@ public class Bdio {
         @DataPropertyRange(Datatype.Default)
         rights("https://blackducksoftware.github.io/bdio#hasRights", Container.single),
 
-        /**
-         * The scan type
-         */
-        @Domain(metadata = true)
-        @DataPropertyRange(Datatype.Default)
-        scanType("https://blackducksoftware.github.io/bdio#hasScanType", Container.single),
 
         /**
          * The namespace specific scope of a dependency as determined by the resolution tool used to define the
@@ -1051,6 +1044,45 @@ public class Bdio {
             default:
                 throw new IllegalArgumentException("unknown BDIO specification version: " + specVersion);
             }
+        }
+    }
+
+    // TODO additional scan types will be added in the future releases
+    public enum ScanType {
+
+        /**
+         * BDIO represents a Package manager scan.
+         */
+        BDIO("BDIO"),
+        /**
+         * FS represents a Signature scan.
+         */
+        FS("FS");
+
+        private final String value;
+
+        ScanType(String value) {
+            this.value = Objects.requireNonNull(value);
+        }
+
+        /**
+         * Returns the scanType represented by the specified object.
+         */
+        public static ScanType from(@Nullable Object obj) {
+            if (obj instanceof ScanType) {
+                return (ScanType) obj;
+            } else {
+                for (ScanType scanType : values()) {
+                    if (scanType.value.equals(obj)) {
+                        return scanType;
+                    }
+                }
+                throw new IllegalArgumentException("unsupported scanType: " + obj);
+            }
+        }
+
+        public String getValue() {
+            return value;
         }
     }
 

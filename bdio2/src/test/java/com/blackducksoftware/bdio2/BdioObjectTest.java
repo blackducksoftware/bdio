@@ -110,4 +110,14 @@ public class BdioObjectTest {
         assertThat(bdioObject.get("@id")).isEqualTo("http://example.com/test#ignored");
     }
 
+    /**
+     * The JSON-LD scanType can be replaced by putting a new value into the map if you know the key.
+     */
+    @Test
+    public void replaceScanType() {
+        BdioObject bdioObject = new BdioObject();
+        assertThat(bdioObject.scanType()).isNull();
+        bdioObject.put("@type", Bdio.ScanType.BDIO.getValue());
+        assertThat(bdioObject.scanType()).isEqualTo(Bdio.ScanType.BDIO.getValue());
+    }
 }
