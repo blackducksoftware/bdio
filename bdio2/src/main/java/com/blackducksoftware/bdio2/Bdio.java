@@ -1051,13 +1051,13 @@ public class Bdio {
     public enum ScanType {
 
         /**
-         * BDIO represents a Package manager scan.
+         * A Package manager scan.
          */
-        BDIO("BDIO"),
+        PACKAGE_MANAGER("PACKAGE_MANAGER"),
         /**
-         * FS represents a Signature scan.
+         * A File System scan.
          */
-        FS("FS");
+        FILE_SYSTEM("FILE_SYSTEM");
 
         private final String value;
 

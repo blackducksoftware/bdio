@@ -117,7 +117,7 @@ public class BdioObjectTest {
     public void replaceScanType() {
         BdioObject bdioObject = new BdioObject();
         assertThat(bdioObject.scanType()).isNull();
-        bdioObject.put("@type", Bdio.ScanType.BDIO.getValue());
-        assertThat(bdioObject.scanType()).isEqualTo(Bdio.ScanType.BDIO.getValue());
+        bdioObject.put("@type", Bdio.ScanType.PACKAGE_MANAGER.getValue());
+        assertThat(bdioObject.scanType()).isEqualTo(Bdio.ScanType.PACKAGE_MANAGER.getValue());
     }
 }

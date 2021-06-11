@@ -58,7 +58,7 @@ public class BdioDocumentFromModelTest {
     @Test
     public void scanTypeTest() {
         BdioMetadata metadata = BdioMetadata.createRandomUUID();
-        metadata.scanType(Bdio.ScanType.BDIO);
+        metadata.scanType(Bdio.ScanType.PACKAGE_MANAGER);
         HeapOutputStream out = new HeapOutputStream();
         RxJavaBdioDocument doc = new RxJavaBdioDocument(new BdioContext.Builder().build());
 
@@ -67,13 +67,13 @@ public class BdioDocumentFromModelTest {
                 .subscribe(doc.write(metadata, new BdioWriter.BdioFile(out)));
 
         // Validate how the doc reader can extract the scanType
-        assertThat(doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet().scanType()).isEqualTo(Bdio.ScanType.BDIO.getValue());
+        assertThat(doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet().scanType()).isEqualTo(Bdio.ScanType.PACKAGE_MANAGER.getValue());
 
         // Validate all chunks have the ScanType information
         List<String> entries = BdioTest.zipEntries(out.getInputStream());
         assertThat(entries).hasSize(2);
-        assertThatJson(entries.get(0)).at("/@type").isEqualTo(Bdio.ScanType.BDIO.getValue());
-        assertThatJson(entries.get(1)).at("/@type").isEqualTo(Bdio.ScanType.BDIO.getValue());
+        assertThatJson(entries.get(0)).at("/@type").isEqualTo(Bdio.ScanType.PACKAGE_MANAGER.getValue());
+        assertThatJson(entries.get(1)).at("/@type").isEqualTo(Bdio.ScanType.PACKAGE_MANAGER.getValue());
     }
 
 

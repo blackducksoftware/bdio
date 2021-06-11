@@ -165,7 +165,7 @@ public class BdioWriterTest {
     @Test
     public void scanTypeWriterTest() throws IOException {
         HeapOutputStream buffer = new HeapOutputStream();
-        metadata.scanType(Bdio.ScanType.BDIO);
+        metadata.scanType(Bdio.ScanType.PACKAGE_MANAGER);
         try (BdioWriter writer = new BdioWriter(metadata, new BdioFile(buffer))) {
             writer.start();
             writer.next(ImmutableMap.of("test", "foo"));
@@ -176,11 +176,11 @@ public class BdioWriterTest {
 
         assertThatJson(entries.get(0)).at("/@id").isEqualTo(metadata.id());
         // Verify the ScanType is present
-        assertThatJson(entries.get(0)).at("/@type").isEqualTo(Bdio.ScanType.BDIO.getValue());
+        assertThatJson(entries.get(0)).at("/@type").isEqualTo(Bdio.ScanType.PACKAGE_MANAGER.getValue());
         assertThatJson(entries.get(0)).arrayAt("/@graph").hasSize(0);
         assertThatJson(entries.get(1)).at("/@id").isEqualTo(metadata.id());
         // Verify the ScanType is present
-        assertThatJson(entries.get(1)).at("/@type").isEqualTo(Bdio.ScanType.BDIO.getValue());
+        assertThatJson(entries.get(1)).at("/@type").isEqualTo(Bdio.ScanType.PACKAGE_MANAGER.getValue());
         assertThatJson(entries.get(1)).at("/@graph/0/test").isEqualTo("foo");
         assertThatJson(entries.get(1)).at("/@graph/1/test").isEqualTo("bar");
     }

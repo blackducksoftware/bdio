@@ -167,10 +167,10 @@ public class BdioMetadataTest {
     public void mergeDifferentScanType() {
         BdioContext context = BdioContext.getDefault();
         BdioMetadata metadataFoo = new BdioMetadata();
-        context.putFieldValue(metadataFoo, JsonLdConsts.TYPE, Bdio.ScanType.BDIO.getValue());
+        context.putFieldValue(metadataFoo, JsonLdConsts.TYPE, Bdio.ScanType.PACKAGE_MANAGER.getValue());
 
         BdioMetadata metadataBar = new BdioMetadata();
-        context.putFieldValue(metadataBar, JsonLdConsts.TYPE, Bdio.ScanType.FS.getValue());
+        context.putFieldValue(metadataBar, JsonLdConsts.TYPE, Bdio.ScanType.FILE_SYSTEM.getValue());
 
         metadataFoo.merge(metadataBar);
     }
@@ -181,17 +181,17 @@ public class BdioMetadataTest {
         BdioMetadata metadataFoo = new BdioMetadata();
 
         BdioMetadata metadataBar = new BdioMetadata();
-        context.putFieldValue(metadataBar, JsonLdConsts.TYPE, Bdio.ScanType.BDIO.getValue());
+        context.putFieldValue(metadataBar, JsonLdConsts.TYPE, Bdio.ScanType.PACKAGE_MANAGER.getValue());
 
-        assertThat(metadataFoo.merge(metadataBar)).containsEntry(JsonLdConsts.TYPE, Bdio.ScanType.BDIO.getValue());
+        assertThat(metadataFoo.merge(metadataBar)).containsEntry(JsonLdConsts.TYPE, Bdio.ScanType.PACKAGE_MANAGER.getValue());
 
         // Validate That the scanType is merged in correct format
         BdioMetadata metadataFooBarFoo = new BdioMetadata();
 
         BdioMetadata metadataFooBar = new BdioMetadata();
-        context.putFieldValue(metadataFooBar, JsonLdConsts.TYPE, Collections.singletonList(Bdio.ScanType.FS.getValue()));
+        context.putFieldValue(metadataFooBar, JsonLdConsts.TYPE, Collections.singletonList(Bdio.ScanType.FILE_SYSTEM.getValue()));
 
-        assertThat(metadataFooBarFoo.merge(metadataFooBar)).containsEntry(JsonLdConsts.TYPE, Bdio.ScanType.FS.getValue());
+        assertThat(metadataFooBarFoo.merge(metadataFooBar)).containsEntry(JsonLdConsts.TYPE, Bdio.ScanType.FILE_SYSTEM.getValue());
     }
 
 }
