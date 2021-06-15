@@ -299,8 +299,9 @@ public final class BdioMetadata extends BdioObject {
     /**
      * Sets the scan type
      */
-    public BdioMetadata scanType(@Nullable Bdio.ScanType scanType) {
-        put(JsonLdConsts.TYPE, scanType != null ? scanType.getValue() : null);
+    public BdioMetadata scanType(Bdio.ScanType scanType) {
+        Objects.requireNonNull(scanType, "scanType must not be null");
+        put(JsonLdConsts.TYPE, scanType.getValue());
         return this;
     }
     

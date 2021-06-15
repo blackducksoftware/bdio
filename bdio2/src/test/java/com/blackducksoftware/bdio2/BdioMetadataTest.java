@@ -170,7 +170,7 @@ public class BdioMetadataTest {
         context.putFieldValue(metadataFoo, JsonLdConsts.TYPE, Bdio.ScanType.PACKAGE_MANAGER.getValue());
 
         BdioMetadata metadataBar = new BdioMetadata();
-        context.putFieldValue(metadataBar, JsonLdConsts.TYPE, Bdio.ScanType.FILE_SYSTEM.getValue());
+        context.putFieldValue(metadataBar, JsonLdConsts.TYPE, Bdio.ScanType.SIGNATURE.getValue());
 
         metadataFoo.merge(metadataBar);
     }
@@ -189,9 +189,9 @@ public class BdioMetadataTest {
         BdioMetadata metadataFooBarFoo = new BdioMetadata();
 
         BdioMetadata metadataFooBar = new BdioMetadata();
-        context.putFieldValue(metadataFooBar, JsonLdConsts.TYPE, Collections.singletonList(Bdio.ScanType.FILE_SYSTEM.getValue()));
+        context.putFieldValue(metadataFooBar, JsonLdConsts.TYPE, Collections.singletonList(Bdio.ScanType.SIGNATURE.getValue()));
 
-        assertThat(metadataFooBarFoo.merge(metadataFooBar)).containsEntry(JsonLdConsts.TYPE, Bdio.ScanType.FILE_SYSTEM.getValue());
+        assertThat(metadataFooBarFoo.merge(metadataFooBar)).containsEntry(JsonLdConsts.TYPE, Bdio.ScanType.SIGNATURE.getValue());
     }
 
 }

@@ -1055,9 +1055,9 @@ public class Bdio {
          */
         PACKAGE_MANAGER("PACKAGE_MANAGER"),
         /**
-         * A File System scan.
+         * A Signature scan.
          */
-        FILE_SYSTEM("FILE_SYSTEM");
+        SIGNATURE("SIGNATURE");
 
         private final String value;
 
