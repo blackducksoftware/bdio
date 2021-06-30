@@ -178,6 +178,10 @@ public class BdioWriter implements Closeable {
                 .append(" : ")
                 .append('"').append(metadata.id()).append('"')
                 .append(",\n  ")
+                .append('"').append(JsonLdConsts.TYPE).append('"')
+                .append(" : ")
+                .append('"').append(metadata.scanType()).append('"')
+                .append(",\n  ")
                 .append('"').append(JsonLdConsts.GRAPH).append('"')
                 .append(" : [ ")
                 .toString().getBytes(UTF_8);
