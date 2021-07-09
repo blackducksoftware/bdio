@@ -244,7 +244,7 @@ public class LegacyUtilities {
                     case "arj":
                         return "arj";
                     case "7z":
-                        return "sevenZ";
+                        return "sevenz";
                     default:
                         // Keep looking
                         end = start;
