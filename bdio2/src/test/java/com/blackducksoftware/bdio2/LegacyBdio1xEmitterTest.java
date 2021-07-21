@@ -20,10 +20,15 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth8.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.ZonedDateTime;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -236,6 +241,25 @@ public class LegacyBdio1xEmitterTest {
                 + "  \"specVersion\" : \"1.2.0\""
                 + "} ]").asByteSource(UTF_8).openStream();
         new LegacyBdio1xEmitter(inputStream).stream().iterator().next();
+    }
+
+
+    /**
+     * Verify the ScanType is correctly added to the scan.
+     */
+    @Test
+    public void scanTypeTest() throws IOException {
+        InputStream inputStream = CharSource.wrap(""
+                + "[ {"
+                + "  \"@id\" : \"http://example.com/test\","
+                + "  \"@type\" : \"BillOfMaterials\","
+                + "  \"creationInfo\" : {"
+                + "    \"spdx:creator\" : \"Tool: 1.1.1\""
+                + "  }"
+                + "} ]").asByteSource(UTF_8).openStream();
+
+        Map<?, ?> metadata = (Map<?, ?>) new LegacyBdio1xEmitter(inputStream).stream().collect(onlyElement());
+        assertThat(metadata).containsEntry("@type","PACKAGE_MANAGER");
     }
 
 }

@@ -28,6 +28,8 @@ import com.blackducksoftware.bdio2.BdioWriter;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.test.BdioTest;
 import com.blackducksoftware.common.io.HeapOutputStream;
+import com.blackducksoftware.common.value.Product;
+import com.blackducksoftware.common.value.ProductList;
 
 import io.reactivex.Flowable;
 
@@ -76,5 +78,33 @@ public class BdioDocumentFromModelTest {
         assertThatJson(entries.get(1)).at("/@type").isEqualTo(Bdio.ScanType.PACKAGE_MANAGER.getValue());
     }
 
+    @Test
+    public void scanTypeFromPublisherTest() {
+        // Verify mapping of a Package Manager Scan
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+        metadata.publisher(ProductList.from("Detect/5.5.1 IntegrationBdio/18.0.0 LegacyBdio1xEmitter/3.0.0-beta.44 (bdio 1.1.0)"));
+        HeapOutputStream out = new HeapOutputStream();
+        RxJavaBdioDocument doc = new RxJavaBdioDocument(new BdioContext.Builder().build());
+
+        Flowable.just(new File("http://example.com/files/1"))
+                .buffer(1)
+                .subscribe(doc.write(metadata, new BdioWriter.BdioFile(out)));
+
+        // Validate how the doc reader can extract the scanType
+        assertThat(doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet().scanType()).isEqualTo(Bdio.ScanType.PACKAGE_MANAGER.getValue());
+
+        // Verify mapping of a Signature Scan
+        metadata = BdioMetadata.createRandomUUID();
+        metadata.publisher(ProductList.from("ScanClient/5.5.1 IntegrationBdio/18.0.0 LegacyBdio1xEmitter/3.0.0-beta.44 (bdio 1.1.0)"));
+        out = new HeapOutputStream();
+        doc = new RxJavaBdioDocument(new BdioContext.Builder().build());
+
+        Flowable.just(new File("http://example.com/files/1"))
+                .buffer(1)
+                .subscribe(doc.write(metadata, new BdioWriter.BdioFile(out)));
+
+        // Validate how the doc reader can extract the scanType
+        assertThat(doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet().scanType()).isEqualTo(Bdio.ScanType.SIGNATURE.getValue());
+    }
 
 }

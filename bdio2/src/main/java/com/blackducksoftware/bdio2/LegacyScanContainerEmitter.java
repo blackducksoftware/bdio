@@ -47,6 +47,7 @@ import java.util.Spliterator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -356,6 +357,7 @@ class LegacyScanContainerEmitter implements Emitter {
                     .creator(null, hostName)
                     .creationDateTime(createdOn)
                     .captureInterval(createdOn, createdOn != null && timeToScan != null ? createdOn.plus(timeToScan, ChronoUnit.MILLIS) : null)
+                    .scanType(Bdio.ScanType.SIGNATURE)
                     .publisher(new ProductList.Builder()
                             .addProduct(scanClient())
                             .addProduct(new Product.Builder()
@@ -462,10 +464,12 @@ class LegacyScanContainerEmitter implements Emitter {
      */
     private static Stream<Object> toBdioEntries(LegacyScanContainer scanContainer) {
         BdioMetadata metadata = scanContainer.metadata();
+        // The LegacyScanContainer container corresponds to signature scans so adding it to older scans.
+        metadata.scanType(Bdio.ScanType.SIGNATURE);
         Stream<Map<String, Object>> nodes = Stream.concat(Stream.of(scanContainer.rootObject()), scanContainer.files());
         return Stream.concat(
                 Stream.of(metadata.asNamedGraph()),
-                partitionNodes(metadata, nodes).map(graph -> metadata.asNamedGraph(graph, JsonLdConsts.ID)));
+                partitionNodes(metadata, nodes).map(graph -> metadata.asNamedGraph(graph, JsonLdConsts.ID, JsonLdConsts.TYPE)));
     }
 
 }

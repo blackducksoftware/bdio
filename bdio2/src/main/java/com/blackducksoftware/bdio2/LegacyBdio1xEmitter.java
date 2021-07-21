@@ -51,6 +51,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
@@ -432,7 +433,8 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
         } else {
             List<Map<String, Object>> graph = parseGraph(jp);
             if (!graph.isEmpty()) {
-                return metadata.asNamedGraph(graph, JsonLdConsts.ID);
+                // we need id and type to be included in all entries.
+                return metadata.asNamedGraph(graph, JsonLdConsts.ID, JsonLdConsts.TYPE);
             }
         }
         return null;
@@ -446,7 +448,8 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
             if (currentType().equals("BillOfMaterials")) {
                 // Convert the BillOfMaterials node into BDIO metadata
                 metadata = new BdioMetadata().id(beforeLast(currentId(), '#'));
-
+                // LegacyBdio1x Emitter corresponds to a package manager scan
+                metadata.scanType(Bdio.ScanType.PACKAGE_MANAGER);
                 // If we have a name, use it to overwrite the identifier as well
                 Optional<String> name = currentValue("spdx:name").filter(s -> !s.isEmpty());
                 name.ifPresent(metadata::name);
@@ -463,6 +466,7 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
         // We got to the end of the file and never found a BillOfMaterials node
         metadata = BdioMetadata.createRandomUUID();
         metadata.publisher(ProductList.of(product().build()));
+        metadata.scanType(Bdio.ScanType.PACKAGE_MANAGER);
     }
 
     /**

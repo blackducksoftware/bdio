@@ -18,8 +18,11 @@ package com.blackducksoftware.bdio2;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+
+import com.github.jsonldjava.core.JsonLdConsts;
 
 /**
  * An emitter that wraps a {@code BdioReader} for producing BDIO entries from a byte stream.
@@ -28,6 +31,8 @@ import java.util.function.Consumer;
  * @see BdioReader
  */
 public class BdioEmitter implements Emitter {
+
+    private String scanType;
 
     /**
      * The BDIO reader.
@@ -51,6 +56,7 @@ public class BdioEmitter implements Emitter {
         try {
             Object next = reader.nextEntry();
             if (next != null) {
+                checkAndAddScanType(next);
                 onNext.accept(next);
             } else {
                 onComplete.run();
@@ -69,6 +75,38 @@ public class BdioEmitter implements Emitter {
             reader.close();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Check and add ScanType information for BDIO 2.0 scans the scanType value is not present but we can find it based on
+     * the publisher type.
+     *
+     * @param object
+     *            input Map which has all the values
+     */
+    @SuppressWarnings("unchecked")
+    private void checkAndAddScanType(Object object) {
+        if (object instanceof Map<?, ?>) {
+            if (!((Map<?, ?>) object).containsKey(JsonLdConsts.TYPE) || ((Map<?, ?>) object).get(JsonLdConsts.TYPE).equals("null")) {
+                if (scanType == null) {
+                    Object value = ((Map<?, ?>) object).get(Bdio.DataProperty.publisher.toString());
+                    if (value != null) {
+                        String productName = String.valueOf(((Map<?, ?>) value).get("@value"));
+                        String name = productName.substring(0, productName.indexOf('/'));
+                        if (name.equalsIgnoreCase("Detect")) {
+                            scanType = Bdio.ScanType.PACKAGE_MANAGER.name();
+                        } else if (name.equalsIgnoreCase("ScanClient")) {
+                            scanType = Bdio.ScanType.SIGNATURE.name();
+                        }
+                    }
+                }
+                // The above block should have figured out the scan type, there is no use is adding a null to the map because it will be
+                // ignored.
+                if (scanType != null) {
+                    ((Map<String, Object>) object).put(JsonLdConsts.TYPE, scanType);
+                }
+            }
         }
     }
 
