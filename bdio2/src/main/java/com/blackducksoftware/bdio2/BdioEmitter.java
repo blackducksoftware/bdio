@@ -15,6 +15,8 @@
  */
 package com.blackducksoftware.bdio2;
 
+import static com.google.common.collect.MoreCollectors.toOptional;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -22,6 +24,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import com.blackducksoftware.common.value.ProductList;
 import com.github.jsonldjava.core.JsonLdConsts;
 
 /**
@@ -39,8 +42,11 @@ public class BdioEmitter implements Emitter {
      */
     private final BdioReader reader;
 
+    private final BdioContext context;
+
     public BdioEmitter(InputStream in) {
         reader = new BdioReader(in);
+        context =  BdioContext.getDefault();
     }
 
     /**
@@ -88,15 +94,16 @@ public class BdioEmitter implements Emitter {
     @SuppressWarnings("unchecked")
     private void checkAndAddScanType(Object object) {
         if (object instanceof Map<?, ?>) {
-            if (!((Map<?, ?>) object).containsKey(JsonLdConsts.TYPE) || ((Map<?, ?>) object).get(JsonLdConsts.TYPE).equals("null")) {
+            if (context.getFieldValue(JsonLdConsts.TYPE, ((Map<?, ?>) object)).filter(Objects::nonNull).allMatch(o -> o.equals("null"))) {
                 if (scanType == null) {
-                    Object value = ((Map<?, ?>) object).get(Bdio.DataProperty.publisher.toString());
-                    if (value != null) {
-                        String productName = String.valueOf(((Map<?, ?>) value).get("@value"));
-                        String name = productName.substring(0, productName.indexOf('/'));
-                        if (name.equalsIgnoreCase("Detect")) {
+                    ProductList productList = (ProductList) context.getFieldValue(Bdio.DataProperty.publisher, ((Map<?, ?>) object)).filter(Objects::nonNull)
+                            .collect(toOptional())
+                            .orElse(null);
+
+                    if (productList != null) {
+                        if (productList.primary().name().equalsIgnoreCase("Detect")) {
                             scanType = Bdio.ScanType.PACKAGE_MANAGER.name();
-                        } else if (name.equalsIgnoreCase("ScanClient")) {
+                        } else if (productList.primary().name().equalsIgnoreCase("ScanClient")) {
                             scanType = Bdio.ScanType.SIGNATURE.name();
                         }
                     }
@@ -104,7 +111,7 @@ public class BdioEmitter implements Emitter {
                 // The above block should have figured out the scan type, there is no use is adding a null to the map because it will be
                 // ignored.
                 if (scanType != null) {
-                    ((Map<String, Object>) object).put(JsonLdConsts.TYPE, scanType);
+                    context.putFieldValue((Map<String, Object>) object, JsonLdConsts.TYPE, scanType);
                 }
             }
         }
