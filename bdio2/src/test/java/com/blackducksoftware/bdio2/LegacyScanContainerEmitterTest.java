@@ -31,6 +31,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import com.blackducksoftware.common.value.ProductList;
+import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.CharSource;
 
@@ -117,6 +118,8 @@ public class LegacyScanContainerEmitterTest {
                 .isEqualTo("@example.com");
         assertThat(context.fromFieldValue(captureInterval, metadata.get(captureInterval)))
                 .isEqualTo("2016-11-22T16:33:20Z/2016-11-22T16:33:20.111Z");
+        assertThat(context.fromFieldValue(JsonLdConsts.TYPE, metadata.get(JsonLdConsts.TYPE)))
+                .isEqualTo("SIGNATURE");
     }
 
 }

@@ -17,11 +17,12 @@ package com.blackducksoftware.bdio2;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import java.util.Collections;
 import java.util.stream.Stream;
 
 import org.junit.Test;
-
 import com.blackducksoftware.common.value.ProductList;
+import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
@@ -157,6 +158,40 @@ public class BdioMetadataTest {
         assertThat(metadataFoo.merge(metadataBar))
                 .containsEntry(Bdio.DataProperty.publisher.toString(),
                         context.toFieldValue(Bdio.DataProperty.publisher.name(), ProductList.parse("foo bar")));
+    }
+
+    /**
+     * An existing scanType cannot be mapped to a different scanType.
+     */
+    @Test(expected = IllegalArgumentException.class)
+    public void mergeDifferentScanType() {
+        BdioContext context = BdioContext.getDefault();
+        BdioMetadata metadataFoo = new BdioMetadata();
+        context.putFieldValue(metadataFoo, JsonLdConsts.TYPE, Bdio.ScanType.PACKAGE_MANAGER.getValue());
+
+        BdioMetadata metadataBar = new BdioMetadata();
+        context.putFieldValue(metadataBar, JsonLdConsts.TYPE, Bdio.ScanType.SIGNATURE.getValue());
+
+        metadataFoo.merge(metadataBar);
+    }
+
+    @Test
+    public void mergeValidScanType() {
+        BdioContext context = BdioContext.getDefault();
+        BdioMetadata metadataFoo = new BdioMetadata();
+
+        BdioMetadata metadataBar = new BdioMetadata();
+        context.putFieldValue(metadataBar, JsonLdConsts.TYPE, Bdio.ScanType.PACKAGE_MANAGER.getValue());
+
+        assertThat(metadataFoo.merge(metadataBar)).containsEntry(JsonLdConsts.TYPE, Bdio.ScanType.PACKAGE_MANAGER.getValue());
+
+        // Validate That the scanType is merged in correct format
+        BdioMetadata metadataFooBarFoo = new BdioMetadata();
+
+        BdioMetadata metadataFooBar = new BdioMetadata();
+        context.putFieldValue(metadataFooBar, JsonLdConsts.TYPE, Collections.singletonList(Bdio.ScanType.SIGNATURE.getValue()));
+
+        assertThat(metadataFooBarFoo.merge(metadataFooBar)).containsEntry(JsonLdConsts.TYPE, Bdio.ScanType.SIGNATURE.getValue());
     }
 
 }

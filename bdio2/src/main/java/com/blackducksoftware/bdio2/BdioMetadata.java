@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.base.Strings.nullToEmpty;
 
+import javax.annotation.Nullable;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,8 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-
-import javax.annotation.Nullable;
 
 import com.blackducksoftware.common.base.ExtraOptionals;
 import com.blackducksoftware.common.base.ExtraStrings;
@@ -146,6 +145,27 @@ public final class BdioMetadata extends BdioObject {
                     // Incompatible identifiers
                     throw new IllegalArgumentException("identifier mismatch: " + value + " (was expecting " + id() + ")");
                 }
+            }  else if (key.equals(JsonLdConsts.TYPE)) {
+                Bdio.ScanType scanType;
+
+                // When a Jsonld is processed the library adds any other metadata other than id into a list
+                if(value instanceof List<?> && !((List<?>) value).isEmpty()){
+                    scanType = Bdio.ScanType.from(((List<?>) value).get(0));
+                } else if (value instanceof String) {
+                    scanType = Bdio.ScanType.from(value);
+                } else {
+                    throw new IllegalStateException("value must be mapped to a valid ScanType");
+                }
+
+                if (scanType() == null) {
+                    scanType(scanType);
+                } else if (scanType.getValue().equals(scanType())) {
+                    scanType(scanType);
+                } else {
+                    // Incompatible scanTypes
+                    throw new IllegalArgumentException("scanType mismatch: " + scanType + " (was expecting " + scanType() + ")");
+                }
+
             } else if (key.equals(Bdio.DataProperty.publisher.toString())) {
                 Object publisher = get(key);
                 if (publisher != null) {
@@ -279,8 +299,9 @@ public final class BdioMetadata extends BdioObject {
     /**
      * Sets the scan type
      */
-    public BdioMetadata scanType(@Nullable String scanType) {
-        putFieldValue(Bdio.DataProperty.scanType, scanType);
+    public BdioMetadata scanType(Bdio.ScanType scanType) {
+        Objects.requireNonNull(scanType, "scanType must not be null");
+        put(JsonLdConsts.TYPE, scanType.getValue());
         return this;
     }
     

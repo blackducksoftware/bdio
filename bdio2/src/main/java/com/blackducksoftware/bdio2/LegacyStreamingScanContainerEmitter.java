@@ -92,7 +92,7 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
         } else if (graph != null) {
             List<Map<String, Object>> graph = parseGraph(jp);
             if (!graph.isEmpty()) {
-                return metadata.asNamedGraph(graph, JsonLdConsts.ID);
+                return metadata.asNamedGraph(graph, JsonLdConsts.ID, JsonLdConsts.TYPE);
             }
         }
         return null;
@@ -100,6 +100,7 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
 
     private void parseMetadata(JsonParser jp) throws IOException {
         metadata = new BdioMetadata();
+        metadata.scanType(Bdio.ScanType.SIGNATURE);
         String project = null;
         String release = null;
         ZonedDateTime createdOn = null;
