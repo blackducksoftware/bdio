@@ -32,7 +32,7 @@ allprojects {
 
 ext {
 	productionBuild = System.properties['productionBuild'] == 'true' ? true : false
-	uploadRepoKey = System.properties['uploadRepoKey'] ?: 'bds-commoncomp-snapshot'
+	uploadRepoKey = System.properties['uploadRepoKey'] ?: 'bds-bdio-snapshot'
 	buildName = 'bdio'
 }
 
