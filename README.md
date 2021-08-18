@@ -7,7 +7,8 @@ Black Duck I/O is a specification for how to transfer data between Black Duck pr
 
 ## Requirements
 
-The Black Duck I/O API requires Java 8 or later. The formated data must conform to the [BDIO][bdio] specification.
+The Black Duck I/O API requires Java 8 or later. The formated data must conform to the [BDIO][bdio2_1] specification. 
+
 
 ## Dependency Information
 
@@ -59,6 +60,7 @@ specific language governing permissions and limitations
 under the License.
 
 [json-ld]: http://json-ld.org
-[bdio]: https://blackducksoftware.github.io/bdio/specification
+[bdio2_0]: https://blackducksoftware.github.io/bdio/specification/2.0
+[bdio2_1]: https://blackducksoftware.github.io/bdio/specification/2.1
 [wiki]: https://github.com/blackducksoftware/bdio/wiki
 
