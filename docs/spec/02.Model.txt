@@ -154,6 +154,12 @@
 
 ## Data Properties
 
+`archiveContext`
+: `https://blackducksoftware.github.io/bdio#hasArchiveContext`
+: The archive context of the file or directory.
+: _Domain: `File`_
+: _Range: `Default`_
+
 `buildDetails`
 : `https://blackducksoftware.github.io/bdio#hasBuildDetails`
 : The URL used to obtain additional details about the build environment.
@@ -221,6 +227,30 @@
 : _Domain: `@graph`, `Annotation`_
 : _Range: `Default`_
 
+`deepDirectoryCount`
+: `https://blackducksoftware.github.io/bdio#hasDeepDirectoryCount`
+: The number of directories that are descendants of the given node.
+: _Domain: `File`_
+: _Range: `Long`_
+
+`deepFileCount`
+: `https://blackducksoftware.github.io/bdio#hasDeepFileCount`
+: The number of descendant files for the given node.
+: _Domain: `File`_
+: _Range: `Long`_
+
+`distanceFromInnerRoot`
+: `https://blackducksoftware.github.io/bdio#hasDistanceFromInnerRoot`
+: The distance from inner root to the given node.
+: _Domain: `File`_
+: _Range: `Long`_
+
+`distanceFromRoot`
+: `https://blackducksoftware.github.io/bdio#hasDistanceFromRoot`
+: The distance from root to the given node.
+: _Domain: `File`_
+: _Range: `Long`_
+
 `encoding`
 : `https://blackducksoftware.github.io/bdio#hasEncoding`
 : The character encoding of a file. It is required that producers store the encoding independent of the content type's parameters.
@@ -276,6 +306,18 @@
 : _Domain: `Component`, `Container`, `Dependency`, `License`, `Project`, `Repository`, `Vulnerability`_
 : _Range: `Default`_
 
+`nodeName`
+: `https://blackducksoftware.github.io/bdio#hasNodeName`
+: The name of the node.
+: _Domain: `File`_
+: _Range: `Default`_
+
+`parentId`
+: `https://blackducksoftware.github.io/bdio#hasParentId`
+: The parent id of the given node.
+: _Domain: `File`_
+: _Range: `Long`_
+
 `path`
 : `https://blackducksoftware.github.io/bdio#hasPath`
 : The hierarchical path of a file relative to the base directory.
@@ -324,6 +366,12 @@
 : _Domain: `Dependency`_
 : _Range: `Default`_
 
+`shallowDirectoryCount`
+: `https://blackducksoftware.github.io/bdio#hasShallowDirectoryCount`
+: The number of directories that are direct children of given node.
+: _Domain: `File`_
+: _Range: `Long`_
+
 `sourceBranch`
 : `https://blackducksoftware.github.io/bdio#hasSourceBranch`
 : The SCM branch name from the build environment.
@@ -346,6 +394,12 @@
 : `https://blackducksoftware.github.io/bdio#hasSourceTag`
 : The SCM tag name from the build environment.
 : _Domain: `@graph`_
+: _Range: `Default`_
+
+`uri`
+: `https://blackducksoftware.github.io/bdio#hasUri`
+: The uri of the file or directory.
+: _Domain: `File`_
 : _Range: `Default`_
 
 `vendor`
