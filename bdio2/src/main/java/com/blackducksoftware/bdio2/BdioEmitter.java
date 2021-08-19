@@ -46,7 +46,7 @@ public class BdioEmitter implements Emitter {
 
     public BdioEmitter(InputStream in) {
         reader = new BdioReader(in);
-        context =  BdioContext.getDefault();
+        context = BdioContext.getDefault();
     }
 
     /**
@@ -101,10 +101,12 @@ public class BdioEmitter implements Emitter {
                             .orElse(null);
 
                     if (productList != null) {
-                        if (productList.primary().name().equalsIgnoreCase("Detect")) {
-                            scanType = Bdio.ScanType.PACKAGE_MANAGER.name();
-                        } else if (productList.primary().name().equalsIgnoreCase("ScanClient")) {
+                        if (productList.primary().name().equalsIgnoreCase("ScanClient")) {
                             scanType = Bdio.ScanType.SIGNATURE.name();
+                        } else if (productList.primary().name().equalsIgnoreCase("Protecode-SC")) {
+                            scanType = Bdio.ScanType.BINARY.name();
+                        } else {
+                            scanType = Bdio.ScanType.PACKAGE_MANAGER.name();
                         }
                     }
                 }

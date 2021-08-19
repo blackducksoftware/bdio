@@ -21,6 +21,7 @@ import static com.google.common.truth.Truth.assertThat;
 import java.util.List;
 
 import org.junit.Test;
+
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioMetadata;
@@ -28,7 +29,6 @@ import com.blackducksoftware.bdio2.BdioWriter;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.test.BdioTest;
 import com.blackducksoftware.common.io.HeapOutputStream;
-import com.blackducksoftware.common.value.Product;
 import com.blackducksoftware.common.value.ProductList;
 
 import io.reactivex.Flowable;
@@ -55,8 +55,6 @@ public class BdioDocumentFromModelTest {
         assertThatJson(entries.get(1)).at("/@graph/0/@id").isEqualTo("http://example.com/files/1");
     }
 
-
-
     @Test
     public void scanTypeTest() {
         BdioMetadata metadata = BdioMetadata.createRandomUUID();
@@ -80,7 +78,7 @@ public class BdioDocumentFromModelTest {
 
     @Test
     public void scanTypeFromPublisherTest() {
-        // Verify mapping of a Package Manager Scan
+        // Verify mapping of an older version Package Manager Scan
         BdioMetadata metadata = BdioMetadata.createRandomUUID();
         metadata.publisher(ProductList.from("Detect/5.5.1 IntegrationBdio/18.0.0 LegacyBdio1xEmitter/3.0.0-beta.44 (bdio 1.1.0)"));
         HeapOutputStream out = new HeapOutputStream();
@@ -90,7 +88,20 @@ public class BdioDocumentFromModelTest {
                 .buffer(1)
                 .subscribe(doc.write(metadata, new BdioWriter.BdioFile(out)));
 
-        // Validate how the doc reader can extract the scanType
+        // Validate that the extracted scanType is correct
+        assertThat(doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet().scanType()).isEqualTo(Bdio.ScanType.PACKAGE_MANAGER.getValue());
+
+        // Verify mapping of a newer Package Manager Scan
+        metadata = BdioMetadata.createRandomUUID();
+        metadata.publisher(ProductList.from("Java/11.0.10  MacOSX/10.15.7 (x86_64)"));
+        out = new HeapOutputStream();
+        doc = new RxJavaBdioDocument(new BdioContext.Builder().build());
+
+        Flowable.just(new File("http://example.com/files/1"))
+                .buffer(1)
+                .subscribe(doc.write(metadata, new BdioWriter.BdioFile(out)));
+
+        // Validate that the extracted scanType is correct
         assertThat(doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet().scanType()).isEqualTo(Bdio.ScanType.PACKAGE_MANAGER.getValue());
 
         // Verify mapping of a Signature Scan
@@ -103,8 +114,21 @@ public class BdioDocumentFromModelTest {
                 .buffer(1)
                 .subscribe(doc.write(metadata, new BdioWriter.BdioFile(out)));
 
-        // Validate how the doc reader can extract the scanType
+        // Validate that the extracted scanType is correct
         assertThat(doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet().scanType()).isEqualTo(Bdio.ScanType.SIGNATURE.getValue());
+
+        // Verify mapping of a Binary Scan
+        metadata = BdioMetadata.createRandomUUID();
+        metadata.publisher(ProductList.from("Protecode-SC"));
+        out = new HeapOutputStream();
+        doc = new RxJavaBdioDocument(new BdioContext.Builder().build());
+
+        Flowable.just(new File("http://example.com/files/1"))
+                .buffer(1)
+                .subscribe(doc.write(metadata, new BdioWriter.BdioFile(out)));
+
+        // Validate that the extracted scanType is correct
+        assertThat(doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet().scanType()).isEqualTo(Bdio.ScanType.BINARY.getValue());
     }
 
 }
