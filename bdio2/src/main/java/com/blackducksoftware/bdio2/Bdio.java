@@ -1057,7 +1057,11 @@ public class Bdio {
         /**
          * A Signature scan.
          */
-        SIGNATURE("SIGNATURE");
+        SIGNATURE("SIGNATURE"),
+        /**
+         * A Binary scan.
+         */
+        BINARY("BINARY");
 
         private final String value;
 
