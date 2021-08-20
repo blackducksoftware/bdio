@@ -105,16 +105,15 @@ public class BdioEmitter implements Emitter {
                             scanType = Bdio.ScanType.SIGNATURE.name();
                         } else if (productList.primary().name().equalsIgnoreCase("Protecode-SC")) {
                             scanType = Bdio.ScanType.BINARY.name();
-                        } else {
-                            scanType = Bdio.ScanType.PACKAGE_MANAGER.name();
                         }
                     }
+
+                    // The above block should have figured out the scan type, if not setting the default scan type to package manager.
+                    if (scanType == null) {
+                        scanType = Bdio.ScanType.PACKAGE_MANAGER.name();
+                    }
                 }
-                // The above block should have figured out the scan type, there is no use is adding a null to the map because it will be
-                // ignored.
-                if (scanType != null) {
-                    context.putFieldValue((Map<String, Object>) object, JsonLdConsts.TYPE, scanType);
-                }
+                context.putFieldValue((Map<String, Object>) object, JsonLdConsts.TYPE, scanType);
             }
         }
     }

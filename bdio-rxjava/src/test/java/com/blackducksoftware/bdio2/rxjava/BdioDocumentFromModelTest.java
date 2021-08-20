@@ -129,6 +129,19 @@ public class BdioDocumentFromModelTest {
 
         // Validate that the extracted scanType is correct
         assertThat(doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet().scanType()).isEqualTo(Bdio.ScanType.BINARY.getValue());
+
+        // Verify mapping of a Scan without product information
+        metadata = BdioMetadata.createRandomUUID();
+        metadata.publisher(null);
+        out = new HeapOutputStream();
+        doc = new RxJavaBdioDocument(new BdioContext.Builder().build());
+
+        Flowable.just(new File("http://example.com/files/1"))
+                .buffer(1)
+                .subscribe(doc.write(metadata, new BdioWriter.BdioFile(out)));
+
+        // Validate that the extracted scanType is correct
+        assertThat(doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet().scanType()).isEqualTo(Bdio.ScanType.PACKAGE_MANAGER.getValue());
     }
 
 }
