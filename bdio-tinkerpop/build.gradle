@@ -4,6 +4,10 @@ dependencies {
 	compile project(':bdio-rxjava')
 	compile 'com.blackducksoftware.magpie:magpie'
 	compile 'org.apache.tinkerpop:gremlin-core'
+	constraints {
+		compile 'org.apache.tinkerpop:gremlin-shaded:3.5.1'
+		compile 'com.fasterxml.jackson.core:jackson-annotations:2.12.3'
+	}
 	compile 'org.flywaydb:flyway-core'
 	compile 'org.umlg:sqlg-postgres'
 
