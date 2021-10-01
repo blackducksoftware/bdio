@@ -6,9 +6,5 @@ dependencies {
 	compile 'com.google.code.findbugs:jsr305'
 	compile 'com.google.guava:guava'
 	compile 'org.apache.tinkerpop:gremlin-core'
-	constraints {
-		compile 'org.apache.tinkerpop:gremlin-shaded:3.5.1'
-		compile 'com.fasterxml.jackson.core:jackson-annotations:2.12.3'
-	}
 	compile 'org.slf4j:slf4j-simple'
 }

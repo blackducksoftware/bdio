@@ -40,7 +40,7 @@ subprojects {
 	apply plugin: 'java'
 	apply plugin: 'nebula.source-jar'
 
-	sourceCompatibility = JavaVersion.VERSION_11
+	sourceCompatibility = JavaVersion.VERSION_1_8
 
 	tasks.withType(JavaCompile) {
 		options.compilerArgs << '-Xlint:all'
