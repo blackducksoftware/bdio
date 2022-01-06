@@ -30,6 +30,7 @@ import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.test.BdioTest;
 import com.blackducksoftware.common.io.HeapOutputStream;
 import com.blackducksoftware.common.value.ProductList;
+import com.google.common.collect.MoreCollectors;
 
 import io.reactivex.Flowable;
 
@@ -142,6 +143,38 @@ public class BdioDocumentFromModelTest {
 
         // Validate that the extracted scanType is correct
         assertThat(doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet().scanType()).isEqualTo(Bdio.ScanType.PACKAGE_MANAGER.getValue());
+    }
+    
+    @Test
+    public void testProjectRelatedMetadata() {
+    	 String expectedProject = "project1";
+    	 String expectedProjectVersion = "projectVersion1";
+    	 String expectedProjectGroup = "projectGroup1";
+    	 
+    	 BdioMetadata metadata = BdioMetadata.createRandomUUID();
+         metadata.project(expectedProject);
+         metadata.projectVersion(expectedProjectVersion);
+         metadata.projectGroup(expectedProjectGroup);
+         
+         HeapOutputStream out = new HeapOutputStream();
+         RxJavaBdioDocument doc = new RxJavaBdioDocument(new BdioContext.Builder().build());
+
+         // write bdio document (including metadata) to in memory output stream
+         Flowable.just(new File("http://example.com/files/1"))
+                 .buffer(1)
+                 .subscribe(doc.write(metadata, new BdioWriter.BdioFile(out)));
+
+         // read bdio document and extract metadata fields
+         BdioContext context = new BdioContext.Builder().expandContext(Bdio.Context.DEFAULT).build();
+         BdioMetadata actualMetadata = doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet();
+         
+         String actualProject = (String) context.getFieldValue(Bdio.DataProperty.project, actualMetadata).collect(MoreCollectors.toOptional()).get();
+         String actualProjectVersion = (String) context.getFieldValue(Bdio.DataProperty.projectVersion, actualMetadata).collect(MoreCollectors.toOptional()).get();
+         String actualProjectGroup = (String) context.getFieldValue(Bdio.DataProperty.projectGroup, actualMetadata).collect(MoreCollectors.toOptional()).get();
+
+         assertThat(actualProject).isEqualTo(expectedProject);
+         assertThat(actualProjectVersion).isEqualTo(expectedProjectVersion);
+         assertThat(actualProjectGroup).isEqualTo(expectedProjectGroup);
     }
 
 }
