@@ -154,6 +154,9 @@
       "@id" : "https://blackducksoftware.github.io/bdio#hasPlatform",
       "@type" : "https://blackducksoftware.github.io/bdio#Products"
     },
+    "project" : "https://blackducksoftware.github.io/bdio#hasProject",
+    "projectGroup" : "https://blackducksoftware.github.io/bdio#hasProjectGroup",
+    "projectVersion" : "https://blackducksoftware.github.io/bdio#hasProjectVersion",
     "publisher" : {
       "@id" : "https://blackducksoftware.github.io/bdio#hasPublisher",
       "@type" : "https://blackducksoftware.github.io/bdio#Products"

@@ -330,6 +330,24 @@
 : _Domain: `Component`, `Container`, `File`, `Project`, `Repository`, `Vulnerability`_
 : _Range: `Products`_
 
+`project`
+: `https://blackducksoftware.github.io/bdio#hasProject`
+: Name of the project this BDIO document is associated with.
+: _Domain: `@graph`_
+: _Range: `Default`_
+
+`projectGroup`
+: `https://blackducksoftware.github.io/bdio#hasProjectGroup`
+: Name of the project group this BDIO document is associated with.
+: _Domain: `@graph`_
+: _Range: `Default`_
+
+`projectVersion`
+: `https://blackducksoftware.github.io/bdio#hasProjectVersion`
+: Name of the project version this BDIO document is associated with.
+: _Domain: `@graph`_
+: _Range: `Default`_
+
 `publisher`
 : `https://blackducksoftware.github.io/bdio#hasPublisher`
 : The tool which published the BDIO document.

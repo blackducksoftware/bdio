@@ -596,6 +596,28 @@ public class Bdio {
         platform("https://blackducksoftware.github.io/bdio#hasPlatform", Container.single),
 
         /**
+         * Name of the project this BDIO document is associated with.
+         */
+        @Domain(metadata = true)
+        @DataPropertyRange(Datatype.Default)
+        project("https://blackducksoftware.github.io/bdio#hasProject", Container.single),
+
+        /**
+         * Name of the project group this BDIO document is associated with.
+         */
+        @Domain(metadata = true)
+        @DataPropertyRange(Datatype.Default)
+        projectGroup("https://blackducksoftware.github.io/bdio#hasProjectGroup", Container.single),
+
+        /**
+         * Name of the project version this BDIO document is associated with.
+         */
+        @Domain(metadata = true)
+        @DataPropertyRange(Datatype.Default)
+        projectVersion("https://blackducksoftware.github.io/bdio#hasProjectVersion", Container.single),
+
+        
+        /**
          * The tool which published the BDIO document.
          */
         @Domain(metadata = true)

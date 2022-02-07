@@ -336,5 +336,29 @@ public final class BdioMetadata extends BdioObject {
         putFieldValue(Bdio.DataProperty.sourceTag, sourceTag);
         return this;
     }
+    
+    /**
+     * Sets the project name associated with this named graph.
+     */
+    public BdioMetadata project(@Nullable String project) {
+        putFieldValue(Bdio.DataProperty.project, project);
+        return this;
+    }
+    
+    /**
+     * Sets the project group associated with this named graph.
+     */
+    public BdioMetadata projectGroup(@Nullable String projectGroup) {
+        putFieldValue(Bdio.DataProperty.projectGroup, projectGroup);
+        return this;
+    }
+    
+    /**
+     * Sets the project version associated with this named graph.
+     */
+    public BdioMetadata projectVersion(@Nullable String projectVersion) {
+        putFieldValue(Bdio.DataProperty.projectVersion, projectVersion);
+        return this;
+    }
 
 }
