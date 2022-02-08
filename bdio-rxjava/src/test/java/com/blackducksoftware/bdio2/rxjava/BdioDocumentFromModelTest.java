@@ -19,6 +19,7 @@ import static com.blackducksoftware.common.test.JsonSubject.assertThatJson;
 import static com.google.common.truth.Truth.assertThat;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.Test;
 
@@ -175,6 +176,30 @@ public class BdioDocumentFromModelTest {
          assertThat(actualProject).isEqualTo(expectedProject);
          assertThat(actualProjectVersion).isEqualTo(expectedProjectVersion);
          assertThat(actualProjectGroup).isEqualTo(expectedProjectGroup);
+    }
+    
+    @Test
+    public void testCorrelationId() {
+    	 String expectedCorrelationId = UUID.randomUUID().toString();
+    	 
+    	 BdioMetadata metadata = BdioMetadata.createRandomUUID();
+         metadata.correlationId(expectedCorrelationId);
+          
+         HeapOutputStream out = new HeapOutputStream();
+         RxJavaBdioDocument doc = new RxJavaBdioDocument(new BdioContext.Builder().build());
+
+         // write bdio document (including metadata) to in memory output stream
+         Flowable.just(new File("http://example.com/files/1"))
+                 .buffer(1)
+                 .subscribe(doc.write(metadata, new BdioWriter.BdioFile(out)));
+
+         // read bdio document and extract metadata fields
+         BdioContext context = new BdioContext.Builder().expandContext(Bdio.Context.DEFAULT).build();
+         BdioMetadata actualMetadata = doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet();
+         
+         String actualCorrelationId = (String) context.getFieldValue(Bdio.DataProperty.correlationId, actualMetadata).collect(MoreCollectors.toOptional()).get();
+       
+         assertThat(actualCorrelationId).isEqualTo(expectedCorrelationId);
     }
 
 }

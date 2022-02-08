@@ -360,5 +360,13 @@ public final class BdioMetadata extends BdioObject {
         putFieldValue(Bdio.DataProperty.projectVersion, projectVersion);
         return this;
     }
+    
+    /**
+     * Sets the correlation id associated with this named graph.
+     */
+    public BdioMetadata correlationId(@Nullable String correlationId) {
+        putFieldValue(Bdio.DataProperty.correlationId, correlationId);
+        return this;
+    }
 
 }

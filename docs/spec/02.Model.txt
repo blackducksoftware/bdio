@@ -215,6 +215,12 @@
 : _Domain: `Component`, `License`, `Project`, `Repository`, `Vulnerability`_
 : _Range: `Default`_
 
+`correlationId`
+: `https://blackducksoftware.github.io/bdio#hasCorrelationId`
+: Correlation id used to correlate scans of different types.
+: _Domain: `@graph`_
+: _Range: `Default`_
+
 `creationDateTime`
 : `https://blackducksoftware.github.io/bdio#hasCreationDateTime`
 : The date and time creation of an entity occurred.
