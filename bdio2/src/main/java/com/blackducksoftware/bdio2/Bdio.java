@@ -445,6 +445,13 @@ public class Bdio {
         context("https://blackducksoftware.github.io/bdio#hasContext", Container.single),
 
         /**
+         * Correlation id used to correlate scans of different types
+         */
+        @Domain(metadata = true)
+        @DataPropertyRange(Datatype.Default)
+        correlationId("https://blackducksoftware.github.io/bdio#hasCorrelationId", Container.single),
+
+        /**
          * The date and time creation of an entity occurred.
          */
         @Domain(value = { Class.Annotation, Class.File, Class.Vulnerability }, metadata = true)

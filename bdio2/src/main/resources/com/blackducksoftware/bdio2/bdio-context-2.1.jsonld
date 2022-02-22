@@ -103,6 +103,7 @@
       "@type" : "https://blackducksoftware.github.io/bdio#ContentType"
     },
     "context" : "https://blackducksoftware.github.io/bdio#hasContext",
+    "correlationId" : "https://blackducksoftware.github.io/bdio#hasCorrelationId",
     "creationDateTime" : {
       "@id" : "https://blackducksoftware.github.io/bdio#hasCreationDateTime",
       "@type" : "xsd:dateTime"
