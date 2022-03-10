@@ -202,4 +202,28 @@ public class BdioDocumentFromModelTest {
          assertThat(actualCorrelationId).isEqualTo(expectedCorrelationId);
     }
 
+    @Test
+    public void testMatchConfidenceThreshold() {
+         Long expectedMatchConfidenceThreshold = 15L;
+
+         BdioMetadata metadata = BdioMetadata.createRandomUUID();
+         metadata.matchConfidenceThreshold(expectedMatchConfidenceThreshold);
+
+         HeapOutputStream out = new HeapOutputStream();
+         RxJavaBdioDocument doc = new RxJavaBdioDocument(new BdioContext.Builder().build());
+
+         // write bdio document (including metadata) to in memory output stream
+         Flowable.just(new File("http://example.com/files/1"))
+                 .buffer(1)
+                 .subscribe(doc.write(metadata, new BdioWriter.BdioFile(out)));
+
+         // read bdio document and extract metadata fields
+         BdioContext context = new BdioContext.Builder().expandContext(Bdio.Context.DEFAULT).build();
+         BdioMetadata actualMetadata = doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet();
+
+         Long actualMatchConfidenceThreshold = (Long) context.getFieldValue(Bdio.DataProperty.matchConfidenceThreshold, actualMetadata).collect(MoreCollectors.toOptional()).get();
+
+         assertThat(actualMatchConfidenceThreshold).isEqualTo(expectedMatchConfidenceThreshold);
+    }
+
 }

@@ -452,6 +452,13 @@ public class Bdio {
         correlationId("https://blackducksoftware.github.io/bdio#hasCorrelationId", Container.single),
 
         /**
+         * matchConfidenceThreshold used to filter matches
+         */
+        @Domain(metadata = true)
+        @DataPropertyRange(Datatype.Long)
+        matchConfidenceThreshold("https://blackducksoftware.github.io/bdio#hasMatchConfidenceThreshold", Container.single),
+
+        /**
          * The date and time creation of an entity occurred.
          */
         @Domain(value = { Class.Annotation, Class.File, Class.Vulnerability }, metadata = true)

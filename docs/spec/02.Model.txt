@@ -221,6 +221,12 @@
 : _Domain: `@graph`_
 : _Range: `Default`_
 
+`matchConfidenceThreshold`
+: `https://blackducksoftware.github.io/bdio#hasMatchConfidenceThreshold`
+: MatchConfidenceThreshold is a percentage value, based on which match results use to get filtered out.
+: _Domain: `@graph`_
+: _Range: `Long`_
+
 `creationDateTime`
 : `https://blackducksoftware.github.io/bdio#hasCreationDateTime`
 : The date and time creation of an entity occurred.

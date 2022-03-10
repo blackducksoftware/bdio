@@ -369,4 +369,11 @@ public final class BdioMetadata extends BdioObject {
         return this;
     }
 
+    /**
+     * Sets the matchConfidenceThreshold value to filter the matches.
+     */
+    public BdioMetadata matchConfidenceThreshold(@Nullable Long matchConfidenceThreshold) {
+        putFieldValue(Bdio.DataProperty.matchConfidenceThreshold, matchConfidenceThreshold);
+        return this;
+    }
 }
