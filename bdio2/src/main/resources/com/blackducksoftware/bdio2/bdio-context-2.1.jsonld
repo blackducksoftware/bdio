@@ -104,10 +104,6 @@
     },
     "context" : "https://blackducksoftware.github.io/bdio#hasContext",
     "correlationId" : "https://blackducksoftware.github.io/bdio#hasCorrelationId",
-    "matchConfidenceThreshold" : {
-      "@id" : "https://blackducksoftware.github.io/bdio#hasMatchConfidenceThreshold",
-      "@type" : "xsd:long"
-    },
     "creationDateTime" : {
       "@id" : "https://blackducksoftware.github.io/bdio#hasCreationDateTime",
       "@type" : "xsd:dateTime"
@@ -151,6 +147,10 @@
     "namespace" : "name:space",
     "parentId" : {
       "@id" : "parent:Id",
+      "@type" : "xsd:long"
+    },
+    "matchConfidenceThreshold" : {
+      "@id" : "https://blackducksoftware.github.io/bdio#hasMatchConfidenceThreshold",
       "@type" : "xsd:long"
     },
     "nodeName" : "https://blackducksoftware.github.io/bdio#hasNodeName",

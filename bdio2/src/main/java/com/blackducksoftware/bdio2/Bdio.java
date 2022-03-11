@@ -452,13 +452,6 @@ public class Bdio {
         correlationId("https://blackducksoftware.github.io/bdio#hasCorrelationId", Container.single),
 
         /**
-         * matchConfidenceThreshold used to filter matches
-         */
-        @Domain(metadata = true)
-        @DataPropertyRange(Datatype.Long)
-        matchConfidenceThreshold("https://blackducksoftware.github.io/bdio#hasMatchConfidenceThreshold", Container.single),
-
-        /**
          * The date and time creation of an entity occurred.
          */
         @Domain(value = { Class.Annotation, Class.File, Class.Vulnerability }, metadata = true)
@@ -557,6 +550,13 @@ public class Bdio {
         @Domain({ Class.File })
         @DataPropertyRange(Datatype.Default)
         linkPath("https://blackducksoftware.github.io/bdio#hasLinkPath", Container.single),
+
+        /**
+         * matchConfidenceThreshold used to filter matches
+         */
+        @Domain(metadata = true)
+        @DataPropertyRange(Datatype.Long)
+        matchConfidenceThreshold("https://blackducksoftware.github.io/bdio#hasMatchConfidenceThreshold", Container.single),
 
         /**
          * The display name of the entity.
