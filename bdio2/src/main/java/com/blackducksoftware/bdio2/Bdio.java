@@ -1061,7 +1061,11 @@ public class Bdio {
         /**
          * A Binary scan.
          */
-        BINARY("BINARY");
+        BINARY("BINARY"),
+        /**
+         * An infrastructure as code scan.
+         */
+        INFRASTRUCTURE_AS_CODE("INFRASTRUCTURE_AS_CODE");
 
         private final String value;
 
