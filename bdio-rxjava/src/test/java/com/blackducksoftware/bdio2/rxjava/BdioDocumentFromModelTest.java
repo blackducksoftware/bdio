@@ -79,6 +79,25 @@ public class BdioDocumentFromModelTest {
     }
 
     @Test
+    public void scanTypeIacZeroEntryTest() {
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+        metadata.scanType(Bdio.ScanType.INFRASTRUCTURE_AS_CODE);
+        HeapOutputStream out = new HeapOutputStream();
+        RxJavaBdioDocument doc = new RxJavaBdioDocument(new BdioContext.Builder().build());
+
+        // IaC scans just require the header document
+        Flowable.empty().subscribe(doc.write(metadata, new BdioWriter.BdioFile(out)));
+
+        // Validate how the doc reader can extract the scanType
+        assertThat(doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet().scanType()).isEqualTo(Bdio.ScanType.INFRASTRUCTURE_AS_CODE.getValue());
+
+        // Validate all chunks have the ScanType information
+        List<String> entries = BdioTest.zipEntries(out.getInputStream());
+        assertThat(entries).hasSize(1);
+        assertThatJson(entries.get(0)).at("/@type").isEqualTo(Bdio.ScanType.INFRASTRUCTURE_AS_CODE.getValue());
+    }
+
+    @Test
     public void scanTypeFromPublisherTest() {
         // Verify mapping of an older version Package Manager Scan
         BdioMetadata metadata = BdioMetadata.createRandomUUID();
