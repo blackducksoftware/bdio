@@ -105,9 +105,13 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
         String release = null;
         ZonedDateTime createdOn = null;
         Long timeToScan = null;
+        Long mct = null;
         String fieldName = jp.nextFieldName();
         while (fieldName != null) {
             switch (fieldName) {
+            case "matchConfidenceThreshold":
+                mct = jp.nextLongValue(-1L);
+                metadata.matchConfidenceThreshold(mct);
             case "scanNodeList":
                 finishMetadata(jp, metadata, project, release, createdOn, timeToScan);
                 return;
