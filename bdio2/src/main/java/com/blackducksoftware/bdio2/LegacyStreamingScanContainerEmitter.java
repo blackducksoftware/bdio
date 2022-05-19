@@ -112,6 +112,7 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
             case "matchConfidenceThreshold":
                 mct = jp.nextLongValue(-1L);
                 metadata.matchConfidenceThreshold(mct);
+                break;
             case "scanNodeList":
                 finishMetadata(jp, metadata, project, release, createdOn, timeToScan);
                 return;
