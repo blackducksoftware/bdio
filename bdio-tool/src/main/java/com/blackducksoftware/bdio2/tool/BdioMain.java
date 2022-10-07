@@ -40,18 +40,12 @@ public class BdioMain extends Tool {
         help("Display help information about BDIO", HelpTool::new, false),
         cat("Concatenate BDIO files", ConcatenateTool::new, false),
         context("Print a BDIO JSON-LD context", ContextTool::new, false),
-        dependencies("Prints a dependency tree", DependenciesTool::new, true),
         entries("Dump the JSON-LD content of a BDIO file", EntriesTool::new, true),
-        filter("Filter the contents of a BDIO file", FilterTool::new, false),
-        graph("Import BDIO to a TinkerPop graph", GraphTool::new, false),
         head("Print metadata for BDIO files", HeadTool::new, true),
         hid("Print a Hierarchical Identifier (HID) used as a file path", HidTool::new, false),
         jsonld("Perform JSON-LD operations", JsonLdTool::new, false),
-        lint("Check BDIO for common mistakes", LintTool::new, true),
         spdxdoc("Generates a BDIO document describing the standard SPDX licenses", SpdxDocumentTool::new, false),
         spec("Outputs the BDIO specification", SpecificationTool::new, false),
-        tree("List contents of files in a tree-like format", TreeTool::new, true),
-        viz("View an interactive BDIO graph in a web browser", VizTool::new, false),
         ;
 
         private final String description;

@@ -7,7 +7,8 @@ applicationName = 'bdio'
 mainClassName = 'com.blackducksoftware.bdio2.tool.BdioMain'
 
 dependencies {
-	compile project(':bdio-tinkerpop')
+	compile project(':bdio-rxjava')
+	compile 'com.blackducksoftware.magpie:magpie'
 	compile 'com.squareup.okhttp3:okhttp'
 	compile 'org.apache.tinkerpop:tinkergraph-gremlin'
 	compile 'org.slf4j:slf4j-nop'

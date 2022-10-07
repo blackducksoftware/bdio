@@ -1,2 +1,2 @@
 rootProject.name = 'bdio'
-include 'bdio2', 'bdio-reactor', 'bdio-rxjava', 'bdio-tinkerpop', 'bdio-tool', 'bdio-test'
+include 'bdio2', 'bdio-reactor', 'bdio-rxjava', 'bdio-tool', 'bdio-test'
