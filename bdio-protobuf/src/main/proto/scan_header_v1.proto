@@ -1,0 +1,101 @@
+/*
+ * Copyright (C) 2022 Synopsys Inc.
+ * http://www.synopsys.com/
+ * All rights reserved.
+ *
+ * This software is the confidential and proprietary information of
+ * Synopsys ("Confidential Information"). You shall not
+ * disclose such Confidential Information and shall use it only in
+ * accordance with the terms of the license agreement you entered into
+ * with Synopsys.
+ */
+syntax = "proto3";
+
+package bdio.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_package = "com.blackducksoftware.bdio.proto.v1";
+option java_outer_classname = "ScanHeaderProto";
+
+enum ScanType {
+  PACKAGE_MANAGER = 0;
+  SIGNATURE = 1;
+  BINARY = 2;
+  CONTAINER = 3;
+}
+
+/**
+ * See here for guidelines on avoiding breaking changes to message formats: https://developers.google.com/protocol-buffers/docs/proto#updating
+ * If those are not possible, or the message is sufficiently different, a new version should be created.
+ */
+message ProtoScanHeader {
+
+  // The identifier URI of this scan. Typically a name-based UUID derived from
+  // the code location name, converted to a URI.
+  // Example: urn:uuid:5539e828-702c-3c32-88fb-7ccde7c7bd03
+  string id = 1;
+
+  // The type of scan being executed. See ScanType just above.
+  ScanType scan_type = 2;
+
+  // The code location name for this scan.
+  string code_location_name = 3;
+
+  // The name of the client publishing this scan.
+  // Example: ScanClient
+  string publisher_name = 4;
+
+  // The version of the client publishing this scan.
+  // Example: 2022.7.0
+  string publisher_version = 5;
+
+  // Any additional metadata about the client.
+  string publisher_comment = 6;
+
+  // Information about the system creating this scan, typically the host name.
+  string creator = 7;
+
+  // A timestamp indicating when this file was first created.
+  google.protobuf.Timestamp creation_time = 8;
+
+  // The Black Duck project group name for this scan.
+  optional string project_group_name = 9;
+
+  // The Black Duck project name that this scan is intended to be mapped to.
+  optional string project_name = 10;
+
+  // The Black Duck project version name that this scan is intended to be mapped to.
+  optional string project_version_name = 11;
+
+  // The SCM repository that this scan relates to.
+  optional string source_repository = 12;
+
+  // The SCM branch that this scan relates to.
+  optional string source_branch = 13;
+
+  // The scan correlation ID, used to correlate results from different scans.
+  // Only used for scans going through MaaS.
+  optional string correlation_id = 14;
+
+  // The threshold to use when determining if we are confident enough in a
+  // match to keep it. Only used for signature scans.
+  optional int64 matchConfidenceThreshold = 15;
+  
+  // the path on the file system to the root of scanned code location
+  optional string baseDir = 16;
+
+  // Specifies whether the scan includes string searches.
+  optional bool with_string_search = 17;
+
+  // Specifies whether the scan includes snippet matching.
+  optional bool with_snippet_matching = 18;
+
+  // Specifies whether unmatched files should be retained.
+  optional bool retain_unmatched_files = 19;
+
+  // The size of the scanned code location file system in bytes
+  // Only used for signature scans
+  optional int64 file_system_size_in_bytes = 20;
+}

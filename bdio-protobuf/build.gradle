@@ -1,0 +1,38 @@
+description = 'Black Duck I/O protobuf format definitions'
+
+apply plugin: 'com.google.protobuf'
+
+dependencies {
+   compile 'com.google.protobuf:protobuf-java:3.20.3'
+   compile 'com.google.guava:guava'
+
+    testCompile 'junit:junit'
+    testCompile 'commons-lang:commons-lang'
+    testCompile 'com.google.truth:truth'
+}
+
+protobuf {
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.20.1'
+    }
+
+    generateProtoTasks {
+        all().each { task ->
+            task.builtins {
+                // Generates Python code in the output folder:
+                python { }
+
+                // If you wish to avoid generating Java files:
+                // remove java
+            }
+        }
+    }
+}
+
+sourceSets {
+    generated {
+        java {
+            srcDir 'build/generated/source/proto/main/java'
+        }
+    }
+}
