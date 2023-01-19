@@ -17,7 +17,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.zip.ZipInputStream;
 
-import com.blackducksoftware.bdio.proto.MessageType;
 import com.blackducksoftware.bdio.proto.v1.ProtoAnnotationNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoComponentNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoDependencyNode;
@@ -31,7 +30,7 @@ import com.google.common.primitives.Shorts;
  * Utility class for reading and deserializing bdio data in protobuf format for different scan types
  *
  * @author sharapov
- *
+ * @author johara
  */
 public class ProtobufBdioReader {
 

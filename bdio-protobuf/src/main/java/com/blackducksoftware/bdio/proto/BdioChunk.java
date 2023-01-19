@@ -22,6 +22,12 @@ import com.blackducksoftware.bdio.proto.v1.ProtoFileNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoImageLayerNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoImageNode;
 
+/**
+ * This class holds data deserialized from bdio chunk in protobuf format
+ * 
+ * @author sharapov
+ *
+ */
 public class BdioChunk {
 
     private final Set<ProtoFileNode> fileNodes;
@@ -34,48 +40,48 @@ public class BdioChunk {
 
     private final Set<ProtoImageNode> imageNodes;
 
-    private final Set<ProtoImageLayerNode> layerNodes;
+    private final Set<ProtoImageLayerNode> imageLayerNodes;
 
-    public BdioChunk(Set<ProtoFileNode> fileData) {
-        this.fileNodes = Objects.requireNonNull(fileData);
+    public BdioChunk(Set<ProtoFileNode> fileNodes) {
+        this.fileNodes = Objects.requireNonNull(fileNodes);
         this.dependencyNodes = Collections.emptySet();
         this.componentNodes = Collections.emptySet();
         this.annotationNodes = Collections.emptySet();
         this.imageNodes = Collections.emptySet();
-        this.layerNodes = Collections.emptySet();
+        this.imageLayerNodes = Collections.emptySet();
     }
 
-    public BdioChunk(Set<ProtoFileNode> fileData, Set<ProtoDependencyNode> dependencyData, Set<ProtoComponentNode> componentData,
-            Set<ProtoAnnotationNode> annotationData, Set<ProtoImageNode> imageData, Set<ProtoImageLayerNode> layerData) {
-        this.fileNodes = Objects.requireNonNull(fileData);
-        this.dependencyNodes = Objects.requireNonNull(dependencyData);
-        this.componentNodes = Objects.requireNonNull(componentData);
-        this.annotationNodes = Objects.requireNonNull(annotationData);
-        this.imageNodes = Objects.requireNonNull(imageData);
-        this.layerNodes = Objects.requireNonNull(layerData);
+    public BdioChunk(Set<ProtoFileNode> fileNodes, Set<ProtoDependencyNode> dependencyNodes, Set<ProtoComponentNode> componentNodes,
+            Set<ProtoAnnotationNode> annotationNodes, Set<ProtoImageNode> imageNodes, Set<ProtoImageLayerNode> imageLayerNodes) {
+        this.fileNodes = Objects.requireNonNull(fileNodes);
+        this.dependencyNodes = Objects.requireNonNull(dependencyNodes);
+        this.componentNodes = Objects.requireNonNull(componentNodes);
+        this.annotationNodes = Objects.requireNonNull(annotationNodes);
+        this.imageNodes = Objects.requireNonNull(imageNodes);
+        this.imageLayerNodes = Objects.requireNonNull(imageLayerNodes);
     }
 
-    public Set<ProtoFileNode> getFileData() {
+    public Set<ProtoFileNode> getFileNodes() {
         return fileNodes;
     }
 
-    public Set<ProtoDependencyNode> getDependencyData() {
+    public Set<ProtoDependencyNode> getDependencyNodes() {
         return dependencyNodes;
     }
 
-    public Set<ProtoComponentNode> getComponentData() {
+    public Set<ProtoComponentNode> getComponentNodes() {
         return componentNodes;
     }
 
-    public Set<ProtoAnnotationNode> getAnnotationData() {
+    public Set<ProtoAnnotationNode> getAnnotationNodes() {
         return annotationNodes;
     }
 
-    public Set<ProtoImageNode> getImageData() {
+    public Set<ProtoImageNode> getImageNodes() {
         return imageNodes;
     }
 
-    public Set<ProtoImageLayerNode> getLayerData() {
-        return layerNodes;
+    public Set<ProtoImageLayerNode> getImageLayerNodes() {
+        return imageLayerNodes;
     }
 }

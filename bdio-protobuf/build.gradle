@@ -21,9 +21,6 @@ protobuf {
             task.builtins {
                 // Generates Python code in the output folder:
                 python { }
-
-                // If you wish to avoid generating Java files:
-                // remove java
             }
         }
     }

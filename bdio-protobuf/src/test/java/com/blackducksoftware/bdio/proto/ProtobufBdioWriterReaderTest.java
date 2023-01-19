@@ -84,11 +84,11 @@ public class ProtobufBdioWriterReaderTest {
             // read first entry
             BdioChunk chunk = ProtobufBdioReader.readBdbaBdioChunk(zipInputStream);
 
-            assertThat(chunk.getComponentData()).hasSize(40);
-            assertThat(chunk.getFileData()).hasSize(40);
-            assertThat(chunk.getAnnotationData()).hasSize(40);
-            assertThat(chunk.getLayerData()).hasSize(20);
-            assertThat(chunk.getImageData()).hasSize(1);
+            assertThat(chunk.getComponentNodes()).hasSize(40);
+            assertThat(chunk.getFileNodes()).hasSize(40);
+            assertThat(chunk.getAnnotationNodes()).hasSize(40);
+            assertThat(chunk.getImageLayerNodes()).hasSize(20);
+            assertThat(chunk.getImageNodes()).hasSize(1);
         } finally {
             Files.delete(Paths.get(filePath));
         }

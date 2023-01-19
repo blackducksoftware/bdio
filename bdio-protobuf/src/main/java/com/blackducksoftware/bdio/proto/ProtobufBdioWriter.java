@@ -7,7 +7,6 @@ import java.util.Collection;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import com.blackducksoftware.bdio.proto.MessageType;
 import com.blackducksoftware.bdio.proto.v1.ProtoAnnotationNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoComponentNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoDependencyNode;
@@ -22,6 +21,7 @@ import com.google.protobuf.GeneratedMessageV3;
  * Utility class for writing bdio data in protobuf format
  *
  * @author sharapov
+ * @author johara
  *
  */
 public class ProtobufBdioWriter implements Closeable {
