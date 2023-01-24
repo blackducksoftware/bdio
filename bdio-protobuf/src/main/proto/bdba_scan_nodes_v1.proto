@@ -22,13 +22,13 @@ message ProtoDependencyNode {
   int64 depends_on = 1;
 
   // the numeric id of file node
-  int64 evidence = 2;
+  optional int64 evidence = 2;
 
   // the id of layer node
-  string container_layer = 3;
+  optional string container_layer = 3;
 
   // the id of layer node
-  string whiteout_layer = 4;
+  optional string whiteout_layer = 4;
 
   // description of this node
   string description = 5;
@@ -75,11 +75,11 @@ message ProtoImageLayerNode {
 
   int64 size = 3;
 
-  string command = 4;
+  optional string command = 4;
 
-  google.protobuf.Timestamp created_at = 5;
+  optional google.protobuf.Timestamp created_at = 5;
 
-  string comment = 6;
+  optional string comment = 6;
 }
 
 message ProtoAnnotationNode {
