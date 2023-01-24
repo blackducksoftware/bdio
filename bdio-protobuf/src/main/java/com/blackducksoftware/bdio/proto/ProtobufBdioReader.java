@@ -25,200 +25,180 @@ import com.blackducksoftware.bdio.proto.v1.ProtoImageLayerNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoImageNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoScanHeader;
 import com.google.common.primitives.Shorts;
+import com.google.protobuf.Any;
 
 /**
- * Utility class for reading and deserializing bdio data in protobuf format for different scan types
+ * Utility class for reading and deserializing bdio data in protobuf format for
+ * different scan types
  *
  * @author sharapov
  * @author johara
  */
 public class ProtobufBdioReader {
 
-    /**
-     * Returns true if given input stream represents header chunk
-     *
-     * @param in
-     *            input stream
-     * @return true if given input stream represents header chunk
-     * @throws IOException
-     */
-    public static boolean isHeader(InputStream in) throws IOException {
-        byte[] messageTypeBytes = new byte[2];
-        in.read(messageTypeBytes);
-        short messageType = Shorts.fromByteArray(messageTypeBytes);
+	/**
+	 * Returns true if given input stream represents header chunk
+	 *
+	 * @param in input stream
+	 * @return true if given input stream represents header chunk
+	 * @throws IOException
+	 */
+	public static boolean isHeader(InputStream in) throws IOException {
+		byte[] messageTypeBytes = new byte[2];
+		in.read(messageTypeBytes);
+		short messageType = Shorts.fromByteArray(messageTypeBytes);
 
-        return messageType == MessageType.SCAN_HEADER.ordinal();
-    }
+		return messageType == BdioEntryType.HEADER.ordinal();
+	}
 
-    /**
-     *
-     * @param in
-     * @param verifyType
-     * @return
-     * @throws IOException
-     */
-    public static ProtoScanHeader readHeaderChunk(InputStream in, boolean verifyType) throws IOException {
-        // Callers may have already done this, only perform this step if specified
-        if (verifyType) {
-            byte[] messageTypeBytes = new byte[2];
-            in.read(messageTypeBytes);
-            short messageType = Shorts.fromByteArray(messageTypeBytes);
+	/**
+	 *
+	 * @param in
+	 * @param verifyType
+	 * @return
+	 * @throws IOException
+	 */
+	public static ProtoScanHeader readHeaderChunk(InputStream in, boolean verifyType) throws IOException {
+		// Callers may have already done this, only perform this step if specified
+		if (verifyType) {
+			byte[] bdioEntryMessageTypeBytes = new byte[2];
+			in.read(bdioEntryMessageTypeBytes);
+			short bdioEntryType = Shorts.fromByteArray(bdioEntryMessageTypeBytes);
 
-            if (messageType != MessageType.SCAN_HEADER.ordinal()) {
-                throw new RuntimeException("Unsupported header message type");
-            }
-        }
+			if (bdioEntryType != BdioEntryType.HEADER.ordinal()) {
+				throw new RuntimeException("Unsupported header message type");
+			}
+		}
 
-        byte[] messageVersionBytes = new byte[2];
-        in.read(messageVersionBytes);
-        short messageVersion = Shorts.fromByteArray(messageVersionBytes);
+		byte[] formatVersionBytes = new byte[2];
+		in.read(formatVersionBytes);
+		short formatVersion = Shorts.fromByteArray(formatVersionBytes);
 
-        if (messageVersion == 1) {
-            return ProtoScanHeader.parseFrom(in);
-        } else {
-            throw new RuntimeException("Unsupported header message version");
-        }
-    }
+		if (formatVersion == 1) {
+			return ProtoScanHeader.parseFrom(in);
+		} else if (formatVersion == 2) {
+			Any any = Any.parseFrom(in);
+			if (any.is(ProtoScanHeader.class)) {
+				return any.unpack(ProtoScanHeader.class);
+			} else {
+				throw new RuntimeException("Unknown type for header data: " + any.getDescriptorForType().getFullName());
+			}
+		} else {
+			throw new RuntimeException("Unsupported header message version: " + formatVersion);
+		}
+	}
 
-    /**
-     * Reads just the header document from the supplied BDIO ZIP archive.
-     *
-     * @param in
-     *            the BDIO ZIP archive
-     * @return the scan header
-     * @throws IOException
-     *             if the header could not be read from the supplied stream
-     */
-    public static ProtoScanHeader readHeaderFromScanFile(ZipInputStream in) throws IOException {
-        byte[] messageTypeBytes = new byte[2];
+	/**
+	 * Reads just the header document from the supplied BDIO ZIP archive.
+	 *
+	 * @param in the BDIO ZIP archive
+	 * @return the scan header
+	 * @throws IOException if the header could not be read from the supplied stream
+	 */
+	public static ProtoScanHeader readHeaderFromScanFile(ZipInputStream in) throws IOException {
+		byte[] bdioEntryTypeBytes = new byte[2];
 
-        while (in.getNextEntry() != null) {
-            in.read(messageTypeBytes);
-            short messageType = Shorts.fromByteArray(messageTypeBytes);
+		while (in.getNextEntry() != null) {
+			in.read(bdioEntryTypeBytes);
+			short bdioEntryType = Shorts.fromByteArray(bdioEntryTypeBytes);
 
-            if (messageType == MessageType.SCAN_HEADER.ordinal()) {
-                return readHeaderChunk(in, false);
-            }
-        }
+			if (bdioEntryType == BdioEntryType.HEADER.ordinal()) {
+				return readHeaderChunk(in, false);
+			}
+		}
 
-        throw new RuntimeException("Header file not present in BDIO archive");
-    }
+		throw new RuntimeException("Header file not present in BDIO archive");
+	}
 
-    /**
-     * Read the set of file nodes from the supplied InputStream. Expects that the stream is already positioned at the
-     * start of the scan chunk, just before the message type and version headers. If verifyType is false, it should be
-     * positioned at the start of
-     * the version header, just after the message type header.
-     *
-     * @param in
-     *            the InputStream to read from
-     * @param verifyType
-     *            whether to verify the message type headers. If false, its expected that the caller has done that
-     *            verification.
-     * @return the deserialized set of file nodes
-     * @throws IOException
-     *             if the file nodes could not be read from the supplied input stream
-     */
-    public static BdioChunk readSignatureBdioChunk(InputStream in, boolean verifyType) throws IOException {
-        // Callers may have already done this, only perform this step if specified
-        if (verifyType) {
-            byte[] messageTypeBytes = new byte[2];
-            in.read(messageTypeBytes);
-            short messageType = Shorts.fromByteArray(messageTypeBytes);
+	/**
+	 * Read bdio nodes from supplied input stream, representing bdio chunk (entry).
+	 *
+	 * @param in input stream
+	 * @return BdioChunk data structure containing deserialized nodes
+	 * @throws IOException
+	 */
+	public static BdioChunk readBdioChunk(InputStream in, boolean verifyType) throws IOException {
+		Set<ProtoFileNode> fileData = new HashSet<>();
+		Set<ProtoDependencyNode> dependencyData = new HashSet<>();
+		Set<ProtoComponentNode> componentData = new HashSet<>();
+		Set<ProtoAnnotationNode> annotationData = new HashSet<>();
+		Set<ProtoImageNode> imageData = new HashSet<>();
+		Set<ProtoImageLayerNode> layerData = new HashSet<>();
 
-            if (messageType != MessageType.FILE_NODE.ordinal()) {
-                throw new RuntimeException("Unsupported content message type");
-            }
-        }
+		if (verifyType) {
+			byte[] bdioEntryTypeBytes = new byte[2];
+			in.read(bdioEntryTypeBytes);
+			short bdioEntryType = Shorts.fromByteArray(bdioEntryTypeBytes);
 
-        byte[] messageVersionBytes = new byte[2];
-        in.read(messageVersionBytes);
-        short messageVersion = Shorts.fromByteArray(messageVersionBytes);
+			if (bdioEntryType != BdioEntryType.CHUNK.ordinal()) {
+				throw new RuntimeException("Unsupported bdio entry type");
+			}
+		}
 
-        if (messageVersion == 1) {
-            Set<ProtoFileNode> fileNodes = new HashSet<>();
-            ProtoFileNode node;
+		readBdioNodes(in, dependencyData, componentData, fileData, annotationData, imageData, layerData);
 
-            while ((node = ProtoFileNode.parseDelimitedFrom(in)) != null) {
-                fileNodes.add(node);
-            }
+		return new BdioChunk(fileData, dependencyData, componentData, annotationData, imageData, layerData);
+	}
 
-            return new BdioChunk(fileNodes);
-        } else {
-            throw new RuntimeException("Unsupported file data message version");
-        }
-    }
+	private static void readBdioNodes(InputStream in, Set<ProtoDependencyNode> dependencyData,
+			Set<ProtoComponentNode> componentData, Set<ProtoFileNode> fileData, Set<ProtoAnnotationNode> annotationData,
+			Set<ProtoImageNode> imageData, Set<ProtoImageLayerNode> layerData) throws IOException {
 
+		short version = readVersion(in);
 
-    /**
-     * Read bdba scan nodes from supplied input stream, representing bdio chunk (entry).
-     *
-     * @param in
-     *            input stream
-     * @return BdioChunk data structure containing deserialized nodes for bdba scan
-     * @throws IOException
-     */
-    public static BdioChunk readBdbaBdioChunk(InputStream in) throws IOException {
-        Set<ProtoFileNode> fileData = new HashSet<>();
-        Set<ProtoDependencyNode> dependencyData = new HashSet<>();
-        Set<ProtoComponentNode> componentData = new HashSet<>();
-        Set<ProtoAnnotationNode> annotationData = new HashSet<>();
-        Set<ProtoImageNode> imageData = new HashSet<>();
-        Set<ProtoImageLayerNode> layerData = new HashSet<>();
+		if (version == 1) {
+			ProtoFileNode node;
 
-        readBdbaNodes(in, dependencyData, componentData, fileData, annotationData, imageData, layerData);
+			// only signature scans may have version 1, so just read file node list
+			while ((node = ProtoFileNode.parseDelimitedFrom(in)) != null) {
+				fileData.add(node);
+			}
 
-        return new BdioChunk(fileData, dependencyData, componentData, annotationData, imageData, layerData);
-    }
+			return;
+		} else if (version == 2) {
 
-    private static short readVersion(InputStream in) throws IOException {
-        byte[] messageVersionBytes = new byte[2];
-        in.read(messageVersionBytes);
-        return Shorts.fromByteArray(messageVersionBytes);
-    }
+			while (true) {
 
-    private static void readBdbaNodes(InputStream in, Set<ProtoDependencyNode> dependencyData, Set<ProtoComponentNode> componentData,
-            Set<ProtoFileNode> fileData, Set<ProtoAnnotationNode> annotationData, Set<ProtoImageNode> imageData, Set<ProtoImageLayerNode> layerData)
-            throws IOException {
-        byte[] messageTypeBytes = new byte[2];
+				Any any = Any.parseDelimitedFrom(in);
 
-        while (true) {
-            int numberOfBytes = in.read(messageTypeBytes);
-            if (numberOfBytes == -1) {
-                break;
-            }
+				if (any == null) {
+					// the end of the steam
+					break;
+				}
 
-            short version = readVersion(in);
-            if (version != 1) {
-                throw new RuntimeException("Unsupported bdio bdba data version: " + version);
-            }
+				if (any.is(ProtoDependencyNode.class)) {
+					dependencyData.add(any.unpack(ProtoDependencyNode.class));
+					continue;
+				} else if (any.is(ProtoComponentNode.class)) {
+					componentData.add(any.unpack(ProtoComponentNode.class));
+					continue;
+				} else if (any.is(ProtoFileNode.class)) {
+					fileData.add(any.unpack(ProtoFileNode.class));
+					continue;
+				} else if (any.is(ProtoAnnotationNode.class)) {
+					annotationData.add(any.unpack(ProtoAnnotationNode.class));
+					continue;
+				} else if (any.is(ProtoImageNode.class)) {
+					imageData.add(any.unpack(ProtoImageNode.class));
+					continue;
+				} else if (any.is(ProtoImageLayerNode.class)) {
+					layerData.add(any.unpack(ProtoImageLayerNode.class));
+					continue;
+				}
 
-            short messageType = Shorts.fromByteArray(messageTypeBytes);
+				throw new RuntimeException("Unknown message type detected " + any.getClass().getName());
 
-            MessageType mt = MessageType.values()[messageType];
-            switch (mt) {
-            case DEPENDENCY_NODE:
-                dependencyData.add(ProtoDependencyNode.parseDelimitedFrom(in));
-                break;
-            case COMPONENT_NODE:
-                componentData.add(ProtoComponentNode.parseDelimitedFrom(in));
-                break;
-            case FILE_NODE:
-                fileData.add(ProtoFileNode.parseDelimitedFrom(in));
-                break;
-            case ANNOTATION_NODE:
-                annotationData.add(ProtoAnnotationNode.parseDelimitedFrom(in));
-                break;
-            case CONTAINER_IMAGE_NODE:
-                imageData.add(ProtoImageNode.parseDelimitedFrom(in));
-                break;
-            case CONTAINER_LAYER_NODE:
-                layerData.add(ProtoImageLayerNode.parseDelimitedFrom(in));
-                break;
-            default:
-                throw new RuntimeException("Unknown message type detected " + mt.name());
-            }
-        }
-    }
+			}
 
+			return;
+		}
+
+		throw new RuntimeException("Unsupported bdio bdba data version: " + version);
+	}
+
+	private static short readVersion(InputStream in) throws IOException {
+		byte[] messageVersionBytes = new byte[2];
+		in.read(messageVersionBytes);
+		return Shorts.fromByteArray(messageVersionBytes);
+	}
 }

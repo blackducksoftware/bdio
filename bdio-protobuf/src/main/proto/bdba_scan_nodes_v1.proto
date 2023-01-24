@@ -33,8 +33,8 @@ message ProtoDependencyNode {
   // description of this node
   string description = 5;
 
-  // the type of the match (describes how evidence (evidence field) was matched to component (depends_on field)) 
-  MatchType matchType = 6;
+  // the list of match types (describes how evidence (evidence field) was matched to component (depends_on field)) 
+  repeated MatchType matchTypes = 6;
 }
 
 message ProtoComponentNode {
@@ -46,7 +46,7 @@ message ProtoComponentNode {
   // identifier of the component
   string identifier = 3;
 
-  // description of the component
+  // reference to annotation node
   string description = 4;
 }
 
@@ -57,7 +57,7 @@ message ProtoImageNode {
 
   string architecture = 3;
 
-  repeated string repo_tag = 4;
+  repeated string repo_tags = 4;
 
   string os = 5;
 
@@ -65,7 +65,7 @@ message ProtoImageNode {
 
   string config = 7;
 
-  repeated string layer = 8;
+  repeated string layers = 8;
 }
 
 message ProtoImageLayerNode {

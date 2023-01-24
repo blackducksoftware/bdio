@@ -7,14 +7,10 @@ import java.util.Collection;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import com.blackducksoftware.bdio.proto.v1.ProtoAnnotationNode;
-import com.blackducksoftware.bdio.proto.v1.ProtoComponentNode;
-import com.blackducksoftware.bdio.proto.v1.ProtoDependencyNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoFileNode;
-import com.blackducksoftware.bdio.proto.v1.ProtoImageLayerNode;
-import com.blackducksoftware.bdio.proto.v1.ProtoImageNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoScanHeader;
 import com.google.common.primitives.Shorts;
+import com.google.protobuf.Any;
 import com.google.protobuf.GeneratedMessageV3;
 
 /**
@@ -26,144 +22,133 @@ import com.google.protobuf.GeneratedMessageV3;
  */
 public class ProtobufBdioWriter implements Closeable {
 
-    public static final String HEADER_FILE_NAME = "bdio-header.pb";
+	public static final String HEADER_FILE_NAME = "bdio-header.pb";
 
-    public static final String ENTRY_FILE_NAME_TEMPLATE = "bdio-entry-%02d.pb";
+	public static final String ENTRY_FILE_NAME_TEMPLATE = "bdio-entry-%02d.pb";
 
-    private static final long MAX_CHUNK_SIZE = Math.multiplyExact(16, 1024*1024); // 16 Mb
+	private static final long MAX_CHUNK_SIZE = Math.multiplyExact(16, 1024 * 1024); // 16 Mb
 
-    /**
-     * default version for protobuf node type. When there is a need to create specific version for given node, create
-     * another constant, for example FILE_NODE_VERSION = 2;
-     */
-    private static final short NODE_VERSION = 1;
+	/**
+	 * version of data layout in bdio entry, currently (till 2023.1.0 inclusive)
+	 * used by signature scans
+	 */
+	private static final short FORMAT_VERSION_1 = 1;
 
-    private final ZipOutputStream bdioArchive;
+	/**
+	 * version of data layout in bdio entry, that will be used for all scan types
+	 */
+	private static final short FORMAT_VERSION_2 = 2;
 
-    private boolean headerWritten = false;
+	private final ZipOutputStream bdioArchive;
 
-    private long bytesRemaining = 0L;
+	private boolean headerWritten = false;
 
-    private int entryCount = 0;
+	private long bytesRemaining = 0L;
 
-    public ProtobufBdioWriter(OutputStream outputStream) {
-        if (outputStream instanceof ZipOutputStream) {
-            this.bdioArchive = (ZipOutputStream) outputStream;
-        } else {
-            this.bdioArchive = new ZipOutputStream(outputStream);
-        }
-    }
+	private int entryCount = 0;
 
-    /**
-     * Write header entry to bdio archive
-     *
-     * @param protoHeader
-     *            header to write
-     * @throws IOException
-     */
-    public void writeHeader(ProtoScanHeader protoHeader) throws IOException {
-        if (headerWritten) {
-            throw new IllegalStateException("BDIO header file has already been written to this archive");
-        }
+	public ProtobufBdioWriter(OutputStream outputStream) {
+		if (outputStream instanceof ZipOutputStream) {
+			this.bdioArchive = (ZipOutputStream) outputStream;
+		} else {
+			this.bdioArchive = new ZipOutputStream(outputStream);
+		}
+	}
 
-        bdioArchive.putNextEntry(new ZipEntry(HEADER_FILE_NAME));
-        bdioArchive.write(Shorts.toByteArray((short) MessageType.SCAN_HEADER.ordinal())); // message type
-        bdioArchive.write(Shorts.toByteArray(NODE_VERSION)); // format version
+	/**
+	 * Write header entry to bdio archive
+	 *
+	 * @param protoHeader header to write
+	 * @throws IOException
+	 */
+	public void writeHeader(ProtoScanHeader protoHeader) throws IOException {
+		if (headerWritten) {
+			throw new IllegalStateException("BDIO header file has already been written to this archive");
+		}
 
-        protoHeader.writeTo(bdioArchive);
-        headerWritten = true;
-    }
+		bdioArchive.putNextEntry(new ZipEntry(HEADER_FILE_NAME));
+		bdioArchive.write(Shorts.toByteArray((short) BdioEntryType.HEADER.ordinal())); // bdio entry type
+		bdioArchive.write(Shorts.toByteArray(FORMAT_VERSION_2)); // format version
 
-    /**
-     * Write single file node for signature scan to bdio archive entry
-     *
-     * @param protoNode
-     *            node to write
-     * @throws IOException
-     */
-    public void writeSignatureScanFileNode(ProtoFileNode protoNode) throws IOException {
-        // Ensure we're not surpassing the chunk size limit, adding 4 bytes to account for the length header
-        // for each message. This will not be 100% accurate since writeDelimitedTo uses varints for the header,
-        // which can be variable in size. See: https://developers.google.com/protocol-buffers/docs/encoding#varints
-        if ((bytesRemaining -= protoNode.getSerializedSize() + 4) > 0L) {
-            protoNode.writeDelimitedTo(bdioArchive);
-        } else {
-            bytesRemaining = MAX_CHUNK_SIZE;
-            bdioArchive.putNextEntry(new ZipEntry(String.format(ENTRY_FILE_NAME_TEMPLATE, entryCount++)));
-            bdioArchive.write(Shorts.toByteArray((short) MessageType.FILE_NODE.ordinal())); // message type
-            bdioArchive.write(Shorts.toByteArray(NODE_VERSION)); // format version
+		Any any = Any.pack(protoHeader);
+		any.writeTo(bdioArchive);
 
-            if ((bytesRemaining -= protoNode.getSerializedSize() + 4) > 0L) {
-                protoNode.writeDelimitedTo(bdioArchive);
-            } else {
-                throw new RuntimeException("File metadata larger than maximum allowed chunk size");
-            }
-        }
-    }
+		headerWritten = true;
+	}
 
-    /**
-     * Write collection of nodes for bdba scan (binary/container) to bdio archive entry .
-     *
-     * @param protoNodes
-     * @throws IOException
-     */
-    public void writeBdbaScanNodes(Collection<GeneratedMessageV3> protoNodes) throws IOException {
-        for (com.google.protobuf.GeneratedMessageV3 node : protoNodes) {
-            writeBdbaScanNode(node);
-        }
-    }
+	/**
+	 * Write single file node for signature scan to bdio archive entry
+	 *
+	 * @param protoNode node to write
+	 * @throws IOException
+	 */
+	public void writeSignatureScanFileNode(ProtoFileNode protoNode) throws IOException {
+		// Ensure we're not surpassing the chunk size limit, adding 4 bytes to account
+		// for the length header
+		// for each message. This will not be 100% accurate since writeDelimitedTo uses
+		// varints for the header,
+		// which can be variable in size. See:
+		// https://developers.google.com/protocol-buffers/docs/encoding#varints
+		if ((bytesRemaining -= protoNode.getSerializedSize() + 4) > 0L) {
+			protoNode.writeDelimitedTo(bdioArchive);
+		} else {
+			bytesRemaining = MAX_CHUNK_SIZE;
+			bdioArchive.putNextEntry(new ZipEntry(String.format(ENTRY_FILE_NAME_TEMPLATE, entryCount++)));
+			bdioArchive.write(Shorts.toByteArray((short) BdioEntryType.CHUNK.ordinal())); // message type
+			bdioArchive.write(Shorts.toByteArray(FORMAT_VERSION_1)); // format version
 
-    /**
-     * Write single node for bdba scan (binary/container) to bdio archive entry .
-     *
-     * @param protoNode
-     * @throws IOException
-     */
-    public void writeBdbaScanNode(com.google.protobuf.GeneratedMessageV3 protoNode) throws IOException {
+			if ((bytesRemaining -= protoNode.getSerializedSize() + 4) > 0L) {
+				protoNode.writeDelimitedTo(bdioArchive);
+			} else {
+				throw new RuntimeException("File metadata larger than maximum allowed chunk size");
+			}
+		}
+	}
 
-        int messageType = determineMessageType(protoNode);
-        if ((bytesRemaining -= protoNode.getSerializedSize() + 4) > 0L) {
-            bdioArchive.write(Shorts.toByteArray((short) messageType)); // message type
-            bdioArchive.write(Shorts.toByteArray(NODE_VERSION)); // format version
-            protoNode.writeDelimitedTo(bdioArchive);
-        } else {
-            bytesRemaining = MAX_CHUNK_SIZE;
-            bdioArchive.putNextEntry(new ZipEntry(String.format(ENTRY_FILE_NAME_TEMPLATE, entryCount++)));
-            bdioArchive.write(Shorts.toByteArray((short) messageType)); // message type
-            bdioArchive.write(Shorts.toByteArray(NODE_VERSION)); // format version
+	/**
+	 * Write collection of nodes to bdio archive entry .
+	 *
+	 * @param protoNodes
+	 * @throws IOException
+	 */
+	public void writeBdioNodes(Collection<GeneratedMessageV3> protoNodes) throws IOException {
+		for (com.google.protobuf.GeneratedMessageV3 node : protoNodes) {
+			writeBdioNode(node);
+		}
+	}
 
-            if ((bytesRemaining -= protoNode.getSerializedSize() + 4) > 0L) {
-                protoNode.writeDelimitedTo(bdioArchive);
-            } else {
-                throw new RuntimeException("File metadata larger than maximum allowed chunk size");
-            }
-        }
-    }
+	/**
+	 * Write single node for to bdio archive entry .
+	 *
+	 * @param protoNode
+	 * @throws IOException
+	 */
+	public void writeBdioNode(com.google.protobuf.GeneratedMessageV3 protoNode) throws IOException {
 
-    private int determineMessageType(com.google.protobuf.GeneratedMessageV3 protoNode) {
-        if (protoNode instanceof ProtoDependencyNode) {
-            return MessageType.DEPENDENCY_NODE.ordinal();
-        } else if (protoNode instanceof ProtoComponentNode) {
-            return MessageType.COMPONENT_NODE.ordinal();
-        } else if (protoNode instanceof ProtoFileNode) {
-            return MessageType.FILE_NODE.ordinal();
-        } else if (protoNode instanceof ProtoAnnotationNode) {
-            return MessageType.ANNOTATION_NODE.ordinal();
-        } else if (protoNode instanceof ProtoImageNode) {
-            return MessageType.CONTAINER_IMAGE_NODE.ordinal();
-        } else if (protoNode instanceof ProtoImageLayerNode) {
-            return MessageType.CONTAINER_LAYER_NODE.ordinal();
-        }
+		Any any = Any.pack(protoNode);
 
-        throw new RuntimeException("Unsupported node type: " + protoNode.getClass().getName());
-    }
+		if ((bytesRemaining -= protoNode.getSerializedSize() + 4) > 0L) {
+			any.writeDelimitedTo(bdioArchive);
+		} else {
+			bytesRemaining = MAX_CHUNK_SIZE;
+			bdioArchive.putNextEntry(new ZipEntry(String.format(ENTRY_FILE_NAME_TEMPLATE, entryCount++)));
+			bdioArchive.write(Shorts.toByteArray((short) BdioEntryType.CHUNK.ordinal())); // bdio entry type
+			bdioArchive.write(Shorts.toByteArray(FORMAT_VERSION_2)); // format version
 
-    @Override
-    public void close() throws IOException {
-        if (!headerWritten) {
-            throw new IllegalStateException("Header file must be written before archive can be closed");
-        }
-        bdioArchive.close();
-    }
+			if ((bytesRemaining -= protoNode.getSerializedSize() + 4) > 0L) {
+				any.writeDelimitedTo(bdioArchive);
+			} else {
+				throw new RuntimeException("File metadata larger than maximum allowed chunk size");
+			}
+		}
+	}
+
+	@Override
+	public void close() throws IOException {
+		if (!headerWritten) {
+			throw new IllegalStateException("Header file must be written before archive can be closed");
+		}
+		bdioArchive.close();
+	}
 
 }
