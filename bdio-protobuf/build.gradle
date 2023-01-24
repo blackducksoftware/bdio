@@ -3,7 +3,7 @@ description = 'Black Duck I/O protobuf format definitions'
 apply plugin: 'com.google.protobuf'
 
 dependencies {
-   compile 'com.google.protobuf:protobuf-java:3.20.3'
+   compile 'com.google.protobuf:protobuf-java'
    compile 'com.google.guava:guava'
 
     testCompile 'junit:junit'
