@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Set;
 
 import com.blackducksoftware.bdio.proto.api.BdioChunk;
+import com.blackducksoftware.bdio.proto.api.IProtobufBdioValidator;
 import com.blackducksoftware.bdio.proto.v1.ProtoFileNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoScanHeader;
 import com.google.common.collect.ImmutableList;
@@ -18,6 +19,10 @@ import com.google.common.collect.ImmutableList;
  *
  */
 public class ProtobufBdioV1Reader extends AbstractProtobufBdioVersionReader {
+
+	public ProtobufBdioV1Reader(IProtobufBdioValidator validator) {
+		super(validator);
+	}
 
 	@Override
 	public ProtoScanHeader readHeaderChunk(InputStream in) throws IOException {
@@ -36,6 +41,7 @@ public class ProtobufBdioV1Reader extends AbstractProtobufBdioVersionReader {
 
 		// in version 1 only file nodes may be present
 		while ((node = ProtoFileNode.parseDelimitedFrom(in)) != null) {
+			validator.validate(node);
 			fileNodes.add(node);
 		}
 

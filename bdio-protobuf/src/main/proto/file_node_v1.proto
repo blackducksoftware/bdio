@@ -72,7 +72,13 @@ message ProtoFileNode {
   optional int64 distance_from_inner_root = 13;
 
   // A map of signature type to signature value for all signatures generated for this node.
-  // Type must be one of com.synopsys.blackduck.common.api.SignatureType (converted to an
-  // integer using Enum.ordinal())
+  // Signature type key must be in the interval [0,6] (inclusive), with the following meaning:
+  // 0 - sha1 signature
+  // 1 - clean sha1 signature
+  // 2 - deep with size signature
+  // 3 - deep no size signature
+  // 4 - structure only signature
+  // 5 - shallow with size
+  // 6 - shallow no size
   map<int32, string> signatures = 14;
 }

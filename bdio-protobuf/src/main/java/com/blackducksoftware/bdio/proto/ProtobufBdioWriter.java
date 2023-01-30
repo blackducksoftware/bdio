@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import com.blackducksoftware.bdio.proto.impl.ProtobufBdioServiceProvider;
 import com.blackducksoftware.bdio.proto.v1.ProtoFileNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoScanHeader;
 import com.google.common.primitives.Shorts;
@@ -28,17 +29,6 @@ public class ProtobufBdioWriter implements Closeable {
 
 	private static final long MAX_CHUNK_SIZE = Math.multiplyExact(16, 1024 * 1024); // 16 Mb
 
-	/**
-	 * version of data layout in bdio entry, currently (till 2023.1.0 inclusive)
-	 * used by signature scans
-	 */
-	private static final short FORMAT_VERSION_1 = 1;
-
-	/**
-	 * version of data layout in bdio entry, that will be used for all scan types
-	 */
-	private static final short FORMAT_VERSION_2 = 2;
-
 	private final ZipOutputStream bdioArchive;
 
 	private boolean headerWritten = false;
@@ -47,12 +37,16 @@ public class ProtobufBdioWriter implements Closeable {
 
 	private int entryCount = 0;
 
+	private ProtobufBdioServiceProvider serviceProvider;
+
 	public ProtobufBdioWriter(OutputStream outputStream) {
 		if (outputStream instanceof ZipOutputStream) {
 			this.bdioArchive = (ZipOutputStream) outputStream;
 		} else {
 			this.bdioArchive = new ZipOutputStream(outputStream);
 		}
+
+		serviceProvider = new ProtobufBdioServiceProvider();
 	}
 
 	/**
@@ -68,7 +62,7 @@ public class ProtobufBdioWriter implements Closeable {
 
 		bdioArchive.putNextEntry(new ZipEntry(HEADER_FILE_NAME));
 		bdioArchive.write(Shorts.toByteArray((short) BdioEntryType.HEADER.ordinal())); // bdio entry type
-		bdioArchive.write(Shorts.toByteArray(FORMAT_VERSION_2)); // format version
+		bdioArchive.write(Shorts.toByteArray(VersionConstants.VERSION_2)); // format version
 
 		Any any = Any.pack(protoHeader);
 		any.writeTo(bdioArchive);
@@ -77,12 +71,15 @@ public class ProtobufBdioWriter implements Closeable {
 	}
 
 	/**
-	 * Write single file node for signature scan to bdio archive entry
+	 * Write single file node to bdio archive entry
 	 *
 	 * @param protoNode node to write
 	 * @throws IOException
 	 */
-	public void writeSignatureScanFileNode(ProtoFileNode protoNode) throws IOException {
+	public void writeBdioNodeV1(ProtoFileNode protoNode) throws IOException {
+
+		serviceProvider.getProtobufBdioValidator(VersionConstants.VERSION_1).validate(protoNode);
+
 		// Ensure we're not surpassing the chunk size limit, adding 4 bytes to account
 		// for the length header
 		// for each message. This will not be 100% accurate since writeDelimitedTo uses
@@ -95,7 +92,7 @@ public class ProtobufBdioWriter implements Closeable {
 			bytesRemaining = MAX_CHUNK_SIZE;
 			bdioArchive.putNextEntry(new ZipEntry(String.format(ENTRY_FILE_NAME_TEMPLATE, entryCount++)));
 			bdioArchive.write(Shorts.toByteArray((short) BdioEntryType.CHUNK.ordinal())); // message type
-			bdioArchive.write(Shorts.toByteArray(FORMAT_VERSION_1)); // format version
+			bdioArchive.write(Shorts.toByteArray(VersionConstants.VERSION_1)); // format version
 
 			if ((bytesRemaining -= protoNode.getSerializedSize() + 4) > 0L) {
 				protoNode.writeDelimitedTo(bdioArchive);
@@ -124,7 +121,11 @@ public class ProtobufBdioWriter implements Closeable {
 	 * @throws IOException
 	 */
 	public void writeBdioNode(Message protoNode) throws IOException {
+		writeBdioNode(protoNode, VersionConstants.VERSION_2);
+	}
 
+	private void writeBdioNode(Message protoNode, short version) throws IOException {
+		serviceProvider.getProtobufBdioValidator(version).validate(protoNode);
 		Any any = Any.pack(protoNode);
 
 		if ((bytesRemaining -= protoNode.getSerializedSize() + 4) > 0L) {
@@ -133,7 +134,7 @@ public class ProtobufBdioWriter implements Closeable {
 			bytesRemaining = MAX_CHUNK_SIZE;
 			bdioArchive.putNextEntry(new ZipEntry(String.format(ENTRY_FILE_NAME_TEMPLATE, entryCount++)));
 			bdioArchive.write(Shorts.toByteArray((short) BdioEntryType.CHUNK.ordinal())); // bdio entry type
-			bdioArchive.write(Shorts.toByteArray(FORMAT_VERSION_2)); // format version
+			bdioArchive.write(Shorts.toByteArray(VersionConstants.VERSION_2)); // format version
 
 			if ((bytesRemaining -= protoNode.getSerializedSize() + 4) > 0L) {
 				any.writeDelimitedTo(bdioArchive);

@@ -16,7 +16,7 @@ import java.io.InputStream;
 import java.util.zip.ZipInputStream;
 
 import com.blackducksoftware.bdio.proto.api.BdioChunk;
-import com.blackducksoftware.bdio.proto.impl.ProtobufBdioReaderProvider;
+import com.blackducksoftware.bdio.proto.impl.ProtobufBdioServiceProvider;
 import com.blackducksoftware.bdio.proto.v1.ProtoScanHeader;
 import com.google.common.primitives.Shorts;
 
@@ -65,7 +65,7 @@ public class ProtobufBdioReader {
 		}
 
 		short version = readVersion(in);
-		ProtobufBdioReaderProvider provider = new ProtobufBdioReaderProvider();
+		ProtobufBdioServiceProvider provider = new ProtobufBdioServiceProvider();
 
 		return provider.getProtobufBdioReader(version).readHeaderChunk(in);
 	}
@@ -112,7 +112,7 @@ public class ProtobufBdioReader {
 
 		short version = readVersion(in);
 
-		ProtobufBdioReaderProvider provider = new ProtobufBdioReaderProvider();
+		ProtobufBdioServiceProvider provider = new ProtobufBdioServiceProvider();
 
 		return provider.getProtobufBdioReader(version).readBdioChunk(in);
 	}
