@@ -29,6 +29,7 @@ import java.util.zip.ZipOutputStream;
 import org.apache.commons.lang.RandomStringUtils;
 import org.junit.Test;
 
+import com.blackducksoftware.bdio.proto.api.BdioChunk;
 import com.blackducksoftware.bdio.proto.v1.ProtoAnnotationNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoComponentNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoDependencyNode;
@@ -37,6 +38,7 @@ import com.blackducksoftware.bdio.proto.v1.ProtoImageLayerNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoImageNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoScanHeader;
 import com.blackducksoftware.bdio.proto.v1.ScanType;
+import com.google.protobuf.Message;
 import com.google.protobuf.Timestamp;
 
 public class ProtobufBdioWriterReaderTest {
@@ -279,8 +281,8 @@ public class ProtobufBdioWriterReaderTest {
 			return dependencies;
 		}
 
-		public List<com.google.protobuf.GeneratedMessageV3> getAll() {
-			List<com.google.protobuf.GeneratedMessageV3> result = new ArrayList<>();
+		public List<Message> getAll() {
+			List<Message> result = new ArrayList<>();
 			result.addAll(dependencies);
 			result.addAll(components);
 			result.addAll(files);

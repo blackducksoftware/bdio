@@ -21,7 +21,8 @@ message ProtoDependencyNode {
   // the numeric id of component node
   int64 depends_on = 1;
 
-  // the numeric id of file node
+  // the numeric id of file node. This may be not present, 
+  // since for some use cases of the Cpp scanner there are no file evidences
   optional int64 evidence = 2;
 
   // the id of layer node
@@ -31,7 +32,7 @@ message ProtoDependencyNode {
   optional string whiteout_layer = 4;
 
   // description of this node
-  string description = 5;
+  optional string description = 5;
 
   // the list of match types (describes how evidence (evidence field) was matched to component (depends_on field)) 
   repeated MatchType matchTypes = 6;
@@ -53,6 +54,7 @@ message ProtoComponentNode {
 message ProtoImageNode {
   string id = 1;
 
+  // ImageID from manifest
   string image_id = 2;
 
   string architecture = 3;
@@ -61,22 +63,29 @@ message ProtoImageNode {
 
   string os = 5;
 
+  // timestamp when image was created
   google.protobuf.Timestamp created_at = 6;
 
+  // verbatim metadata object from container, provided as json string
   string config = 7;
 
+  // references layer ids
   repeated string layers = 8;
 }
 
 message ProtoImageLayerNode {
   string id = 1;
 
+  // LayerID from manifest
   string layer_id = 2;
 
+  // layer size in bytes
   int64 size = 3;
 
+  // command used to create the layer. 
   optional string command = 4;
 
+  // timestamp when layer was created
   optional google.protobuf.Timestamp created_at = 5;
 
   optional string comment = 6;

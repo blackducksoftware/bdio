@@ -45,20 +45,24 @@ message ProtoFileNode {
   // See com.blackducksoftware.scan.api.NodeType for possible values.
   string file_system_type = 6;
 
-  // The ID of this node's parent.
+  // The ID of this node's parent. Root node does not have parent, so parent id may be missing
   optional int64 parent_id = 7;
 
-  // The path of archive that this file is contained in, if any.
+  // The path of archive that this file is contained in, if any. Archive context is not set for file nodes 
+  // that are present outside the context of any archive
   // Example: gradle/wrapper/gradle-wrapper.jar!/
   optional string archive_context = 8;
 
-  // The number of directories that are immediate children of this node.
+  // The number of directories that are immediate children of this node. This is not set for usual files, 
+  // since they don't have any children.
   optional int64 shallow_directory_count = 9;
 
-  // The number of all directories that are descendents of this node.
+  // The number of all directories that are descendents of this node. This is not set for usual files, 
+  // since they don't have any children.
   optional int64 deep_directory_count = 10;
 
-  // The number of all files that are descendents of this node.
+  // The number of all files that are descendents of this node. This is not set for usual files, 
+  // since they don't have any children.
   optional int64 deep_file_count = 11;
 
   // The distance from the root node of this scan

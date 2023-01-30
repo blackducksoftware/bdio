@@ -11,7 +11,7 @@ import com.blackducksoftware.bdio.proto.v1.ProtoFileNode;
 import com.blackducksoftware.bdio.proto.v1.ProtoScanHeader;
 import com.google.common.primitives.Shorts;
 import com.google.protobuf.Any;
-import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.Message;
 
 /**
  * Utility class for writing bdio data in protobuf format
@@ -111,8 +111,8 @@ public class ProtobufBdioWriter implements Closeable {
 	 * @param protoNodes
 	 * @throws IOException
 	 */
-	public void writeBdioNodes(Collection<GeneratedMessageV3> protoNodes) throws IOException {
-		for (com.google.protobuf.GeneratedMessageV3 node : protoNodes) {
+	public void writeBdioNodes(Collection<Message> protoNodes) throws IOException {
+		for (Message node : protoNodes) {
 			writeBdioNode(node);
 		}
 	}
@@ -123,7 +123,7 @@ public class ProtobufBdioWriter implements Closeable {
 	 * @param protoNode
 	 * @throws IOException
 	 */
-	public void writeBdioNode(com.google.protobuf.GeneratedMessageV3 protoNode) throws IOException {
+	public void writeBdioNode(Message protoNode) throws IOException {
 
 		Any any = Any.pack(protoNode);
 
