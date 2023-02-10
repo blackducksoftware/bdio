@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Synopsys Inc.
+ * Copyright (C) 2023 Synopsys Inc.
  * http://www.synopsys.com/
  * All rights reserved.
  *
@@ -19,5 +19,5 @@ package com.blackducksoftware.bdio.proto;
  * @author sharapov
  */
 public enum BdioEntryType {
-	HEADER, CHUNK
+    HEADER, CHUNK
 }

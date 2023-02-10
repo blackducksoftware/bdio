@@ -11,38 +11,40 @@
  */
 package com.blackducksoftware.bdio.proto.impl;
 
-import java.util.List;
-
-import com.blackducksoftware.bdio.proto.api.IProtobufBdioValidator;
 import com.blackducksoftware.bdio.proto.domain.ProtoAnnotationNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoComponentNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerLayerNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoDependencyNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoFileNode;
-import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Message;
 
 /**
- * Reads the protobuf bdio data of version 2
+ * Validate version 2 bdio data
  *
  * @author sharapov
  *
  */
-public class ProtobufBdioV2Reader extends AbstractProtobufBdioVersionReader {
-
-    public ProtobufBdioV2Reader(IProtobufBdioValidator validator) {
-        super(validator);
-    }
+public class ProtobufBdioV2Validator extends AbstractProtobufBdioValidator {
 
     @Override
-    public List<Class<? extends Message>> getClassesList() {
-        return ImmutableList.of(
-                ProtoDependencyNode.class,
-                ProtoComponentNode.class,
-                ProtoFileNode.class,
-                ProtoAnnotationNode.class,
-                ProtoContainerNode.class,
-                ProtoContainerLayerNode.class);
+    public void validate(Message message) {
+
+        if (message instanceof ProtoDependencyNode) {
+            validate((ProtoDependencyNode) message);
+        } else if (message instanceof ProtoComponentNode) {
+            validate((ProtoComponentNode) message);
+        } else if (message instanceof ProtoFileNode) {
+            validate((ProtoFileNode) message);
+        } else if (message instanceof ProtoAnnotationNode) {
+            validate((ProtoAnnotationNode) message);
+        } else if (message instanceof ProtoContainerNode) {
+            validate((ProtoContainerNode) message);
+        } else if (message instanceof ProtoContainerLayerNode) {
+            validate((ProtoContainerLayerNode) message);
+        } else {
+            throw new RuntimeException("Unknown type: " + message.getClass().getName());
+        }
     }
+
 }

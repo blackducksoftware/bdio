@@ -14,7 +14,7 @@ syntax = "proto3";
 package bdio.v1;
 
 option java_multiple_files = true;
-option java_package = "com.blackducksoftware.bdio.proto.v1";
+option java_package = "com.blackducksoftware.bdio.proto.domain";
 option java_outer_classname = "FileNodeProto";
 
 /**
@@ -45,8 +45,8 @@ message ProtoFileNode {
   // See com.blackducksoftware.scan.api.NodeType for possible values.
   string file_system_type = 6;
 
-  // The ID of this node's parent. Root node does not have parent, so parent id may be missing
-  optional int64 parent_id = 7;
+  // The ID of this node's parent. Root node does not have parent, but in this case parent id is set to -1
+  int64 parent_id = 7;
 
   // The path of archive that this file is contained in, if any. Archive context is not set for file nodes 
   // that are present outside the context of any archive

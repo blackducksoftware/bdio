@@ -12,16 +12,11 @@
 package com.blackducksoftware.bdio.proto.api;
 
 /**
+ * Marker interface for all bdio data classes that can be serialized
  *
  * @author sharapov
  *
  */
-public class BdioValidationException extends RuntimeException {
-
-    private static final long serialVersionUID = 3528312351351639125L;
-
-    public BdioValidationException(String message) {
-        super(message);
-    }
+public interface IBdioNode {
 
 }

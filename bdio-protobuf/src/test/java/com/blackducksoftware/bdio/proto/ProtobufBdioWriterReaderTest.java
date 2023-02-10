@@ -18,7 +18,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -29,270 +31,239 @@ import java.util.zip.ZipOutputStream;
 import org.apache.commons.lang.RandomStringUtils;
 import org.junit.Test;
 
+import com.blackducksoftware.bdio.proto.api.BdioAnnotationNode;
 import com.blackducksoftware.bdio.proto.api.BdioChunk;
-import com.blackducksoftware.bdio.proto.v1.ProtoAnnotationNode;
-import com.blackducksoftware.bdio.proto.v1.ProtoComponentNode;
-import com.blackducksoftware.bdio.proto.v1.ProtoDependencyNode;
-import com.blackducksoftware.bdio.proto.v1.ProtoFileNode;
-import com.blackducksoftware.bdio.proto.v1.ProtoImageLayerNode;
-import com.blackducksoftware.bdio.proto.v1.ProtoImageNode;
-import com.blackducksoftware.bdio.proto.v1.ProtoScanHeader;
-import com.blackducksoftware.bdio.proto.v1.ScanType;
-import com.google.protobuf.Message;
-import com.google.protobuf.Timestamp;
+import com.blackducksoftware.bdio.proto.api.BdioComponentNode;
+import com.blackducksoftware.bdio.proto.api.BdioContainerLayerNode;
+import com.blackducksoftware.bdio.proto.api.BdioContainerNode;
+import com.blackducksoftware.bdio.proto.api.BdioDependencyNode;
+import com.blackducksoftware.bdio.proto.api.BdioFileNode;
+import com.blackducksoftware.bdio.proto.api.BdioHeader;
+import com.blackducksoftware.bdio.proto.api.IBdioNode;
+import com.blackducksoftware.bdio.proto.domain.BdbaMatchType;
+import com.blackducksoftware.bdio.proto.domain.ScanType;
+import com.google.common.collect.ImmutableList;
 
 public class ProtobufBdioWriterReaderTest {
 
-	public static final int COMPONENTS_COUNT = 40;
+    public static final int COMPONENTS_COUNT = 20;
 
-	public static final int LAYERS_COUNT = 20;
+    public static final int LAYERS_COUNT = 40;
 
-	public static final String HEADER_ID = UUID.randomUUID().toString();
+    public static final String HEADER_ID = UUID.randomUUID().toString();
 
-	@Test
-	public void testReadHeader() throws Exception {
-		String filePath = "src/test/resources/scan_data/binaryData.zip";
+    @Test
+    public void testReadHeader() throws Exception {
+        String filePath = "src/test/resources/scan_data/binaryData.zip";
 
-		try {
-			createBdioFile(filePath);
-			ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(filePath));
-			ProtoScanHeader header = ProtobufBdioReader.readHeaderFromScanFile(zipInputStream);
+        try {
+            createBdioFile(filePath);
+            ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(filePath));
+            BdioHeader header = ProtobufBdioReader.readHeaderFromBdioArchive(zipInputStream);
 
-			assertThat(header).isNotNull();
-			assertThat(HEADER_ID).isEqualTo(header.getId());
-		} finally {
-			Files.delete(Paths.get(filePath));
-		}
-	}
+            assertThat(header).isNotNull();
+            assertThat(HEADER_ID).isEqualTo(header.getId());
+        } finally {
+            Files.delete(Paths.get(filePath));
+        }
+    }
 
-	@Test
-	public void testReadBdbaBdioChunk() throws IOException {
-		String filePath = "src/test/resources/scan_data/binaryData.zip";
-		try {
-			createBdioFile(filePath);
-			ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(filePath));
+    @Test
+    public void testReadBdbaBdioChunk() throws IOException {
+        String filePath = "src/test/resources/scan_data/binaryData.zip";
+        try {
+            createBdioFile(filePath);
+            ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(filePath));
 
-			// skip header and go to first entry
-			zipInputStream.getNextEntry();
-			zipInputStream.getNextEntry();
+            // skip header and go to first entry
+            zipInputStream.getNextEntry();
+            zipInputStream.getNextEntry();
 
-			// read first entry
-			BdioChunk chunk = ProtobufBdioReader.readBdioChunk(zipInputStream, true);
+            // read first entry
+            BdioChunk chunk = ProtobufBdioReader.readBdioChunk(zipInputStream, true);
 
-			assertThat(chunk.getComponentNodes()).hasSize(COMPONENTS_COUNT);
-			assertThat(chunk.getFileNodes()).hasSize(COMPONENTS_COUNT);
-			assertThat(chunk.getAnnotationNodes()).hasSize(COMPONENTS_COUNT);
-			assertThat(chunk.getImageLayerNodes()).hasSize(LAYERS_COUNT);
-			assertThat(chunk.getImageNodes()).hasSize(1);
-		} finally {
-			Files.delete(Paths.get(filePath));
-		}
-	}
+            assertThat(chunk.getComponentNodes()).hasSize(COMPONENTS_COUNT);
+            assertThat(chunk.getFileNodes()).hasSize(COMPONENTS_COUNT);
+            assertThat(chunk.getAnnotationNodes()).hasSize(COMPONENTS_COUNT);
+            assertThat(chunk.getContainerLayerNodes()).hasSize(LAYERS_COUNT);
+            assertThat(chunk.getContainerNodes()).hasSize(1);
+        } finally {
+            Files.delete(Paths.get(filePath));
+        }
+    }
 
-	public void createBdioFile(String filePath) throws IOException {
-		FileOutputStream outStream = new FileOutputStream(filePath);
-		ZipOutputStream zipOutputStream = new ZipOutputStream(outStream);
+    public void createBdioFile(String filePath) throws IOException {
+        FileOutputStream outStream = new FileOutputStream(filePath);
+        ZipOutputStream zipOutputStream = new ZipOutputStream(outStream);
 
-		ProtobufBdioWriter writer = new ProtobufBdioWriter(zipOutputStream);
-		ProtoScanHeader header = createHeader();
-		writer.writeHeader(header);
+        ProtobufBdioWriter writer = new ProtobufBdioWriter(zipOutputStream);
+        BdioHeader header = createHeader();
+        writer.writeHeader(header);
 
-		BdbaScanData bdioData = createBdbaScanData(COMPONENTS_COUNT, LAYERS_COUNT);
-		writer.writeBdioNodes(bdioData.getAll());
-		writer.close();
-	}
+        BdbaScanData bdioData = createBdbaScanData(COMPONENTS_COUNT, LAYERS_COUNT);
+        writer.writeBdioNodes(bdioData.getAll());
+        writer.close();
+    }
 
-	public ProtoScanHeader createHeader() {
-		Timestamp creationTime = Timestamp.newBuilder().setSeconds(1000L).setNanos(0).build();
+    public BdioHeader createHeader() {
 
-		ProtoScanHeader.Builder builder = ProtoScanHeader.newBuilder().setId(HEADER_ID).setScanType(ScanType.BINARY)
-				.setCodeLocationName("code location name").setPublisherName("publisher name")
-				.setPublisherVersion("publisher version").setPublisherComment("publisher comment").setCreator("creator")
-				.setCreationTime(creationTime).setBaseDir("/baseDir").setWithStringSearch(true)
-				.setWithSnippetMatching(true);
+        return new BdioHeader(
+                HEADER_ID,
+                ScanType.BINARY.toString(),
+                "codeLocation name",
+                "project name",
+                "version name",
+                "publisher name",
+                "publisher version",
+                "publisher comment",
+                "creator",
+                Instant.now(), null, null, null, null,
+                Long.valueOf(1L), "/baseDir", true,
+                true, null, null);
+    }
 
-		return builder.build();
-	}
+    public ContainerAndLayersData createContainerImageNode(int layersCount) {
+        List<String> layerIds = new ArrayList<>();
+        List<BdioContainerLayerNode> containerLayers = new ArrayList<>();
+        for (int i = 0; i < layersCount; i++) {
+            String layerId = RandomStringUtils.randomAlphabetic(50);
+            layerIds.add(layerId);
+            containerLayers.add(new BdioContainerLayerNode(UUID.randomUUID().toString(), layerId,
+                    randomLong(1000000L, 1000000000L), RandomStringUtils.randomAlphabetic(200), Instant.now(),
+                    UUID.randomUUID().toString()));
+        }
 
-	public ImageAndLayersData createContainerImageNode(int layersCount) {
-		ProtoImageNode.Builder builder = ProtoImageNode.newBuilder();
+        List<String> repoTags = ImmutableList.of("repoTag1", "repoTag2", "repoTag3");
+        BdioContainerNode bdioContainerNode = new BdioContainerNode(UUID.randomUUID().toString(),
+                RandomStringUtils.randomAlphabetic(50),
+                RandomStringUtils.randomAlphabetic(20),
+                repoTags,
+                RandomStringUtils.randomAlphabetic(20),
+                Instant.now(),
+                RandomStringUtils.randomAlphabetic(100),
+                layerIds);
 
-		builder.setId(RandomStringUtils.randomAlphabetic(40));
-		builder.setImageId(RandomStringUtils.randomAlphabetic(50));
-		builder.setArchitecture(RandomStringUtils.randomAlphabetic(20));
-		builder.setOs(RandomStringUtils.randomAlphabetic(20));
-		builder.addRepoTags("repoTag1").addRepoTags("repoTag2").addRepoTags("repoTag3");
-		builder.setCreatedAt(com.google.protobuf.Timestamp.getDefaultInstance());
-		builder.setConfig(RandomStringUtils.randomAlphabetic(100));
+        return new ContainerAndLayersData(bdioContainerNode, containerLayers);
+    }
 
-		List<String> layerIds = new ArrayList<>();
-		List<ProtoImageLayerNode> containerLayers = new ArrayList<>();
-		for (int i = 0; i < layersCount; i++) {
-			ProtoImageLayerNode.Builder builder1 = ProtoImageLayerNode.newBuilder();
+    private BdbaScanData createBdbaScanData(int componentCount, int layerCount) {
 
-			String layerInternalId = UUID.randomUUID().toString();
-			layerIds.add(layerInternalId);
-			containerLayers.add(builder1.setId(layerInternalId).setLayerId(RandomStringUtils.randomAlphabetic(50))
-					.setSize(randomInt(1000000, 1000000000)).setCommand(RandomStringUtils.randomAlphabetic(200))
-					.setCreatedAt(com.google.protobuf.Timestamp.getDefaultInstance())
-					.setComment(RandomStringUtils.randomAlphabetic(100)).build());
-		}
+        ContainerAndLayersData imageAndLayersData = createContainerImageNode(layerCount);
+        List<String> layerIds = imageAndLayersData.getLayers().stream().map(l -> l.getLayer())
+                .collect(Collectors.toList());
 
-		layerIds.stream().forEach(l -> builder.addLayers(l));
+        List<BdioComponentNode> components = new ArrayList<>();
+        List<BdioFileNode> files = new ArrayList<>();
+        List<BdioAnnotationNode> annotations = new ArrayList<>();
+        List<BdioDependencyNode> dependencies = new ArrayList<>();
 
-		ProtoImageNode containerImage = builder.build();
+        for (int i = 0; i < componentCount; i++) {
+            BdioComponentNode component = createComponentNode();
+            BdioFileNode file = createFileNode();
+            BdioAnnotationNode annotation = createAnnotationNode();
+            components.add(component);
+            files.add(file);
+            annotations.add(annotation);
 
-		return new ImageAndLayersData(containerImage, containerLayers);
-	}
+            int cl = randomInt(0, layerIds.size());
+            int wl = randomInt(0, layerIds.size());
+            BdioDependencyNode dependency = new BdioDependencyNode(
+                    component.getId(), UUID.randomUUID().toString(),
+                    layerIds.get(cl), layerIds.get(wl),
+                    annotation.getId(), ImmutableList.of(BdbaMatchType.CocoapodPackage.name()));
 
-	private BdbaScanData createBdbaScanData(int componentCount, int layerCount) {
+            dependencies.add(dependency);
+        }
 
-		ImageAndLayersData imageAndLayersData = createContainerImageNode(layerCount);
-		List<String> layerIds = imageAndLayersData.getLayers().stream().map(l -> l.getId())
-				.collect(Collectors.toList());
+        return new BdbaScanData(components, files, annotations, dependencies, imageAndLayersData.getImage(),
+                imageAndLayersData.getLayers());
+    }
 
-		List<ProtoComponentNode> components = new ArrayList<>();
-		List<ProtoFileNode> files = new ArrayList<>();
-		List<ProtoAnnotationNode> annotations = new ArrayList<>();
-		List<ProtoDependencyNode> dependencies = new ArrayList<>();
+    private BdioComponentNode createComponentNode() {
+        return new BdioComponentNode(
+                UUID.randomUUID().toString(),
+                "npmjs", "@sindresorhus/is/0.14.0",
+                UUID.randomUUID().toString());
+    }
 
-		for (int i = 0; i < componentCount; i++) {
-			ProtoComponentNode component = createComponentNode();
-			ProtoFileNode file = createFileNode();
-			ProtoAnnotationNode annotation = createAnnotationNode();
-			components.add(component);
-			files.add(file);
-			annotations.add(annotation);
+    private BdioFileNode createFileNode() {
+        return new BdioFileNode(randomLong(1, 1000L),
+                randomLong(1, 1000L),
+                RandomStringUtils.randomAlphabetic(20),
+                "FILE",
+                null, null, null, null, null, "path",
+                null, RandomStringUtils.randomAlphabetic(200),
+                randomLong(1, 100L), Collections.emptyMap());
+    }
 
-			ProtoDependencyNode.Builder builder2 = ProtoDependencyNode.newBuilder();
-			builder2.setDependsOn(component.getId());
-			builder2.setEvidence(file.getId());
+    private int randomInt(int min, int max) {
+        return ThreadLocalRandom.current().nextInt(min, max);
+    }
 
-			int cl = randomInt(0, layerIds.size());
-			builder2.setContainerLayer(layerIds.get(cl));
+    private long randomLong(long min, long max) {
+        return ThreadLocalRandom.current().nextLong(min, max);
+    }
 
-			int wl = randomInt(0, layerIds.size());
-			builder2.setWhiteoutLayer(layerIds.get(wl));
+    private BdioAnnotationNode createAnnotationNode() {
+        return new BdioAnnotationNode(UUID.randomUUID().toString(), RandomStringUtils.randomAlphabetic(200));
+    }
 
-			builder2.setDescription(RandomStringUtils.randomAlphabetic(200));
-			builder2.addMatchTypes(com.blackducksoftware.bdio.proto.v1.MatchType.SOME_MATCH_TYPE);
+    private static class ContainerAndLayersData {
+        private BdioContainerNode image;
 
-			dependencies.add(builder2.build());
-		}
+        private List<BdioContainerLayerNode> layers;
 
-		return new BdbaScanData(components, files, annotations, dependencies, imageAndLayersData.getImage(),
-				imageAndLayersData.getLayers());
-	}
+        public ContainerAndLayersData(BdioContainerNode image, List<BdioContainerLayerNode> layers) {
+            this.image = image;
+            this.layers = layers;
+        }
 
-	private ProtoComponentNode createComponentNode() {
-		ProtoComponentNode.Builder builder = ProtoComponentNode.newBuilder();
+        public BdioContainerNode getImage() {
+            return image;
+        }
 
-		builder.setId(randomLong(0L, 10000L));
-		builder.setNamespace(RandomStringUtils.randomAlphabetic(50));
-		builder.setIdentifier(RandomStringUtils.randomAlphabetic(50));
-		builder.setDescription(RandomStringUtils.randomAlphabetic(200));
+        public List<BdioContainerLayerNode> getLayers() {
+            return layers;
+        }
+    }
 
-		return builder.build();
-	}
+    private static class BdbaScanData {
 
-	private ProtoFileNode createFileNode() {
-		ProtoFileNode.Builder builder = ProtoFileNode.newBuilder();
+        private List<BdioComponentNode> components;
 
-		builder.setId(randomLong(0L, 10000L));
-		builder.setUri(RandomStringUtils.randomAlphabetic(200));
+        private List<BdioFileNode> files;
 
-		return builder.build();
-	}
+        private List<BdioAnnotationNode> annotations;
 
-	private int randomInt(int min, int max) {
-		return ThreadLocalRandom.current().nextInt(min, max);
-	}
+        private List<BdioDependencyNode> dependencies;
 
-	private long randomLong(long min, long max) {
-		return ThreadLocalRandom.current().nextLong(min, max);
-	}
+        private BdioContainerNode image;
 
-	private ProtoAnnotationNode createAnnotationNode() {
-		ProtoAnnotationNode.Builder builder = ProtoAnnotationNode.newBuilder();
+        private List<BdioContainerLayerNode> layers;
 
-		builder.setId(UUID.randomUUID().toString());
-		builder.setComment(RandomStringUtils.randomAlphabetic(200));
+        public BdbaScanData(List<BdioComponentNode> components, List<BdioFileNode> files,
+                List<BdioAnnotationNode> annotations, List<BdioDependencyNode> dependencies, BdioContainerNode image,
+                List<BdioContainerLayerNode> layers) {
+            this.components = components;
+            this.files = files;
+            this.annotations = annotations;
+            this.dependencies = dependencies;
+            this.image = image;
+            this.layers = layers;
+        }
 
-		return builder.build();
-	}
+        public List<IBdioNode> getAll() {
+            List<IBdioNode> result = new ArrayList<>();
+            result.addAll(dependencies);
+            result.addAll(components);
+            result.addAll(files);
+            result.addAll(annotations);
+            result.add(image);
+            result.addAll(layers);
 
-	private static class ImageAndLayersData {
-		private ProtoImageNode image;
+            return result;
+        }
 
-		private List<ProtoImageLayerNode> layers;
-
-		public ImageAndLayersData(ProtoImageNode image, List<ProtoImageLayerNode> layers) {
-			this.image = image;
-			this.layers = layers;
-		}
-
-		public ProtoImageNode getImage() {
-			return image;
-		}
-
-		public List<ProtoImageLayerNode> getLayers() {
-			return layers;
-		}
-	}
-
-	private static class BdbaScanData {
-
-		private List<ProtoComponentNode> components;
-
-		private List<ProtoFileNode> files;
-
-		private List<ProtoAnnotationNode> annotations;
-
-		private List<ProtoDependencyNode> dependencies;
-
-		private ProtoImageNode image;
-
-		private List<ProtoImageLayerNode> layers;
-
-		public BdbaScanData(List<ProtoComponentNode> components, List<ProtoFileNode> files,
-				List<ProtoAnnotationNode> annotations, List<ProtoDependencyNode> dependencies, ProtoImageNode image,
-				List<ProtoImageLayerNode> layers) {
-			this.components = components;
-			this.files = files;
-			this.annotations = annotations;
-			this.dependencies = dependencies;
-			this.image = image;
-			this.layers = layers;
-		}
-
-		public List<ProtoComponentNode> getComponents() {
-			return components;
-		}
-
-		public List<ProtoFileNode> getFiles() {
-			return files;
-		}
-
-		public List<ProtoAnnotationNode> getAnnotations() {
-			return annotations;
-		}
-
-		public List<ProtoDependencyNode> getDependencies() {
-			return dependencies;
-		}
-
-		public List<Message> getAll() {
-			List<Message> result = new ArrayList<>();
-			result.addAll(dependencies);
-			result.addAll(components);
-			result.addAll(files);
-			result.addAll(annotations);
-			result.add(image);
-			result.addAll(layers);
-
-			return result;
-		}
-
-	}
+    }
 
 }

@@ -9,7 +9,7 @@
  * accordance with the terms of the license agreement you entered into
  * with Synopsys.
  */
-package com.blackducksoftware.bdio.proto.api;
+package com.blackducksoftware.bdio.proto.domain;
 
 import java.util.Collections;
 import java.util.Objects;
@@ -18,26 +18,26 @@ import java.util.Set;
 import com.google.common.collect.ImmutableSet;
 
 /**
- * This class holds data deserialized from bdio entry in protobuf format
+ * Holds data deserialized from bdio archive entry
  *
  * @author sharapov
  *
  */
-public class BdioChunk {
+public class ProtoChunk {
 
-    private final Set<BdioFileNode> fileNodes;
+    private final Set<ProtoFileNode> fileNodes;
 
-    private final Set<BdioDependencyNode> dependencyNodes;
+    private final Set<ProtoDependencyNode> dependencyNodes;
 
-    private final Set<BdioComponentNode> componentNodes;
+    private final Set<ProtoComponentNode> componentNodes;
 
-    private final Set<BdioAnnotationNode> annotationNodes;
+    private final Set<ProtoAnnotationNode> annotationNodes;
 
-    private final Set<BdioContainerNode> containerNodes;
+    private final Set<ProtoContainerNode> containerNodes;
 
-    private final Set<BdioContainerLayerNode> containerLayerNodes;
+    private final Set<ProtoContainerLayerNode> containerLayerNodes;
 
-    public BdioChunk(Set<BdioFileNode> fileNodes) {
+    public ProtoChunk(Set<ProtoFileNode> fileNodes) {
         this.fileNodes = ImmutableSet.copyOf(Objects.requireNonNull(fileNodes));
         this.dependencyNodes = Collections.emptySet();
         this.componentNodes = Collections.emptySet();
@@ -46,9 +46,9 @@ public class BdioChunk {
         this.containerLayerNodes = Collections.emptySet();
     }
 
-    public BdioChunk(Set<BdioFileNode> fileNodes, Set<BdioDependencyNode> dependencyNodes,
-            Set<BdioComponentNode> componentNodes, Set<BdioAnnotationNode> annotationNodes,
-            Set<BdioContainerNode> imageNodes, Set<BdioContainerLayerNode> imageLayerNodes) {
+    public ProtoChunk(Set<ProtoFileNode> fileNodes, Set<ProtoDependencyNode> dependencyNodes,
+            Set<ProtoComponentNode> componentNodes, Set<ProtoAnnotationNode> annotationNodes,
+            Set<ProtoContainerNode> imageNodes, Set<ProtoContainerLayerNode> imageLayerNodes) {
         this.fileNodes = ImmutableSet.copyOf(Objects.requireNonNull(fileNodes));
         this.dependencyNodes = ImmutableSet.copyOf(Objects.requireNonNull(dependencyNodes));
         this.componentNodes = ImmutableSet.copyOf(Objects.requireNonNull(componentNodes));
@@ -57,28 +57,27 @@ public class BdioChunk {
         this.containerLayerNodes = ImmutableSet.copyOf(Objects.requireNonNull(imageLayerNodes));
     }
 
-    public Set<BdioFileNode> getFileNodes() {
+    public Set<ProtoFileNode> getFileNodes() {
         return fileNodes;
     }
 
-    public Set<BdioDependencyNode> getDependencyNodes() {
+    public Set<ProtoDependencyNode> getDependencyNodes() {
         return dependencyNodes;
     }
 
-    public Set<BdioComponentNode> getComponentNodes() {
+    public Set<ProtoComponentNode> getComponentNodes() {
         return componentNodes;
     }
 
-    public Set<BdioAnnotationNode> getAnnotationNodes() {
+    public Set<ProtoAnnotationNode> getAnnotationNodes() {
         return annotationNodes;
     }
 
-    public Set<BdioContainerNode> getContainerNodes() {
+    public Set<ProtoContainerNode> getContainerNodes() {
         return containerNodes;
     }
 
-    public Set<BdioContainerLayerNode> getContainerLayerNodes() {
+    public Set<ProtoContainerLayerNode> getContainerLayerNodes() {
         return containerLayerNodes;
     }
-
 }

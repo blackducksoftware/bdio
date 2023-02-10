@@ -1,21 +1,32 @@
+/*
+ * Copyright (C) 2023 Synopsys Inc.
+ * http://www.synopsys.com/
+ * All rights reserved.
+ *
+ * This software is the confidential and proprietary information of
+ * Synopsys ("Confidential Information"). You shall not
+ * disclose such Confidential Information and shall use it only in
+ * accordance with the terms of the license agreement you entered into
+ * with Synopsys.
+ */
 package com.blackducksoftware.bdio.proto;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
-import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import com.blackducksoftware.bdio.proto.api.BdioHeader;
+import com.blackducksoftware.bdio.proto.api.IBdioNode;
+import com.blackducksoftware.bdio.proto.api.IProtobufBdioVersionWriter;
+import com.blackducksoftware.bdio.proto.domain.ProtoScanHeader;
+import com.blackducksoftware.bdio.proto.impl.ProtobufBdioConverter;
 import com.blackducksoftware.bdio.proto.impl.ProtobufBdioServiceProvider;
-import com.blackducksoftware.bdio.proto.v1.ProtoFileNode;
-import com.blackducksoftware.bdio.proto.v1.ProtoScanHeader;
-import com.google.common.primitives.Shorts;
-import com.google.protobuf.Any;
 import com.google.protobuf.Message;
 
 /**
- * Utility class for writing bdio data in protobuf format
+ * Utility class for writing bdio data in protobuf format to archive
  *
  * @author sharapov
  * @author johara
@@ -23,133 +34,91 @@ import com.google.protobuf.Message;
  */
 public class ProtobufBdioWriter implements Closeable {
 
-	public static final String HEADER_FILE_NAME = "bdio-header.pb";
+    private ProtobufBdioServiceProvider serviceProvider;
 
-	public static final String ENTRY_FILE_NAME_TEMPLATE = "bdio-entry-%02d.pb";
+    private final ZipOutputStream bdioArchive;
 
-	private static final long MAX_CHUNK_SIZE = Math.multiplyExact(16, 1024 * 1024); // 16 Mb
+    private boolean headerWritten = false;
 
-	private final ZipOutputStream bdioArchive;
+    private final short version;
 
-	private boolean headerWritten = false;
+    /**
+     * Creates writer for the latest data model version
+     *
+     * @param outputStream
+     */
+    public ProtobufBdioWriter(OutputStream outputStream) {
+        this(outputStream, BdioConstants.CURRENT_VERSION);
+    }
 
-	private long bytesRemaining = 0L;
+    /**
+     * Create writer for specified data model version
+     *
+     * @param outputStream
+     * @param version
+     */
+    public ProtobufBdioWriter(OutputStream outputStream, short version) {
+        if (outputStream instanceof ZipOutputStream) {
+            this.bdioArchive = (ZipOutputStream) outputStream;
+        } else {
+            this.bdioArchive = new ZipOutputStream(outputStream);
+        }
 
-	private int entryCount = 0;
+        this.version = version;
 
-	private ProtobufBdioServiceProvider serviceProvider;
+        serviceProvider = new ProtobufBdioServiceProvider();
+    }
 
-	public ProtobufBdioWriter(OutputStream outputStream) {
-		if (outputStream instanceof ZipOutputStream) {
-			this.bdioArchive = (ZipOutputStream) outputStream;
-		} else {
-			this.bdioArchive = new ZipOutputStream(outputStream);
-		}
+    /**
+     * Write header entry to bdio archive
+     *
+     * @param protoHeader
+     *            header to write
+     * @throws IOException
+     */
+    public void writeHeader(BdioHeader header) throws IOException {
+        ProtoScanHeader protoHeader = ProtobufBdioConverter.toProtoScanHeader(header);
 
-		serviceProvider = new ProtobufBdioServiceProvider();
-	}
+        IProtobufBdioVersionWriter writer = serviceProvider.getProtobufBdioWriter(version);
 
-	/**
-	 * Write header entry to bdio archive
-	 *
-	 * @param protoHeader header to write
-	 * @throws IOException
-	 */
-	public void writeHeader(ProtoScanHeader protoHeader) throws IOException {
-		if (headerWritten) {
-			throw new IllegalStateException("BDIO header file has already been written to this archive");
-		}
+        writer.writeToHeader(bdioArchive, protoHeader);
 
-		bdioArchive.putNextEntry(new ZipEntry(HEADER_FILE_NAME));
-		bdioArchive.write(Shorts.toByteArray((short) BdioEntryType.HEADER.ordinal())); // bdio entry type
-		bdioArchive.write(Shorts.toByteArray(VersionConstants.VERSION_2)); // format version
+        headerWritten = true;
+    }
 
-		Any any = Any.pack(protoHeader);
-		any.writeTo(bdioArchive);
+    /**
+     * Write collection of nodes to bdio archive entry
+     *
+     * @param protoNodes
+     * @throws IOException
+     */
+    public void writeBdioNodes(Collection<IBdioNode> bdioNodes) throws IOException {
+        for (IBdioNode node : bdioNodes) {
+            writeBdioNode(node);
+        }
+    }
 
-		headerWritten = true;
-	}
+    /**
+     * Write single node to bdio archive entry
+     *
+     * @param bdioNode
+     *            data node
+     * @throws IOException
+     */
+    public void writeBdioNode(IBdioNode bdioNode) throws IOException {
+        Message protoNode = ProtobufBdioConverter.toProtobuf(bdioNode);
+        serviceProvider.getProtobufBdioValidator(version).validate(protoNode);
 
-	/**
-	 * Write single file node to bdio archive entry
-	 *
-	 * @param protoNode node to write
-	 * @throws IOException
-	 */
-	public void writeBdioNodeV1(ProtoFileNode protoNode) throws IOException {
+        IProtobufBdioVersionWriter writer = serviceProvider.getProtobufBdioWriter(version);
 
-		serviceProvider.getProtobufBdioValidator(VersionConstants.VERSION_1).validate(protoNode);
+        writer.writeToEntry(bdioArchive, protoNode);
+    }
 
-		// Ensure we're not surpassing the chunk size limit, adding 4 bytes to account
-		// for the length header
-		// for each message. This will not be 100% accurate since writeDelimitedTo uses
-		// varints for the header,
-		// which can be variable in size. See:
-		// https://developers.google.com/protocol-buffers/docs/encoding#varints
-		if ((bytesRemaining -= protoNode.getSerializedSize() + 4) > 0L) {
-			protoNode.writeDelimitedTo(bdioArchive);
-		} else {
-			bytesRemaining = MAX_CHUNK_SIZE;
-			bdioArchive.putNextEntry(new ZipEntry(String.format(ENTRY_FILE_NAME_TEMPLATE, entryCount++)));
-			bdioArchive.write(Shorts.toByteArray((short) BdioEntryType.CHUNK.ordinal())); // message type
-			bdioArchive.write(Shorts.toByteArray(VersionConstants.VERSION_1)); // format version
-
-			if ((bytesRemaining -= protoNode.getSerializedSize() + 4) > 0L) {
-				protoNode.writeDelimitedTo(bdioArchive);
-			} else {
-				throw new RuntimeException("File metadata larger than maximum allowed chunk size");
-			}
-		}
-	}
-
-	/**
-	 * Write collection of nodes to bdio archive entry .
-	 *
-	 * @param protoNodes
-	 * @throws IOException
-	 */
-	public void writeBdioNodes(Collection<Message> protoNodes) throws IOException {
-		for (Message node : protoNodes) {
-			writeBdioNode(node);
-		}
-	}
-
-	/**
-	 * Write single node for to bdio archive entry .
-	 *
-	 * @param protoNode
-	 * @throws IOException
-	 */
-	public void writeBdioNode(Message protoNode) throws IOException {
-		writeBdioNode(protoNode, VersionConstants.VERSION_2);
-	}
-
-	private void writeBdioNode(Message protoNode, short version) throws IOException {
-		serviceProvider.getProtobufBdioValidator(version).validate(protoNode);
-		Any any = Any.pack(protoNode);
-
-		if ((bytesRemaining -= protoNode.getSerializedSize() + 4) > 0L) {
-			any.writeDelimitedTo(bdioArchive);
-		} else {
-			bytesRemaining = MAX_CHUNK_SIZE;
-			bdioArchive.putNextEntry(new ZipEntry(String.format(ENTRY_FILE_NAME_TEMPLATE, entryCount++)));
-			bdioArchive.write(Shorts.toByteArray((short) BdioEntryType.CHUNK.ordinal())); // bdio entry type
-			bdioArchive.write(Shorts.toByteArray(VersionConstants.VERSION_2)); // format version
-
-			if ((bytesRemaining -= protoNode.getSerializedSize() + 4) > 0L) {
-				any.writeDelimitedTo(bdioArchive);
-			} else {
-				throw new RuntimeException("File metadata larger than maximum allowed chunk size");
-			}
-		}
-	}
-
-	@Override
-	public void close() throws IOException {
-		if (!headerWritten) {
-			throw new IllegalStateException("Header file must be written before archive can be closed");
-		}
-		bdioArchive.close();
-	}
-
+    @Override
+    public void close() throws IOException {
+        if (!headerWritten) {
+            throw new IllegalStateException("Header file must be written before archive can be closed");
+        }
+        bdioArchive.close();
+    }
 }

@@ -16,7 +16,7 @@ package bdio.v1;
 import "google/protobuf/timestamp.proto";
 
 option java_multiple_files = true;
-option java_package = "com.blackducksoftware.bdio.proto.v1";
+option java_package = "com.blackducksoftware.bdio.proto.domain";
 option java_outer_classname = "ScanHeaderProto";
 
 enum ScanType {
