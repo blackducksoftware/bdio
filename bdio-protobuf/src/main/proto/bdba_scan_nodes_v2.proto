@@ -116,3 +116,28 @@ message ProtoAnnotationNode {
   // must be present
   string comment = 2;
 }
+
+message ProtoBdbaFileNode {
+
+ // uuid of the file tree entry for referencing this entry inside the document, must be present
+ string id = 1;
+
+ // file uri, must be present
+ string uri = 2;
+
+ // the size of the file or archive, for directory should be 0. Must be present
+ int64 size = 3;
+
+  // A timestamp indicating when this file was last modified, must be present.
+  google.protobuf.Timestamp lastModifiedDateTime = 4;
+
+ // type of the entry: FILE or ARCHIVE or DIRECTORY, may be missing
+ optional string fileSystemType = 5;   
+
+ // A map of signature type to signature value for signatures generated for this node.
+ // Possible values for signature type: 
+ // MATCH_SHA1, MATCH_CLEAN_SHA1, DEEP_WITH_SIZE, DEEP_NO_SIZE, STRUCTURE_ONLY, SHALLOW_WITH_SIZE, SHALLOW_NO_SIZE
+ map<string, string> signatures = 6; 
+}
+
+
