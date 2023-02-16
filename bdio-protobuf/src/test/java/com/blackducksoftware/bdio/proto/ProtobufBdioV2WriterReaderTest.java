@@ -28,6 +28,7 @@ import org.mockito.Mockito;
 import com.blackducksoftware.bdio.proto.api.IProtobufBdioValidator;
 import com.blackducksoftware.bdio.proto.api.IProtobufBdioVersionWriter;
 import com.blackducksoftware.bdio.proto.domain.ProtoAnnotationNode;
+import com.blackducksoftware.bdio.proto.domain.ProtoBdbaFileNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoChunk;
 import com.blackducksoftware.bdio.proto.domain.ProtoComponentNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerLayerNode;
@@ -201,6 +202,25 @@ public class ProtobufBdioV2WriterReaderTest {
 
         ProtoContainerLayerNode protoContainerLayerNode = protoChunk.getContainerLayerNodes().iterator().next();
         assertThat(protoContainerLayerNode).isEqualTo(containerLayerNode);
+    }
+
+    @Test
+    public void testWriteAndReadSingleBdbaFileNode() throws IOException {
+        ProtoBdbaFileNode bdbaFileNode = ProtobufTestUtils.createProtoBdbaFileNode();
+        try (ZipOutputStream bdioOutput = new ZipOutputStream(new FileOutputStream(FILE_PATH))) {
+            v2Writer.writeToHeader(bdioOutput, protoHeader);
+            v2Writer.writeToEntry(bdioOutput, bdbaFileNode);
+        }
+
+        ProtoChunk protoChunk = null;
+        try (ZipInputStream zis = new ZipInputStream(new FileInputStream(FILE_PATH))) {
+            skipToFirstNode(zis);
+            protoChunk = v2Reader.readProtoChunk(zis);
+        }
+        assertThat(protoChunk.getBdbaFileNodes().size()).isEqualTo(1);
+
+        ProtoBdbaFileNode protoBdbaFileNode = protoChunk.getBdbaFileNodes().iterator().next();
+        assertThat(protoBdbaFileNode).isEqualTo(bdbaFileNode);
     }
 
     private void skipToFirstNode(ZipInputStream zis) throws IOException {

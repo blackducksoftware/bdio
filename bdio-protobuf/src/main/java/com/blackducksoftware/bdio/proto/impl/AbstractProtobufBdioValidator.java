@@ -18,6 +18,7 @@ import org.apache.commons.lang.StringUtils;
 import com.blackducksoftware.bdio.proto.api.BdioValidationException;
 import com.blackducksoftware.bdio.proto.api.IProtobufBdioValidator;
 import com.blackducksoftware.bdio.proto.domain.ProtoAnnotationNode;
+import com.blackducksoftware.bdio.proto.domain.ProtoBdbaFileNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoComponentNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerLayerNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerNode;
@@ -43,6 +44,8 @@ public abstract class AbstractProtobufBdioValidator implements IProtobufBdioVali
     private static final String CONTAINER_NODE_CLASS = ProtoContainerNode.class.getSimpleName();
 
     private static final String CONTAINER_LAYER_NODE_CLASS = ProtoContainerLayerNode.class.getSimpleName();
+
+    private static final String BDBA_FILE_NODE_CLASS = ProtoBdbaFileNode.class.getSimpleName();
 
     protected void validate(ProtoDependencyNode node) {
         requireNonBlank(DEPENDENCY_NODE_CLASS, "componentId", node.getComponentId());
@@ -79,6 +82,18 @@ public abstract class AbstractProtobufBdioValidator implements IProtobufBdioVali
     protected void validate(ProtoContainerLayerNode node) {
         requireNonBlank(CONTAINER_LAYER_NODE_CLASS, "id", node.getId());
         requireNonBlank(CONTAINER_LAYER_NODE_CLASS, "layer", node.getLayer());
+    }
+
+    protected void validate(ProtoBdbaFileNode node) {
+        requireNonBlank(BDBA_FILE_NODE_CLASS, "id", node.getId());
+        requireNonBlank(BDBA_FILE_NODE_CLASS, "uri", node.getUri());
+        requireNonNull(BDBA_FILE_NODE_CLASS, "lastModifiedDateTime", node.getLastModifiedDateTime());
+    }
+
+    private void requireNonNull(String className, String fieldName, Object value) {
+        if (value == null) {
+            throw new BdioValidationException("The field " + className + "." + fieldName + " must be non null: " + value);
+        }
     }
 
     private void requireNonBlank(String className, String fieldName, String value) {

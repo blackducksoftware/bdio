@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import org.junit.Test;
 
 import com.blackducksoftware.bdio.proto.api.BdioAnnotationNode;
+import com.blackducksoftware.bdio.proto.api.BdioBdbaFileNode;
 import com.blackducksoftware.bdio.proto.api.BdioComponentNode;
 import com.blackducksoftware.bdio.proto.api.BdioContainerLayerNode;
 import com.blackducksoftware.bdio.proto.api.BdioContainerNode;
@@ -32,6 +33,7 @@ import com.blackducksoftware.bdio.proto.api.BdioFileNode;
 import com.blackducksoftware.bdio.proto.api.BdioHeader;
 import com.blackducksoftware.bdio.proto.domain.BdbaMatchType;
 import com.blackducksoftware.bdio.proto.domain.ProtoAnnotationNode;
+import com.blackducksoftware.bdio.proto.domain.ProtoBdbaFileNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoComponentNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerLayerNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerNode;
@@ -707,6 +709,50 @@ public class ProtobufBdioConverterTest {
         assertThat(bdioNode.getId()).isEqualTo(ID);
         assertThat(bdioNode.getLayer()).isEqualTo("layerId1");
         assertThat(bdioNode.getSize()).isEqualTo(100L);
+    }
+
+    @Test
+    // Test when all fields are non null
+    public void testConvertToBdioBdbaFileNode1() {
+        Timestamp timestamp = Timestamp.getDefaultInstance();
+        Instant instant = Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
+
+        ProtoBdbaFileNode bdbaFileNode = ProtoBdbaFileNode.newBuilder()
+                .setId(ID)
+                .setUri("uri")
+                .setSize(1L)
+                .setLastModifiedDateTime(timestamp)
+                .setFileSystemType("FILE")
+                .putAllSignatures(ImmutableMap.of("MATCH_SHA_1", "sha1"))
+                .build();
+        BdioBdbaFileNode bdioNode = ProtobufBdioConverter.toBdioBdbaFileNode(bdbaFileNode);
+
+        assertThat(bdioNode.getId()).isEqualTo(ID);
+        assertThat(bdioNode.getUri()).isEqualTo("uri");
+        assertThat(bdioNode.getSize()).isEqualTo(1L);
+        assertThat(bdioNode.getLastModifiedDateTime()).isEqualTo(instant);
+        assertThat(bdioNode.getFileSystemType().get()).isEqualTo("FILE");
+        assertThat(bdioNode.getSignatures()).isEqualTo(ImmutableMap.of("MATCH_SHA_1", "sha1"));
+    }
+
+    @Test
+    // Test when optional fields are missing
+    public void testConvertToBdioBdbaFileNode2() {
+        Timestamp timestamp = Timestamp.getDefaultInstance();
+        Instant instant = Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
+
+        ProtoBdbaFileNode bdbaFileNode = ProtoBdbaFileNode.newBuilder()
+                .setId(ID)
+                .setUri("uri")
+                .setSize(1L)
+                .setLastModifiedDateTime(timestamp)
+                .build();
+        BdioBdbaFileNode bdioNode = ProtobufBdioConverter.toBdioBdbaFileNode(bdbaFileNode);
+
+        assertThat(bdioNode.getId()).isEqualTo(ID);
+        assertThat(bdioNode.getUri()).isEqualTo("uri");
+        assertThat(bdioNode.getSize()).isEqualTo(1L);
+        assertThat(bdioNode.getLastModifiedDateTime()).isEqualTo(instant);
     }
 
 }

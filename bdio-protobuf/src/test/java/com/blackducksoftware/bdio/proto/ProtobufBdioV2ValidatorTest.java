@@ -18,12 +18,15 @@ import org.junit.Test;
 import com.blackducksoftware.bdio.proto.api.BdioValidationException;
 import com.blackducksoftware.bdio.proto.domain.BdbaMatchType;
 import com.blackducksoftware.bdio.proto.domain.ProtoAnnotationNode;
+import com.blackducksoftware.bdio.proto.domain.ProtoBdbaFileNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoComponentNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerLayerNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoDependencyNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoFileNode;
 import com.blackducksoftware.bdio.proto.impl.ProtobufBdioV2Validator;
+import com.google.common.collect.ImmutableMap;
+import com.google.protobuf.Timestamp;
 
 public class ProtobufBdioV2ValidatorTest {
 
@@ -269,5 +272,39 @@ public class ProtobufBdioV2ValidatorTest {
                 .setSize(1L)
                 .build();
         validator.validate(containerLayerNode);
+    }
+
+    @Test
+    public void testValidateBdbaFileNode1() {
+        ProtoBdbaFileNode bdbaFileNode = ProtoBdbaFileNode.newBuilder()
+                .setId(UUID.randomUUID().toString())
+                .setUri("uri")
+                .setSize(1L)
+                .setLastModifiedDateTime(Timestamp.getDefaultInstance())
+                .setFileSystemType("FILE")
+                .putAllSignatures(ImmutableMap.of("MATCH_SHA_1", "sha1"))
+                .build();
+
+        validator.validate(bdbaFileNode);
+    }
+
+    @Test(expected = BdioValidationException.class)
+    public void testValidateBdbaFileNode2() {
+        ProtoBdbaFileNode bdbaFileNode = ProtoBdbaFileNode.newBuilder()
+                .setUri("uri")
+                .setLastModifiedDateTime(Timestamp.getDefaultInstance())
+                .build();
+
+        validator.validate(bdbaFileNode);
+    }
+
+    @Test(expected = BdioValidationException.class)
+    public void testValidateBdbaFileNode3() {
+        ProtoBdbaFileNode bdbaFileNode = ProtoBdbaFileNode.newBuilder()
+                .setId(UUID.randomUUID().toString())
+                .setLastModifiedDateTime(Timestamp.getDefaultInstance())
+                .build();
+
+        validator.validate(bdbaFileNode);
     }
 }

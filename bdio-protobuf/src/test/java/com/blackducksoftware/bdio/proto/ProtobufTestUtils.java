@@ -15,6 +15,7 @@ import java.util.UUID;
 
 import com.blackducksoftware.bdio.proto.domain.BdbaMatchType;
 import com.blackducksoftware.bdio.proto.domain.ProtoAnnotationNode;
+import com.blackducksoftware.bdio.proto.domain.ProtoBdbaFileNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoComponentNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerLayerNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerNode;
@@ -92,6 +93,17 @@ public class ProtobufTestUtils {
                 .setId(ID)
                 .setLayer("layerId")
                 .setSize(1L)
+                .build();
+    }
+
+    public static ProtoBdbaFileNode createProtoBdbaFileNode() {
+        return ProtoBdbaFileNode.newBuilder()
+                .setId(ID)
+                .setUri("someuri")
+                .setSize(1L)
+                .setLastModifiedDateTime(Timestamp.getDefaultInstance())
+                .setFileSystemType("FILE")
+                .setSize(2L)
                 .build();
     }
 

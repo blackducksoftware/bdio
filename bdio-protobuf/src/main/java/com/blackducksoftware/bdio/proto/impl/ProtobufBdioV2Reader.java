@@ -15,6 +15,7 @@ import java.util.List;
 
 import com.blackducksoftware.bdio.proto.api.IProtobufBdioValidator;
 import com.blackducksoftware.bdio.proto.domain.ProtoAnnotationNode;
+import com.blackducksoftware.bdio.proto.domain.ProtoBdbaFileNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoComponentNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerLayerNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerNode;
@@ -43,6 +44,7 @@ public class ProtobufBdioV2Reader extends AbstractProtobufBdioVersionReader {
                 ProtoFileNode.class,
                 ProtoAnnotationNode.class,
                 ProtoContainerNode.class,
-                ProtoContainerLayerNode.class);
+                ProtoContainerLayerNode.class,
+                ProtoBdbaFileNode.class);
     }
 }

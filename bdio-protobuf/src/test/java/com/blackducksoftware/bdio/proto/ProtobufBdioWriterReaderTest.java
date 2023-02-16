@@ -32,6 +32,7 @@ import org.apache.commons.lang.RandomStringUtils;
 import org.junit.Test;
 
 import com.blackducksoftware.bdio.proto.api.BdioAnnotationNode;
+import com.blackducksoftware.bdio.proto.api.BdioBdbaFileNode;
 import com.blackducksoftware.bdio.proto.api.BdioChunk;
 import com.blackducksoftware.bdio.proto.api.BdioComponentNode;
 import com.blackducksoftware.bdio.proto.api.BdioContainerLayerNode;
@@ -83,7 +84,7 @@ public class ProtobufBdioWriterReaderTest {
             BdioChunk chunk = ProtobufBdioReader.readBdioChunk(zipInputStream, true);
 
             assertThat(chunk.getComponentNodes()).hasSize(COMPONENTS_COUNT);
-            assertThat(chunk.getFileNodes()).hasSize(COMPONENTS_COUNT);
+            assertThat(chunk.getBdbaFileNodes()).hasSize(COMPONENTS_COUNT);
             assertThat(chunk.getAnnotationNodes()).hasSize(COMPONENTS_COUNT);
             assertThat(chunk.getContainerLayerNodes()).hasSize(LAYERS_COUNT);
             assertThat(chunk.getContainerNodes()).hasSize(1);
@@ -153,13 +154,13 @@ public class ProtobufBdioWriterReaderTest {
                 .collect(Collectors.toList());
 
         List<BdioComponentNode> components = new ArrayList<>();
-        List<BdioFileNode> files = new ArrayList<>();
+        List<BdioBdbaFileNode> files = new ArrayList<>();
         List<BdioAnnotationNode> annotations = new ArrayList<>();
         List<BdioDependencyNode> dependencies = new ArrayList<>();
 
         for (int i = 0; i < componentCount; i++) {
             BdioComponentNode component = createComponentNode();
-            BdioFileNode file = createFileNode();
+            BdioBdbaFileNode file = createBdbaFileNode();
             BdioAnnotationNode annotation = createAnnotationNode();
             components.add(component);
             files.add(file);
@@ -168,7 +169,7 @@ public class ProtobufBdioWriterReaderTest {
             int cl = randomInt(0, layerIds.size());
             int wl = randomInt(0, layerIds.size());
             BdioDependencyNode dependency = new BdioDependencyNode(
-                    component.getId(), UUID.randomUUID().toString(),
+                    component.getId(), file.getId(),
                     layerIds.get(cl), layerIds.get(wl),
                     annotation.getId(), ImmutableList.of(BdbaMatchType.CocoapodPackage.name()));
 
@@ -194,6 +195,15 @@ public class ProtobufBdioWriterReaderTest {
                 null, null, null, null, null, "path",
                 null, RandomStringUtils.randomAlphabetic(200),
                 randomLong(1, 100L), Collections.emptyMap());
+    }
+
+    private BdioBdbaFileNode createBdbaFileNode() {
+        return new BdioBdbaFileNode(UUID.randomUUID().toString(),
+                "RandomStringUtils.randomAlphabetic(20)",
+                randomLong(1, 1000L),
+                Instant.now(),
+                "FILE",
+                Collections.emptyMap());
     }
 
     private int randomInt(int min, int max) {
@@ -231,7 +241,7 @@ public class ProtobufBdioWriterReaderTest {
 
         private List<BdioComponentNode> components;
 
-        private List<BdioFileNode> files;
+        private List<BdioBdbaFileNode> files;
 
         private List<BdioAnnotationNode> annotations;
 
@@ -241,7 +251,7 @@ public class ProtobufBdioWriterReaderTest {
 
         private List<BdioContainerLayerNode> layers;
 
-        public BdbaScanData(List<BdioComponentNode> components, List<BdioFileNode> files,
+        public BdbaScanData(List<BdioComponentNode> components, List<BdioBdbaFileNode> files,
                 List<BdioAnnotationNode> annotations, List<BdioDependencyNode> dependencies, BdioContainerNode image,
                 List<BdioContainerLayerNode> layers) {
             this.components = components;

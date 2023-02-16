@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import com.blackducksoftware.bdio.proto.domain.ProtoAnnotationNode;
+import com.blackducksoftware.bdio.proto.domain.ProtoBdbaFileNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoChunk;
 import com.blackducksoftware.bdio.proto.domain.ProtoComponentNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerLayerNode;
@@ -43,6 +44,8 @@ public class ProtoChunkBuilder {
 
     private final Set<ProtoContainerLayerNode> containerLayerNodes = new HashSet<>();
 
+    private final Set<ProtoBdbaFileNode> bdbaFileNodes = new HashSet<>();
+
     public ProtoChunkBuilder add(Message node) {
         if (node instanceof ProtoDependencyNode) {
             dependencyNodes.add((ProtoDependencyNode) node);
@@ -56,6 +59,8 @@ public class ProtoChunkBuilder {
             containerNodes.add((ProtoContainerNode) node);
         } else if (node instanceof ProtoContainerLayerNode) {
             containerLayerNodes.add((ProtoContainerLayerNode) node);
+        } else if (node instanceof ProtoBdbaFileNode) {
+            bdbaFileNodes.add((ProtoBdbaFileNode) node);
         } else {
             throw new RuntimeException("Unknown type: " + node.getClass().getName());
         }
@@ -70,7 +75,8 @@ public class ProtoChunkBuilder {
                 componentNodes,
                 annotationNodes,
                 containerNodes,
-                containerLayerNodes);
+                containerLayerNodes,
+                bdbaFileNodes);
     }
 
 }

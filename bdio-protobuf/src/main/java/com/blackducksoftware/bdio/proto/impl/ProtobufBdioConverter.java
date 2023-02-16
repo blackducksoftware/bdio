@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 import com.blackducksoftware.bdio.proto.api.BdioAnnotationNode;
+import com.blackducksoftware.bdio.proto.api.BdioBdbaFileNode;
 import com.blackducksoftware.bdio.proto.api.BdioChunk;
 import com.blackducksoftware.bdio.proto.api.BdioComponentNode;
 import com.blackducksoftware.bdio.proto.api.BdioContainerLayerNode;
@@ -33,6 +34,7 @@ import com.blackducksoftware.bdio.proto.api.BdioValidationException;
 import com.blackducksoftware.bdio.proto.api.IBdioNode;
 import com.blackducksoftware.bdio.proto.domain.BdbaMatchType;
 import com.blackducksoftware.bdio.proto.domain.ProtoAnnotationNode;
+import com.blackducksoftware.bdio.proto.domain.ProtoBdbaFileNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoChunk;
 import com.blackducksoftware.bdio.proto.domain.ProtoComponentNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerLayerNode;
@@ -79,6 +81,8 @@ public class ProtobufBdioConverter {
             return toProtoContainerNode((BdioContainerNode) bdioNode);
         } else if (bdioNode instanceof BdioContainerLayerNode) {
             return toProtoContainerLayerNode((BdioContainerLayerNode) bdioNode);
+        } else if (bdioNode instanceof BdioBdbaFileNode) {
+            return toProtoBdbaFileNode((BdioBdbaFileNode) bdioNode);
         }
 
         throw new BdioValidationException("Unknown bdio node type: " + bdioNode.getClass().getName());
@@ -205,6 +209,19 @@ public class ProtobufBdioConverter {
         return builder.build();
     }
 
+    public static ProtoBdbaFileNode toProtoBdbaFileNode(BdioBdbaFileNode bdioBdbaFileNode) {
+        ProtoBdbaFileNode.Builder builder = ProtoBdbaFileNode.newBuilder();
+
+        callIfParamNonNull(builder::setId, bdioBdbaFileNode.getId());
+        callIfParamNonNull(builder::setUri, bdioBdbaFileNode.getUri());
+        builder.setSize(bdioBdbaFileNode.getSize());
+        callIfParamNonNull(builder::setLastModifiedDateTime, toTimestamp(bdioBdbaFileNode.getLastModifiedDateTime()));
+        callIfParamNonNull(builder::setFileSystemType, bdioBdbaFileNode.getFileSystemType().orElse(null));
+        builder.putAllSignatures(bdioBdbaFileNode.getSignatures());
+
+        return builder.build();
+    }
+
     public static BdioHeader toBdioHeader(ProtoScanHeader protoScanHeader, short version) {
         BdioHeader header = new BdioHeader(
                 protoScanHeader.getId(),
@@ -306,6 +323,16 @@ public class ProtobufBdioConverter {
                 protoContainerLayerNode.hasDescriptionId() ? protoContainerLayerNode.getDescriptionId() : null);
     }
 
+    public static BdioBdbaFileNode toBdioBdbaFileNode(ProtoBdbaFileNode protoBdbaFileNode) {
+        return new BdioBdbaFileNode(
+                protoBdbaFileNode.getId(),
+                protoBdbaFileNode.getUri(),
+                protoBdbaFileNode.getSize(),
+                toInstant(protoBdbaFileNode.getLastModifiedDateTime()),
+                protoBdbaFileNode.hasFileSystemType() ? protoBdbaFileNode.getFileSystemType() : null,
+                protoBdbaFileNode.getSignaturesMap());
+    }
+
     public static BdioChunk toBdioChunk(ProtoChunk protoChunk) {
 
         Set<BdioFileNode> fileNodes = protoChunk.getFileNodes().stream().map(fn -> toBdioFileNode(fn))
@@ -326,8 +353,11 @@ public class ProtobufBdioConverter {
         Set<BdioContainerLayerNode> containerLayerNodes = protoChunk.getContainerLayerNodes().stream().map(cln -> toBdioContainerLayerNode(cln))
                 .collect(Collectors.toSet());
 
+        Set<BdioBdbaFileNode> bdbaFileNodes = protoChunk.getBdbaFileNodes().stream().map(cln -> toBdioBdbaFileNode(cln))
+                .collect(Collectors.toSet());
+
         return new BdioChunk(fileNodes, dependencyNodes, componentNodes, annotationNodes, containerNodes,
-                containerLayerNodes);
+                containerLayerNodes, bdbaFileNodes);
     }
 
     private static UUID toUUID(String s) {

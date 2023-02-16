@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableMap;
 
 /**
  *
@@ -110,7 +111,7 @@ public class BdioFileNode implements IBdioNode {
         this.archiveContext = archiveContext;
         this.uri = uri;
         this.size = size;
-        this.signatures = signatures;
+        this.signatures = (signatures == null) ? ImmutableMap.of() : ImmutableMap.copyOf(signatures);
     }
 
     public long getId() {

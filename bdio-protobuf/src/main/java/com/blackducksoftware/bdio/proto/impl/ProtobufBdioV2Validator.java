@@ -12,6 +12,7 @@
 package com.blackducksoftware.bdio.proto.impl;
 
 import com.blackducksoftware.bdio.proto.domain.ProtoAnnotationNode;
+import com.blackducksoftware.bdio.proto.domain.ProtoBdbaFileNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoComponentNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerLayerNode;
 import com.blackducksoftware.bdio.proto.domain.ProtoContainerNode;
@@ -42,6 +43,8 @@ public class ProtobufBdioV2Validator extends AbstractProtobufBdioValidator {
             validate((ProtoContainerNode) message);
         } else if (message instanceof ProtoContainerLayerNode) {
             validate((ProtoContainerLayerNode) message);
+        } else if (message instanceof ProtoBdbaFileNode) {
+            validate((ProtoBdbaFileNode) message);
         } else {
             throw new RuntimeException("Unknown type: " + message.getClass().getName());
         }

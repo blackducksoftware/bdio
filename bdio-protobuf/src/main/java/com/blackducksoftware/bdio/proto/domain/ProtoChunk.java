@@ -37,6 +37,8 @@ public class ProtoChunk {
 
     private final Set<ProtoContainerLayerNode> containerLayerNodes;
 
+    private final Set<ProtoBdbaFileNode> bdbaFileNodes;
+
     public ProtoChunk(Set<ProtoFileNode> fileNodes) {
         this.fileNodes = ImmutableSet.copyOf(Objects.requireNonNull(fileNodes));
         this.dependencyNodes = Collections.emptySet();
@@ -44,17 +46,20 @@ public class ProtoChunk {
         this.annotationNodes = Collections.emptySet();
         this.containerNodes = Collections.emptySet();
         this.containerLayerNodes = Collections.emptySet();
+        this.bdbaFileNodes = Collections.emptySet();
     }
 
     public ProtoChunk(Set<ProtoFileNode> fileNodes, Set<ProtoDependencyNode> dependencyNodes,
             Set<ProtoComponentNode> componentNodes, Set<ProtoAnnotationNode> annotationNodes,
-            Set<ProtoContainerNode> imageNodes, Set<ProtoContainerLayerNode> imageLayerNodes) {
+            Set<ProtoContainerNode> containerNodes, Set<ProtoContainerLayerNode> containerLayerNodes,
+            Set<ProtoBdbaFileNode> bdbaFileNodes) {
         this.fileNodes = ImmutableSet.copyOf(Objects.requireNonNull(fileNodes));
         this.dependencyNodes = ImmutableSet.copyOf(Objects.requireNonNull(dependencyNodes));
         this.componentNodes = ImmutableSet.copyOf(Objects.requireNonNull(componentNodes));
         this.annotationNodes = ImmutableSet.copyOf(Objects.requireNonNull(annotationNodes));
-        this.containerNodes = ImmutableSet.copyOf(Objects.requireNonNull(imageNodes));
-        this.containerLayerNodes = ImmutableSet.copyOf(Objects.requireNonNull(imageLayerNodes));
+        this.containerNodes = ImmutableSet.copyOf(Objects.requireNonNull(containerNodes));
+        this.containerLayerNodes = ImmutableSet.copyOf(Objects.requireNonNull(containerLayerNodes));
+        this.bdbaFileNodes = ImmutableSet.copyOf(Objects.requireNonNull(bdbaFileNodes));
     }
 
     public Set<ProtoFileNode> getFileNodes() {
@@ -79,5 +84,9 @@ public class ProtoChunk {
 
     public Set<ProtoContainerLayerNode> getContainerLayerNodes() {
         return containerLayerNodes;
+    }
+
+    public Set<ProtoBdbaFileNode> getBdbaFileNodes() {
+        return bdbaFileNodes;
     }
 }

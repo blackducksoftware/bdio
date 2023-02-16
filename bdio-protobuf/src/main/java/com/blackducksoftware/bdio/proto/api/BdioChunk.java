@@ -37,6 +37,8 @@ public class BdioChunk {
 
     private final Set<BdioContainerLayerNode> containerLayerNodes;
 
+    private final Set<BdioBdbaFileNode> bdbaFileNodes;
+
     public BdioChunk(Set<BdioFileNode> fileNodes) {
         this.fileNodes = ImmutableSet.copyOf(Objects.requireNonNull(fileNodes));
         this.dependencyNodes = Collections.emptySet();
@@ -44,17 +46,20 @@ public class BdioChunk {
         this.annotationNodes = Collections.emptySet();
         this.containerNodes = Collections.emptySet();
         this.containerLayerNodes = Collections.emptySet();
+        this.bdbaFileNodes = Collections.emptySet();
     }
 
     public BdioChunk(Set<BdioFileNode> fileNodes, Set<BdioDependencyNode> dependencyNodes,
             Set<BdioComponentNode> componentNodes, Set<BdioAnnotationNode> annotationNodes,
-            Set<BdioContainerNode> imageNodes, Set<BdioContainerLayerNode> imageLayerNodes) {
+            Set<BdioContainerNode> containerNodes, Set<BdioContainerLayerNode> containerLayerNodes,
+            Set<BdioBdbaFileNode> bdbaFileNodes) {
         this.fileNodes = ImmutableSet.copyOf(Objects.requireNonNull(fileNodes));
         this.dependencyNodes = ImmutableSet.copyOf(Objects.requireNonNull(dependencyNodes));
         this.componentNodes = ImmutableSet.copyOf(Objects.requireNonNull(componentNodes));
         this.annotationNodes = ImmutableSet.copyOf(Objects.requireNonNull(annotationNodes));
-        this.containerNodes = ImmutableSet.copyOf(Objects.requireNonNull(imageNodes));
-        this.containerLayerNodes = ImmutableSet.copyOf(Objects.requireNonNull(imageLayerNodes));
+        this.containerNodes = ImmutableSet.copyOf(Objects.requireNonNull(containerNodes));
+        this.containerLayerNodes = ImmutableSet.copyOf(Objects.requireNonNull(containerLayerNodes));
+        this.bdbaFileNodes = ImmutableSet.copyOf(Objects.requireNonNull(bdbaFileNodes));
     }
 
     public Set<BdioFileNode> getFileNodes() {
@@ -79,6 +84,10 @@ public class BdioChunk {
 
     public Set<BdioContainerLayerNode> getContainerLayerNodes() {
         return containerLayerNodes;
+    }
+
+    public Set<BdioBdbaFileNode> getBdbaFileNodes() {
+        return bdbaFileNodes;
     }
 
 }
