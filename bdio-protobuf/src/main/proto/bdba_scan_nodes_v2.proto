@@ -21,6 +21,7 @@ enum BdbaMatchType {
     Manifest = 9;
     Pom = 10;
     CodeSimilarity = 11;
+    ScannerConfigFile = 12;
 }
 
 
@@ -105,8 +106,8 @@ message ProtoContainerLayerNode {
   // timestamp when layer was created, may be missing
   optional google.protobuf.Timestamp created_at = 5;
 
-  // uuid reference to annotation node, may be missing
-  optional string description_id = 6;
+  // comment for layer from container manifest, may be missing
+  optional string comment = 6;
 }
 
 message ProtoAnnotationNode {

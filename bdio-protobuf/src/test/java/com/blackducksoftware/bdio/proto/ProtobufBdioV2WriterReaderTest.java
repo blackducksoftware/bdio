@@ -17,11 +17,13 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -51,6 +53,12 @@ public class ProtobufBdioV2WriterReaderTest {
     private IProtobufBdioVersionWriter v2Writer = new ProtobufBdioV2Writer(v2Validator);
 
     private ProtoScanHeader protoHeader = ProtobufTestUtils.createProtoScanHeader();
+
+    @Before
+    public void setUp() throws IOException {
+        Path filePath = Paths.get(FILE_PATH);
+        Files.createFile(filePath);
+    }
 
     @After
     public void deleteBdioArchive() throws IOException {

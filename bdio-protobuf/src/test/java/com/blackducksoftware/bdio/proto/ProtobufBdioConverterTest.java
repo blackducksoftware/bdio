@@ -339,7 +339,7 @@ public class ProtobufBdioConverterTest {
         assertThat(protoNode.getSize()).isEqualTo(100L);
         assertThat(protoNode.getCommand()).isEqualTo("command");
         assertThat(protoNode.getCreatedAt()).isEqualTo(timestamp);
-        assertThat(protoNode.getDescriptionId()).isEqualTo(DESCRIPTION_ID);
+        assertThat(protoNode.getComment()).isEqualTo(DESCRIPTION_ID);
     }
 
     @Test
@@ -353,7 +353,7 @@ public class ProtobufBdioConverterTest {
         assertThat(protoNode.getSize()).isEqualTo(100L);
         assertThat(protoNode.hasCommand()).isFalse();
         assertThat(protoNode.hasCreatedAt()).isFalse();
-        assertThat(protoNode.hasDescriptionId()).isFalse();
+        assertThat(protoNode.hasComment()).isFalse();
     }
 
     @Test
@@ -684,7 +684,7 @@ public class ProtobufBdioConverterTest {
                 .setSize(100L)
                 .setCommand("command")
                 .setCreatedAt(timestamp)
-                .setDescriptionId(DESCRIPTION_ID)
+                .setComment(DESCRIPTION_ID)
                 .build();
         BdioContainerLayerNode bdioNode = ProtobufBdioConverter.toBdioContainerLayerNode(protoNode);
 
@@ -693,7 +693,7 @@ public class ProtobufBdioConverterTest {
         assertThat(bdioNode.getSize()).isEqualTo(100L);
         assertThat(bdioNode.getCommand().get()).isEqualTo("command");
         assertThat(bdioNode.getCreatedAt().get()).isEqualTo(instant);
-        assertThat(bdioNode.getDescriptionId().get()).isEqualTo(DESCRIPTION_ID);
+        assertThat(bdioNode.getComment().get()).isEqualTo(DESCRIPTION_ID);
     }
 
     @Test

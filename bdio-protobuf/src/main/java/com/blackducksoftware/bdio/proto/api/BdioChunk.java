@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableSet;
 
 /**
@@ -88,6 +89,19 @@ public class BdioChunk {
 
     public Set<BdioBdbaFileNode> getBdbaFileNodes() {
         return bdbaFileNodes;
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                .add("File nodes", fileNodes.size())
+                .add("Dependency nodes", dependencyNodes.size())
+                .add("Component nodes", componentNodes.size())
+                .add("Annotation nodes", annotationNodes.size())
+                .add("Container nodes", containerNodes.size())
+                .add("Container layer nodes", containerLayerNodes.size())
+                .add("Bdba file nodes", bdbaFileNodes.size())
+                .toString();
     }
 
 }

@@ -32,16 +32,16 @@ public class BdioContainerLayerNode implements IBdioNode {
 
     private Instant createdAt;
 
-    private String descriptionId;
+    private String comment;
 
     public BdioContainerLayerNode(String id, String layer, long size, String command, Instant createdAt,
-            String descriptionId) {
+            String comment) {
         this.id = id;
         this.layer = layer;
         this.size = size;
         this.command = command;
         this.createdAt = createdAt;
-        this.descriptionId = descriptionId;
+        this.comment = comment;
     }
 
     public String getId() {
@@ -64,13 +64,13 @@ public class BdioContainerLayerNode implements IBdioNode {
         return Optional.ofNullable(createdAt);
     }
 
-    public Optional<String> getDescriptionId() {
-        return Optional.ofNullable(descriptionId);
+    public Optional<String> getComment() {
+        return Optional.ofNullable(comment);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getId(), getLayer(), getSize(), getCommand(), getCreatedAt(), getDescriptionId());
+        return Objects.hash(getId(), getLayer(), getSize(), getCommand(), getCreatedAt(), getComment());
     }
 
     @Override
@@ -83,7 +83,7 @@ public class BdioContainerLayerNode implements IBdioNode {
                     && Objects.equals(getLayer(), containerLayerNode.getLayer())
                     && Objects.equals(getCommand(), containerLayerNode.getCommand())
                     && Objects.equals(getCreatedAt(), containerLayerNode.getCreatedAt())
-                    && Objects.equals(getDescriptionId(), containerLayerNode.getDescriptionId());
+                    && Objects.equals(getComment(), containerLayerNode.getComment());
         }
 
         return false;

@@ -204,7 +204,7 @@ public class ProtobufBdioConverter {
         builder.setSize(bdioContainerLayerNode.getSize());
         callIfParamNonNull(builder::setCommand, bdioContainerLayerNode.getCommand().orElse(null));
         callIfParamNonNull(builder::setCreatedAt, toTimestamp(bdioContainerLayerNode.getCreatedAt().orElse(null)));
-        callIfParamNonNull(builder::setDescriptionId, bdioContainerLayerNode.getDescriptionId().orElse(null));
+        callIfParamNonNull(builder::setComment, bdioContainerLayerNode.getComment().orElse(null));
 
         return builder.build();
     }
@@ -320,7 +320,7 @@ public class ProtobufBdioConverter {
                 protoContainerLayerNode.getSize(),
                 protoContainerLayerNode.hasCommand() ? protoContainerLayerNode.getCommand() : null,
                 protoContainerLayerNode.hasCreatedAt() ? toInstant(protoContainerLayerNode.getCreatedAt()) : null,
-                protoContainerLayerNode.hasDescriptionId() ? protoContainerLayerNode.getDescriptionId() : null);
+                protoContainerLayerNode.hasComment() ? protoContainerLayerNode.getComment() : null);
     }
 
     public static BdioBdbaFileNode toBdioBdbaFileNode(ProtoBdbaFileNode protoBdbaFileNode) {
