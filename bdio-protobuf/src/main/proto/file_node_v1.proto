@@ -1,0 +1,84 @@
+/*
+ * Copyright (C) 2022 Synopsys Inc.
+ * http://www.synopsys.com/
+ * All rights reserved.
+ *
+ * This software is the confidential and proprietary information of
+ * Synopsys ("Confidential Information"). You shall not
+ * disclose such Confidential Information and shall use it only in
+ * accordance with the terms of the license agreement you entered into
+ * with Synopsys.
+ */
+syntax = "proto3";
+
+package bdio.v1;
+
+option java_multiple_files = true;
+option java_package = "com.blackducksoftware.bdio.proto.domain";
+option java_outer_classname = "FileNodeProto";
+
+/**
+ * See here for guidelines on avoiding breaking changes to message formats: https://developers.google.com/protocol-buffers/docs/proto#updating
+ * If those are not possible, or the message is sufficiently different, a new version should be created.
+ */
+message ProtoFileNode {
+
+  // The numeric ID of this file node.
+  int64 id = 1;
+
+  // The full URI of this file.
+  // Example: file:///Users/hjoe/dev/bdio/bdio-reactor/src/test/java/com/blackducksoftware/bdio2
+  string uri = 2;
+
+  // The path to this file relative to the root node of this scan.
+  // Example: bdio-reactor/src/test/java/com/blackducksoftware/bdio2/
+  string path = 3;
+
+  // The name of this file/directory/archive.
+  // Example: bdio2
+  string name = 4;
+
+  // The size of this file in bytes.
+  int64 size = 5;
+
+  // The file system type of this node.
+  // See com.blackducksoftware.scan.api.NodeType for possible values.
+  string file_system_type = 6;
+
+  // The ID of this node's parent. Root node does not have parent, but in this case parent id is set to -1
+  int64 parent_id = 7;
+
+  // The path of archive that this file is contained in, if any. Archive context is not set for file nodes 
+  // that are present outside the context of any archive
+  // Example: gradle/wrapper/gradle-wrapper.jar!/
+  optional string archive_context = 8;
+
+  // The number of directories that are immediate children of this node. This is not set for usual files, 
+  // since they don't have any children.
+  optional int64 shallow_directory_count = 9;
+
+  // The number of all directories that are descendents of this node. This is not set for usual files, 
+  // since they don't have any children.
+  optional int64 deep_directory_count = 10;
+
+  // The number of all files that are descendents of this node. This is not set for usual files, 
+  // since they don't have any children.
+  optional int64 deep_file_count = 11;
+
+  // The distance from the root node of this scan
+  optional int64 distance_from_root = 12;
+
+  // The distance from the inner root
+  optional int64 distance_from_inner_root = 13;
+
+  // A map of signature type to signature value for all signatures generated for this node.
+  // Signature type key must be in the interval [0,6] (inclusive), with the following meaning:
+  // 0 - sha1 signature
+  // 1 - clean sha1 signature
+  // 2 - deep with size signature
+  // 3 - deep no size signature
+  // 4 - structure only signature
+  // 5 - shallow with size
+  // 6 - shallow no size
+  map<int32, string> signatures = 14;
+}

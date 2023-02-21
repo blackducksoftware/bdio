@@ -1,0 +1,143 @@
+syntax = "proto3";
+
+package bdio.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_package = "com.blackducksoftware.bdio.proto.domain";
+
+
+enum BdbaMatchType {
+    Signature = 0;
+    Hashsum = 1;
+    DistroPackageManager = 2;
+    RubyPackageManager = 3;
+    PythonPackageManager = 4;
+    CocoapodPackage = 5;
+    GoModPackage = 6;
+    NPMPackageManager = 7;
+    JarFilename = 8;
+    Manifest = 9;
+    Pom = 10;
+    CodeSimilarity = 11;
+}
+
+
+/**
+ * See here for guidelines on avoiding breaking changes to message formats: https://developers.google.com/protocol-buffers/docs/proto#updating
+ * If those are not possible, or the message is sufficiently different, a new version should be created.
+ */
+message ProtoDependencyNode {
+  // uuid reference to component node, must be present
+  string component_id = 1;
+
+  // uuid reference to file node,  may be missing, since for some use cases of the Cpp scanner there are no file evidences
+  optional string evidence_id = 2;
+
+  // the real id of layer node, may be missing
+  optional string container_layer = 3;
+
+  // the real id of layer node, may be missing
+  optional string whiteout_layer = 4;
+
+  // uuid reference to annotation node, may be missing
+  optional string description_id = 5;
+
+  // the list of match types (describes how evidence (evidence_id field) was matched to component (component_id field)) 
+  // always has at least one value
+  repeated BdbaMatchType matchTypes = 6;
+}
+
+message ProtoComponentNode {
+  // uuid of component node, must be present
+  string id = 1;
+
+  // namespace of the component, must be present
+  string namespace = 2;
+
+  // identifier of the component, must be present
+  string identifier = 3;
+
+  // uuid reference to annotation node, may be missing
+  optional string description_id = 4;
+}
+
+message ProtoContainerNode {
+  // uuid of container node, must be present
+  string id = 1;
+
+  // ImageID from manifest, must be present
+  string image = 2;
+
+  // processor architecture: linux/amd64, etc. , must be present
+  string architecture = 3;
+
+  // name of container image and tag, this list may be empty
+  repeated string repo_tags = 4;
+
+  // os type: linux, macos, windows, etc. , must be present
+  string os = 5;
+
+  // timestamp when image was created, may be missing
+  optional google.protobuf.Timestamp created_at = 6;
+
+  // verbatim metadata object from container, provided as json string, must be present
+  string config = 7;
+
+  // list of real layer ids present in the given container, always has at least one value
+  repeated string layers = 8;
+}
+
+message ProtoContainerLayerNode {
+  // uuid of container layer node, this is not referenced from anywhere at the moment (3.2.7) 
+  string id = 1;
+
+  // LayerID from manifest, must be present
+  string layer = 2;
+
+  // layer size in bytes, must be present
+  int64 size = 3;
+
+  // command used to create the layer, may be missing
+  optional string command = 4;
+
+  // timestamp when layer was created, may be missing
+  optional google.protobuf.Timestamp created_at = 5;
+
+  // uuid reference to annotation node, may be missing
+  optional string description_id = 6;
+}
+
+message ProtoAnnotationNode {
+  // uuid of annotation node, must be present
+  string id = 1;
+  
+  // must be present
+  string comment = 2;
+}
+
+message ProtoBdbaFileNode {
+
+ // uuid of the file tree entry for referencing this entry inside the document, must be present
+ string id = 1;
+
+ // file uri, must be present
+ string uri = 2;
+
+ // size of the file or archive, for directory should be 0. Must be present
+ int64 size = 3;
+
+ // timestamp indicating when this file was last modified, must be present.
+ google.protobuf.Timestamp lastModifiedDateTime = 4;
+
+ // type of the entry: FILE or ARCHIVE or DIRECTORY, may be missing
+ optional string fileSystemType = 5;   
+
+ // map of signature type to signature value for signatures generated for this node.
+ // Possible values for signature type: 
+ // MATCH_SHA1, MATCH_CLEAN_SHA1, DEEP_WITH_SIZE, DEEP_NO_SIZE, STRUCTURE_ONLY, SHALLOW_WITH_SIZE, SHALLOW_NO_SIZE
+ map<string, string> signatures = 6; 
+}
+
+
