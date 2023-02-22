@@ -54,23 +54,6 @@ public class ProtobufBdioWriterReaderTest {
     public static final String HEADER_ID = UUID.randomUUID().toString();
 
     @Test
-    public void test() throws Exception {
-        // String filePath = "/Users/sharapov/Issues/temp/protobuf/bdba/bash.protobuf.bdio";
-        String filePath = "/Users/sharapov/Issues/temp/protobuf/bdba/postgres-15.2.container.pb.bdio";
-
-        ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(filePath));
-        zipInputStream.getNextEntry();
-
-        BdioHeader header = ProtobufBdioReader.readHeaderChunk(zipInputStream, true);
-
-        zipInputStream.getNextEntry();
-
-        BdioChunk chunk = ProtobufBdioReader.readBdioChunk(zipInputStream, true);
-
-        System.out.println(chunk.toString());
-    }
-
-    @Test
     public void testReadHeader() throws Exception {
         String filePath = "src/test/resources/scan_data/binaryData.zip";
 
