@@ -51,7 +51,6 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
@@ -490,14 +489,14 @@ class LegacyBdio1xEmitter extends LegacyJsonParserEmitter {
     private int fillGraphNodes(Bdio1JsonParser jp, List<Map<String, Object>> graph, int size) throws IOException {
         AtomicInteger estimatedSize = new AtomicInteger(size);
         Consumer<Map<String, Object>> addToGraph = node -> {
-            if (estimatedSize.addAndGet(LegacyUtilities.estimateSize(node)) < Bdio.MAX_ENTRY_SIZE) {
+            if (estimatedSize.addAndGet(LegacyUtilities.estimateSize(node)) < Bdio.MAX_ENTRY_READ_SIZE) {
                 graph.add(node);
             } else {
                 computedNodes.addFirst(node);
             }
         };
 
-        while (estimatedSize.get() < Bdio.MAX_ENTRY_SIZE) {
+        while (estimatedSize.get() < Bdio.MAX_ENTRY_READ_SIZE) {
             // Look for something we already computed
             Map<String, Object> computedNode = computedNodes.pollFirst();
             if (computedNode != null) {
