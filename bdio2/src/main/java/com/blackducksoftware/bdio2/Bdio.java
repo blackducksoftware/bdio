@@ -1131,9 +1131,14 @@ public class Bdio {
     }
 
     /**
-     * The maximum size in bytes for an expanded BDIO JSON-LD entry.
+     * The maximum size in bytes for an expanded BDIO JSON-LD entry written by the library.
      */
-    public static final int MAX_ENTRY_SIZE = 90 * 1024 * 1024;
+    public static final int MAX_ENTRY_WRITE_SIZE = 16 * 1024 * 1024;
+
+    /**
+     * The maximum size in bytes for an expanded BDIO JSON-LD entry read by the library.
+     */
+    public static final int MAX_ENTRY_READ_SIZE = 90 * 1024 * 1024;
 
     /**
      * Returns an entry name to use for a file inside the BDIO Zip file. Each data entry consists of an equivalently

@@ -248,7 +248,7 @@ class LegacyStreamingScanContainerEmitter extends LegacyJsonParserEmitter {
 
         // Add the node if it fits
         int nodeSize = estimateSize(node);
-        if (estimatedSize + nodeSize < Bdio.MAX_ENTRY_SIZE) {
+        if (estimatedSize + nodeSize < Bdio.MAX_ENTRY_WRITE_SIZE) {
             estimatedSize += nodeSize;
             return graph.add(node);
         } else {

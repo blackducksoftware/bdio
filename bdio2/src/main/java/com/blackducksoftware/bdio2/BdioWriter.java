@@ -221,7 +221,7 @@ public class BdioWriter implements Closeable {
             if (remaining.addAndGet(serializedNode.length * -1) > 0L) {
                 out.write(serializedNode);
             } else {
-                throw new EntrySizeViolationException(null, Math.abs(remaining.get()) + Bdio.MAX_ENTRY_SIZE);
+                throw new EntrySizeViolationException(null, Math.abs(remaining.get()) + Bdio.MAX_ENTRY_WRITE_SIZE);
             }
         }
     }
@@ -261,7 +261,7 @@ public class BdioWriter implements Closeable {
         out = entryStreams.newStream();
         out.write(header);
         needsFooter.set(true);
-        remaining.set(Bdio.MAX_ENTRY_SIZE - header.length - footer.length);
+        remaining.set(Bdio.MAX_ENTRY_WRITE_SIZE - header.length - footer.length);
     }
 
     /**

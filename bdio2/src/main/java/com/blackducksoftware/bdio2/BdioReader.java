@@ -44,7 +44,7 @@ public class BdioReader implements Closeable {
         /**
          * Enforce the 16MB limit on JSON entries.
          */
-        private int remaining = Bdio.MAX_ENTRY_SIZE;
+        private int remaining = Bdio.MAX_ENTRY_READ_SIZE;
 
         /**
          * The entry name that is being read or {@code null} if a raw JSON file is being read.
@@ -54,8 +54,11 @@ public class BdioReader implements Closeable {
 
         /**
          * The estimated total size (in bytes) of the entry or -1 if it is unknown. In theory, this value should always
-         * be less then {@value Bdio#MAX_ENTRY_SIZE}, however it is possible that the Zip file misrepresents the
+         * be less then {@value Bdio#MAX_ENTRY_READ_SIZE}, however it is possible that the Zip file misrepresents the
          * actual size of the entry.
+         * <p/>
+         * Additionally, if the chunk is written by a third party library, it may exceed the max
+         * read size value of {@value Bdio#MAX_ENTRY_READ_SIZE}
          */
         private final long estimatedSize;
 

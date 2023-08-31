@@ -114,7 +114,7 @@ public class LegacyUtilities {
      * Provides an estimate for the number of nodes that will fit in an entry.
      */
     public static int averageEntryNodeCount() {
-        return Bdio.MAX_ENTRY_SIZE / ESTIMATED_NODE_SIZE;
+        return Bdio.MAX_ENTRY_WRITE_SIZE / ESTIMATED_NODE_SIZE;
     }
 
     /**
@@ -122,8 +122,8 @@ public class LegacyUtilities {
      * the BDIO entry size limits.
      */
     public static Stream<List<Map<String, Object>>> partitionNodes(BdioMetadata metadata, Stream<Map<String, Object>> nodes) {
-        int maxSize = Bdio.MAX_ENTRY_SIZE - estimateEntryOverhead(metadata);
-        int averageSize = Bdio.MAX_ENTRY_SIZE / ESTIMATED_NODE_SIZE;
+        int maxSize = Bdio.MAX_ENTRY_WRITE_SIZE - estimateEntryOverhead(metadata);
+        int averageSize = Bdio.MAX_ENTRY_WRITE_SIZE / ESTIMATED_NODE_SIZE;
         return StreamSupport.stream(partition(nodes.spliterator(), averageSize, maxSize, LegacyUtilities::estimateSize), false);
     }
 
