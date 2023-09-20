@@ -18,15 +18,24 @@ package com.blackducksoftware.bdio2.rxjava;
 import static com.blackducksoftware.common.test.JsonSubject.assertThatJson;
 import static com.google.common.truth.Truth.assertThat;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import org.junit.Assert;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.BdioWriter;
+import com.blackducksoftware.bdio2.EntrySizeViolationException;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.test.BdioTest;
 import com.blackducksoftware.common.io.HeapOutputStream;
@@ -34,6 +43,7 @@ import com.blackducksoftware.common.value.ProductList;
 import com.google.common.collect.MoreCollectors;
 
 import io.reactivex.Flowable;
+import io.reactivex.exceptions.CompositeException;
 
 /**
  * Tests verifying we can generate BDIO documents from model objects.
@@ -41,6 +51,8 @@ import io.reactivex.Flowable;
  * @author jgustie
  */
 public class BdioDocumentFromModelTest {
+
+    private final Logger logger = LoggerFactory.getLogger(BdioDocumentFromModelTest.class);
 
     @Test
     public void singleNode() {
@@ -219,6 +231,52 @@ public class BdioDocumentFromModelTest {
          String actualCorrelationId = (String) context.getFieldValue(Bdio.DataProperty.correlationId, actualMetadata).collect(MoreCollectors.toOptional()).get();
        
          assertThat(actualCorrelationId).isEqualTo(expectedCorrelationId);
+    }
+
+    /**
+     * Given a bdio file with metadata longer the maximum allowed value,
+     * When doc.metadata(doc.read...) is called for the file,
+     * then it should bubble up the maximum size exception
+     */
+    @Test
+    public void testThrowsExceptionWhenMetadataUnreadable() {
+        String expectedCorrelationId = UUID.randomUUID().toString();
+
+        BdioMetadata metadata = BdioMetadata.createRandomUUID();
+        metadata.correlationId(expectedCorrelationId);
+
+        StringBuilder temp = new StringBuilder();
+        for (int i = 0; i <= Bdio.MAX_ENTRY_READ_SIZE; i++) {
+            temp.append("a");
+        }
+        // set the metadata creator to a string longer than the max size to throw an error
+        metadata.creator(temp.toString());
+
+        HeapOutputStream out = new HeapOutputStream();
+
+        RxJavaBdioDocument doc = new RxJavaBdioDocument(new BdioContext.Builder().build());
+
+        BdioWriter.BdioFile file = new BdioWriter.BdioFile(out);
+
+        // write bdio document (including metadata) to in memory output stream
+        Flowable.just(new File("http://example.com/files/1"))
+                .buffer(1)
+                .subscribe(doc.write(metadata, file));
+
+        try {
+            // read bdio document and extract metadata fields
+            BdioContext context = new BdioContext.Builder().expandContext(Bdio.Context.DEFAULT).build();
+            BdioMetadata actualMetadata = doc.metadata(doc.read(out.getInputStream())).singleOrError().blockingGet();
+            context.getFieldValue(Bdio.DataProperty.correlationId, actualMetadata)
+                    .collect(MoreCollectors.toOptional()).get();
+        } catch (CompositeException e) {
+            Assert.assertTrue(e.getExceptions().stream().map(Throwable::getClass).collect(Collectors.toSet())
+                    .contains(EntrySizeViolationException.class));
+            return;
+        } catch (Exception e) {
+            Assert.fail("The above read should've thrown a CompositeException with an EntrySizeViolationException, failing test.");
+        }
+        Assert.fail("The above read should've thrown an exception, failing test.");
     }
 
     @Test

@@ -75,7 +75,9 @@ public class RxJavaBdioDocument extends BdioDocument {
     public Flowable<BdioMetadata> metadata(Publisher<Object> inputs) {
         return jsonLd(Flowable.fromPublisher(inputs).map(BdioDocument::toMetadata))
                 .expand().flatMapIterable(BdioDocument::unfoldExpand)
-                .onErrorReturn(BdioMetadata::new)
+                .onErrorReturn((throwable) -> {
+                    throw new RuntimeException("Parsing failed with error", throwable);
+                })
                 .reduce(new BdioMetadata(), BdioMetadata::merge)
                 .toFlowable();
     }
