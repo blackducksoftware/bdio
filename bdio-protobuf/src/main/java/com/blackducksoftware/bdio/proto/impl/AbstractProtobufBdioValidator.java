@@ -53,7 +53,7 @@ public abstract class AbstractProtobufBdioValidator implements IProtobufBdioVali
     }
 
     protected void validate(ProtoFileNode node) {
-        requireNonBlank(FILE_NODE_CLASS, "name", node.getName());
+        requireNonEmpty(FILE_NODE_CLASS, "name", node.getName());
         requireNonBlank(FILE_NODE_CLASS, "path", node.getPath());
         requireNonBlank(FILE_NODE_CLASS, "uri", node.getUri());
         requireNonBlank(FILE_NODE_CLASS, "fileSystemType", node.getFileSystemType());
@@ -93,6 +93,12 @@ public abstract class AbstractProtobufBdioValidator implements IProtobufBdioVali
     private void requireNonNull(String className, String fieldName, Object value) {
         if (value == null) {
             throw new BdioValidationException("The field " + className + "." + fieldName + " must be non null: " + value);
+        }
+    }
+    
+    private void requireNonEmpty(String className, String fieldName, String value) {
+        if (StringUtils.isEmpty(value)) {
+            throw new BdioValidationException("The field " + className + "." + fieldName + " must not be empty: " + value);
         }
     }
 
