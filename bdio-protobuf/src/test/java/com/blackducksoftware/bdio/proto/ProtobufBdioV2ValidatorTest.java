@@ -88,6 +88,23 @@ public class ProtobufBdioV2ValidatorTest {
 
         validator.validate(fileNode);
     }
+    
+    // tests that file name can be /r or /n or other non empty string that is considered to be blank - HUB-40316
+    @Test 
+    public void testValidateFileNode7() {
+    	ProtoFileNode fileNode = ProtoFileNode.newBuilder()
+                .setId(1L)
+                .setParentId(2L)
+                .setName(System.lineSeparator())
+                .setPath("path")
+                .setUri("uri")
+                .setFileSystemType("FILE")
+                .setSize(2L)
+                .build();
+
+    	validator.validate(fileNode);
+
+    }
 
     @Test
     public void testValidateComponentNode1() {
