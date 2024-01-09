@@ -24,6 +24,7 @@ enum ScanType {
   SIGNATURE = 1;
   BINARY = 2;
   CONTAINER = 3;
+  RL = 4;
 }
 
 /**
