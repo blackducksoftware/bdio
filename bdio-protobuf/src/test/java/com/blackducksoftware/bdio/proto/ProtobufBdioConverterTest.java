@@ -296,7 +296,7 @@ public class ProtobufBdioConverterTest {
         Instant instant = Instant.now();
         Timestamp timestamp = Timestamp.newBuilder().setSeconds(instant.getEpochSecond()).setNanos(instant.getNano()).build();
         BdioContainerNode bdioNode = new BdioContainerNode(ID, "imageId", "linux/arm64", ImmutableList.of("repoTag1"), "linux",
-                instant, "config", ImmutableList.of("layerId1", "layerId2"));
+                instant, "config", ImmutableList.of("layerId1", "layerId2"), ImmutableList.of("foo/bar/image.tar"));
 
         ProtoContainerNode protoNode = ProtobufBdioConverter.toProtoContainerNode(bdioNode);
         assertThat(protoNode.getId()).isEqualTo(ID);
@@ -307,13 +307,14 @@ public class ProtobufBdioConverterTest {
         assertThat(protoNode.getCreatedAt()).isEqualTo(timestamp);
         assertThat(protoNode.getConfig()).isEqualTo("config");
         assertThat(protoNode.getLayersList()).isEqualTo(ImmutableList.of("layerId1", "layerId2"));
+        assertThat(protoNode.getImagePathsList()).isEqualTo(ImmutableList.of("foo/bar/image.tar"));
     }
 
     @Test
     // Test when optional fields are missing
     public void testConvertToProtoContainerNode2() {
         BdioContainerNode bdioNode = new BdioContainerNode(ID, "imageId", "linux/arm64", ImmutableList.of(), "linux",
-                null, "config", ImmutableList.of("layerId1", "layerId2"));
+                null, "config", ImmutableList.of("layerId1", "layerId2"), ImmutableList.of());
 
         ProtoContainerNode protoNode = ProtobufBdioConverter.toProtoContainerNode(bdioNode);
         assertThat(protoNode.getId()).isEqualTo(ID);
@@ -323,6 +324,7 @@ public class ProtobufBdioConverterTest {
         assertThat(protoNode.getOs()).isEqualTo("linux");
         assertThat(protoNode.getConfig()).isEqualTo("config");
         assertThat(protoNode.getLayersList()).isEqualTo(ImmutableList.of("layerId1", "layerId2"));
+        assertThat(protoNode.getImagePathsList()).isEqualTo(ImmutableList.of());
     }
 
     @Test

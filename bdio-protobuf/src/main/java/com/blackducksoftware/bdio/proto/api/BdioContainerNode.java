@@ -12,6 +12,7 @@
 package com.blackducksoftware.bdio.proto.api;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -41,8 +42,10 @@ public class BdioContainerNode implements IBdioNode {
 
     private List<String> layers;
 
+    private List<String> imagePaths;
+
     public BdioContainerNode(String id, String image, String architecture, List<String> repoTags, String os,
-            Instant createdAt, String config, List<String> layers) {
+            Instant createdAt, String config, List<String> layers, List<String> imagePaths) {
         this.id = id;
         this.image = image;
         this.architecture = architecture;
@@ -51,6 +54,7 @@ public class BdioContainerNode implements IBdioNode {
         this.createdAt = createdAt;
         this.config = config;
         this.layers = ImmutableList.copyOf(layers);
+        this.imagePaths = imagePaths == null ? Collections.emptyList() : ImmutableList.copyOf(imagePaths);
     }
 
     public String getId() {
@@ -85,10 +89,14 @@ public class BdioContainerNode implements IBdioNode {
         return layers;
     }
 
+    public List<String> getImagePaths() {
+        return imagePaths;
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(getId(), getImage(), getArchitecture(), getRepoTags(), getOs(), getCreatedAt(),
-                getConfig(), getLayers());
+                getConfig(), getLayers(), getImagePaths());
     }
 
     @Override
@@ -104,7 +112,8 @@ public class BdioContainerNode implements IBdioNode {
                     && Objects.equals(getOs(), containerImageNode.getOs())
                     && Objects.equals(getCreatedAt(), containerImageNode.getCreatedAt())
                     && Objects.equals(getConfig(), containerImageNode.getConfig())
-                    && Objects.equals(getLayers(), containerImageNode.getLayers());
+                    && Objects.equals(getLayers(), containerImageNode.getLayers())
+                    && Objects.equals(getImagePaths(), containerImageNode.getImagePaths());
         }
 
         return false;
