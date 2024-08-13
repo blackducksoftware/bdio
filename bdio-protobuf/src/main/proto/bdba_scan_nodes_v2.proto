@@ -89,7 +89,7 @@ message ProtoContainerNode {
   // list of real layer ids present in the given container, always has at least one value
   repeated string layers = 8;
 
-  // list of container paths, may be empty
+  // list of file node references, may be empty. Each referenced file node is image tar file for this container node.
   repeated string image_paths = 9;
 }
 
