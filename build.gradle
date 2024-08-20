@@ -23,6 +23,9 @@ allprojects {
 		maven {
 			url 'https://jitpack.io'
 		}
+		maven {
+			url 'https://artifactory.internal.synopsys.com/artifactory/jcenter-cache'
+		}
 	}
 
 	dependencyRecommendations {
