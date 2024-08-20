@@ -192,6 +192,7 @@ public class ProtobufBdioConverter {
         callIfParamNonNull(builder::setCreatedAt, toTimestamp(bdioContainerNode.getCreatedAt().orElse(null)));
         callIfParamNonNull(builder::setConfig, bdioContainerNode.getConfig());
         bdioContainerNode.getLayers().stream().forEach(builder::addLayers);
+        bdioContainerNode.getImagePaths().stream().filter(ip -> ip != null).forEach(builder::addImagePaths);
 
         return builder.build();
     }
@@ -310,7 +311,8 @@ public class ProtobufBdioConverter {
                 protoContainerNode.getOs(),
                 protoContainerNode.hasCreatedAt() ? toInstant(protoContainerNode.getCreatedAt()) : null,
                 protoContainerNode.getConfig(),
-                protoContainerNode.getLayersList());
+                protoContainerNode.getLayersList(),
+                protoContainerNode.getImagePathsList());
     }
 
     public static BdioContainerLayerNode toBdioContainerLayerNode(ProtoContainerLayerNode protoContainerLayerNode) {

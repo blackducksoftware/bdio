@@ -135,6 +135,7 @@ public class ProtobufBdioWriterReaderTest {
         }
 
         List<String> repoTags = ImmutableList.of("repoTag1", "repoTag2", "repoTag3");
+        List<String> imagePaths = ImmutableList.of("foo/bar/image.tar");
         BdioContainerNode bdioContainerNode = new BdioContainerNode(UUID.randomUUID().toString(),
                 RandomStringUtils.randomAlphabetic(50),
                 RandomStringUtils.randomAlphabetic(20),
@@ -142,7 +143,8 @@ public class ProtobufBdioWriterReaderTest {
                 RandomStringUtils.randomAlphabetic(20),
                 Instant.now(),
                 RandomStringUtils.randomAlphabetic(100),
-                layerIds);
+                layerIds,
+                imagePaths);
 
         return new ContainerAndLayersData(bdioContainerNode, containerLayers);
     }
