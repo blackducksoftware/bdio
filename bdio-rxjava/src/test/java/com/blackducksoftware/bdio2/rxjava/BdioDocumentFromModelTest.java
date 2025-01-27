@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.exc.StreamConstraintsException;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -35,7 +36,6 @@ import com.blackducksoftware.bdio2.Bdio;
 import com.blackducksoftware.bdio2.BdioContext;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.BdioWriter;
-import com.blackducksoftware.bdio2.EntrySizeViolationException;
 import com.blackducksoftware.bdio2.model.File;
 import com.blackducksoftware.bdio2.test.BdioTest;
 import com.blackducksoftware.common.io.HeapOutputStream;
@@ -271,7 +271,7 @@ public class BdioDocumentFromModelTest {
                     .collect(MoreCollectors.toOptional()).get();
         } catch (CompositeException e) {
             Assert.assertTrue(e.getExceptions().stream().map(Throwable::getClass).collect(Collectors.toSet())
-                    .contains(EntrySizeViolationException.class));
+                    .contains(StreamConstraintsException.class));
             return;
         } catch (Exception e) {
             Assert.fail("The above read should've thrown a CompositeException with an EntrySizeViolationException, failing test.");
