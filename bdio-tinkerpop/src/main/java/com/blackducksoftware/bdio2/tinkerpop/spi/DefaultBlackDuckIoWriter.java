@@ -29,7 +29,7 @@ import com.blackducksoftware.bdio2.BdioFrame;
 import com.blackducksoftware.bdio2.BdioMetadata;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoOptions;
 
-import io.reactivex.Flowable;
+import io.reactivex.rxjava3.core.Flowable;
 
 final class DefaultBlackDuckIoWriter extends BlackDuckIoWriterSpi {
 

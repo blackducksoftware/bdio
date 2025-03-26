@@ -57,11 +57,11 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteSink;
 import com.google.common.io.ByteSource;
 
-import io.reactivex.Flowable;
-import io.reactivex.FlowableTransformer;
-import io.reactivex.Single;
-import io.reactivex.SingleTransformer;
-import io.reactivex.plugins.RxJavaPlugins;
+import io.reactivex.rxjava3.core.Flowable;
+import io.reactivex.rxjava3.core.FlowableTransformer;
+import io.reactivex.rxjava3.core.Single;
+import io.reactivex.rxjava3.core.SingleTransformer;
+import io.reactivex.rxjava3.plugins.RxJavaPlugins;
 
 /**
  * Tool for filtering BDIO contents.
@@ -141,7 +141,7 @@ public class FilterTool extends Tool {
             } else if (count < 0L) {
                 return upstream.skip(start);
             } else {
-                return upstream.skip(start).limit(count);
+                return upstream.skip(start).take(count);
             }
         }
     }
@@ -413,7 +413,7 @@ public class FilterTool extends Tool {
 
         BdioMetadata metadata;
         try (InputStream in = input.openStream()) {
-            metadata = doc.metadata(doc.read(in).takeUntil((io.reactivex.functions.Predicate<Object>) doc::needsMoreMetadata))
+            metadata = doc.metadata(doc.read(in).takeUntil((io.reactivex.rxjava3.functions.Predicate<Object>) doc::needsMoreMetadata))
                     .singleOrError()
                     .compose(metadataFilter)
                     .blockingGet();

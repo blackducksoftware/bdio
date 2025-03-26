@@ -24,7 +24,7 @@ allprojects {
 			url 'https://jitpack.io'
 		}
 		maven {
-			url 'https://artifactory.internal.synopsys.com/artifactory/jcenter-cache'
+			url 'https://artifactory.tools.duckutil.net/artifactory/jcenter-cache'
 		}
 	}
 

@@ -36,8 +36,8 @@ import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.io.ByteSink;
 import com.google.common.io.ByteSource;
 
-import io.reactivex.Flowable;
-import io.reactivex.functions.Predicate;
+import io.reactivex.rxjava3.core.Flowable;
+import io.reactivex.rxjava3.functions.Predicate;
 
 /**
  * Concatenate BDIO files.

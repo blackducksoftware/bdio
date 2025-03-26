@@ -42,8 +42,8 @@ import com.blackducksoftware.common.io.HeapOutputStream;
 import com.blackducksoftware.common.value.ProductList;
 import com.google.common.collect.MoreCollectors;
 
-import io.reactivex.Flowable;
-import io.reactivex.exceptions.CompositeException;
+import io.reactivex.rxjava3.core.Flowable;
+import io.reactivex.rxjava3.exceptions.CompositeException;
 
 /**
  * Tests verifying we can generate BDIO documents from model objects.

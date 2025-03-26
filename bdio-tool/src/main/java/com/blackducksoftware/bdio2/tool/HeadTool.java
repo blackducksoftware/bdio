@@ -51,7 +51,7 @@ import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.io.ByteSource;
 import com.google.common.io.CharStreams;
 
-import io.reactivex.Flowable;
+import io.reactivex.rxjava3.core.Flowable;
 
 /**
  * Print metadata for BDIO files.
