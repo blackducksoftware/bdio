@@ -40,7 +40,7 @@ import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.blackducksoftware.bdio2.tinkerpop.spi.BlackDuckIoSpi;
 import com.blackducksoftware.bdio2.tinkerpop.spi.BlackDuckIoWriterSpi;
 
-import io.reactivex.Flowable;
+import io.reactivex.rxjava3.core.Flowable;
 
 /**
  * A {@link GraphWriter} implementation that writes a graph and it's elements to a BDIO representation.

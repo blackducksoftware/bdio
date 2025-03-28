@@ -44,8 +44,8 @@ import com.blackducksoftware.bdio2.NodeDoesNotExistException;
 import com.blackducksoftware.bdio2.tinkerpop.BlackDuckIoOptions;
 import com.blackducksoftware.bdio2.tinkerpop.spi.BlackDuckIoReaderSpi;
 
-import io.reactivex.Completable;
-import io.reactivex.Flowable;
+import io.reactivex.rxjava3.core.Completable;
+import io.reactivex.rxjava3.core.Flowable;
 
 /**
  * BDIO reader implementation optimized for the TinkerGraph.

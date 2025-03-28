@@ -46,8 +46,8 @@ import com.blackducksoftware.bdio2.rxjava.RxJavaBdioDocument;
 import com.blackducksoftware.bdio2.tinkerpop.spi.BlackDuckIoReaderSpi;
 import com.blackducksoftware.bdio2.tinkerpop.spi.BlackDuckIoSpi;
 
-import io.reactivex.Flowable;
-import io.reactivex.plugins.RxJavaPlugins;
+import io.reactivex.rxjava3.core.Flowable;
+import io.reactivex.rxjava3.plugins.RxJavaPlugins;
 
 /**
  * A {@link GraphReader} that constructs a graph from a BDIO representation.

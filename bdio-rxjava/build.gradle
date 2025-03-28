@@ -6,7 +6,7 @@ dependencies {
 	compile 'com.github.jsonld-java:jsonld-java'
 	compile 'com.google.code.findbugs:jsr305'
 	compile 'com.google.guava:guava'
-	compile 'io.reactivex.rxjava2:rxjava'
+	compile 'io.reactivex.rxjava3:rxjava'
 	compile 'org.reactivestreams:reactive-streams'
 
 	testCompile project(':bdio-test')

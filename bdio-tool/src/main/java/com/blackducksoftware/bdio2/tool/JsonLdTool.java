@@ -39,7 +39,7 @@ import com.github.jsonldjava.utils.JsonUtils;
 import com.google.common.io.ByteSink;
 import com.google.common.io.ByteSource;
 
-import io.reactivex.Flowable;
+import io.reactivex.rxjava3.core.Flowable;
 
 /**
  * Perform JSON-LD operations.

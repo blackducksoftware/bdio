@@ -82,7 +82,7 @@ import com.google.common.collect.Multiset;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.PrimitiveSink;
 
-import io.reactivex.Flowable;
+import io.reactivex.rxjava3.core.Flowable;
 
 final class SqlgBlackDuckIoReader extends BlackDuckIoReaderSpi {
 

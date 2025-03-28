@@ -48,7 +48,7 @@ import com.github.jsonldjava.core.JsonLdConsts;
 import com.google.common.base.Joiner;
 import com.google.common.hash.Hashing;
 
-import io.reactivex.Flowable;
+import io.reactivex.rxjava3.core.Flowable;
 
 final class DefaultBlackDuckIoReader extends BlackDuckIoReaderSpi {
 
