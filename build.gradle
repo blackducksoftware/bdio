@@ -16,9 +16,9 @@ allprojects {
 	apply plugin: 'com.jfrog.artifactory'	
 
 	repositories {
-		jcenter()
+		// jcenter()
 		maven {
-			url 'https://oss.jfrog.org/artifactory/oss-snapshot-local/'
+			url 'https://repo1.maven.org/maven2/'
 		}
 		maven {
 			url 'https://jitpack.io'
