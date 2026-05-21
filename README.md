@@ -39,6 +39,16 @@ $ docker build -t blackducksoftware/bdio-tinkerpop-db bdio-tinkerpop-db/
 $ docker run -d -e POSTGRES_HOST_AUTH_METHOD=trust -p 5432:5432 blackducksoftware/bdio-tinkerpop-db
 $ ./gradlew build
 ````
+## Release:
+__As of 09-28-23:__
+To release a version of bdio to artifactory for use by downstream dependencies:
+1. Remove the `-SNAPSHOT` from `gradle.properties` and push the changes to `master`
+2. Navigate to [the CI build](https://build-bd.internal.synopsys.com/job/Common%20Components/job/BDIO/job/CI/) and run the pipeline once the changes are pushed
+3. Once the CI build completes, navigate to the [nightly RC](https://build-bd.internal.synopsys.com/job/Common%20Components/job/BDIO/job/Nightly%20RC/) and run the pipeline
+4. After some time, look at the console output for the latest run and you should see a couple of links in the logs that say `Proceed` or `Abort`
+5. Press `Proceed` to deploy the release to artificatory and it's ready for consumption by downstream dependencies. Note that it will automatically abort if you don't press `Proceed` within a couple minutes of the prompt appearing in the output.
+
+
 
 ## License
 
